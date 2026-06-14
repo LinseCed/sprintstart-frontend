@@ -1,56 +1,62 @@
-import {Bot, Plus, Send, Sparkles, User} from "lucide-react";
+import {Bot, MessageSquareText, Plus, Send, Sparkles, User, X} from "lucide-react";
 import { useChat } from "../hooks/useChat.ts"
-import {NavLink} from "react-router-dom";
 import ReactMarkdown from "react-markdown"
+import {ChatSidebar} from "../components/chat/ChatSidebar.tsx";
 
 export function ChatPage() {
 
-    const {messages, chatId, chats, handleSubmit, isThinking, newRequest, setNewRequest, selectedCitation, setSelectedCitation} = useChat();
+    const {messages, chatId, chats, handleSubmit, isThinking, newRequest, setNewRequest, selectedCitation, setSelectedCitation, sidebarOpen, setSidebarOpen} = useChat();
 
     return (
         <div className="h-screen flex overflow-hidden bg-gray-900">
 
             { chats.length !== 0 && (
-                <aside className="w-64 bg-gray-950 border-r border-gray-800 flex flex-col shrink-0">
-                    <div className="flex flex-col gap-4 p-4 overflow-y-auto">
-
-                        <NavLink
-                            to="/chat"
-                            className="bg-blue-600 rounded-lg hover:bg-blue-700 flex justify-center gap-2 items-center text-sm font-semibold p-2.5 text-white transition shadow-sm"
-                        >
-                            <Plus size={18} />
-                            New Chat
-                        </NavLink>
-
-                        <div className="flex flex-col gap-1">
-                            <p className="text-gray-400 px-2 py-1 text-xs font-bold uppercase tracking-wider">
-                                Recent Chats
-                            </p>
-
-                            {chats.map((chat) => (
-                                <NavLink
-                                    key={chat.id}
-                                    to={`/chat/${chat.id}`}
-                                    className={({ isActive }) => `
-                                        group flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors
-                                        ${isActive ? "bg-gray-800 text-white" : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"}
-                                    `}
-                                >
-                                    {chat.title ?
-                                        <div className="truncate flex-1">
-                                            {chat.title}
-                                        </div> :
-                                        <div className="truncate flex-1 italic">
-                                            waiting for title...
-                                        </div>
-                                    }
-
-                                </NavLink>
-                            ))}
-                        </div>
-                    </div>
+                <aside className="w-64 bg-gray-950 border-r border-gray-800 md:flex flex-col shrink-0 hidden">
+                    <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen}></ChatSidebar>
                 </aside>
             )}
+
+            <aside
+                className={`
+                    fixed top-0 left-0 h-full w-64 bg-gray-950
+                    border-r border-gray-800 z-50
+                    transform transition-transform duration-300
+                    md:hidden
+                    ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+                `}
+            >
+                <div className="p-4 flex justify-between items-center">
+                    <h2 className="font-bold">Chats</h2>
+
+                    <button onClick={() => setSidebarOpen(false)}>
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen}></ChatSidebar>
+            </aside>
+
+            <button
+                className="
+                    fixed
+                    top-4
+                    right-4
+                    z-50
+                    md:hidden
+                    p-3
+                    text-white
+                    rounded-full
+                    bg-gray-900
+                    border
+                    border-gray-700
+                    shadow-lg
+                    mt-15
+                    hover:cursor-pointer
+                "
+                onClick={sidebarOpen ? () => setSidebarOpen(false) : () => setSidebarOpen(true) }
+            >
+                <MessageSquareText size={24} />
+            </button>
 
             <div className="flex flex-col flex-1 min-w-0">
                 <header className="h-16 border-b border-gray-800 flex items-center px-6 shrink-0 bg-gray-900/50 backdrop-blur-md">

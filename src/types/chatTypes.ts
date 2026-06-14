@@ -11,10 +11,15 @@ export type ChatMessage = {
     chat: Chat | undefined,
     content: string;
     citations?: Citation[]
-}
+};
 
 export type Citation = {
     chunk_id: string,
     filename: string,
     section_path: string
-}
+};
+
+export type ChatSidebarProps = {
+    chats: Chat[]
+    setSidebarOpen: (open: boolean) => void;
+};

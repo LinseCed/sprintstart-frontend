@@ -20,6 +20,7 @@ export function useChat() {
     const [isThinking, setIsThinking] = useState(false);
     const [newRequest, setNewRequest] = useState("");
     const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
         void (async () => {
@@ -62,7 +63,7 @@ export function useChat() {
         if (!currentChatId) {
             const newChat = await createChat("00000000-0000-0000-0000-000000000001");
 
-            // setChats(prev => [newChat, ...prev]); // TODO: ask team what they prefer
+            setChats(prev => [newChat, ...prev]);
 
             currentChatId = newChat.id;
 
@@ -176,6 +177,9 @@ export function useChat() {
         activeChat,
 
         messages,
+
+        sidebarOpen,
+        setSidebarOpen,
 
         handleSubmit,
         addMessage,
