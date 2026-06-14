@@ -87,6 +87,15 @@ const SOURCE_META: Record<SourceSystem, SourceMeta> = {
 
 const INGESTION_RUN_LIMIT = 50;
 
+async function fetchIngestionData() {
+    const [statusData, runData] = await Promise.all([
+        getIngestionStatus(),
+        getIngestionRuns(INGESTION_RUN_LIMIT),
+    ]);
+
+    return { statusData, runData };
+}
+
 export function DataIngestionPage() {
     const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
     const [selectedSourceSystem, setSelectedSourceSystem] =
@@ -96,7 +105,7 @@ export function DataIngestionPage() {
         [],
     );
     const [runs, setRuns] = useState<IngestionRun[]>([]);
-    const [loadingState, setLoadingState] = useState<LoadingState>("idle");
+    const [loadingState, setLoadingState] = useState<LoadingState>("loading");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
@@ -119,10 +128,7 @@ export function DataIngestionPage() {
         setErrorMessage(null);
 
         try {
-            const [statusData, runData] = await Promise.all([
-                getIngestionStatus(),
-                getIngestionRuns(INGESTION_RUN_LIMIT),
-            ]);
+            const { statusData, runData } = await fetchIngestionData();
 
             setSourceStatuses(statusData);
             setRuns(runData);
@@ -138,8 +144,31 @@ export function DataIngestionPage() {
     }, []);
 
     useEffect(() => {
-        void loadData();
-    }, [loadData]);
+        let isMounted = true;
+
+        void fetchIngestionData()
+            .then(({ statusData, runData }) => {
+                if (!isMounted) return;
+
+                setSourceStatuses(statusData);
+                setRuns(runData);
+                setLoadingState("success");
+            })
+            .catch((error: unknown) => {
+                if (!isMounted) return;
+
+                setLoadingState("error");
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to load ingestion data",
+                );
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleOpenSourceModal = () => {
         setConnectState("idle");

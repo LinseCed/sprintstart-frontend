@@ -55,6 +55,25 @@ type SourceDetailsPanelProps = {
 
 const DETAILS_RUN_LIMIT = 10;
 
+async function fetchSourceDetails(sourceSystem: SourceSystem) {
+    const [statusData, runData] = await Promise.all([
+        getIngestionStatus(),
+        getIngestionRuns(DETAILS_RUN_LIMIT),
+    ]);
+
+    const currentSourceStatus =
+        statusData.find((status) => status.sourceSystem === sourceSystem) ?? null;
+
+    const currentSourceRuns = runData.filter(
+        (run) => run.sourceSystem === sourceSystem,
+    );
+
+    return {
+        sourceStatus: currentSourceStatus,
+        recentRuns: currentSourceRuns,
+    };
+}
+
 export function SourceDetailsPanel({
                                        source,
                                        onClose,
@@ -64,30 +83,22 @@ export function SourceDetailsPanel({
     const [sourceStatus, setSourceStatus] =
         useState<SourceIngestionStatus | null>(null);
     const [recentRuns, setRecentRuns] = useState<IngestionRun[]>([]);
+    const [loadedSourceSystem, setLoadedSourceSystem] =
+        useState<SourceSystem | null>(null);
 
     const loadSourceDetails = useCallback(async () => {
         setLoadingState("loading");
         setErrorMessage(null);
 
         try {
-            const [statusData, runData] = await Promise.all([
-                getIngestionStatus(),
-                getIngestionRuns(DETAILS_RUN_LIMIT),
-            ]);
+            const result = await fetchSourceDetails(source.sourceSystem);
 
-            const currentSourceStatus =
-                statusData.find(
-                    (status) => status.sourceSystem === source.sourceSystem,
-                ) ?? null;
-
-            const currentSourceRuns = runData.filter(
-                (run) => run.sourceSystem === source.sourceSystem,
-            );
-
-            setSourceStatus(currentSourceStatus);
-            setRecentRuns(currentSourceRuns);
+            setSourceStatus(result.sourceStatus);
+            setRecentRuns(result.recentRuns);
+            setLoadedSourceSystem(source.sourceSystem);
             setLoadingState("success");
         } catch (error) {
+            setLoadedSourceSystem(source.sourceSystem);
             setLoadingState("error");
             setErrorMessage(
                 error instanceof Error
@@ -98,36 +109,70 @@ export function SourceDetailsPanel({
     }, [source.sourceSystem]);
 
     useEffect(() => {
-        void loadSourceDetails();
-    }, [loadSourceDetails]);
+        let ignore = false;
+
+        void fetchSourceDetails(source.sourceSystem)
+            .then((result) => {
+                if (ignore) return;
+
+                setSourceStatus(result.sourceStatus);
+                setRecentRuns(result.recentRuns);
+                setLoadedSourceSystem(source.sourceSystem);
+                setErrorMessage(null);
+                setLoadingState("success");
+            })
+            .catch((error: unknown) => {
+                if (ignore) return;
+
+                setLoadedSourceSystem(source.sourceSystem);
+                setLoadingState("error");
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to load source details",
+                );
+            });
+
+        return () => {
+            ignore = true;
+        };
+    }, [source.sourceSystem]);
+
+    const hasLoadedSelectedSource = loadedSourceSystem === source.sourceSystem;
+
+    const visibleSourceStatus = hasLoadedSelectedSource ? sourceStatus : null;
+    const visibleRecentRuns = hasLoadedSelectedSource ? recentRuns : [];
+    const visibleErrorMessage = hasLoadedSelectedSource ? errorMessage : null;
+
+    const isLoading = loadingState === "loading" || !hasLoadedSelectedSource;
 
     const details = useMemo(() => {
         const ingestedCount =
-            sourceStatus?.ingestedCount ??
+            visibleSourceStatus?.ingestedCount ??
             source.latestIngestedCount ??
             source.artifacts;
 
         const updatedCount =
-            sourceStatus?.updatedCount ??
+            visibleSourceStatus?.updatedCount ??
             source.latestUpdatedCount ??
             0;
 
         const failedCount =
-            sourceStatus?.failedCount ??
+            visibleSourceStatus?.failedCount ??
             source.errors;
 
         const failedItems =
-            sourceStatus?.failedItems ??
+            visibleSourceStatus?.failedItems ??
             source.failedItems ??
             [];
 
         const lastSync =
-            sourceStatus?.lastRunTime !== undefined
-                ? formatDateTime(sourceStatus.lastRunTime)
+            visibleSourceStatus?.lastRunTime !== undefined
+                ? formatDateTime(visibleSourceStatus.lastRunTime)
                 : source.lastSync;
 
         const hasNeverSynced =
-            sourceStatus?.lastRunTime === null ||
+            visibleSourceStatus?.lastRunTime === null ||
             lastSync === "Never";
 
         const hasErrors = failedCount > 0;
@@ -146,9 +191,7 @@ export function SourceDetailsPanel({
             hasNeverSynced,
             hasErrors,
         };
-    }, [source, sourceStatus]);
-
-    const isLoading = loadingState === "loading";
+    }, [source, visibleSourceStatus]);
 
     return (
         <>
@@ -183,9 +226,9 @@ export function SourceDetailsPanel({
 
                 <div className="flex-1 overflow-y-auto px-6 py-6">
                     <div className="space-y-7">
-                        {errorMessage && (
+                        {visibleErrorMessage && (
                             <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
-                                {errorMessage}
+                                {visibleErrorMessage}
                             </div>
                         )}
 
@@ -207,7 +250,7 @@ export function SourceDetailsPanel({
 
                             <InfoCard
                                 label="Recent Runs"
-                                value={formatNumber(recentRuns.length)}
+                                value={formatNumber(visibleRecentRuns.length)}
                             />
 
                             <InfoCard
@@ -311,9 +354,9 @@ export function SourceDetailsPanel({
                                 Recent Runs
                             </SectionTitle>
 
-                            {recentRuns.length > 0 ? (
+                            {visibleRecentRuns.length > 0 ? (
                                 <div className="space-y-3">
-                                    {recentRuns.map((run) => (
+                                    {visibleRecentRuns.map((run) => (
                                         <RunCard key={run.runId} run={run} />
                                     ))}
                                 </div>
