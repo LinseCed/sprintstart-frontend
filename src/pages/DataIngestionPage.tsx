@@ -255,13 +255,19 @@ export function DataIngestionPage() {
                     isDetailsOpen ? "xl:pr-[440px]" : ""
                 }`}
             >
-                <header className="border-b border-app-border bg-app-surface">
+                <header className="border-b border-app-border bg-app-bg">
                     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h1 className="font-heading text-3xl font-bold text-app-text">
-                                    Data Ingestion
-                                </h1>
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-lg bg-app-brand-soft p-2">
+                                        <Database className="h-5 w-5 text-app-brand-text" />
+                                    </div>
+
+                                    <h1 className="font-heading text-2xl font-bold text-app-text">
+                                        Data Ingestion
+                                    </h1>
+                                </div>
 
                                 <p className="mt-2 text-sm text-app-text-muted">
                                     Manage connected sources, indexed artifacts and ingestion runs.

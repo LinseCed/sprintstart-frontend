@@ -162,10 +162,6 @@ export function SourceDetailsPanel({
             <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[440px] flex-col border-l border-app-border bg-app-surface shadow-2xl transition-transform sm:w-[440px]">
                 <div className="flex items-start justify-between gap-4 border-b border-app-border px-6 py-5">
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-app-brand">
-                            Selected Source
-                        </p>
-
                         <h2 className="mt-1 break-words text-xl font-bold text-app-text">
                             {source.name}
                         </h2>
@@ -201,10 +197,6 @@ export function SourceDetailsPanel({
                             ) : (
                                 <BadgeWarning>{details.statusLabel}</BadgeWarning>
                             )}
-
-                            <BadgeNeutral>
-                                {formatNumber(details.ingestedCount)} Ingested
-                            </BadgeNeutral>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -552,18 +544,6 @@ function BadgeWarning({
 }) {
     return (
         <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-            {children}
-        </span>
-    );
-}
-
-function BadgeNeutral({
-                          children,
-                      }: {
-    children: ReactNode;
-}) {
-    return (
-        <span className="rounded-full bg-app-surface-muted px-3 py-1 text-xs font-medium text-app-text-muted">
             {children}
         </span>
     );

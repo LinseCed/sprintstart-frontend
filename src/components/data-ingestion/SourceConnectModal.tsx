@@ -124,10 +124,6 @@ export function SourceConnectModal({
                                         <p className="mt-3 text-sm font-semibold text-app-text">
                                             {meta.type}
                                         </p>
-
-                                        <p className="mt-1 line-clamp-2 text-xs text-app-text-muted">
-                                            {meta.description}
-                                        </p>
                                     </button>
                                 );
                             })}
