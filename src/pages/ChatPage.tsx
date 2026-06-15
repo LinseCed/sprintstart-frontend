@@ -3,6 +3,9 @@ import { useChat } from "../hooks/useChat.ts"
 import ReactMarkdown from "react-markdown"
 import {ChatSidebar} from "../components/chat/ChatSidebar.tsx";
 
+/**
+ * Displays the interface for communication with the chat.
+ */
 export function ChatPage() {
 
     const {messages, chatId, chats, handleSubmit, isThinking, newRequest, setNewRequest, selectedCitation, setSelectedCitation, sidebarOpen, setSidebarOpen} = useChat();

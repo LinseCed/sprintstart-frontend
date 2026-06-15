@@ -2,6 +2,9 @@ import {NavLink} from "react-router-dom";
 import {Plus} from "lucide-react";
 import type {ChatSidebarProps} from "../../types/chatTypes";
 
+/**
+ * The sidebar displaying all chats created by the user.
+ */
 export function ChatSidebar( { chats, setSidebarOpen } : ChatSidebarProps) {
 
     return (

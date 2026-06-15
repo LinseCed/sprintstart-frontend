@@ -1,5 +1,10 @@
-import type {Chat, ChatMessage, Citation} from "../types/chatTypes.ts";
+import type {Chat, ChatMessage, StreamHandlers} from "../types/chatTypes.ts";
 
+/**
+ * Retrieves all created chats.
+ *
+ * @throws Error if the backend request fails
+ */
 export async function getChats() {
     const res = await fetch(`/api/v1/chats`, {
         method: "GET",
@@ -9,6 +14,11 @@ export async function getChats() {
     return res.json() as Promise<{ chats: Chat[] }>;
 }
 
+/**
+ * Creates a new chat for a specific user.
+ *
+ * @param userId The user starting the conversation.
+ */
 export async function createChat(userId: string) {
     const res = await fetch(`/api/v1/chats`, {
         method: "POST",
@@ -20,6 +30,11 @@ export async function createChat(userId: string) {
     return res.json() as Promise<Chat>;
 }
 
+/**
+ * Retrieves all messages from a specific chat.
+ *
+ * @param chatId The chat the messages belong to.
+ */
 export async function getMessages(chatId: string) {
     const res = await fetch(`/api/v1/chats/${chatId}`, {
         method: "GET",
@@ -28,13 +43,9 @@ export async function getMessages(chatId: string) {
     return res.json() as Promise<{ messages: ChatMessage[] }>
 }
 
-export type StreamHandlers = {
-    onToken: (token: string) => void;
-    onCitation: (citation: Citation) => void;
-    onDone: () => void;
-    onError?: (message: string) => void;
-};
-
+/**
+ * Generic stream event returned by the backend when sending a prompt.
+ */
 interface ChatEvent {
     type: "token" | "citation" | "done" | "error";
     content?: string;
@@ -44,6 +55,13 @@ interface ChatEvent {
     section_path?: string;
 }
 
+/**
+ * Creates a new prompt and handles the chat response.
+ *
+ * @param chatId The chat the prompt is created in
+ * @param text The content of the prompt
+ * @param handlers Helper operations handling the output of the chat response
+ */
 export async function streamMessage(
     chatId: string,
     text: string,
