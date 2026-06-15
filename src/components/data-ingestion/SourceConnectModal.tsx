@@ -21,11 +21,13 @@ type SourceConnectModalProps = {
     sourceMeta: Record<SourceSystem, SourceConnectMeta>;
     owner: string;
     repositoryName: string;
+    githubToken: string;
     connectState: ConnectState;
     errorMessage: string | null;
     onSourceSystemChange: (sourceSystem: SourceSystem) => void;
     onOwnerChange: (value: string) => void;
     onRepositoryNameChange: (value: string) => void;
+    onGithubTokenChange: (value: string) => void;
     onClose: () => void;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -36,11 +38,13 @@ export function SourceConnectModal({
                                        sourceMeta,
                                        owner,
                                        repositoryName,
+                                       githubToken,
                                        connectState,
                                        errorMessage,
                                        onSourceSystemChange,
                                        onOwnerChange,
                                        onRepositoryNameChange,
+                                       onGithubTokenChange,
                                        onClose,
                                        onSubmit,
                                    }: SourceConnectModalProps) {
@@ -199,6 +203,31 @@ export function SourceConnectModal({
                                     placeholder="sprintstart-backend"
                                     className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
                                 />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="github-token"
+                                    className="text-sm font-medium text-app-text"
+                                >
+                                    Personal Access Token (optional)
+                                </label>
+
+                                <input
+                                    id="github-token"
+                                    type="password"
+                                    value={githubToken}
+                                    onChange={(event) =>
+                                        onGithubTokenChange(event.target.value)
+                                    }
+                                    disabled={isLoading}
+                                    placeholder="ghp_xxxxxxxxxxxx"
+                                    className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
+                                />
+
+                                <p className="mt-2 text-xs text-app-text-muted">
+                                    Required for private repositories. You can create one in your GitHub settings.
+                                </p>
                             </div>
                         </>
                     )}

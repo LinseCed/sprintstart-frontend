@@ -114,6 +114,7 @@ export function DataIngestionPage() {
 
     const [githubOwner, setGithubOwner] = useState("");
     const [githubRepositoryName, setGithubRepositoryName] = useState("");
+    const [githubToken, setGithubToken] = useState("");
 
     const [connectState, setConnectState] = useState<ConnectState>("idle");
     const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(
@@ -212,6 +213,7 @@ export function DataIngestionPage() {
                 await connectGithubRepository({
                     owner: trimmedOwner,
                     name: trimmedRepositoryName,
+                    token: githubToken.trim() || undefined,
                 });
 
                 setConnectState("success");
@@ -463,6 +465,7 @@ export function DataIngestionPage() {
                     sourceMeta={SOURCE_META}
                     owner={githubOwner}
                     repositoryName={githubRepositoryName}
+                    githubToken={githubToken}
                     connectState={connectState}
                     errorMessage={connectErrorMessage}
                     onSourceSystemChange={(sourceSystem) => {
@@ -472,6 +475,7 @@ export function DataIngestionPage() {
                     }}
                     onOwnerChange={setGithubOwner}
                     onRepositoryNameChange={setGithubRepositoryName}
+                    onGithubTokenChange={setGithubToken}
                     onClose={handleCloseSourceModal}
                     onSubmit={(event) => {
                         void handleConnectSource(event);
