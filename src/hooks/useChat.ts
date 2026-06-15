@@ -48,7 +48,7 @@ export function useChat() {
                 [chatId]: data.messages
             }));
         })();
-    }, [chatId]);
+    }, [chatId, messagesByChat]);
 
     const messages = useMemo(() => {
         if (!chatId) return [];
@@ -169,7 +169,7 @@ export function useChat() {
             console.error(e);
             setIsThinking(false);
         }
-    }, [chatId, navigate]);
+    }, [chatId, navigate, chats]);
 
     /**
      * Adds the newly created messages to the chat.
