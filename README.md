@@ -19,6 +19,16 @@ This is Frontend Branch
    npm install
    ```
 
+### Environment Variables
+
+Create a `.env` file in the root of the `sprintstart-frontend` directory with the following configuration:
+
+```env
+VITE_KEYCLOAK_AUTHORITY=http://localhost:8081/realms/sprintstart
+VITE_KEYCLOAK_CLIENT_ID=sprintstart-frontend
+VITE_KEYCLOAK_REDIRECT_URI=http://localhost:5173
+```
+
 ### Development
 
 To start the local development server, run:
