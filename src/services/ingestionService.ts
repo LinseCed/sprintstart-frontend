@@ -33,6 +33,6 @@ export async function getIngestionStatus() {
             { sourceSystem: "GITHUB", ingestedCount: 0, updatedCount: 0, failedCount: 0, lastRunTime: null, failedItems: [] },
             { sourceSystem: "JIRA", ingestedCount: 0, updatedCount: 0, failedCount: 0, lastRunTime: null, failedItems: [] },
             { sourceSystem: "UPLOAD", ingestedCount: 0, updatedCount: 0, failedCount: 0, lastRunTime: null, failedItems: [] },
-        ];
+        ] as SourceIngestionStatus[];
     }
 }

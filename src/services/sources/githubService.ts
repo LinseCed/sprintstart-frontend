@@ -7,6 +7,27 @@ export type ConnectGithubRepositoryRequest = {
     token?: string;
 };
 
+interface GithubRepoData {
+    default_branch: string;
+}
+
+interface GithubTreeItem {
+    path: string;
+    mode: string;
+    type: string;
+    sha: string;
+    size?: number;
+    url: string;
+}
+
+interface GithubTreeData {
+    tree: GithubTreeItem[];
+}
+
+interface GithubBlobData {
+    content: string;
+}
+
 /**
  * Connects a GitHub repository to SprintStart by fetching its contents and
  * uploading them to the knowledge base.
@@ -38,7 +59,7 @@ export async function connectGithubRepository(
     if (!repoRes.ok) {
         throw new Error(`Failed to fetch repository info: ${repoRes.statusText}`);
     }
-    const repoData = await repoRes.json();
+    const repoData = await repoRes.json() as GithubRepoData;
     const defaultBranch = repoData.default_branch || "main";
 
     // 2. Get the recursive tree
@@ -49,11 +70,11 @@ export async function connectGithubRepository(
     if (!treeRes.ok) {
         throw new Error(`Failed to fetch repository tree: ${treeRes.statusText}`);
     }
-    const treeData = await treeRes.json();
+    const treeData = await treeRes.json() as GithubTreeData;
 
     // 3. Filter for relevant files (skip binaries, common ignore patterns)
     const ALLOWED_EXTENSIONS = [".md", ".txt", ".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".kt", ".c", ".cpp", ".h", ".go", ".rs", ".yaml", ".yml", ".json", ".sql"];
-    const filesToIngest = treeData.tree.filter((item: any) => {
+    const filesToIngest = treeData.tree.filter((item) => {
         if (item.type !== "blob") return false;
         const path = item.path.toLowerCase();
         
@@ -79,7 +100,7 @@ export async function connectGithubRepository(
             const contentRes = await fetch(item.url, { headers });
             if (!contentRes.ok) continue;
             
-            const contentData = await contentRes.json();
+            const contentData = await contentRes.json() as GithubBlobData;
             const base64 = contentData.content.replace(/\s/g, "");
             const binaryString = atob(base64);
             const bytes = new Uint8Array(binaryString.length);
@@ -89,7 +110,6 @@ export async function connectGithubRepository(
             const rawContent = new TextDecoder().decode(bytes);
             
             const blob = new Blob([rawContent], { type: "text/plain" });
-            const file = new File([blob], item.path.split("/").pop() || "github-file", { type: "text/plain" });
             
             // We use the full path as filename to preserve some context in the backend if possible
             // but the current knowledgeService uses file.name which might be just the basename.

@@ -4,8 +4,10 @@ import keycloak from '../config/keycloak';
  * Standard API response error class.
  */
 export class ApiError extends Error {
-    constructor(public status: number, message: string) {
+    public status: number;
+    constructor(status: number, message: string) {
         super(message);
+        this.status = status;
         this.name = 'ApiError';
     }
 }
@@ -31,7 +33,7 @@ export const apiClient = {
             }
         } catch (error) {
             console.error('Failed to refresh Keycloak token', error);
-            keycloak.login(); // Redirect to login if token refresh fails completely
+            void keycloak.login(); // Redirect to login if token refresh fails completely
         }
 
         const headers = new Headers(options.headers);
@@ -52,7 +54,7 @@ export const apiClient = {
 
         if (response.status === 401) {
             // Token likely expired or invalid, force re-auth
-            keycloak.login();
+            void keycloak.login();
             throw new ApiError(401, 'Unauthorized');
         }
 

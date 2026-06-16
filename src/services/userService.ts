@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { Role, WorkingArea, type UserProfile } from './types';
+import { Role, type UserProfile } from './types';
 
 /**
  * Service managing user authentication, profile retrieval, and updates.
@@ -10,7 +10,7 @@ export const userService = {
      * Legacy login method. In Keycloak mode, authentication is handled by the SSO flow.
      * This method is kept for type compatibility but should be bypassed by the AuthProvider.
      */
-    async login(_username: string, _firstname: string, _lastname: string): Promise<UserProfile> {
+    login(): Promise<UserProfile> {
         throw new Error('Direct login is disabled. Please use the SSO flow.');
     },
 

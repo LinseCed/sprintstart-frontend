@@ -1,47 +1,51 @@
-import { apiClient } from './apiClient';
-import keycloak from '../config/keycloak';
-import type {Chat, ChatMessage, Citation} from "../types/chatTypes.ts";
+import type {Chat, ChatMessage, StreamHandlers} from "../types/chatTypes.ts";
 
 /**
- * Fetches all available chat conversations for the current session.
+ * Retrieves all created chats.
+ *
+ * @throws Error if the backend request fails
  */
 export async function getChats() {
-    return await apiClient.fetch<{ chats: Chat[] }>(`/api/v1/chats`);
+    const res = await fetch(`/api/v1/chats`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error("Failed to load chats");
+    return res.json() as Promise<{ chats: Chat[] }>;
 }
 
 /**
- * Creates a new chat conversation for a specific user.
+ * Creates a new chat for a specific user.
+ *
+ * @param userId The user starting the conversation.
  */
 export async function createChat(userId: string) {
-    return await apiClient.fetch<Chat>(`/api/v1/chats`, {
+    const res = await fetch(`/api/v1/chats`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             userId
         })
     });
+    return res.json() as Promise<Chat>;
 }
 
 /**
- * Retrieves all messages for a specific chat conversation.
+ * Retrieves all messages from a specific chat.
+ *
+ * @param chatId The chat the messages belong to.
  */
 export async function getMessages(chatId: string) {
-    return await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
+    const res = await fetch(`/api/v1/chats/${chatId}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+    })
+    return res.json() as Promise<{ messages: ChatMessage[] }>
 }
 
 /**
- * Handlers for processing real-time streaming events from the AI.
+ * Generic stream event returned by the backend when sending a prompt.
  */
-export type StreamHandlers = {
-    /** Called for every new text token received from the LLM. */
-    onToken: (token: string) => void;
-    /** Called when the LLM provides a source citation for its response. */
-    onCitation: (citation: Citation) => void;
-    /** Called when the stream has successfully finished. */
-    onDone: () => void;
-    /** Optional handler for stream-specific errors. */
-    onError?: (message: string) => void;
-};
-
 interface ChatEvent {
     type: "token" | "citation" | "done" | "error";
     content?: string;
@@ -52,37 +56,27 @@ interface ChatEvent {
 }
 
 /**
- * Sends a message to the AI and streams the response in real-time.
+ * Creates a new prompt and handles the chat response.
+ *
+ * @param chatId The chat the prompt is created in
+ * @param text The content of the prompt
+ * @param handlers Helper operations handling the output of the chat response
  */
 export async function streamMessage(
     chatId: string,
     text: string,
     handlers: StreamHandlers
 ): Promise<void> {
-    // Ensure token is fresh
-    try {
-        await keycloak.updateToken(30);
-    } catch (error) {
-        keycloak.login();
-        return;
-    }
-
     const res = await fetch(`/api/v1/chats/prompt`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${keycloak.token}`
+            "Content-Type": "application/json"
         },
         body: JSON.stringify({
             "chatId": chatId,
             "msg": text
         })
     });
-
-    if (!res.ok) {
-        handlers.onError?.(`Failed to establish stream: ${res.statusText}`);
-        return;
-    }
 
     const reader = res.body?.getReader();
 
@@ -138,5 +132,6 @@ export async function streamMessage(
         }
     }
 
+    // Fallback: Ensure onDone is called when the stream ends naturally
     handlers.onDone();
 }

@@ -15,7 +15,7 @@ export interface AuthContextType {
     /** The authenticated user's profile metadata, or null if not logged in. */
     profile: UserProfile | null;
     /** Triggers the login flow and creates a session. */
-    login: (username: string, firstname: string, lastname: string) => Promise<void>;
+    login: () => Promise<void>;
     /** Ends the current session and clears local credentials. */
     logout: () => Promise<void>;
     /** Force-refreshes the user profile from the backend. */

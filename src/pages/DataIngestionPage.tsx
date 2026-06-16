@@ -243,6 +243,7 @@ export function DataIngestionPage() {
         [
             githubOwner,
             githubRepositoryName,
+            githubToken,
             loadData,
             selectedConnectSourceSystem,
         ],
