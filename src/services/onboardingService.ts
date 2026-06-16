@@ -35,7 +35,7 @@ export const onboardingService = {
      * Updates the completion status of a specific onboarding step on the backend.
      */
     async updateStepStatus(step: OnboardingStepDetail, newStatus: StepStatus): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/me/step/${step.id}`, {
+        await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 position: step.position,
@@ -54,7 +54,7 @@ export const onboardingService = {
      * Marks an onboarding step as skipped with a provided reason on the backend.
      */
     async skipStep(step: OnboardingStepDetail, reason: string): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/me/step/${step.id}`, {
+        await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 position: step.position,
