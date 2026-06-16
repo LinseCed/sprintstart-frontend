@@ -5,24 +5,6 @@ import type { UserProfile } from '../services/types';
 import { AuthContext, type AuthStatus } from './AuthContext';
 import keycloak from '../config/keycloak';
 
-const BASE_API_URL = '/api/v1';
-
-/**
- * Triggers the backend onboarding path generation for a user.
- */
-const seedOnboardingPath = async (userId: string) => {
-    try {
-        await fetch(`${BASE_API_URL}/onboarding/${userId}/seeding`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${keycloak.token}`
-            }
-        });
-    } catch (error) {
-        console.warn("Backend onboarding seeding failed:", error);
-    }
-};
-
 /**
  * Provider component that manages the global authentication state via Keycloak.
  */
@@ -48,9 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 if (authenticated) {
                     const data = await userService.getProfile();
-                    
+
                     if (data) {
-                        await seedOnboardingPath(data.id);
                         setProfile(data);
                         setStatus('authenticated');
                     } else {

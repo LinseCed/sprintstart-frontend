@@ -16,10 +16,10 @@ export const onboardingService = {
     // ── PATH ─────────────────────────────────────────────────
 
     /**
-     * Fetches the personalized onboarding path for a specific user from the backend.
+     * Fetches the personalized onboarding path for the current authenticated user from the backend.
      */
-    async fetchPath(userId: string): Promise<OnboardingPathEndpoint> {
-        return await apiClient.fetch<OnboardingPathEndpoint>(`/api/v1/onboarding/${userId}/path`);
+    async fetchPath(): Promise<OnboardingPathEndpoint> {
+        return await apiClient.fetch<OnboardingPathEndpoint>(`/api/v1/onboarding/me/path`);
     },
 
     // ── STEP ─────────────────────────────────────────────────
@@ -28,14 +28,14 @@ export const onboardingService = {
      * Retrieves detailed information for a specific onboarding step from the backend.
      */
     async fetchStep(stepId: string): Promise<OnboardingStepDetail> {
-        return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/steps/${stepId}`);
+        return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/me/step/${stepId}`);
     },
 
     /**
      * Updates the completion status of a specific onboarding step on the backend.
      */
     async updateStepStatus(step: OnboardingStepDetail, newStatus: StepStatus): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/steps/${step.id}`, {
+        await apiClient.fetch(`/api/v1/onboarding/me/step/${step.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 position: step.position,
@@ -54,7 +54,7 @@ export const onboardingService = {
      * Marks an onboarding step as skipped with a provided reason on the backend.
      */
     async skipStep(step: OnboardingStepDetail, reason: string): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/steps/${step.id}`, {
+        await apiClient.fetch(`/api/v1/onboarding/me/step/${step.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 position: step.position,
@@ -75,14 +75,14 @@ export const onboardingService = {
      * Fetches all individual tasks associated with a specific onboarding step from the backend.
      */
     async fetchTasks(stepId: string): Promise<OnboardingTaskEndpoint[]> {
-        return await apiClient.fetch<OnboardingTaskEndpoint[]>(`/api/v1/onboarding/steps/${stepId}/tasks`);
+        return await apiClient.fetch<OnboardingTaskEndpoint[]>(`/api/v1/onboarding/me/steps/${stepId}/tasks`);
     },
 
     /**
      * Updates the completion state of a specific task within a step on the backend.
      */
     async updateTask(task: OnboardingTaskEndpoint, finished: boolean): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/tasks/${task.id}`, {
+        await apiClient.fetch(`/api/v1/onboarding/me/tasks/${task.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 position: task.position,
@@ -99,6 +99,6 @@ export const onboardingService = {
      * Fetches all educational or technical resources linked to a specific step from the backend.
      */
     async fetchResources(stepId: string): Promise<OnboardingResourceEndpoint[]> {
-        return await apiClient.fetch<OnboardingResourceEndpoint[]>(`/api/v1/onboarding/steps/${stepId}/resources`);
+        return await apiClient.fetch<OnboardingResourceEndpoint[]>(`/api/v1/onboarding/me/steps/${stepId}/resources`);
     },
 };

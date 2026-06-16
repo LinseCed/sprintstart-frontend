@@ -80,7 +80,7 @@ export function OnBoardingPage() {
         const profile = await userService.getProfile();
         if (!profile?.id) throw new Error("No user found.");
 
-        const path = await onboardingService.fetchPath(profile.id);
+        const path = await onboardingService.fetchPath();
         setOnBoardingPath(path);
         setLoadingState("success");
       } catch (err) {
