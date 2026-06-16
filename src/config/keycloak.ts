@@ -3,12 +3,12 @@ import Keycloak from 'keycloak-js';
 /**
  * Keycloak configuration for the SprintStart frontend.
  * 
- * Uses the default local development settings as defined in the docker-compose.yaml.
+ * Uses environment variables from .env for flexibility across different environments.
  */
 const keycloak = new Keycloak({
-    url: 'http://localhost:8081',
+    url: (import.meta.env.VITE_KEYCLOAK_AUTHORITY || 'http://localhost:8081/realms/sprintstart').replace('/realms/sprintstart', ''),
     realm: 'sprintstart',
-    clientId: 'sprintstart-frontend',
+    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'sprintstart-frontend',
 });
 
 export default keycloak;
