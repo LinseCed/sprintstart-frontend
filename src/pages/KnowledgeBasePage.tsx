@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { knowledgeService } from '../services/knowledgeService';
 import { type DocumentMetadata, DocumentStatus } from '../services/types';
-import { FileUploadZone } from '../components/kb/FileUploadZone';
-import { DocumentTable } from '../components/kb/DocumentTable';
+import { FileUploadZone } from '../features/knowledge-base/components/FileUploadZone';
+import { DocumentTable } from '../features/knowledge-base/components/DocumentTable';
 import { useAuth } from '../context/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import {

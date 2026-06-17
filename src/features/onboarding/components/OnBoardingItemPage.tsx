@@ -9,8 +9,8 @@ import type {
   OnboardingTaskEndpoint,
   OnboardingResourceEndpoint,
   StepStatus,
-} from "../../types/onboarding";
-import { onboardingService } from "../../services/onboardingService";
+} from "../types";
+import { onboardingService } from "../../../services/onboardingService";
 
 import {
   ArrowLeft,

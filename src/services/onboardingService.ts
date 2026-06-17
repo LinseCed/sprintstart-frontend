@@ -5,7 +5,7 @@ import type {
     OnboardingTaskEndpoint,
     OnboardingResourceEndpoint,
     StepStatus,
-} from '../types/onboarding';
+} from '../features/onboarding/types';
 
 /**
  * Service responsible for managing onboarding paths, steps, and associated tasks.
