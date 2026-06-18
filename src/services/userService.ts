@@ -6,7 +6,7 @@ const LOCAL_MOCK_KEY = 'sprintstart_mock_profile';
 
 function getLocalMockProfile(): Partial<UserProfile> {
     const data = sessionStorage.getItem(LOCAL_MOCK_KEY);
-    return data ? (JSON.parse(data) as Partial<UserProfile>) : (userMock as Partial<UserProfile>);
+    return data ? (JSON.parse(data) as Partial<UserProfile>) : userMock;
 }
 
 function setLocalMockProfile(updates: Partial<UserProfile>) {
