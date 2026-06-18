@@ -6,7 +6,7 @@ const LOCAL_MOCK_KEY = 'sprintstart_mock_profile';
 
 function getLocalMockProfile(): Partial<UserProfile> {
     const data = sessionStorage.getItem(LOCAL_MOCK_KEY);
-    return data ? JSON.parse(data) : userMock;
+    return data ? (JSON.parse(data) as Partial<UserProfile>) : (userMock as Partial<UserProfile>);
 }
 
 function setLocalMockProfile(updates: Partial<UserProfile>) {
@@ -72,7 +72,7 @@ export const userService = {
             console.warn("Backend PATCH failed, using local mock merged with current local profile.");
             const currentProfile = await this.getProfile();
             if (!currentProfile) throw e;
-            return { ...currentProfile, ...getLocalMockProfile() } as UserProfile;
+            return { ...currentProfile, ...getLocalMockProfile() };
         }
     },
 
