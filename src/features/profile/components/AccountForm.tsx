@@ -1,0 +1,145 @@
+import { useState } from 'react';
+import Avatar from 'boring-avatars';
+import type { UserProfile } from '../../../services/types';
+
+type AccountFormProps = {
+    profile: UserProfile;
+    onUpdate: (data: Partial<UserProfile>) => Promise<void>;
+};
+
+export function AccountForm({ profile, onUpdate }: AccountFormProps) {
+    const [firstname, setFirstname] = useState(profile.firstname || '');
+    const [lastname, setLastname] = useState(profile.lastname || '');
+    const [email, setEmail] = useState(profile.email || '');
+    const [profileIcon, setProfileIcon] = useState(profile.profileIcon || profile.username || 'User');
+    const [isSaving, setIsSaving] = useState(false);
+    const [isChoosingIcon, setIsChoosingIcon] = useState(false);
+    const [iconOptions, setIconOptions] = useState<string[]>([]);
+
+    const generateOptions = () => {
+        const options = Array.from({ length: 5 }, () => Math.random().toString(36).substring(7));
+        setIconOptions(options);
+    };
+
+    const handleOpenIconPicker = () => {
+        if (!isChoosingIcon) {
+            generateOptions();
+        }
+        setIsChoosingIcon(!isChoosingIcon);
+    };
+
+    const handleSelectIcon = (seed: string) => {
+        setProfileIcon(seed);
+        setIsChoosingIcon(false);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            await onUpdate({ firstname, lastname, email, profileIcon });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="rounded-xl border border-app-border bg-app-surface p-6 shadow-sm">
+            <h2 className="mb-4 text-xl font-semibold text-app-text">Account Information</h2>
+            
+            <div className="mb-6 flex items-center gap-6">
+                <div className="relative group">
+                    <Avatar 
+                        size={80}
+                        name={profileIcon}
+                        variant="beam"
+                        colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
+                    />
+                </div>
+                <div>
+                    <h3 className="text-lg font-medium text-app-text">{profile.username}</h3>
+                    <p className="mb-2 text-sm font-medium uppercase tracking-wider text-app-text-muted">
+                        {profile.workingArea?.replace('_', ' ') || 'NO WORKING AREA'}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleOpenIconPicker}
+                        className="rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-xs font-medium text-app-text transition-colors hover:bg-app-surface-hover focus:outline-none focus:ring-2 focus:ring-app-brand"
+                    >
+                        {isChoosingIcon ? 'Cancel' : 'Choose Icon'}
+                    </button>
+                </div>
+            </div>
+
+            {isChoosingIcon && (
+                <div className="mb-6 rounded-lg border border-app-border bg-app-bg p-4 shadow-sm animate-in fade-in slide-in-from-top-2">
+                    <div className="mb-3 flex items-center justify-between">
+                        <span className="text-sm font-medium text-app-text">Select an Avatar</span>
+                        <button type="button" onClick={generateOptions} className="text-xs font-medium text-app-brand hover:underline">Shuffle Options</button>
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto pb-2">
+                        {iconOptions.map(seed => (
+                            <button
+                                key={seed}
+                                type="button"
+                                onClick={() => handleSelectIcon(seed)}
+                                className="shrink-0 rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
+                            >
+                                <Avatar size={48} name={seed} variant="beam" colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]} />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                        <label htmlFor="firstname" className="text-sm font-medium text-app-text">First Name</label>
+                        <input
+                            id="firstname"
+                            type="text"
+                            value={firstname}
+                            onChange={(e) => setFirstname(e.target.value)}
+                            className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label htmlFor="lastname" className="text-sm font-medium text-app-text">Last Name</label>
+                        <input
+                            id="lastname"
+                            type="text"
+                            value={lastname}
+                            onChange={(e) => setLastname(e.target.value)}
+                            className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
+                            required
+                        />
+                    </div>
+                </div>
+                
+                <div className="space-y-1">
+                    <label htmlFor="email" className="text-sm font-medium text-app-text">Email Address</label>
+                    <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
+                        required
+                    />
+                </div>
+
+                <div className="pt-4">
+                    <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="rounded-lg bg-app-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-app-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+}

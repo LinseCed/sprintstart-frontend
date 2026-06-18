@@ -1,5 +1,18 @@
 import { apiClient } from './apiClient';
 import { Role, type UserProfile } from './types';
+import userMock from '../mocks/userMock.json';
+
+const LOCAL_MOCK_KEY = 'sprintstart_mock_profile';
+
+function getLocalMockProfile(): Partial<UserProfile> {
+    const data = sessionStorage.getItem(LOCAL_MOCK_KEY);
+    return data ? JSON.parse(data) : userMock;
+}
+
+function setLocalMockProfile(updates: Partial<UserProfile>) {
+    const current = getLocalMockProfile();
+    sessionStorage.setItem(LOCAL_MOCK_KEY, JSON.stringify({ ...current, ...updates }));
+}
 
 /**
  * Service managing user authentication, profile retrieval, and updates.
@@ -23,7 +36,9 @@ export const userService = {
      */
     async getProfile(): Promise<UserProfile | null> {
         try {
-            return await apiClient.fetch<UserProfile>('/api/v1/users/me');
+            const backendProfile = await apiClient.fetch<UserProfile>('/api/v1/users/me');
+            const localMocks = getLocalMockProfile();
+            return { ...backendProfile, ...localMocks };
         } catch (error) {
             console.error('Failed to retrieve profile', error);
             return null;
@@ -37,10 +52,28 @@ export const userService = {
      * @returns Promise resolving to the updated UserProfile.
      */
     async updateProfile(profile: Partial<UserProfile>): Promise<UserProfile> {
-        return await apiClient.fetch<UserProfile>('/api/v1/users/me', {
-            method: 'PATCH',
-            body: JSON.stringify(profile),
-        });
+        // Save frontend-only fields to sessionStorage so they persist during frontend-only development
+        const frontendOnlyFields: Partial<UserProfile> = {};
+        if (profile.profileIcon !== undefined) frontendOnlyFields.profileIcon = profile.profileIcon;
+        if (profile.skills !== undefined) frontendOnlyFields.skills = profile.skills;
+        if (profile.email !== undefined) frontendOnlyFields.email = profile.email;
+        if (profile.firstname !== undefined) frontendOnlyFields.firstname = profile.firstname;
+        if (profile.lastname !== undefined) frontendOnlyFields.lastname = profile.lastname;
+        
+        setLocalMockProfile(frontendOnlyFields);
+
+        try {
+            const backendProfile = await apiClient.fetch<UserProfile>('/api/v1/users/me', {
+                method: 'PATCH',
+                body: JSON.stringify(profile),
+            });
+            return { ...backendProfile, ...getLocalMockProfile() };
+        } catch (e) {
+            console.warn("Backend PATCH failed, using local mock merged with current local profile.");
+            const currentProfile = await this.getProfile();
+            if (!currentProfile) throw e;
+            return { ...currentProfile, ...getLocalMockProfile() } as UserProfile;
+        }
     },
 
     /**
@@ -60,5 +93,15 @@ export const userService = {
      */
     logout(): Promise<void> {
         return Promise.resolve();
+    },
+
+    /**
+     * Updates the user's password.
+     */
+    async updatePassword(oldPassword: string, newPassword: string): Promise<{ message: string }> {
+        return await apiClient.fetch<{ message: string }>('/api/v1/users/me/password', {
+            method: 'PUT',
+            body: JSON.stringify({ oldPassword, newPassword }),
+        });
     }
 };

@@ -40,12 +40,26 @@ export type UploadResult = {
     error?: string;
 };
 
+export type Skill = {
+    id: string;
+    name: string;
+};
+
+export type UserSkill = {
+    skillId: string;
+    name?: string;
+    level: number;
+};
+
 export interface UserProfile {
     id: string;
     username: string;
     firstname: string;
     lastname: string;
+    email: string;
+    profileIcon?: string;
     primaryRole: Role;
     secondaryRole: Role;
     workingArea: WorkingArea;
+    skills: UserSkill[];
 }
