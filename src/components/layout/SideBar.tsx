@@ -8,7 +8,7 @@ import {
     LogOut,
     Menu,
     MessageSquare,
-    Rocket,
+    Rocket, Terminal,
     User,
     X,
 } from 'lucide-react';
@@ -55,6 +55,15 @@ const projectManagerNavItems: SidebarNavItem[] = [
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
+
+const adminNavItems: SidebarNavItem[] = [
+    {
+        label: 'Access Management',
+        path: '/admin',
+        icon: <Terminal className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+];
+
 
 function getNavLinkClass(isActive: boolean): string {
     return [
@@ -111,6 +120,35 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
 
                     <div className="space-y-[5px]">
                         {projectManagerNavItems.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                onClick={onNavigate}
+                                className={({ isActive }) => getNavLinkClass(isActive)}
+                            >
+                                {({ isActive }) => (
+                                    <>
+                                        {item.icon}
+
+                                        <span>{item.label}</span>
+
+                                        {isActive ? (
+                                            <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
+                                        ) : null}
+                                    </>
+                                )}
+                            </NavLink>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="pt-[20px]">
+                    <p className="px-[8px] pb-[8px] text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text-muted">
+                        Admin
+                    </p>
+
+                    <div className="space-y-[5px]">
+                        {adminNavItems.map((item) => (
                             <NavLink
                                 key={item.path}
                                 to={item.path}
