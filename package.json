@@ -4,10 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "keycloakify sync-extensions",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build-keycloak-theme": "npm run build && keycloakify build",
+    "dev-keycloak-theme": "VITE_KC_DEV=true npm run dev",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -20,7 +25,10 @@
     "react-router-dom": "^7.15.1",
     "react-syntax-highlighter": "^16.1.1",
     "remark-gfm": "^4.0.1",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "keycloakify": "^11.15.10",
+    "@keycloakify/login-ui": "~250004.7.2",
+    "tsafe": "^1.8.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -39,6 +47,9 @@
     "prettier": "^3.8.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.4",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "storybook": "^10.4.2",
+    "@storybook/react-vite": "^10.4.2",
+    "@keycloakify/login-ui-storybook": "~250004.2.0"
   }
 }
