@@ -5,9 +5,9 @@ import {
     getChats,
     getMessages,
     streamMessage
-} from "../services/chatService";
+} from "../../../services/chatService";
 
-import type { Chat, ChatMessage, Citation } from "../types/chatTypes";
+import type { Chat, ChatMessage, Citation } from "../types";
 
 type MessagesByChat = Record<string, ChatMessage[]>;
 

@@ -1,7 +1,7 @@
 import { Bot, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
-import { useChat } from "../hooks/useChat.ts";
+import { useChat } from "../features/chatbot/hooks/useChat.ts";
 import ReactMarkdown from "react-markdown";
-import { ChatSidebar } from "../components/chat/ChatSidebar.tsx";
+import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
 
 /**
  * Displays the interface for communication with the chat.

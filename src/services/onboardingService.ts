@@ -5,7 +5,7 @@ import type {
     OnboardingTaskEndpoint,
     OnboardingResourceEndpoint,
     StepStatus,
-} from '../types/onboarding';
+} from '../features/onboarding/types';
 
 /**
  * Service responsible for managing onboarding paths, steps, and associated tasks.
@@ -28,7 +28,7 @@ export const onboardingService = {
      * Retrieves detailed information for a specific onboarding step from the backend.
      */
     async fetchStep(stepId: string): Promise<OnboardingStepDetail> {
-        return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/me/step/${stepId}`);
+        return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/me/steps/${stepId}`);
     },
 
     /**

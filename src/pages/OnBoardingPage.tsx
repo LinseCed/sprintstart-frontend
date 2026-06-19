@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import type {
   OnboardingPathEndpoint,
   OnboardingPhaseEndpoint,
-} from "../types/onboarding";
+} from "../features/onboarding/types";
 import { useNavigate } from "react-router-dom";
 import { onboardingService } from "../services/onboardingService";
 import { userService } from "../services/userService";
