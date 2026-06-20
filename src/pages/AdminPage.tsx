@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import {
     AlertCircle,
     Check,
-    CheckCircle2,
+    CheckCircle2, ExternalLink,
     Folder,
     Loader2,
     Mail,
@@ -236,15 +236,12 @@ function DetailRow({
 }
 
 function Section({
-                     title,
                      children,
                  }: {
-    title: string;
     children: ReactNode;
 }) {
     return (
         <section className="mt-10 border-t border-app-border pt-8 first:mt-0 first:border-t-0 first:pt-0">
-            <h3 className="mb-5 text-base font-semibold text-app-text">{title}</h3>
             {children}
         </section>
     );
@@ -727,6 +724,9 @@ function UserDetailsDrawer({
     const [secondaryRoleIds, setSecondaryRoleIds] = useState<Set<string>>(
         new Set(),
     );
+    const keycloakAdminBaseUrl = import.meta.env.VITE_KEYCLOAK_ADMIN_BASE_URL as string;
+    const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM as string;
+    const keycloakUserDetailsUrl = `${keycloakAdminBaseUrl}/admin/${keycloakRealm}/console/#/${keycloakRealm}/users/${user.id}/settings`;
 
     useEffect(() => {
         const primaryRole = user.roles.find((role) => role.type === "primary");
@@ -793,28 +793,38 @@ function UserDetailsDrawer({
                                     <h2 className="truncate text-2xl font-semibold text-app-text">
                                         {getDisplayName(user)}
                                     </h2>
+                                </div>
+
+                                <div className="mt-2 flex items-center gap-1.5 text-sm text-app-text-muted">
                                     <AccessBadge
                                         variant={getPermissionGroupVariant(user.permissionGroup)}
                                     >
                                         {user.permissionGroup}
                                     </AccessBadge>
                                 </div>
-
-                                <div className="mt-2 flex items-center gap-1.5 text-sm text-app-text-muted">
-                                    <Mail className="h-4 w-4 shrink-0" />
-                                    <span className="truncate">{user.email}</span>
-                                </div>
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="shrink-0 rounded-xl p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
-                            aria-label="Close details"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <a
+                                href={keycloakUserDetailsUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Manage in Keycloak
+                            </a>
+
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="rounded-xl p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                                aria-label="Close details"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mb-10 grid grid-cols-2 gap-8">
@@ -847,18 +857,18 @@ function UserDetailsDrawer({
                         </div>
                     </div>
 
-                    <Section title="Personal details">
+                    <Section>
                         <dl>
                             <DetailRow label="Email" value={user.email} />
                             <DetailRow label="Username" value={user.username} />
                             <DetailRow label="First name" value={user.firstName} />
                             <DetailRow label="Last name" value={user.lastName} />
-                            <DetailRow label="Profile icon" value={user.profileIcon} />
+                            <DetailRow label="Role" value={user.permissionGroup} />
                             <DetailRow label="User ID" value={user.id} mono />
                         </dl>
                     </Section>
 
-                    <Section title="Project access">
+                    <Section>
                         <ProjectAccessPanel
                             assignedProjects={user.projects}
                             availableProjects={availableProjects}
