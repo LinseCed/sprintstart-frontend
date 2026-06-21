@@ -8,6 +8,7 @@ import { OnBoardingItemPage } from '../features/onboarding/components/OnBoarding
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
+import { FaqPage } from '../pages/pm-view/FaqPage.tsx';
 
 export function AppRouter() {
     return (
@@ -22,6 +23,7 @@ export function AppRouter() {
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
+                <Route path="/insights/faq" element={<FaqPage />} />
             </Routes>
         </AuthGuard>
     );
