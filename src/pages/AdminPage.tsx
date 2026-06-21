@@ -9,7 +9,7 @@ import {
     Check,
     CheckCircle2,
     ChevronLeft,
-    ChevronRight,
+    ChevronRight, Edit,
     ExternalLink,
     FileText,
     Folder,
@@ -31,7 +31,15 @@ import {
     type ProjectSummary,
     type RoleAssignment,
 } from "../services/adminUserService";
-import {DetailsSideDrawer} from "../components/layout/DetailsSideDrawer.tsx";
+import {
+    projectService,
+    type AdminProject as ProjectOverview,
+    type AdminProjectDetails,
+    type ProjectSource,
+    type ProjectUser,
+    type ProjectUserSummary,
+} from "../services/projectService";
+import { DetailsSideDrawer } from "../components/layout/DetailsSideDrawer.tsx";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
 type UserFilter = "all" | "enabled" | "disabled" | "onboarded" | "not-onboarded";
@@ -66,7 +74,7 @@ function AccessBadge({
                          children,
                          variant = "brand",
                      }: {
-    children: string;
+    children: ReactNode;
     variant?: "success" | "brand" | "warning" | "neutral" | "danger";
 }) {
     const classes = {
@@ -781,8 +789,8 @@ function UserDetailsDrawer({
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
                 >
-                    <ExternalLink className="h-4 w-4" />
-                    Manage in Keycloak
+                    <Edit className="h-4 w-4" />
+                    Edit User
                 </a>
             }
             footer={
@@ -864,47 +872,156 @@ function UserDetailsDrawer({
 }
 
 type AdminTab = "users" | "projects";
-type ProjectStatus = "active" | "paused" | "archived";
 
-type ProjectMetadata = {
-    description?: string;
-    tags?: string[];
-    artifacts?: unknown[];
-    artifactCount?: number;
-    status?: string;
-};
 
-type AdminProject = ProjectSummary & {
-    description: string;
-    tags: string[];
-    memberCount: number;
-    artifactCount: number;
-    status: ProjectStatus;
-};
+function getSourceStatusVariant(
+    status: string,
+): "success" | "brand" | "warning" | "neutral" | "danger" {
+    const normalizedStatus = status.trim().toUpperCase();
 
-const PROJECT_TAG_VARIANTS: Array<
-    "success" | "brand" | "warning" | "neutral" | "danger"
-> = ["brand", "warning", "success", "neutral"];
+    if (normalizedStatus === "CONNECTED") return "success";
+    if (normalizedStatus === "INDEXING") return "warning";
+    if (normalizedStatus === "ERROR") return "danger";
+    if (normalizedStatus === "DISCONNECTED") return "neutral";
 
-function normalizeProjectStatus(status?: string): ProjectStatus {
-    const normalizedStatus = status?.trim().toLowerCase();
-
-    if (
-        normalizedStatus === "active" ||
-        normalizedStatus === "paused" ||
-        normalizedStatus === "archived"
-    ) {
-        return normalizedStatus;
-    }
-
-    return "active";
+    return "brand";
 }
 
-function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-    if (status === "active") return <AccessBadge variant="success">Active</AccessBadge>;
-    if (status === "paused") return <AccessBadge variant="warning">Paused</AccessBadge>;
+function SourceStatusBadge({ status }: { status: string }) {
+    return <AccessBadge variant={getSourceStatusVariant(status)}>{status}</AccessBadge>;
+}
 
-    return <AccessBadge variant="neutral">Archived</AccessBadge>;
+
+function getProjectUsersCount(project: { users: unknown[] }) {
+    return project.users.length;
+}
+
+function getProjectSourcesCount(project: { sources: unknown[] }) {
+    return project.sources.length;
+}
+
+function RoleBadgeList({
+                           roles,
+                           variant = "neutral",
+                       }: {
+    roles: string[];
+    variant?: "success" | "brand" | "warning" | "neutral" | "danger";
+}) {
+    if (roles.length === 0) {
+        return <span className="text-sm text-app-text-muted">No roles</span>;
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {roles.map((role) => (
+                <AccessBadge key={role} variant={variant}>
+                    {role}
+                </AccessBadge>
+            ))}
+        </div>
+    );
+}
+
+function SourceList({ sources }: { sources: ProjectSource[] }) {
+    if (sources.length === 0) {
+        return (
+            <div className="rounded-xl border border-dashed border-app-border px-4 py-6 text-center">
+                <FileText className="mx-auto mb-2 h-5 w-5 text-app-text-disabled" />
+                <p className="text-sm text-app-text-muted">No sources connected yet.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {sources.map((source) => (
+                <div
+                    key={source.id}
+                    className="rounded-xl border border-app-border bg-app-surface-muted p-4"
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-app-text">
+                                {source.name}
+                            </p>
+                            <p className="mt-1 font-mono text-xs text-app-text-muted">
+                                {source.type}
+                            </p>
+                        </div>
+
+                        <SourceStatusBadge status={source.status} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function ProjectUserList({
+                             users,
+                         }: {
+    users: Array<ProjectUser | ProjectUserSummary>;
+}) {
+    if (users.length === 0) {
+        return (
+            <div className="rounded-xl border border-dashed border-app-border px-4 py-6 text-center">
+                <Users className="mx-auto mb-2 h-5 w-5 text-app-text-disabled" />
+                <p className="text-sm text-app-text-muted">No users assigned yet.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {users.map((user) => {
+                const displayName =
+                    "firstName" in user && "lastName" in user
+                        ? [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+                        user.username ||
+                        user.email
+                        : user.username || user.email;
+                const globalRoles = "roles" in user ? user.roles : [];
+
+                return (
+                    <div
+                        key={user.id}
+                        className="rounded-xl border border-app-border bg-app-surface-muted p-4"
+                    >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-app-text">
+                                    {displayName}
+                                </p>
+                                <p className="truncate text-xs text-app-text-muted">
+                                    {user.email}
+                                </p>
+                            </div>
+
+                            {"enabled" in user && (
+                                <StatusDot active={user.enabled} />
+                            )}
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
+                                    Global roles
+                                </p>
+                                <RoleBadgeList roles={globalRoles} variant="neutral" />
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
+                                    Project roles
+                                </p>
+                                <RoleBadgeList roles={user.projectRoles} variant="brand" />
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 function StatusDot({ active }: { active: boolean }) {
@@ -960,93 +1077,128 @@ function ProjectDetailsDrawer({
                                   isOpen,
                                   onClose,
                               }: {
-    project: AdminProject;
+    project: ProjectOverview;
     isOpen: boolean;
     onClose: () => void;
 }) {
+    const [projectDetails, setProjectDetails] = useState<AdminProjectDetails | null>(null);
+    const [detailsLoadingState, setDetailsLoadingState] =
+        useState<LoadingState>("idle");
+    const [detailsErrorMessage, setDetailsErrorMessage] = useState("");
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let isMounted = true;
+
+        async function loadProjectDetails() {
+            setDetailsLoadingState("loading");
+            setDetailsErrorMessage("");
+
+            try {
+                const nextProjectDetails = await projectService.getProjectById(project.id);
+
+                if (!isMounted) return;
+
+                setProjectDetails(nextProjectDetails);
+                setDetailsLoadingState("success");
+            } catch (error) {
+                if (!isMounted) return;
+
+                setProjectDetails(null);
+                setDetailsLoadingState("error");
+                setDetailsErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Project details could not be loaded.",
+                );
+            }
+        }
+
+        void loadProjectDetails();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isOpen, project.id]);
+
+    useEffect(() => {
+        setProjectDetails(null);
+        setDetailsLoadingState("idle");
+        setDetailsErrorMessage("");
+    }, [project.id]);
+
+    const visibleProject = projectDetails ?? project;
+    const memberCount = getProjectUsersCount(visibleProject);
+    const sourceCount = getProjectSourcesCount(visibleProject);
+    const isLoadingDetails = detailsLoadingState === "loading" && !projectDetails;
+    const hasDetailsError = detailsLoadingState === "error";
+
     return (
         <DetailsSideDrawer
             isOpen={isOpen}
             onClose={onClose}
-            title={project.name}
+            title={visibleProject.name}
             closeAriaLabel="Close project details"
-            widthClassName="w-[min(94vw,30rem)]"
+            widthClassName="w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]"
             leading={
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-muted text-app-text-muted">
                     <Folder className="h-6 w-6" />
                 </div>
             }
-            badge={<ProjectStatusBadge status={project.status} />}
+            badge={
+                <>
+                    <AccessBadge variant={"neutral"}>
+                        {memberCount > 0 ? `${sourceCount} members` : "No members"}
+                    </AccessBadge>
+                    <AccessBadge variant={sourceCount > 0 ? "success" : "neutral"}>
+                        {sourceCount > 0 ? `${sourceCount} sources` : "No sources"}
+                    </AccessBadge>
+                </>
+            }
         >
-            <div className="mb-6 grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-app-border bg-app-surface-muted p-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                        Members
-                    </p>
-                    <p className="text-xl font-bold text-app-text">
-                        {project.memberCount}
-                    </p>
-                </div>
-
-                <div className="rounded-xl border border-app-border bg-app-surface-muted p-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                        Artifacts
-                    </p>
-                    <p className="text-xl font-bold text-app-text">
-                        {project.artifactCount}
-                    </p>
-                </div>
-            </div>
-
-            <div className="mb-6">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                    Tags
-                </p>
-
-                {project.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                        {project.tags.map((tag, index) => (
-                            <AccessBadge
-                                key={tag}
-                                variant={
-                                    PROJECT_TAG_VARIANTS[
-                                    index % PROJECT_TAG_VARIANTS.length
-                                        ]
-                                }
-                            >
-                                {tag}
-                            </AccessBadge>
-                        ))}
+            {isLoadingDetails ? (
+                <div className="flex min-h-72 items-center justify-center">
+                    <div className="flex flex-col items-center gap-3 text-app-text-muted">
+                        <Loader2 className="h-7 w-7 animate-spin text-app-brand" />
+                        <p className="text-sm">Loading project details...</p>
                     </div>
-                ) : (
-                    <div className="rounded-xl border border-dashed border-app-border px-4 py-6 text-center">
-                        <p className="text-sm text-app-text-muted">
-                            No tags available
+                </div>
+            ) : hasDetailsError ? (
+                <div className="rounded-2xl border border-app-danger-border bg-app-danger-bg p-5">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-app-danger-text">
+                        <AlertCircle className="h-4 w-4" />
+                        Project details could not be loaded
+                    </div>
+                    <p className="text-sm text-app-danger-text">{detailsErrorMessage}</p>
+                </div>
+            ) : (
+                <>
+                    <Section>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                            Description
                         </p>
-                    </div>
-                )}
-            </div>
+                        <p className="text-sm leading-relaxed text-app-text-muted">
+                            {visibleProject.description || "No project description available yet."}
+                        </p>
+                    </Section>
 
-            <div className="mb-6">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                    Description
-                </p>
-                <p className="text-sm leading-relaxed text-app-text-muted">
-                    {project.description}
-                </p>
-            </div>
 
-            <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                    Sources & artifacts
-                </p>
-                <div className="rounded-xl border border-app-border bg-app-surface-muted px-4 py-6 text-center">
-                    <FileText className="mx-auto mb-2 h-5 w-5 text-app-text-disabled" />
-                    <p className="text-sm text-app-text-muted">
-                        Artifact details are not part of the current project summary yet.
-                    </p>
-                </div>
-            </div>
+                    <Section>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                            Connected sources
+                        </p>
+                        <SourceList sources={visibleProject.sources} />
+                    </Section>
+
+                    <Section>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                            Assigned users
+                        </p>
+                        <ProjectUserList users={visibleProject.users} />
+                    </Section>
+                </>
+            )}
         </DetailsSideDrawer>
     );
 }
@@ -1058,7 +1210,8 @@ export function AdminPage() {
         new Set(),
     );
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-    const [selectedProject, setSelectedProject] = useState<AdminProject | null>(
+    const [projects, setProjects] = useState<ProjectOverview[]>([]);
+    const [selectedProject, setSelectedProject] = useState<ProjectOverview | null>(
         null,
     );
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -1076,14 +1229,18 @@ export function AdminPage() {
     const [savingUserId, setSavingUserId] = useState<string | null>(null);
     const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
 
-    const loadUsers = useCallback(async () => {
+    const loadAdminData = useCallback(async () => {
         setLoadingState((current) => (current === "idle" ? "loading" : current));
         setErrorMessage("");
 
         try {
-            const nextUsers = await adminUserService.getUsers();
+            const [nextUsers, nextProjects] = await Promise.all([
+                adminUserService.getUsers(),
+                projectService.getProjects(),
+            ]);
 
             setUsers(nextUsers);
+            setProjects(nextProjects);
             setLoadingState("success");
 
             setSelectedUser((currentSelectedUser) => {
@@ -1094,17 +1251,29 @@ export function AdminPage() {
                     currentSelectedUser
                 );
             });
+
+            setSelectedProject((currentSelectedProject) => {
+                if (!currentSelectedProject) return null;
+
+                return (
+                    nextProjects.find(
+                        (project) => project.id === currentSelectedProject.id,
+                    ) ?? currentSelectedProject
+                );
+            });
         } catch (error) {
             setLoadingState("error");
             setErrorMessage(
-                error instanceof Error ? error.message : "Users could not be loaded.",
+                error instanceof Error
+                    ? error.message
+                    : "Admin data could not be loaded.",
             );
         }
     }, []);
 
     useEffect(() => {
-        void loadUsers();
-    }, [loadUsers]);
+        void loadAdminData();
+    }, [loadAdminData]);
 
     useEffect(() => {
         if (!selectedUser && !selectedProject) {
@@ -1124,60 +1293,14 @@ export function AdminPage() {
         [users],
     );
 
-    const availableProjects = useMemo(() => {
-        const projectMap = new Map<string, AdminProject>();
-
-        users.forEach((user) => {
-            user.projects.forEach((project) => {
-                const projectMetadata = project as ProjectSummary & ProjectMetadata;
-                const tags = Array.isArray(projectMetadata.tags)
-                    ? projectMetadata.tags
-                    : [];
-                const artifactCount =
-                    typeof projectMetadata.artifactCount === "number"
-                        ? projectMetadata.artifactCount
-                        : Array.isArray(projectMetadata.artifacts)
-                            ? projectMetadata.artifacts.length
-                            : 0;
-                const description =
-                    projectMetadata.description?.trim() ||
-                    "No project description available yet.";
-                const existingProject = projectMap.get(project.id);
-
-                if (!existingProject) {
-                    projectMap.set(project.id, {
-                        ...project,
-                        description,
-                        tags,
-                        memberCount: 1,
-                        artifactCount,
-                        status: normalizeProjectStatus(projectMetadata.status),
-                    });
-                    return;
-                }
-
-                existingProject.memberCount += 1;
-                existingProject.artifactCount = Math.max(
-                    existingProject.artifactCount,
-                    artifactCount,
-                );
-                existingProject.tags = Array.from(
-                    new Set([...existingProject.tags, ...tags]),
-                );
-
-                if (
-                    existingProject.description === "No project description available yet." &&
-                    description !== "No project description available yet."
-                ) {
-                    existingProject.description = description;
-                }
-            });
-        });
-
-        return Array.from(projectMap.values()).sort((left, right) =>
-            left.name.localeCompare(right.name),
-        );
-    }, [users]);
+    const availableProjects = useMemo<ProjectSummary[]>(() => {
+        return projects
+            .map((project) => ({
+                id: project.id,
+                name: project.name,
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name));
+    }, [projects]);
 
     const filteredUsers = useMemo(() => {
         const normalizedSearch = searchValue.trim().toLowerCase();
@@ -1222,13 +1345,23 @@ export function AdminPage() {
     const filteredProjects = useMemo(() => {
         const normalizedSearch = projectSearchValue.trim().toLowerCase();
 
-        return availableProjects.filter((project) => {
+        return projects.filter((project) => {
             const searchableValues = [
                 project.id,
                 project.name,
                 project.description,
-                project.status,
-                ...project.tags,
+                ...project.sources.flatMap((source) => [
+                    source.id,
+                    source.name,
+                    source.type,
+                    source.status,
+                ]),
+                ...project.users.flatMap((user) => [
+                    user.id,
+                    user.username,
+                    user.email,
+                    ...user.projectRoles,
+                ]),
             ];
 
             return (
@@ -1238,7 +1371,7 @@ export function AdminPage() {
                 )
             );
         });
-    }, [availableProjects, projectSearchValue]);
+    }, [projects, projectSearchValue]);
 
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
 
@@ -1333,7 +1466,7 @@ export function AdminPage() {
         });
     };
 
-    const openProjectDetails = (project: AdminProject) => {
+    const openProjectDetails = (project: ProjectOverview) => {
         setOpenUserMenuId(null);
         setSelectedUser(null);
         setSelectedProject(project);
@@ -1359,7 +1492,7 @@ export function AdminPage() {
         setIsRefreshing(true);
 
         try {
-            await loadUsers();
+            await loadAdminData();
         } finally {
             setIsRefreshing(false);
         }
@@ -1621,7 +1754,7 @@ export function AdminPage() {
                         No projects found
                     </p>
                     <p className="mt-1 text-sm text-app-text-muted">
-                        Try another search term or assign users to projects first.
+                        Try another search term or create a new project first.
                     </p>
                 </div>
             );
@@ -1629,65 +1762,69 @@ export function AdminPage() {
 
         return (
             <div className="space-y-3">
-                {filteredProjects.map((project) => (
-                    <button
-                        key={project.id}
-                        type="button"
-                        onClick={() => openProjectDetails(project)}
-                        className="group flex w-full cursor-pointer flex-col gap-4 overflow-hidden rounded-2xl border border-app-border bg-app-surface p-5 text-left transition-colors hover:border-app-border-strong hover:bg-app-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-app-brand-glow sm:flex-row sm:items-start sm:justify-between"
-                        aria-label={`Open details for ${project.name}`}
-                    >
-                        <div className="flex min-w-0 flex-1 items-start gap-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface-muted text-app-text-muted">
-                                <Folder className="h-5 w-5" />
-                            </div>
+                {filteredProjects.map((project) => {
+                    const visibleSources = project.sources.slice(0, 3);
 
-                            <div className="min-w-0 flex-1">
-                                <div className="mb-2 flex flex-wrap items-center gap-2">
-                                    <span className="text-sm font-semibold text-app-text">
-                                        {project.name}
-                                    </span>
+                    return (
+                        <button
+                            key={project.id}
+                            type="button"
+                            onClick={() => openProjectDetails(project)}
+                            className="group flex w-full cursor-pointer flex-col gap-4 overflow-hidden rounded-2xl border border-app-border bg-app-surface p-5 text-left transition-colors hover:border-app-border-strong hover:bg-app-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-app-brand-glow sm:flex-row sm:items-start sm:justify-between"
+                            aria-label={`Open details for ${project.name}`}
+                        >
+                            <div className="flex min-w-0 flex-1 items-start gap-4">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface-muted text-app-text-muted">
+                                    <Folder className="h-5 w-5" />
                                 </div>
 
-                                {project.tags.length > 0 && (
-                                    <div className="mb-3 flex flex-wrap gap-1.5">
-                                        {project.tags.map((tag, index) => (
-                                            <AccessBadge
-                                                key={tag}
-                                                variant={
-                                                    PROJECT_TAG_VARIANTS[
-                                                    index % PROJECT_TAG_VARIANTS.length
-                                                        ]
-                                                }
-                                            >
-                                                {tag}
-                                            </AccessBadge>
-                                        ))}
+                                <div className="min-w-0 flex-1">
+                                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                                        <span className="text-sm font-semibold text-app-text">
+                                            {project.name}
+                                        </span>
                                     </div>
-                                )}
 
-                                <p className="line-clamp-2 text-sm leading-relaxed text-app-text-muted">
-                                    {project.description}
-                                </p>
 
-                                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-app-text-disabled">
-                                    <span className="flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5" />
-                                        {project.memberCount} members
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <FileText className="h-3.5 w-3.5" />
-                                        {project.artifactCount} artifacts
-                                    </span>
+                                    <p className="line-clamp-2 text-sm leading-relaxed text-app-text-muted">
+                                        {project.description || "No project description available yet."}
+                                    </p>
+
+                                    {visibleSources.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-1.5">
+                                            {visibleSources.map((source) => (
+                                                <AccessBadge key={source.id} variant="neutral">
+                                                    {source.type}
+                                                </AccessBadge>
+                                            ))}
+
+                                            {project.sources.length > visibleSources.length && (
+                                                <AccessBadge variant="neutral">
+                                                    +{project.sources.length - visibleSources.length}
+                                                </AccessBadge>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-app-text-disabled">
+                                        <span className="flex items-center gap-1.5">
+                                            <Users className="h-3.5 w-3.5" />
+                                            {getProjectUsersCount(project)} members
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <FileText className="h-3.5 w-3.5" />
+                                            {getProjectSourcesCount(project)} sources
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl text-app-text-muted transition-colors group-hover:text-app-text sm:self-center">
-                            <ChevronRight className="h-4 w-4" />
-                        </div>
-                    </button>
-                ))}
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl text-app-text-muted transition-colors group-hover:text-app-text sm:self-center">
+                                <ChevronRight className="h-4 w-4" />
+                            </div>
+                        </button>
+                    );
+                })}
             </div>
         );
     };
@@ -1707,7 +1844,7 @@ export function AdminPage() {
                                     Admin Console
                                 </h1>
                                 <p className="text-sm text-app-text-muted">
-                                    Manage users, roles, and project access
+                                    Manage users & projects
                                 </p>
                             </div>
                         </div>
@@ -1724,7 +1861,7 @@ export function AdminPage() {
                             <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
                                 <Layers className="h-4 w-4 text-app-text-muted" />
                                 <span className="text-sm font-semibold text-app-text">
-                                    {availableProjects.length}
+                                    {projects.length}
                                 </span>
                                 <span className="text-sm text-app-text-muted">projects</span>
                             </div>

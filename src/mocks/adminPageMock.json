@@ -10,21 +10,21 @@
       {
         "id": "role-backend-developer",
         "name": "Backend Developer",
-        "description": "Responsible for API Development",
+        "description": "Responsible for API development",
         "type": "primary"
       },
       {
         "id": "role-frontend-developer",
         "name": "Frontend Developer",
-        "description": "Responsible for UI Development",
+        "description": "Responsible for UI development",
         "type": "secondary"
       }
     ],
     "permissionGroup": "USER",
     "projects": [
       {
-        "id": "project-uuid",
-        "name": "SprintStart Frontend"
+        "id": "project-shopflow-commerce",
+        "name": "ShopFlow Commerce"
       }
     ],
     "enabled": true,
@@ -42,21 +42,21 @@
         {
           "id": "role-backend-developer",
           "name": "Backend Developer",
-          "description": "Responsible for API Development",
+          "description": "Responsible for API development",
           "type": "primary"
         },
         {
           "id": "role-frontend-developer",
           "name": "Frontend Developer",
-          "description": "Responsible for UI Development",
+          "description": "Responsible for UI development",
           "type": "secondary"
         }
       ],
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-uuid",
-          "name": "SprintStart Frontend"
+          "id": "project-shopflow-commerce",
+          "name": "ShopFlow Commerce"
         }
       ],
       "enabled": true,
@@ -79,19 +79,19 @@
         {
           "id": "role-frontend-developer",
           "name": "Frontend Developer",
-          "description": "Responsible for UI Development",
+          "description": "Responsible for UI development",
           "type": "secondary"
         }
       ],
       "permissionGroup": "PROJECT_MANAGER",
       "projects": [
         {
-          "id": "project-sprintstart-frontend",
-          "name": "SprintStart Frontend"
+          "id": "project-shopflow-commerce",
+          "name": "ShopFlow Commerce"
         },
         {
-          "id": "project-sprintstart-backend",
-          "name": "SprintStart Backend"
+          "id": "project-medconnect",
+          "name": "MedConnect"
         }
       ],
       "enabled": true,
@@ -108,15 +108,15 @@
         {
           "id": "role-frontend-developer",
           "name": "Frontend Developer",
-          "description": "Responsible for UI Development",
+          "description": "Responsible for UI development",
           "type": "primary"
         }
       ],
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-sprintstart-frontend",
-          "name": "SprintStart Frontend"
+          "id": "project-travelmate",
+          "name": "TravelMate"
         }
       ],
       "enabled": true,
@@ -139,15 +139,15 @@
         {
           "id": "role-frontend-developer",
           "name": "Frontend Developer",
-          "description": "Responsible for UI Development",
+          "description": "Responsible for UI development",
           "type": "secondary"
         }
       ],
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-sprintstart-frontend",
-          "name": "SprintStart Frontend"
+          "id": "project-learnhub",
+          "name": "LearnHub"
         }
       ],
       "enabled": true,
@@ -164,7 +164,7 @@
         {
           "id": "role-backend-developer",
           "name": "Backend Developer",
-          "description": "Responsible for API Development",
+          "description": "Responsible for API development",
           "type": "primary"
         },
         {
@@ -177,12 +177,12 @@
       "permissionGroup": "ADMIN",
       "projects": [
         {
-          "id": "project-sprintstart-backend",
-          "name": "SprintStart Backend"
+          "id": "project-medconnect",
+          "name": "MedConnect"
         },
         {
-          "id": "project-platform-infra",
-          "name": "Platform Infrastructure"
+          "id": "project-fleetops",
+          "name": "FleetOps"
         }
       ],
       "enabled": true,
@@ -206,12 +206,12 @@
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-sprintstart-frontend",
-          "name": "SprintStart Frontend"
+          "id": "project-shopflow-commerce",
+          "name": "ShopFlow Commerce"
         },
         {
-          "id": "project-sprintstart-backend",
-          "name": "SprintStart Backend"
+          "id": "project-medconnect",
+          "name": "MedConnect"
         }
       ],
       "enabled": true,
@@ -235,12 +235,12 @@
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-sprintstart-frontend",
-          "name": "SprintStart Frontend"
+          "id": "project-shopflow-commerce",
+          "name": "ShopFlow Commerce"
         },
         {
-          "id": "project-sprintstart-backend",
-          "name": "SprintStart Backend"
+          "id": "project-travelmate",
+          "name": "TravelMate"
         }
       ],
       "enabled": false,
@@ -263,15 +263,15 @@
         {
           "id": "role-backend-developer",
           "name": "Backend Developer",
-          "description": "Responsible for API Development",
+          "description": "Responsible for API development",
           "type": "secondary"
         }
       ],
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-knowledge-ingestion",
-          "name": "Knowledge Ingestion"
+          "id": "project-fleetops",
+          "name": "FleetOps"
         }
       ],
       "enabled": true,
@@ -295,8 +295,8 @@
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-platform-infra",
-          "name": "Platform Infrastructure"
+          "id": "project-fleetops",
+          "name": "FleetOps"
         }
       ],
       "enabled": true,
@@ -313,7 +313,7 @@
         {
           "id": "role-frontend-developer",
           "name": "Frontend Developer",
-          "description": "Responsible for UI Development",
+          "description": "Responsible for UI development",
           "type": "primary"
         },
         {
@@ -326,8 +326,8 @@
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-sprintstart-frontend",
-          "name": "SprintStart Frontend"
+          "id": "project-learnhub",
+          "name": "LearnHub"
         }
       ],
       "enabled": true,
@@ -344,15 +344,15 @@
         {
           "id": "role-backend-developer",
           "name": "Backend Developer",
-          "description": "Responsible for API Development",
+          "description": "Responsible for API development",
           "type": "primary"
         }
       ],
       "permissionGroup": "USER",
       "projects": [
         {
-          "id": "project-sprintstart-backend",
-          "name": "SprintStart Backend"
+          "id": "project-medconnect",
+          "name": "MedConnect"
         }
       ],
       "enabled": false,
@@ -382,12 +382,12 @@
       "permissionGroup": "PROJECT_MANAGER",
       "projects": [
         {
-          "id": "project-knowledge-ingestion",
-          "name": "Knowledge Ingestion"
+          "id": "project-travelmate",
+          "name": "TravelMate"
         },
         {
-          "id": "project-platform-infra",
-          "name": "Platform Infrastructure"
+          "id": "project-fleetops",
+          "name": "FleetOps"
         }
       ],
       "enabled": true,
