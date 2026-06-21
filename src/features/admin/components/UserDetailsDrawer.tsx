@@ -1,0 +1,284 @@
+import { useEffect, useState } from "react";
+import { AlertCircle, Check, CheckCircle2, Edit, Loader2, Trash2 } from "lucide-react";
+import { adminUserService } from "../../../services/adminUserService";
+import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
+import {
+    getDisplayName,
+    getDraftDisplayName,
+    getInitials,
+    getPermissionGroupVariant,
+    getUserEditFormState,
+    PERMISSION_GROUP_OPTIONS,
+} from "../data";
+import type {
+    AdminUser,
+    ProjectSummary,
+    UpdateAdminUserRequest,
+    UserEditFormState,
+} from "../types";
+import { AccessBadge } from "./Badges";
+import { DetailRow } from "./DetailRow";
+import { EditableDetailRow } from "./EditableDetailRow";
+import { EditableSelectDetailRow } from "./EditableSelectDetailRow";
+import { ProjectAccessPanel } from "./ProjectAccessPanel";
+import { Section } from "./Section";
+
+type UserDetailsDrawerProps = {
+    user: AdminUser;
+    availableProjects: ProjectSummary[];
+    isOpen: boolean;
+    onClose: () => void;
+    onOpenProjectDetails: (projectId: string) => void;
+    onUserUpdated: (updatedUser: AdminUser) => void;
+    onRequestDelete: (user: AdminUser) => void;
+};
+
+export function UserDetailsDrawer({
+    user,
+    availableProjects,
+    isOpen,
+    onClose,
+    onOpenProjectDetails,
+    onUserUpdated,
+    onRequestDelete,
+}: UserDetailsDrawerProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveErrorMessage, setSaveErrorMessage] = useState("");
+    const [draftUser, setDraftUser] = useState<UserEditFormState>(() =>
+        getUserEditFormState(user),
+    );
+
+    useEffect(() => {
+        setIsEditing(false);
+        setIsSaving(false);
+        setSaveErrorMessage("");
+        setDraftUser(getUserEditFormState(user));
+    }, [isOpen, user.id]);
+
+    const visibleTitle = isEditing
+        ? getDraftDisplayName(user, draftUser)
+        : getDisplayName(user);
+    const visiblePermissionGroup = isEditing
+        ? draftUser.permissionGroup
+        : user.permissionGroup;
+
+    const startEditing = () => {
+        setDraftUser(getUserEditFormState(user));
+        setSaveErrorMessage("");
+        setIsEditing(true);
+    };
+
+    const cancelEditing = () => {
+        setDraftUser(getUserEditFormState(user));
+        setSaveErrorMessage("");
+        setIsEditing(false);
+    };
+
+    const updateDraftField = (field: keyof UserEditFormState, value: string) => {
+        setDraftUser((currentDraftUser) => ({
+            ...currentDraftUser,
+            [field]: value,
+        }));
+    };
+
+    const saveUserChanges = async () => {
+        const request: UpdateAdminUserRequest = {
+            email: draftUser.email.trim(),
+            firstName: draftUser.firstName.trim(),
+            lastName: draftUser.lastName.trim(),
+            permissionGroup: draftUser.permissionGroup.trim(),
+        };
+
+        if (!request.email) {
+            setSaveErrorMessage("Email is required.");
+            return;
+        }
+
+        if (!request.permissionGroup) {
+            setSaveErrorMessage("Permission group is required.");
+            return;
+        }
+
+        setIsSaving(true);
+        setSaveErrorMessage("");
+
+        try {
+            const updatedUser = await adminUserService.updateUser(user.id, request);
+
+            onUserUpdated(updatedUser);
+            setDraftUser(getUserEditFormState(updatedUser));
+            setIsEditing(false);
+        } catch (error) {
+            setSaveErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "User changes could not be saved.",
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <DetailsSideDrawer
+            isOpen={isOpen}
+            onClose={onClose}
+            title={visibleTitle}
+            leading={
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-lg font-semibold text-app-brand-text shadow-sm">
+                    {getInitials(user)}
+                </div>
+            }
+            badge={
+                <AccessBadge variant={getPermissionGroupVariant(visiblePermissionGroup)}>
+                    {visiblePermissionGroup}
+                </AccessBadge>
+            }
+            actions={
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={startEditing}
+                        disabled={isEditing || isSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <Edit className="h-4 w-4" />
+                        Edit User
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => onRequestDelete(user)}
+                        disabled={isSaving}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-app-surface text-app-danger-text transition-colors hover:bg-app-danger-bg disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label={`Delete ${getDisplayName(user)}`}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                </div>
+            }
+            footer={
+                isEditing ? (
+                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={cancelEditing}
+                            disabled={isSaving}
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-app-border bg-app-surface px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => void saveUserChanges()}
+                            disabled={isSaving}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Check className="h-4 w-4" />
+                            )}
+                            Save
+                        </button>
+                    </div>
+                ) : undefined
+            }
+        >
+            <div className="mb-10 grid grid-cols-2 gap-8">
+                <div>
+                    <p className="mb-2 text-sm text-app-text-muted">Account state</p>
+                    <div className="flex items-center gap-2 text-sm font-medium text-app-text">
+                        <CheckCircle2
+                            className={`h-4 w-4 ${
+                                user.enabled ? "text-app-success-solid" : "text-app-danger-solid"
+                            }`}
+                        />
+                        {user.enabled ? "Enabled" : "Disabled"}
+                    </div>
+                </div>
+
+                <div>
+                    <p className="mb-2 text-sm text-app-text-muted">Onboarding</p>
+                    <div className="flex items-center gap-2 text-sm font-medium text-app-text">
+                        <CheckCircle2
+                            className={`h-4 w-4 ${
+                                user.hasCompletedOnboarding
+                                    ? "text-app-success-solid"
+                                    : "text-app-warning-solid"
+                            }`}
+                        />
+                        {user.hasCompletedOnboarding ? "Completed" : "Open"}
+                    </div>
+                </div>
+            </div>
+
+            <Section>
+                {saveErrorMessage && (
+                    <div className="mb-5 rounded-2xl border border-app-danger-border bg-app-danger-bg p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-app-danger-text">
+                            <AlertCircle className="h-4 w-4" />
+                            User changes could not be saved
+                        </div>
+                        <p className="mt-1 text-sm text-app-danger-text">
+                            {saveErrorMessage}
+                        </p>
+                    </div>
+                )}
+
+                <dl>
+                    {isEditing ? (
+                        <>
+                            <EditableDetailRow
+                                label="Email"
+                                value={draftUser.email}
+                                onChange={(value) => updateDraftField("email", value)}
+                                type="email"
+                                autoComplete="email"
+                            />
+                            <DetailRow label="Username" value={user.username} />
+                            <EditableDetailRow
+                                label="First name"
+                                value={draftUser.firstName}
+                                onChange={(value) => updateDraftField("firstName", value)}
+                                autoComplete="given-name"
+                            />
+                            <EditableDetailRow
+                                label="Last name"
+                                value={draftUser.lastName}
+                                onChange={(value) => updateDraftField("lastName", value)}
+                                autoComplete="family-name"
+                            />
+                            <EditableSelectDetailRow
+                                label="Role"
+                                value={draftUser.permissionGroup}
+                                onChange={(value) => updateDraftField("permissionGroup", value)}
+                                options={PERMISSION_GROUP_OPTIONS}
+                            />
+                            <DetailRow label="User ID" value={user.id} mono />
+                        </>
+                    ) : (
+                        <>
+                            <DetailRow label="Email" value={user.email} />
+                            <DetailRow label="Username" value={user.username} />
+                            <DetailRow label="First name" value={user.firstName} />
+                            <DetailRow label="Last name" value={user.lastName} />
+                            <DetailRow label="Role" value={user.permissionGroup} />
+                            <DetailRow label="User ID" value={user.id} mono />
+                        </>
+                    )}
+                </dl>
+            </Section>
+
+            <Section>
+                <ProjectAccessPanel
+                    assignedProjects={user.projects}
+                    availableProjects={availableProjects}
+                    onOpenProjectDetails={onOpenProjectDetails}
+                />
+            </Section>
+        </DetailsSideDrawer>
+    );
+}
