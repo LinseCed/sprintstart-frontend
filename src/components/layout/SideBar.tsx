@@ -54,6 +54,11 @@ const projectManagerNavItems: SidebarNavItem[] = [
         path: '/data-ingestion',
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
+     {
+        label: 'Team Management',
+        path: '/team-management',
+        icon: <User className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
 ];
 
 function getNavLinkClass(isActive: boolean): string {

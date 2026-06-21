@@ -8,6 +8,8 @@ import { OnBoardingItemPage } from '../features/onboarding/components/OnBoarding
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
+import { TeamManagementPage } from '../pages/pm-view/TeamManagementPage.tsx';
+import { TeamMemberDetailPage } from '../pages/pm-view/TeamMemberDetailPage.tsx';
 
 export function AppRouter() {
     return (
@@ -22,6 +24,8 @@ export function AppRouter() {
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
+                <Route path="/team-management" element={<TeamManagementPage />} />
+                <Route path="/team/:userId" element={<TeamMemberDetailPage />} />
             </Routes>
         </AuthGuard>
     );
