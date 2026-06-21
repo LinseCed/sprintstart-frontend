@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Edit, Loader2, Trash2 } from "lucide-react";
 import { adminUserService } from "../../../services/adminUserService";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
@@ -33,53 +33,89 @@ type UserDetailsDrawerProps = {
     onRequestDelete: (user: AdminUser) => void;
 };
 
-export function UserDetailsDrawer({
-    user,
-    availableProjects,
-    isOpen,
-    onClose,
-    onOpenProjectDetails,
-    onUserUpdated,
-    onRequestDelete,
-}: UserDetailsDrawerProps) {
-    const [isEditing, setIsEditing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveErrorMessage, setSaveErrorMessage] = useState("");
-    const [draftUser, setDraftUser] = useState<UserEditFormState>(() =>
-        getUserEditFormState(user),
-    );
+type DraftUserState = {
+    userId: string;
+    draftUser: UserEditFormState;
+};
 
-    useEffect(() => {
-        setIsEditing(false);
-        setIsSaving(false);
-        setSaveErrorMessage("");
-        setDraftUser(getUserEditFormState(user));
-    }, [isOpen, user.id]);
+type SaveErrorState = {
+    userId: string;
+    message: string;
+};
+
+export function UserDetailsDrawer({
+                                      user,
+                                      availableProjects,
+                                      isOpen,
+                                      onClose,
+                                      onOpenProjectDetails,
+                                      onUserUpdated,
+                                      onRequestDelete,
+                                  }: UserDetailsDrawerProps) {
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [savingUserId, setSavingUserId] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState<SaveErrorState | null>(null);
+    const [draftUserState, setDraftUserState] = useState<DraftUserState>(() => ({
+        userId: user.id,
+        draftUser: getUserEditFormState(user),
+    }));
+
+    const isEditing = isOpen && editingUserId === user.id;
+    const isSaving = savingUserId === user.id;
+    const saveErrorMessage = saveError?.userId === user.id ? saveError.message : "";
+
+    const draftUser =
+        draftUserState.userId === user.id
+            ? draftUserState.draftUser
+            : getUserEditFormState(user);
 
     const visibleTitle = isEditing
         ? getDraftDisplayName(user, draftUser)
         : getDisplayName(user);
+
     const visiblePermissionGroup = isEditing
         ? draftUser.permissionGroup
         : user.permissionGroup;
 
+    const closeDrawer = () => {
+        setEditingUserId(null);
+        setSaveError(null);
+        onClose();
+    };
+
     const startEditing = () => {
-        setDraftUser(getUserEditFormState(user));
-        setSaveErrorMessage("");
-        setIsEditing(true);
+        setDraftUserState({
+            userId: user.id,
+            draftUser: getUserEditFormState(user),
+        });
+        setSaveError(null);
+        setEditingUserId(user.id);
     };
 
     const cancelEditing = () => {
-        setDraftUser(getUserEditFormState(user));
-        setSaveErrorMessage("");
-        setIsEditing(false);
+        setDraftUserState({
+            userId: user.id,
+            draftUser: getUserEditFormState(user),
+        });
+        setSaveError(null);
+        setEditingUserId(null);
     };
 
     const updateDraftField = (field: keyof UserEditFormState, value: string) => {
-        setDraftUser((currentDraftUser) => ({
-            ...currentDraftUser,
-            [field]: value,
-        }));
+        setDraftUserState((currentDraftUserState) => {
+            const currentDraftUser =
+                currentDraftUserState.userId === user.id
+                    ? currentDraftUserState.draftUser
+                    : getUserEditFormState(user);
+
+            return {
+                userId: user.id,
+                draftUser: {
+                    ...currentDraftUser,
+                    [field]: value,
+                },
+            };
+        });
     };
 
     const saveUserChanges = async () => {
@@ -91,39 +127,52 @@ export function UserDetailsDrawer({
         };
 
         if (!request.email) {
-            setSaveErrorMessage("Email is required.");
+            setSaveError({
+                userId: user.id,
+                message: "Email is required.",
+            });
             return;
         }
 
         if (!request.permissionGroup) {
-            setSaveErrorMessage("Permission group is required.");
+            setSaveError({
+                userId: user.id,
+                message: "Permission group is required.",
+            });
             return;
         }
 
-        setIsSaving(true);
-        setSaveErrorMessage("");
+        setSavingUserId(user.id);
+        setSaveError(null);
 
         try {
             const updatedUser = await adminUserService.updateUser(user.id, request);
 
             onUserUpdated(updatedUser);
-            setDraftUser(getUserEditFormState(updatedUser));
-            setIsEditing(false);
+            setDraftUserState({
+                userId: updatedUser.id,
+                draftUser: getUserEditFormState(updatedUser),
+            });
+            setEditingUserId(null);
         } catch (error) {
-            setSaveErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "User changes could not be saved.",
-            );
+            setSaveError({
+                userId: user.id,
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "User changes could not be saved.",
+            });
         } finally {
-            setIsSaving(false);
+            setSavingUserId((currentSavingUserId) =>
+                currentSavingUserId === user.id ? null : currentSavingUserId,
+            );
         }
     };
 
     return (
         <DetailsSideDrawer
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={closeDrawer}
             title={visibleTitle}
             leading={
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-lg font-semibold text-app-brand-text shadow-sm">

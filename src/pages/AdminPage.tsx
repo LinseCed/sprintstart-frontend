@@ -46,7 +46,7 @@ export function AdminPage() {
     const [selectedProject, setSelectedProject] = useState<ProjectOverview | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    const [loadingState, setLoadingState] = useState<LoadingState>("idle");
+    const [loadingState, setLoadingState] = useState<LoadingState>("loading");
     const [errorMessage, setErrorMessage] = useState("");
 
     const [searchValue, setSearchValue] = useState("");
@@ -62,9 +62,6 @@ export function AdminPage() {
     const [deleteUserErrorMessage, setDeleteUserErrorMessage] = useState("");
 
     const loadAdminData = useCallback(async () => {
-        setLoadingState((current) => (current === "idle" ? "loading" : current));
-        setErrorMessage("");
-
         try {
             const [nextUsers, nextProjects] = await Promise.all([
                 adminUserService.getUsers(),
@@ -104,21 +101,9 @@ export function AdminPage() {
     }, []);
 
     useEffect(() => {
-        void loadAdminData();
+        void Promise.resolve().then(loadAdminData);
     }, [loadAdminData]);
 
-    useEffect(() => {
-        if (!selectedUser && !selectedProject) {
-            setIsDrawerOpen(false);
-            return;
-        }
-
-        const animationFrameId = window.requestAnimationFrame(() => {
-            setIsDrawerOpen(true);
-        });
-
-        return () => window.cancelAnimationFrame(animationFrameId);
-    }, [selectedUser, selectedProject]);
 
     const availableProjects = useMemo<ProjectSummary[]>(() => {
         return projects
@@ -201,17 +186,13 @@ export function AdminPage() {
     }, [projects, projectSearchValue]);
 
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+    const safePage = Math.min(page, totalPages);
 
     const paginatedUsers = useMemo(() => {
-        const safePage = Math.min(page, totalPages);
         const startIndex = (safePage - 1) * PAGE_SIZE;
 
         return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
-    }, [filteredUsers, page, totalPages]);
-
-    useEffect(() => {
-        setPage((currentPage) => Math.min(currentPage, totalPages));
-    }, [totalPages]);
+    }, [filteredUsers, safePage]);
 
     const allVisibleUsersSelected =
         paginatedUsers.length > 0 &&
@@ -249,6 +230,7 @@ export function AdminPage() {
         setOpenUserMenuId(null);
         setSelectedProject(null);
         setSelectedUser(user);
+        setIsDrawerOpen(true);
     };
 
     const toggleUserContextMenu = (
@@ -332,6 +314,7 @@ export function AdminPage() {
         setOpenUserMenuId(null);
         setSelectedUser(null);
         setSelectedProject(project);
+        setIsDrawerOpen(true);
     };
 
     const openProjectDetailsFromUserDrawer = (projectId: string) => {
@@ -560,8 +543,8 @@ export function AdminPage() {
                                     <div className="mt-4 flex items-center justify-center gap-1">
                                         <button
                                             type="button"
-                                            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-                                            disabled={page === 1}
+                                            onClick={() => setPage(Math.max(1, safePage - 1))}
+                                            disabled={safePage === 1}
                                             className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
                                             aria-label="Previous page"
                                         >
@@ -575,7 +558,7 @@ export function AdminPage() {
                                                     type="button"
                                                     onClick={() => setPage(pageNumber)}
                                                     className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-colors ${
-                                                        page === pageNumber
+                                                        safePage === pageNumber
                                                             ? "bg-app-surface-muted text-app-text"
                                                             : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
                                                     }`}
@@ -587,8 +570,8 @@ export function AdminPage() {
 
                                         <button
                                             type="button"
-                                            onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
-                                            disabled={page === totalPages}
+                                            onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                                            disabled={safePage === totalPages}
                                             className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
                                             aria-label="Next page"
                                         >

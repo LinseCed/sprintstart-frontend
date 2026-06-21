@@ -22,21 +22,41 @@ type UsersTabProps = {
 };
 
 export function UsersTab({
-    paginatedUsers,
-    selectedUserIds,
-    allVisibleUsersSelected,
-    openUserMenuId,
-    onToggleAllVisibleUsers,
-    onToggleUserSelection,
-    onOpenUserDetails,
-    onToggleUserContextMenu,
-    onOpenUserDetailsFromMenu,
-    onRequestUserDeleteFromMenu,
-}: UsersTabProps) {
+                             paginatedUsers,
+                             selectedUserIds,
+                             allVisibleUsersSelected,
+                             openUserMenuId,
+                             onToggleAllVisibleUsers,
+                             onToggleUserSelection,
+                             onOpenUserDetails,
+                             onToggleUserContextMenu,
+                             onOpenUserDetailsFromMenu,
+                             onRequestUserDeleteFromMenu,
+                         }: UsersTabProps) {
+    const shouldIgnoreUserRowAction = (
+        event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>,
+    ) => {
+        return (
+            event.target instanceof HTMLElement &&
+            event.target.closest("[data-user-row-action='true']") !== null
+        );
+    };
+
+    const handleOpenUserByClick = (
+        event: MouseEvent<HTMLDivElement>,
+        user: AdminUser,
+    ) => {
+        if (shouldIgnoreUserRowAction(event)) return;
+
+        onOpenUserDetails(user);
+    };
+
     const handleOpenUserByKeyboard = (
         event: KeyboardEvent<HTMLDivElement>,
         user: AdminUser,
     ) => {
+        if (shouldIgnoreUserRowAction(event)) return;
+
         if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             onOpenUserDetails(user);
@@ -77,15 +97,11 @@ export function UsersTab({
                         key={user.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => onOpenUserDetails(user)}
+                        onClick={(event) => handleOpenUserByClick(event, user)}
                         onKeyDown={(event) => handleOpenUserByKeyboard(event, user)}
                         className="group grid cursor-pointer grid-cols-[44px_2.5fr_1.8fr_1.8fr_52px] items-center border-b border-app-border px-5 py-4 transition-colors last:border-b-0 hover:bg-app-surface-hover focus:outline-none focus-visible:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-brand-glow"
                     >
-                        <div
-                            className="flex items-center"
-                            onClick={(event) => event.stopPropagation()}
-                            onKeyDown={(event) => event.stopPropagation()}
-                        >
+                        <div className="flex items-center" data-user-row-action="true">
                             <SelectionCheckbox
                                 checked={selectedUserIds.has(user.id)}
                                 onChange={() => onToggleUserSelection(user.id)}
@@ -117,8 +133,7 @@ export function UsersTab({
 
                         <div
                             className="relative flex items-center justify-end"
-                            onClick={(event) => event.stopPropagation()}
-                            onKeyDown={(event) => event.stopPropagation()}
+                            data-user-row-action="true"
                         >
                             <button
                                 type="button"
@@ -167,15 +182,12 @@ export function UsersTab({
                         key={user.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => onOpenUserDetails(user)}
+                        onClick={(event) => handleOpenUserByClick(event, user)}
                         onKeyDown={(event) => handleOpenUserByKeyboard(event, user)}
                         className="cursor-pointer rounded-2xl border border-app-border bg-app-surface p-4 transition-colors hover:bg-app-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-app-brand-glow"
                     >
                         <div className="flex items-start gap-3">
-                            <div
-                                onClick={(event) => event.stopPropagation()}
-                                onKeyDown={(event) => event.stopPropagation()}
-                            >
+                            <div data-user-row-action="true">
                                 <SelectionCheckbox
                                     checked={selectedUserIds.has(user.id)}
                                     onChange={() => onToggleUserSelection(user.id)}
@@ -199,8 +211,7 @@ export function UsersTab({
 
                                     <div
                                         className="relative shrink-0"
-                                        onClick={(event) => event.stopPropagation()}
-                                        onKeyDown={(event) => event.stopPropagation()}
+                                        data-user-row-action="true"
                                     >
                                         <button
                                             type="button"

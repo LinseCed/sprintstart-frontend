@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Folder, Loader2 } from "lucide-react";
 import { projectService } from "../../../services/projectService";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
-import {
-    getProjectSourcesCount,
-    getProjectUsersCount,
-} from "../data";
-import type { AdminProjectDetails, LoadingState, ProjectOverview } from "../types";
+import { getProjectSourcesCount, getProjectUsersCount } from "../data";
+import type { AdminProjectDetails, ProjectOverview } from "../types";
 import { AccessBadge } from "./Badges";
 import { ProjectUserList } from "./ProjectUserList";
 import { Section } from "./Section";
@@ -18,62 +15,65 @@ type ProjectDetailsDrawerProps = {
     onClose: () => void;
 };
 
+type ProjectDetailsError = {
+    projectId: string;
+    message: string;
+};
+
 export function ProjectDetailsDrawer({
-    project,
-    isOpen,
-    onClose,
-}: ProjectDetailsDrawerProps) {
+                                         project,
+                                         isOpen,
+                                         onClose,
+                                     }: ProjectDetailsDrawerProps) {
     const [projectDetails, setProjectDetails] = useState<AdminProjectDetails | null>(null);
-    const [detailsLoadingState, setDetailsLoadingState] = useState<LoadingState>("idle");
-    const [detailsErrorMessage, setDetailsErrorMessage] = useState("");
+    const [detailsError, setDetailsError] = useState<ProjectDetailsError | null>(null);
 
     useEffect(() => {
         if (!isOpen) return;
 
         let isMounted = true;
+        const projectId = project.id;
 
-        async function loadProjectDetails() {
-            setDetailsLoadingState("loading");
-            setDetailsErrorMessage("");
-
-            try {
-                const nextProjectDetails = await projectService.getProjectById(project.id);
-
+        void projectService
+            .getProjectById(projectId)
+            .then((nextProjectDetails) => {
                 if (!isMounted) return;
 
                 setProjectDetails(nextProjectDetails);
-                setDetailsLoadingState("success");
-            } catch (error) {
+                setDetailsError(null);
+            })
+            .catch((error: unknown) => {
                 if (!isMounted) return;
 
                 setProjectDetails(null);
-                setDetailsLoadingState("error");
-                setDetailsErrorMessage(
-                    error instanceof Error
-                        ? error.message
-                        : "Project details could not be loaded.",
-                );
-            }
-        }
-
-        void loadProjectDetails();
+                setDetailsError({
+                    projectId,
+                    message:
+                        error instanceof Error
+                            ? error.message
+                            : "Project details could not be loaded.",
+                });
+            });
 
         return () => {
             isMounted = false;
         };
     }, [isOpen, project.id]);
 
-    useEffect(() => {
-        setProjectDetails(null);
-        setDetailsLoadingState("idle");
-        setDetailsErrorMessage("");
-    }, [project.id]);
+    const currentProjectDetails =
+        projectDetails?.id === project.id ? projectDetails : null;
 
-    const visibleProject = projectDetails ?? project;
+    const currentDetailsError =
+        detailsError?.projectId === project.id ? detailsError.message : "";
+
+    const visibleProject = currentProjectDetails ?? project;
     const memberCount = getProjectUsersCount(visibleProject);
     const sourceCount = getProjectSourcesCount(visibleProject);
-    const isLoadingDetails = detailsLoadingState === "loading" && !projectDetails;
-    const hasDetailsError = detailsLoadingState === "error";
+
+    const isLoadingDetails =
+        isOpen && !currentProjectDetails && !currentDetailsError;
+
+    const hasDetailsError = Boolean(currentDetailsError);
 
     return (
         <DetailsSideDrawer
@@ -111,7 +111,7 @@ export function ProjectDetailsDrawer({
                         <AlertCircle className="h-4 w-4" />
                         Project details could not be loaded
                     </div>
-                    <p className="text-sm text-app-danger-text">{detailsErrorMessage}</p>
+                    <p className="text-sm text-app-danger-text">{currentDetailsError}</p>
                 </div>
             ) : (
                 <>

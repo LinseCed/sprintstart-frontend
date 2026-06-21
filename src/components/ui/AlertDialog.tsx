@@ -57,20 +57,21 @@ export function AlertDialog({
             : "border-app-brand bg-app-brand text-white hover:border-app-brand-hover hover:bg-app-brand-hover";
 
     return (
-        <div
-            role="presentation"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay p-4"
-            onMouseDown={() => {
-                if (!isLoading) onClose();
-            }}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <button
+                type="button"
+                aria-label="Close dialog"
+                disabled={isLoading}
+                onClick={onClose}
+                className="absolute inset-0 bg-app-overlay disabled:cursor-default"
+            />
+
             <div
                 role="alertdialog"
                 aria-modal="true"
                 aria-labelledby="alert-dialog-title"
                 aria-describedby={description ? "alert-dialog-description" : undefined}
-                className="w-full max-w-md overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-2xl"
-                onMouseDown={(event) => event.stopPropagation()}
+                className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-2xl"
             >
                 <div className="p-6">
                     <h2

@@ -117,7 +117,7 @@ type ProjectMock = {
     adminUsers?: MockAdminUser[];
 };
 
-const mock = projectMock as ProjectMock;
+const mock: ProjectMock = projectMock;
 
 let mockProjects: AdminProject[] = clone(mock.adminProjects ?? []);
 let mockUsers: MockAdminUser[] = clone(mock.adminUsers ?? []);
@@ -131,7 +131,8 @@ function clone<T>(value: T): T {
         return structuredClone(value);
     }
 
-    return JSON.parse(JSON.stringify(value)) as T;
+    const parsed: unknown = JSON.parse(JSON.stringify(value));
+    return parsed as T;
 }
 
 async function withMockDelay<T>(value: T): Promise<T> {
@@ -153,7 +154,7 @@ function normalizeGlobalRoles(user?: MockAdminUser): GlobalUserRole[] {
     }
 
     if (user.permissionGroup) {
-        return [user.permissionGroup.toUpperCase() as GlobalUserRole];
+        return [user.permissionGroup.toUpperCase()];
     }
 
     if (!Array.isArray(user.roles)) {
@@ -165,7 +166,7 @@ function normalizeGlobalRoles(user?: MockAdminUser): GlobalUserRole[] {
     );
 
     if (stringRoles.length > 0) {
-        return stringRoles.map((role) => role.toUpperCase() as GlobalUserRole);
+        return stringRoles.map((role) => role.toUpperCase());
     }
 
     return ["USER"];

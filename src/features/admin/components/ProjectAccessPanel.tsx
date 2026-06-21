@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { ExternalLink, Folder, Plus, Search, Trash2 } from "lucide-react";
 import type { ProjectSummary } from "../types";
 
@@ -8,22 +8,83 @@ export type ProjectAccessPanelProps = {
     onOpenProjectDetails: (projectId: string) => void;
 };
 
-export function ProjectAccessPanel({
-    assignedProjects,
-    availableProjects,
-    onOpenProjectDetails,
-}: ProjectAccessPanelProps) {
-    const [draftProjectIds, setDraftProjectIds] = useState<Set<string>>(
-        new Set(assignedProjects.map((project) => project.id)),
-    );
-    const [projectSearch, setProjectSearch] = useState("");
-    const [openProjectPicker, setOpenProjectPicker] = useState(false);
+type DraftProjectChanges = {
+    sourceKey: string;
+    addedProjectIds: Set<string>;
+    removedProjectIds: Set<string>;
+};
 
-    useEffect(() => {
-        setDraftProjectIds(new Set(assignedProjects.map((project) => project.id)));
-        setProjectSearch("");
-        setOpenProjectPicker(false);
-    }, [assignedProjects]);
+type ProjectPickerState = {
+    sourceKey: string;
+    search: string;
+    isOpen: boolean;
+};
+
+export function ProjectAccessPanel({
+                                       assignedProjects,
+                                       availableProjects,
+                                       onOpenProjectDetails,
+                                   }: ProjectAccessPanelProps) {
+    const assignedProjectKey = useMemo(
+        () => assignedProjects.map((project) => project.id).sort().join("|"),
+        [assignedProjects],
+    );
+
+    const assignedProjectIds = useMemo(
+        () => new Set(assignedProjects.map((project) => project.id)),
+        [assignedProjects],
+    );
+
+    const [draftChanges, setDraftChanges] = useState<DraftProjectChanges>(() => ({
+        sourceKey: assignedProjectKey,
+        addedProjectIds: new Set<string>(),
+        removedProjectIds: new Set<string>(),
+    }));
+
+    const [projectPickerState, setProjectPickerState] = useState<ProjectPickerState>(() => ({
+        sourceKey: assignedProjectKey,
+        search: "",
+        isOpen: false,
+    }));
+
+    const activeDraftChanges =
+        draftChanges.sourceKey === assignedProjectKey
+            ? draftChanges
+            : {
+                sourceKey: assignedProjectKey,
+                addedProjectIds: new Set<string>(),
+                removedProjectIds: new Set<string>(),
+            };
+
+    const activeProjectPickerState =
+        projectPickerState.sourceKey === assignedProjectKey
+            ? projectPickerState
+            : {
+                sourceKey: assignedProjectKey,
+                search: "",
+                isOpen: false,
+            };
+
+    const draftProjectIds = useMemo(() => {
+        const nextProjectIds = new Set(assignedProjectIds);
+
+        activeDraftChanges.addedProjectIds.forEach((projectId) => {
+            nextProjectIds.add(projectId);
+        });
+
+        activeDraftChanges.removedProjectIds.forEach((projectId) => {
+            nextProjectIds.delete(projectId);
+        });
+
+        return nextProjectIds;
+    }, [
+        assignedProjectIds,
+        activeDraftChanges.addedProjectIds,
+        activeDraftChanges.removedProjectIds,
+    ]);
+
+    const projectSearch = activeProjectPickerState.search;
+    const openProjectPicker = activeProjectPickerState.isOpen;
 
     const assignedDraftProjects = availableProjects.filter((project) =>
         draftProjectIds.has(project.id),
@@ -31,30 +92,93 @@ export function ProjectAccessPanel({
 
     const projectOptions = availableProjects.filter((project) => {
         const isAlreadyAssigned = draftProjectIds.has(project.id);
+        const trimmedSearch = projectSearch.trim().toLowerCase();
+
         const matchesSearch =
-            projectSearch.trim().length === 0 ||
-            project.name.toLowerCase().includes(projectSearch.trim().toLowerCase()) ||
-            project.id.toLowerCase().includes(projectSearch.trim().toLowerCase());
+            trimmedSearch.length === 0 ||
+            project.name.toLowerCase().includes(trimmedSearch) ||
+            project.id.toLowerCase().includes(trimmedSearch);
 
         return !isAlreadyAssigned && matchesSearch;
     });
 
+    const updateProjectSearch = (search: string) => {
+        setProjectPickerState((current) => ({
+            sourceKey: assignedProjectKey,
+            search,
+            isOpen: current.sourceKey === assignedProjectKey ? current.isOpen : false,
+        }));
+    };
+
+    const toggleProjectPicker = () => {
+        setProjectPickerState((current) => {
+            const isCurrentUserState = current.sourceKey === assignedProjectKey;
+
+            return {
+                sourceKey: assignedProjectKey,
+                search: isCurrentUserState ? current.search : "",
+                isOpen: isCurrentUserState ? !current.isOpen : true,
+            };
+        });
+    };
+
+    const closeProjectPicker = () => {
+        setProjectPickerState({
+            sourceKey: assignedProjectKey,
+            search: "",
+            isOpen: false,
+        });
+    };
+
     const addProject = (projectId: string) => {
-        setDraftProjectIds((current) => {
-            const next = new Set(current);
-            next.add(projectId);
-            return next;
+        setDraftChanges((current) => {
+            const isCurrentUserState = current.sourceKey === assignedProjectKey;
+
+            const addedProjectIds = new Set(
+                isCurrentUserState ? current.addedProjectIds : [],
+            );
+            const removedProjectIds = new Set(
+                isCurrentUserState ? current.removedProjectIds : [],
+            );
+
+            removedProjectIds.delete(projectId);
+
+            if (!assignedProjectIds.has(projectId)) {
+                addedProjectIds.add(projectId);
+            }
+
+            return {
+                sourceKey: assignedProjectKey,
+                addedProjectIds,
+                removedProjectIds,
+            };
         });
 
-        setProjectSearch("");
-        setOpenProjectPicker(false);
+        closeProjectPicker();
     };
 
     const removeProject = (projectId: string) => {
-        setDraftProjectIds((current) => {
-            const next = new Set(current);
-            next.delete(projectId);
-            return next;
+        setDraftChanges((current) => {
+            const isCurrentUserState = current.sourceKey === assignedProjectKey;
+
+            const addedProjectIds = new Set(
+                isCurrentUserState ? current.addedProjectIds : [],
+            );
+            const removedProjectIds = new Set(
+                isCurrentUserState ? current.removedProjectIds : [],
+            );
+
+            addedProjectIds.delete(projectId);
+
+            if (assignedProjectIds.has(projectId)) {
+                removedProjectIds.add(projectId);
+            }
+
+            return {
+                sourceKey: assignedProjectKey,
+                addedProjectIds,
+                removedProjectIds,
+            };
         });
     };
 
@@ -68,7 +192,7 @@ export function ProjectAccessPanel({
                 <div className="relative">
                     <button
                         type="button"
-                        onClick={() => setOpenProjectPicker((current) => !current)}
+                        onClick={toggleProjectPicker}
                         className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
                     >
                         <Plus className="h-4 w-4" />
@@ -81,7 +205,7 @@ export function ProjectAccessPanel({
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-text-disabled" />
                                 <input
                                     value={projectSearch}
-                                    onChange={(event) => setProjectSearch(event.target.value)}
+                                    onChange={(event) => updateProjectSearch(event.target.value)}
                                     placeholder="Search projects..."
                                     className="h-9 w-full rounded-xl border border-app-border bg-app-surface-muted pl-9 pr-3 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
                                 />
