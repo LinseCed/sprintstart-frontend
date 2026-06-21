@@ -2,14 +2,16 @@
 // AdminPage.tsx
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import {
     AlertCircle,
     Check,
     CheckCircle2,
+    ChevronDown,
     ChevronLeft,
-    ChevronRight, Edit,
+    ChevronRight,
+    Edit,
     ExternalLink,
     FileText,
     Folder,
@@ -19,7 +21,8 @@ import {
     Plus,
     RefreshCw,
     Search,
-    SlidersHorizontal, Terminal,
+    SlidersHorizontal,
+    Terminal,
     Trash2,
     Users,
 } from "lucide-react";
@@ -27,6 +30,7 @@ import {
     adminUserService,
     type AdminUser,
     type ProjectSummary,
+    type UpdateAdminUserRequest,
 } from "../services/adminUserService";
 import {
     projectService,
@@ -37,12 +41,14 @@ import {
     type ProjectUserSummary,
 } from "../services/projectService";
 import { DetailsSideDrawer } from "../components/layout/DetailsSideDrawer.tsx";
+import { AlertDialog } from "../components/ui/AlertDialog.tsx";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
 type UserFilter = "all" | "enabled" | "disabled" | "onboarded" | "not-onboarded";
 
 const PAGE_SIZE = 8;
 const DRAWER_CLOSE_DELAY_MS = 260;
+const PERMISSION_GROUP_OPTIONS = ["Admin", "User", "Project Manager"] as const;
 
 function getDisplayName(user: AdminUser) {
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
@@ -373,12 +379,160 @@ function ProjectAccessPanel({
     );
 }
 
+type UserEditFormState = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    permissionGroup: string;
+};
+
+function getUserEditFormState(user: AdminUser): UserEditFormState {
+    return {
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        permissionGroup: user.permissionGroup,
+    };
+}
+
+function getDraftDisplayName(user: AdminUser, draftUser: UserEditFormState) {
+    const fullName = [draftUser.firstName, draftUser.lastName]
+        .filter(Boolean)
+        .join(" ");
+
+    return fullName || user.username || draftUser.email;
+}
+
+function EditableDetailRow({
+                               label,
+                               value,
+                               onChange,
+                               type = "text",
+                               autoComplete,
+                           }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    type?: "text" | "email";
+    autoComplete?: string;
+}) {
+    return (
+        <div className="grid grid-cols-[7.5rem_1fr] items-center gap-4 py-2.5">
+            <label className="text-sm text-app-text-muted">{label}</label>
+            <input
+                type={type}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                autoComplete={autoComplete}
+                className="h-10 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm font-medium text-app-text outline-none transition-colors placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
+            />
+        </div>
+    );
+}
+
+function EditableSelectDetailRow({
+                                     label,
+                                     value,
+                                     onChange,
+                                     options,
+                                 }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: readonly string[];
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        function handleClickOutside(event: globalThis.MouseEvent) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
+                setIsOpen(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [isOpen]);
+
+    const selectOption = (option: string) => {
+        onChange(option);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="grid grid-cols-[7.5rem_1fr] items-center gap-4 py-2.5">
+            <label className="text-sm text-app-text-muted">{label}</label>
+
+            <div ref={dropdownRef} className="relative">
+                <button
+                    type="button"
+                    onClick={() => setIsOpen((current) => !current)}
+                    className={`flex h-10 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium outline-none transition-colors focus:ring-2 focus:ring-app-brand-glow ${
+                        isOpen
+                            ? "border-app-brand-border bg-app-brand-soft text-app-brand-text"
+                            : "border-app-border bg-app-surface text-app-text hover:bg-app-surface-hover"
+                    }`}
+                    aria-haspopup="listbox"
+                    aria-expanded={isOpen}
+                >
+                    <span className="truncate">{value}</span>
+                    <ChevronDown
+                        className={`h-4 w-4 shrink-0 transition-transform ${
+                            isOpen ? "rotate-180" : ""
+                        }`}
+                    />
+                </button>
+
+                {isOpen && (
+                    <div
+                        role="listbox"
+                        className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl"
+                    >
+                        {options.map((option) => {
+                            const isSelected = option === value;
+
+                            return (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    onClick={() => selectOption(option)}
+                                    className={`flex min-h-11 w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors ${
+                                        isSelected
+                                            ? "bg-app-brand-soft text-app-brand-text"
+                                            : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                                    }`}
+                                >
+                                    {option}
+                                    {isSelected && <Check className="h-3.5 w-3.5" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 type UserDetailsDrawerProps = {
     user: AdminUser;
     availableProjects: ProjectSummary[];
     isOpen: boolean;
     onClose: () => void;
     onOpenProjectDetails: (projectId: string) => void;
+    onUserUpdated: (updatedUser: AdminUser) => void;
+    onRequestDelete: (user: AdminUser) => void;
 };
 
 function UserDetailsDrawer({
@@ -387,36 +541,155 @@ function UserDetailsDrawer({
                                isOpen,
                                onClose,
                                onOpenProjectDetails,
+                               onUserUpdated,
+                               onRequestDelete,
                            }: UserDetailsDrawerProps) {
-    const keycloakAdminBaseUrl = import.meta.env.VITE_KEYCLOAK_ADMIN_BASE_URL as string;
-    const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM as string;
-    const keycloakUserDetailsUrl = `${keycloakAdminBaseUrl}/admin/${keycloakRealm}/console/#/${keycloakRealm}/users/${user.id}/settings`;
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveErrorMessage, setSaveErrorMessage] = useState("");
+    const [draftUser, setDraftUser] = useState<UserEditFormState>(() =>
+        getUserEditFormState(user),
+    );
+
+    useEffect(() => {
+        setIsEditing(false);
+        setIsSaving(false);
+        setSaveErrorMessage("");
+        setDraftUser(getUserEditFormState(user));
+    }, [isOpen, user.id]);
+
+    const visibleTitle = isEditing
+        ? getDraftDisplayName(user, draftUser)
+        : getDisplayName(user);
+    const visiblePermissionGroup = isEditing
+        ? draftUser.permissionGroup
+        : user.permissionGroup;
+
+    const startEditing = () => {
+        setDraftUser(getUserEditFormState(user));
+        setSaveErrorMessage("");
+        setIsEditing(true);
+    };
+
+    const cancelEditing = () => {
+        setDraftUser(getUserEditFormState(user));
+        setSaveErrorMessage("");
+        setIsEditing(false);
+    };
+
+    const updateDraftField = (
+        field: keyof UserEditFormState,
+        value: string,
+    ) => {
+        setDraftUser((currentDraftUser) => ({
+            ...currentDraftUser,
+            [field]: value,
+        }));
+    };
+
+    const saveUserChanges = async () => {
+        const request: UpdateAdminUserRequest = {
+            email: draftUser.email.trim(),
+            firstName: draftUser.firstName.trim(),
+            lastName: draftUser.lastName.trim(),
+            permissionGroup: draftUser.permissionGroup.trim(),
+        };
+
+        if (!request.email) {
+            setSaveErrorMessage("Email is required.");
+            return;
+        }
+
+        if (!request.permissionGroup) {
+            setSaveErrorMessage("Permission group is required.");
+            return;
+        }
+
+        setIsSaving(true);
+        setSaveErrorMessage("");
+
+        try {
+            const updatedUser = await adminUserService.updateUser(user.id, request);
+
+            onUserUpdated(updatedUser);
+            setDraftUser(getUserEditFormState(updatedUser));
+            setIsEditing(false);
+        } catch (error) {
+            setSaveErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "User changes could not be saved.",
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <DetailsSideDrawer
             isOpen={isOpen}
             onClose={onClose}
-            title={getDisplayName(user)}
+            title={visibleTitle}
             leading={
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-lg font-semibold text-app-brand-text shadow-sm">
                     {getInitials(user)}
                 </div>
             }
             badge={
-                <AccessBadge variant={getPermissionGroupVariant(user.permissionGroup)}>
-                    {user.permissionGroup}
+                <AccessBadge variant={getPermissionGroupVariant(visiblePermissionGroup)}>
+                    {visiblePermissionGroup}
                 </AccessBadge>
             }
             actions={
-                <a
-                    href={keycloakUserDetailsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
-                >
-                    <Edit className="h-4 w-4" />
-                    Edit User
-                </a>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={startEditing}
+                        disabled={isEditing || isSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <Edit className="h-4 w-4" />
+                        Edit User
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => onRequestDelete(user)}
+                        disabled={isSaving}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-app-surface text-app-danger-text transition-colors hover:bg-app-danger-bg disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label={`Delete ${getDisplayName(user)}`}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                </div>
+            }
+            footer={
+                isEditing ? (
+                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={cancelEditing}
+                            disabled={isSaving}
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-app-border bg-app-surface px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => void saveUserChanges()}
+                            disabled={isSaving}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Check className="h-4 w-4" />
+                            )}
+                            Save
+                        </button>
+                    </div>
+                ) : undefined
             }
         >
             <div className="mb-10 grid grid-cols-2 gap-8">
@@ -450,13 +723,59 @@ function UserDetailsDrawer({
             </div>
 
             <Section>
+                {saveErrorMessage && (
+                    <div className="mb-5 rounded-2xl border border-app-danger-border bg-app-danger-bg p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-app-danger-text">
+                            <AlertCircle className="h-4 w-4" />
+                            User changes could not be saved
+                        </div>
+                        <p className="mt-1 text-sm text-app-danger-text">
+                            {saveErrorMessage}
+                        </p>
+                    </div>
+                )}
+
                 <dl>
-                    <DetailRow label="Email" value={user.email} />
-                    <DetailRow label="Username" value={user.username} />
-                    <DetailRow label="First name" value={user.firstName} />
-                    <DetailRow label="Last name" value={user.lastName} />
-                    <DetailRow label="Role" value={user.permissionGroup} />
-                    <DetailRow label="User ID" value={user.id} mono />
+                    {isEditing ? (
+                        <>
+                            <EditableDetailRow
+                                label="Email"
+                                value={draftUser.email}
+                                onChange={(value) => updateDraftField("email", value)}
+                                type="email"
+                                autoComplete="email"
+                            />
+                            <DetailRow label="Username" value={user.username} />
+                            <EditableDetailRow
+                                label="First name"
+                                value={draftUser.firstName}
+                                onChange={(value) => updateDraftField("firstName", value)}
+                                autoComplete="given-name"
+                            />
+                            <EditableDetailRow
+                                label="Last name"
+                                value={draftUser.lastName}
+                                onChange={(value) => updateDraftField("lastName", value)}
+                                autoComplete="family-name"
+                            />
+                            <EditableSelectDetailRow
+                                label="Role"
+                                value={draftUser.permissionGroup}
+                                onChange={(value) => updateDraftField("permissionGroup", value)}
+                                options={PERMISSION_GROUP_OPTIONS}
+                            />
+                            <DetailRow label="User ID" value={user.id} mono />
+                        </>
+                    ) : (
+                        <>
+                            <DetailRow label="Email" value={user.email} />
+                            <DetailRow label="Username" value={user.username} />
+                            <DetailRow label="First name" value={user.firstName} />
+                            <DetailRow label="Last name" value={user.lastName} />
+                            <DetailRow label="Role" value={user.permissionGroup} />
+                            <DetailRow label="User ID" value={user.id} mono />
+                        </>
+                    )}
                 </dl>
             </Section>
 
@@ -827,6 +1146,9 @@ export function AdminPage() {
     const [page, setPage] = useState(1);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
+    const [userPendingDelete, setUserPendingDelete] = useState<AdminUser | null>(null);
+    const [isDeletingUser, setIsDeletingUser] = useState(false);
+    const [deleteUserErrorMessage, setDeleteUserErrorMessage] = useState("");
 
     const loadAdminData = useCallback(async () => {
         setLoadingState((current) => (current === "idle" ? "loading" : current));
@@ -1036,28 +1358,63 @@ export function AdminPage() {
         openUserDetails(user);
     };
 
-    const handleDeleteUserFromMenu = async (
+    const requestUserDelete = (user: AdminUser) => {
+        setOpenUserMenuId(null);
+        setDeleteUserErrorMessage("");
+        setUserPendingDelete(user);
+    };
+
+    const requestUserDeleteFromMenu = (
         event: MouseEvent<HTMLButtonElement>,
-        userId: string,
+        user: AdminUser,
     ) => {
         event.stopPropagation();
-        setOpenUserMenuId(null);
+        requestUserDelete(user);
+    };
 
-        const userServiceWithDelete = adminUserService as typeof adminUserService & {
-            deleteUser?: (userId: string) => Promise<void>;
-        };
+    const cancelUserDelete = () => {
+        if (isDeletingUser) return;
 
-        if (!userServiceWithDelete.deleteUser) return;
+        setUserPendingDelete(null);
+        setDeleteUserErrorMessage("");
+    };
 
-        await userServiceWithDelete.deleteUser(userId);
-        setUsers((currentUsers) =>
-            currentUsers.filter((currentUser) => currentUser.id !== userId),
-        );
-        setSelectedUserIds((currentSelectedUserIds) => {
-            const nextSelectedUserIds = new Set(currentSelectedUserIds);
-            nextSelectedUserIds.delete(userId);
-            return nextSelectedUserIds;
-        });
+    const confirmUserDelete = async () => {
+        if (!userPendingDelete) return;
+
+        const userId = userPendingDelete.id;
+
+        setIsDeletingUser(true);
+        setDeleteUserErrorMessage("");
+
+        try {
+            await adminUserService.deleteUser(userId);
+
+            setUsers((currentUsers) =>
+                currentUsers.filter((currentUser) => currentUser.id !== userId),
+            );
+            setSelectedUserIds((currentSelectedUserIds) => {
+                const nextSelectedUserIds = new Set(currentSelectedUserIds);
+                nextSelectedUserIds.delete(userId);
+                return nextSelectedUserIds;
+            });
+
+            setSelectedUser((currentSelectedUser) =>
+                currentSelectedUser?.id === userId ? null : currentSelectedUser,
+            );
+
+            if (selectedUser?.id === userId) {
+                setIsDrawerOpen(false);
+            }
+
+            setUserPendingDelete(null);
+        } catch (error) {
+            setDeleteUserErrorMessage(
+                error instanceof Error ? error.message : "User could not be deleted.",
+            );
+        } finally {
+            setIsDeletingUser(false);
+        }
     };
 
     const openProjectDetails = (project: ProjectOverview) => {
@@ -1078,6 +1435,19 @@ export function AdminPage() {
         setSelectedProject(project);
         setIsDrawerOpen(true);
     };
+
+    const handleUserUpdated = useCallback((updatedUser: AdminUser) => {
+        setUsers((currentUsers) =>
+            currentUsers.map((currentUser) =>
+                currentUser.id === updatedUser.id ? updatedUser : currentUser,
+            ),
+        );
+        setSelectedUser((currentSelectedUser) =>
+            currentSelectedUser?.id === updatedUser.id
+                ? updatedUser
+                : currentSelectedUser,
+        );
+    }, []);
 
     const closeDetails = () => {
         setOpenUserMenuId(null);
@@ -1211,16 +1581,18 @@ export function AdminPage() {
                                             type="button"
                                             role="menuitem"
                                             onClick={(event) => openUserDetailsFromMenu(event, user)}
-                                            className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                                            className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
                                         >
+                                            <ExternalLink className="h-4 w-4" />
                                             Open details
                                         </button>
                                         <button
                                             type="button"
                                             role="menuitem"
-                                            onClick={(event) => void handleDeleteUserFromMenu(event, user.id)}
-                                            className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-bg"
+                                            onClick={(event) => requestUserDeleteFromMenu(event, user)}
+                                            className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-bg"
                                         >
+                                            <Trash2 className="h-4 w-4" />
                                             Delete
                                         </button>
                                     </div>
@@ -1296,16 +1668,18 @@ export function AdminPage() {
                                                         type="button"
                                                         role="menuitem"
                                                         onClick={(event) => openUserDetailsFromMenu(event, user)}
-                                                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                                                        className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
                                                     >
+                                                        <ExternalLink className="h-4 w-4" />
                                                         Open details
                                                     </button>
                                                     <button
                                                         type="button"
                                                         role="menuitem"
-                                                        onClick={(event) => void handleDeleteUserFromMenu(event, user.id)}
-                                                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-bg"
+                                                        onClick={(event) => requestUserDeleteFromMenu(event, user)}
+                                                        className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-bg"
                                                     >
+                                                        <Trash2 className="h-4 w-4" />
                                                         Delete
                                                     </button>
                                                 </div>
@@ -1678,6 +2052,8 @@ export function AdminPage() {
                     isOpen={isDrawerOpen}
                     onClose={closeDetails}
                     onOpenProjectDetails={openProjectDetailsFromUserDrawer}
+                    onUserUpdated={handleUserUpdated}
+                    onRequestDelete={requestUserDelete}
                 />
             )}
 
@@ -1688,6 +2064,26 @@ export function AdminPage() {
                     onClose={closeDetails}
                 />
             )}
+
+            <AlertDialog
+                isOpen={Boolean(userPendingDelete)}
+                title="Delete user?"
+                description={
+                    userPendingDelete ? (
+                        <>
+                            Are you sure you want to delete <strong>{getDisplayName(userPendingDelete)}</strong>? This action cannot be undone.
+                        </>
+                    ) : undefined
+                }
+                confirmLabel="Delete user"
+                cancelLabel="Cancel"
+                variant="danger"
+                isLoading={isDeletingUser}
+                loadingLabel="Deleting..."
+                errorMessage={deleteUserErrorMessage}
+                onClose={cancelUserDelete}
+                onConfirm={() => void confirmUserDelete()}
+            />
         </div>
     );
 }
