@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
     BookOpen,
+    Briefcase,
     ChartColumn,
     Database,
     LogOut,
@@ -50,6 +51,11 @@ const navItems: SidebarNavItem[] = [
 
 const projectManagerNavItems: SidebarNavItem[] = [
     {
+        label: 'PM Dashboard',
+        path: '/pm-dashboard',
+        icon: <Briefcase className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    {
         label: 'Data Ingestion',
         path: '/data-ingestion',
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
@@ -68,6 +74,9 @@ function getNavLinkClass(isActive: boolean): string {
 
 function SidebarContent({ onNavigate }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
+    const location = useLocation();
+
+    const isPmSectionActive = location.pathname.startsWith('/pm-dashboard') || location.pathname.startsWith('/insights/faq');
 
     return (
         <div className="flex h-full flex-col bg-app-bg text-app-text">
@@ -115,19 +124,31 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                                 key={item.path}
                                 to={item.path}
                                 onClick={onNavigate}
-                                className={({ isActive }) => getNavLinkClass(isActive)}
+                                className={({ isActive }) => {
+                                    const shouldHighlight =
+                                        item.path === '/pm-dashboard'
+                                            ? isActive || isPmSectionActive
+                                            : isActive;
+                                    return getNavLinkClass(shouldHighlight);
+                                }}
                             >
-                                {({ isActive }) => (
-                                    <>
-                                        {item.icon}
+                                {({ isActive }) => {
+                                    const shouldHighlight =
+                                        item.path === '/pm-dashboard'
+                                            ? isActive || isPmSectionActive
+                                            : isActive;
+                                    return (
+                                        <>
+                                            {item.icon}
 
-                                        <span>{item.label}</span>
+                                            <span>{item.label}</span>
 
-                                        {isActive ? (
-                                            <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
-                                        ) : null}
-                                    </>
-                                )}
+                                            {shouldHighlight ? (
+                                                <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
+                                            ) : null}
+                                        </>
+                                    );
+                                }}
                             </NavLink>
                         ))}
                     </div>
