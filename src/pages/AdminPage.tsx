@@ -22,14 +22,11 @@ import {
     SlidersHorizontal, Terminal,
     Trash2,
     Users,
-    X,
 } from "lucide-react";
 import {
     adminUserService,
     type AdminUser,
-    type AvailableRole,
     type ProjectSummary,
-    type RoleAssignment,
 } from "../services/adminUserService";
 import {
     projectService,
@@ -93,43 +90,6 @@ function AccessBadge({
             className={`inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold leading-none ${classes[variant]}`}
         >
       {children}
-    </span>
-    );
-}
-
-function RemovableLabel({
-                            children,
-                            variant = "brand",
-                            onRemove,
-                        }: {
-    children: string;
-    variant?: "success" | "brand" | "warning" | "neutral" | "danger";
-    onRemove: () => void;
-}) {
-    const classes = {
-        success:
-            "border-app-success-border bg-app-success-bg text-app-success-text",
-        brand: "border-app-brand-border bg-app-brand-soft text-app-brand-text",
-        warning:
-            "border-app-warning-border bg-app-warning-bg text-app-warning-text",
-        neutral:
-            "border-app-neutral-border bg-app-neutral-bg text-app-neutral-text",
-        danger: "border-app-danger-border bg-app-danger-bg text-app-danger-text",
-    };
-
-    return (
-        <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold leading-none ${classes[variant]}`}
-        >
-      {children}
-            <button
-                type="button"
-                onClick={onRemove}
-                className="rounded-full p-0.5 opacity-70 transition-opacity hover:opacity-100"
-                aria-label={`Remove ${children}`}
-            >
-        <X className="h-3 w-3" />
-      </button>
     </span>
     );
 }
@@ -240,117 +200,26 @@ function Section({
     );
 }
 
-function RolePicker({
-                        roles,
-                        onSelect,
-                        emptyLabel,
-                    }: {
-    roles: AvailableRole[];
-    onSelect: (roleId: string) => void;
-    emptyLabel: string;
-}) {
-    const [search, setSearch] = useState("");
-
-    const filteredRoles = roles.filter((role) => {
-        const normalizedSearch = search.trim().toLowerCase();
-
-        return (
-            normalizedSearch.length === 0 ||
-            role.name.toLowerCase().includes(normalizedSearch) ||
-            role.description.toLowerCase().includes(normalizedSearch) ||
-            role.id.toLowerCase().includes(normalizedSearch)
-        );
-    });
-
-    return (
-        <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-app-border bg-app-surface p-2 shadow-xl">
-            <div className="relative mb-2">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-text-disabled" />
-                <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search roles..."
-                    className="h-9 w-full rounded-xl border border-app-border bg-app-surface-muted pl-9 pr-3 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
-                />
-            </div>
-
-            <div className="max-h-56 space-y-1 overflow-auto">
-                {filteredRoles.length > 0 ? (
-                    filteredRoles.map((role) => (
-                        <button
-                            key={role.id}
-                            type="button"
-                            onClick={() => onSelect(role.id)}
-                            className="w-full rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-app-surface-hover"
-                        >
-                            <div className="text-sm font-medium text-app-text">
-                                {role.name}
-                            </div>
-                            <div className="mt-0.5 line-clamp-2 text-xs text-app-text-muted">
-                                {role.description}
-                            </div>
-                        </button>
-                    ))
-                ) : (
-                    <p className="px-3 py-3 text-sm text-app-text-muted">{emptyLabel}</p>
-                )}
-            </div>
-        </div>
-    );
-}
-
-type ProjectRoleDraft = {
-    primaryRoleId: string;
-    secondaryRoleIds: Set<string>;
-};
-
 function ProjectAccessPanel({
                                 assignedProjects,
                                 availableProjects,
-                                availableRoles,
-                                primaryRoleId,
-                                secondaryRoleIds,
-                                onPrimaryRoleChange,
-                                onSecondaryRoleToggle,
+                                onOpenProjectDetails,
                             }: {
     assignedProjects: ProjectSummary[];
     availableProjects: ProjectSummary[];
-    availableRoles: AvailableRole[];
-    primaryRoleId: string;
-    secondaryRoleIds: Set<string>;
-    onPrimaryRoleChange: (roleId: string) => void;
-    onSecondaryRoleToggle: (roleId: string) => void;
+    onOpenProjectDetails: (projectId: string) => void;
 }) {
     const [draftProjectIds, setDraftProjectIds] = useState<Set<string>>(
         new Set(assignedProjects.map((project) => project.id)),
     );
     const [projectSearch, setProjectSearch] = useState("");
     const [openProjectPicker, setOpenProjectPicker] = useState(false);
-    const [openRolePicker, setOpenRolePicker] = useState<{
-        projectId: string;
-        type: "primary" | "secondary";
-    } | null>(null);
-    const [projectRoleDrafts, setProjectRoleDrafts] = useState<
-        Record<string, ProjectRoleDraft>
-    >({});
 
     useEffect(() => {
-        const nextProjectIds = new Set(assignedProjects.map((project) => project.id));
-        const nextProjectRoleDrafts: Record<string, ProjectRoleDraft> = {};
-
-        assignedProjects.forEach((project) => {
-            nextProjectRoleDrafts[project.id] = {
-                primaryRoleId,
-                secondaryRoleIds: new Set(secondaryRoleIds),
-            };
-        });
-
-        setDraftProjectIds(nextProjectIds);
-        setProjectRoleDrafts(nextProjectRoleDrafts);
+        setDraftProjectIds(new Set(assignedProjects.map((project) => project.id)));
         setProjectSearch("");
         setOpenProjectPicker(false);
-        setOpenRolePicker(null);
-    }, [assignedProjects, primaryRoleId, secondaryRoleIds]);
+    }, [assignedProjects]);
 
     const assignedDraftProjects = availableProjects.filter((project) =>
         draftProjectIds.has(project.id),
@@ -373,14 +242,6 @@ function ProjectAccessPanel({
             return next;
         });
 
-        setProjectRoleDrafts((current) => ({
-            ...current,
-            [projectId]: {
-                primaryRoleId: "",
-                secondaryRoleIds: new Set(),
-            },
-        }));
-
         setProjectSearch("");
         setOpenProjectPicker(false);
     };
@@ -391,66 +252,6 @@ function ProjectAccessPanel({
             next.delete(projectId);
             return next;
         });
-
-        setProjectRoleDrafts((current) => {
-            const next = { ...current };
-            delete next[projectId];
-            return next;
-        });
-    };
-
-    const setProjectPrimaryRole = (projectId: string, roleId: string) => {
-        setProjectRoleDrafts((current) => ({
-            ...current,
-            [projectId]: {
-                primaryRoleId: roleId,
-                secondaryRoleIds:
-                    current[projectId]?.secondaryRoleIds ?? new Set<string>(),
-            },
-        }));
-
-        onPrimaryRoleChange(roleId);
-        setOpenRolePicker(null);
-    };
-
-    const removeProjectPrimaryRole = (projectId: string) => {
-        setProjectRoleDrafts((current) => ({
-            ...current,
-            [projectId]: {
-                primaryRoleId: "",
-                secondaryRoleIds:
-                    current[projectId]?.secondaryRoleIds ?? new Set<string>(),
-            },
-        }));
-
-        onPrimaryRoleChange("");
-    };
-
-    const toggleProjectSecondaryRole = (projectId: string, roleId: string) => {
-        setProjectRoleDrafts((current) => {
-            const currentDraft = current[projectId] ?? {
-                primaryRoleId: "",
-                secondaryRoleIds: new Set<string>(),
-            };
-            const nextSecondaryRoleIds = new Set(currentDraft.secondaryRoleIds);
-
-            if (nextSecondaryRoleIds.has(roleId)) {
-                nextSecondaryRoleIds.delete(roleId);
-            } else {
-                nextSecondaryRoleIds.add(roleId);
-            }
-
-            return {
-                ...current,
-                [projectId]: {
-                    ...currentDraft,
-                    secondaryRoleIds: nextSecondaryRoleIds,
-                },
-            };
-        });
-
-        onSecondaryRoleToggle(roleId);
-        setOpenRolePicker(null);
     };
 
     return (
@@ -512,180 +313,58 @@ function ProjectAccessPanel({
                 </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid gap-3 lg:grid-cols-2">
                 {assignedDraftProjects.length > 0 ? (
-                    assignedDraftProjects.map((project) => {
-                        const draft = projectRoleDrafts[project.id] ?? {
-                            primaryRoleId: "",
-                            secondaryRoleIds: new Set<string>(),
-                        };
-                        const primaryRole = availableRoles.find(
-                            (role) => role.id === draft.primaryRoleId,
-                        );
-                        const secondaryRoles = availableRoles.filter((role) =>
-                            draft.secondaryRoleIds.has(role.id),
-                        );
-
-                        const primaryRoleOptions = availableRoles.filter(
-                            (role) => !draft.secondaryRoleIds.has(role.id),
-                        );
-                        const secondaryRoleOptions = availableRoles.filter(
-                            (role) =>
-                                role.id !== draft.primaryRoleId &&
-                                !draft.secondaryRoleIds.has(role.id),
-                        );
-
-                        return (
-                            <div
-                                key={project.id}
-                                className="rounded-2xl border border-app-border bg-app-surface px-4 py-4"
-                            >
-                                <div className="mb-4 flex items-start justify-between gap-4">
-                                    <div className="flex min-w-0 items-start gap-3">
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-app-surface-muted text-app-text-muted">
-                                            <Folder className="h-4 w-4" />
-                                        </div>
-
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-app-text">
-                                                {project.name}
-                                            </p>
-                                            <p className="mt-1 break-all font-mono text-xs text-app-text-muted">
-                                                {project.id}
-                                            </p>
-                                        </div>
+                    assignedDraftProjects.map((project) => (
+                        <div
+                            key={project.id}
+                            className="rounded-2xl border border-app-border bg-app-surface px-4 py-4"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex min-w-0 items-start gap-3">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-app-surface-muted text-app-text-muted">
+                                        <Folder className="h-4 w-4" />
                                     </div>
+
+                                    <div className="min-w-0">
+                                        <p className="truncate font-semibold text-app-text">
+                                            {project.name}
+                                        </p>
+                                        <p className="mt-1 break-all font-mono text-xs text-app-text-muted">
+                                            {project.id}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenProjectDetails(project.id)}
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-app-text-disabled transition-colors hover:bg-app-brand-soft hover:text-app-brand-text"
+                                        aria-label={`Open ${project.name} project details`}
+                                    >
+                                        <ExternalLink className="h-4 w-4" />
+                                    </button>
 
                                     <button
                                         type="button"
                                         onClick={() => removeProject(project.id)}
-                                        className="rounded-lg p-1.5 text-app-text-disabled transition-colors hover:bg-app-danger-bg hover:text-app-danger-text"
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-app-text-disabled transition-colors hover:bg-app-danger-bg hover:text-app-danger-text"
                                         aria-label={`Remove ${project.name}`}
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
                                 </div>
-
-                                <div className="grid gap-3 lg:grid-cols-2">
-                                    <div className="relative rounded-2xl border border-app-border bg-app-surface-muted p-3">
-                                        <div className="mb-3 flex items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
-                                                    Primary role
-                                                </p>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setOpenRolePicker((current) =>
-                                                        current?.projectId === project.id &&
-                                                        current.type === "primary"
-                                                            ? null
-                                                            : { projectId: project.id, type: "primary" },
-                                                    )
-                                                }
-                                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
-                                                aria-label={`Add primary role for ${project.name}`}
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </button>
-                                        </div>
-
-                                        <div className="flex min-h-9 flex-wrap gap-2">
-                                            {primaryRole ? (
-                                                <RemovableLabel
-                                                    variant="brand"
-                                                    onRemove={() => removeProjectPrimaryRole(project.id)}
-                                                >
-                                                    {primaryRole.name}
-                                                </RemovableLabel>
-                                            ) : (
-                                                <span className="text-sm text-app-text-muted">
-                          No primary role.
-                        </span>
-                                            )}
-                                        </div>
-
-                                        {openRolePicker?.projectId === project.id &&
-                                            openRolePicker.type === "primary" && (
-                                                <RolePicker
-                                                    roles={primaryRoleOptions}
-                                                    onSelect={(roleId) =>
-                                                        setProjectPrimaryRole(project.id, roleId)
-                                                    }
-                                                    emptyLabel="No roles available."
-                                                />
-                                            )}
-                                    </div>
-
-                                    <div className="relative rounded-2xl border border-app-border bg-app-surface-muted p-3">
-                                        <div className="mb-3 flex items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
-                                                    Secondary roles
-                                                </p>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setOpenRolePicker((current) =>
-                                                        current?.projectId === project.id &&
-                                                        current.type === "secondary"
-                                                            ? null
-                                                            : { projectId: project.id, type: "secondary" },
-                                                    )
-                                                }
-                                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
-                                                aria-label={`Add secondary role for ${project.name}`}
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </button>
-                                        </div>
-
-                                        <div className="flex min-h-9 flex-wrap gap-2">
-                                            {secondaryRoles.length > 0 ? (
-                                                secondaryRoles.map((role) => (
-                                                    <RemovableLabel
-                                                        key={role.id}
-                                                        variant="neutral"
-                                                        onRemove={() =>
-                                                            toggleProjectSecondaryRole(project.id, role.id)
-                                                        }
-                                                    >
-                                                        {role.name}
-                                                    </RemovableLabel>
-                                                ))
-                                            ) : (
-                                                <span className="text-sm text-app-text-muted">
-                          No secondary roles.
-                        </span>
-                                            )}
-                                        </div>
-
-                                        {openRolePicker?.projectId === project.id &&
-                                            openRolePicker.type === "secondary" && (
-                                                <RolePicker
-                                                    roles={secondaryRoleOptions}
-                                                    onSelect={(roleId) =>
-                                                        toggleProjectSecondaryRole(project.id, roleId)
-                                                    }
-                                                    emptyLabel="No more roles available."
-                                                />
-                                            )}
-                                    </div>
-                                </div>
                             </div>
-                        );
-                    })
+                        </div>
+                    ))
                 ) : (
-                    <div className="rounded-2xl border border-dashed border-app-border bg-app-surface px-4 py-8 text-center">
+                    <div className="rounded-2xl border border-dashed border-app-border bg-app-surface px-4 py-8 text-center lg:col-span-2">
                         <p className="text-sm font-medium text-app-text">
                             No projects assigned
                         </p>
                         <p className="mt-1 text-sm text-app-text-muted">
-                            Add a project to prepare project-specific role assignments.
+                            Add a project to assign this user to a project.
                         </p>
                     </div>
                 )}
@@ -696,76 +375,22 @@ function ProjectAccessPanel({
 
 type UserDetailsDrawerProps = {
     user: AdminUser;
-    availableRoles: AvailableRole[];
     availableProjects: ProjectSummary[];
     isOpen: boolean;
-    isSaving: boolean;
     onClose: () => void;
-    onSaveRoles: (userId: string, roles: RoleAssignment[]) => Promise<void>;
+    onOpenProjectDetails: (projectId: string) => void;
 };
 
 function UserDetailsDrawer({
                                user,
-                               availableRoles,
                                availableProjects,
                                isOpen,
-                               isSaving,
                                onClose,
-                               onSaveRoles,
+                               onOpenProjectDetails,
                            }: UserDetailsDrawerProps) {
-    const [primaryRoleId, setPrimaryRoleId] = useState<string>("");
-    const [secondaryRoleIds, setSecondaryRoleIds] = useState<Set<string>>(
-        new Set(),
-    );
     const keycloakAdminBaseUrl = import.meta.env.VITE_KEYCLOAK_ADMIN_BASE_URL as string;
     const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM as string;
     const keycloakUserDetailsUrl = `${keycloakAdminBaseUrl}/admin/${keycloakRealm}/console/#/${keycloakRealm}/users/${user.id}/settings`;
-
-    useEffect(() => {
-        const primaryRole = user.roles.find((role) => role.type === "primary");
-        const secondaryRoles = user.roles.filter(
-            (role) => role.type === "secondary",
-        );
-
-        setPrimaryRoleId(primaryRole?.id ?? "");
-        setSecondaryRoleIds(new Set(secondaryRoles.map((role) => role.id)));
-    }, [user]);
-
-    const toggleSecondaryRole = (roleId: string) => {
-        setSecondaryRoleIds((current) => {
-            const next = new Set(current);
-
-            if (next.has(roleId)) {
-                next.delete(roleId);
-            } else {
-                next.add(roleId);
-            }
-
-            return next;
-        });
-    };
-
-    const handleSave = async () => {
-        const nextRoles: RoleAssignment[] = [];
-
-        if (primaryRoleId) {
-            nextRoles.push({
-                id: primaryRoleId,
-                type: "primary",
-            });
-        }
-
-        secondaryRoleIds.forEach((roleId) => {
-            if (roleId !== primaryRoleId) {
-                nextRoles.push({
-                    id: roleId,
-                    type: "secondary",
-                });
-            }
-        });
-
-        await onSaveRoles(user.id, nextRoles);
-    };
 
     return (
         <DetailsSideDrawer
@@ -792,27 +417,6 @@ function UserDetailsDrawer({
                     <Edit className="h-4 w-4" />
                     Edit User
                 </a>
-            }
-            footer={
-                <>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => void handleSave()}
-                        disabled={isSaving}
-                        className="inline-flex items-center gap-2 rounded-xl bg-app-text px-5 py-2.5 text-sm font-medium text-app-text-inverse transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        Save
-                    </button>
-                </>
             }
         >
             <div className="mb-10 grid grid-cols-2 gap-8">
@@ -860,11 +464,7 @@ function UserDetailsDrawer({
                 <ProjectAccessPanel
                     assignedProjects={user.projects}
                     availableProjects={availableProjects}
-                    availableRoles={availableRoles}
-                    primaryRoleId={primaryRoleId}
-                    secondaryRoleIds={secondaryRoleIds}
-                    onPrimaryRoleChange={setPrimaryRoleId}
-                    onSecondaryRoleToggle={toggleSecondaryRole}
+                    onOpenProjectDetails={onOpenProjectDetails}
                 />
             </Section>
         </DetailsSideDrawer>
@@ -1226,7 +826,6 @@ export function AdminPage() {
 
     const [page, setPage] = useState(1);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [savingUserId, setSavingUserId] = useState<string | null>(null);
     const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
 
     const loadAdminData = useCallback(async () => {
@@ -1287,11 +886,6 @@ export function AdminPage() {
 
         return () => window.cancelAnimationFrame(animationFrameId);
     }, [selectedUser, selectedProject]);
-
-    const availableRoles = useMemo(
-        () => adminUserService.getAvailableRolesFromUsers(users),
-        [users],
-    );
 
     const availableProjects = useMemo<ProjectSummary[]>(() => {
         return projects
@@ -1472,6 +1066,19 @@ export function AdminPage() {
         setSelectedProject(project);
     };
 
+    const openProjectDetailsFromUserDrawer = (projectId: string) => {
+        const project = projects.find((currentProject) => currentProject.id === projectId);
+
+        if (!project) return;
+
+        setOpenUserMenuId(null);
+        setActiveTab("projects");
+        setProjectSearchValue("");
+        setSelectedUser(null);
+        setSelectedProject(project);
+        setIsDrawerOpen(true);
+    };
+
     const closeDetails = () => {
         setOpenUserMenuId(null);
         setIsDrawerOpen(false);
@@ -1495,24 +1102,6 @@ export function AdminPage() {
             await loadAdminData();
         } finally {
             setIsRefreshing(false);
-        }
-    };
-
-    const handleSaveRoles = async (userId: string, roles: RoleAssignment[]) => {
-        setSavingUserId(userId);
-
-        try {
-            const updatedUser = await adminUserService.updateUserRoles(userId, {
-                roles,
-            });
-
-            setUsers((currentUsers) =>
-                currentUsers.map((user) => (user.id === userId ? updatedUser : user)),
-            );
-
-            setSelectedUser(updatedUser);
-        } finally {
-            setSavingUserId(null);
         }
     };
 
@@ -2085,12 +1674,10 @@ export function AdminPage() {
             {selectedUser && (
                 <UserDetailsDrawer
                     user={selectedUser}
-                    availableRoles={availableRoles}
                     availableProjects={availableProjects}
                     isOpen={isDrawerOpen}
-                    isSaving={savingUserId === selectedUser.id}
                     onClose={closeDetails}
-                    onSaveRoles={handleSaveRoles}
+                    onOpenProjectDetails={openProjectDetailsFromUserDrawer}
                 />
             )}
 
