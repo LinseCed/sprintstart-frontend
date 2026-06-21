@@ -1,6 +1,6 @@
 // features/dashboard/DashboardView.tsx
 
-import { FaqWidget } from "../../features/faq/components/FaqWidget";
+import { FaqWidget } from "../features/faq/components/FaqWidget";
 
 export function PmDashboardView() {
     return (

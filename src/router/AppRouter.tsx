@@ -8,7 +8,7 @@ import { OnBoardingItemPage } from '../features/onboarding/components/OnBoarding
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
-import { PmDashboardView } from '../pages/pm-view/PmDashboardView';
+import { PmDashboardView } from '../pages/PmDashboardView.tsx';
 import { FaqDetailPage } from '../features/faq/components/faqDetailView.tsx';
 
 export function AppRouter() {
