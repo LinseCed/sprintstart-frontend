@@ -3,21 +3,25 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import {
     AlertCircle,
     Check,
-    CheckCircle2, ExternalLink,
+    CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
+    ExternalLink,
+    FileText,
     Folder,
+    Layers,
     Loader2,
-    Mail,
     MoreVertical,
     Plus,
     RefreshCw,
     Search,
-    SlidersHorizontal,
-    Terminal,
+    SlidersHorizontal, Terminal,
     Trash2,
+    Users,
     X,
 } from "lucide-react";
 import {
@@ -26,9 +30,8 @@ import {
     type AvailableRole,
     type ProjectSummary,
     type RoleAssignment,
-    type RoleType,
-    type UserRole,
 } from "../services/adminUserService";
+import {DetailsSideDrawer} from "../components/layout/DetailsSideDrawer.tsx";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
 type UserFilter = "all" | "enabled" | "disabled" | "onboarded" | "not-onboarded";
@@ -50,11 +53,6 @@ function getInitials(user: AdminUser) {
         .toUpperCase();
 }
 
-function getRoleBadgeVariant(index: number, roleType?: RoleType) {
-    if (roleType === "primary") return "brand";
-    if (roleType === "secondary") return index % 2 === 0 ? "warning" : "neutral";
-    return "neutral";
-}
 
 function getPermissionGroupVariant(permissionGroup: string) {
     const normalized = permissionGroup.toUpperCase();
@@ -150,7 +148,7 @@ function SelectionCheckbox({
                     : "border-app-border bg-app-surface hover:border-app-brand-border-strong hover:bg-app-brand-soft"
             }`}
         >
-            {checked && <Check className="h-4 w-4 stroke-[3]" />}
+            {checked && <Check className="h-4 w-4 stroke-3" />}
         </button>
     );
 }
@@ -159,29 +157,6 @@ function TableHeader({ children }: { children: string }) {
     return (
         <div className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">
             {children}
-        </div>
-    );
-}
-
-function RoleList({ roles, max = 2 }: { roles: UserRole[]; max?: number }) {
-    if (roles.length === 0) {
-        return <span className="text-sm text-app-text-muted">No roles</span>;
-    }
-
-    return (
-        <div className="flex min-w-0 flex-wrap gap-2">
-            {roles.slice(0, max).map((role, index) => (
-                <AccessBadge
-                    key={`${role.id}-${role.type}`}
-                    variant={getRoleBadgeVariant(index, role.type)}
-                >
-                    {role.name}
-                </AccessBadge>
-            ))}
-
-            {roles.length > max && (
-                <AccessBadge variant="neutral">+{roles.length - max}</AccessBadge>
-            )}
         </div>
     );
 }
@@ -212,6 +187,16 @@ function ProjectList({
     );
 }
 
+function PermissionGroupBadge({ permissionGroup }: { permissionGroup: string }) {
+    return (
+        <div className="flex min-w-0 items-center">
+            <AccessBadge variant={getPermissionGroupVariant(permissionGroup)}>
+                {permissionGroup}
+            </AccessBadge>
+        </div>
+    );
+}
+
 function DetailRow({
                        label,
                        value,
@@ -225,7 +210,7 @@ function DetailRow({
         <div className="grid grid-cols-[7.5rem_1fr] items-start gap-4 py-2.5">
             <dt className="text-sm text-app-text-muted">{label}</dt>
             <dd
-                className={`break-words text-sm font-medium text-app-text ${
+                className={`wrap-break-word text-sm font-medium text-app-text ${
                     mono ? "font-mono text-xs" : ""
                 }`}
             >
@@ -775,154 +760,321 @@ function UserDetailsDrawer({
     };
 
     return (
-        <aside
-            className={`fixed inset-y-0 right-0 z-40 flex h-screen w-[min(94vw,34rem)] flex-col rounded-l-3xl border-l border-app-border bg-app-surface shadow-2xl transition-[transform,opacity] duration-300 ease-out lg:w-[min(72vw,58rem)] ${
-                isOpen ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-            }`}
+        <DetailsSideDrawer
+            isOpen={isOpen}
+            onClose={onClose}
+            title={getDisplayName(user)}
+            leading={
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-lg font-semibold text-app-brand-text shadow-sm">
+                    {getInitials(user)}
+                </div>
+            }
+            badge={
+                <AccessBadge variant={getPermissionGroupVariant(user.permissionGroup)}>
+                    {user.permissionGroup}
+                </AccessBadge>
+            }
+            actions={
+                <a
+                    href={keycloakUserDetailsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                >
+                    <ExternalLink className="h-4 w-4" />
+                    Manage in Keycloak
+                </a>
+            }
+            footer={
+                <>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => void handleSave()}
+                        disabled={isSaving}
+                        className="inline-flex items-center gap-2 rounded-xl bg-app-text px-5 py-2.5 text-sm font-medium text-app-text-inverse transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Save
+                    </button>
+                </>
+            }
         >
-            <div className="flex-1 overflow-auto">
-                <div className="mx-5 px-4 pb-10 pt-5 lg:px-5 lg:pt-6">
-                    <div className="mb-9 flex items-center justify-between gap-4">
-                        <div className="flex min-w-0 items-start gap-4">
-                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-lg font-semibold text-app-brand-text shadow-sm">
-                                {getInitials(user)}
-                            </div>
-
-                            <div className="min-w-0 pt-1">
-                                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                    <h2 className="truncate text-2xl font-semibold text-app-text">
-                                        {getDisplayName(user)}
-                                    </h2>
-                                </div>
-
-                                <div className="mt-2 flex items-center gap-1.5 text-sm text-app-text-muted">
-                                    <AccessBadge
-                                        variant={getPermissionGroupVariant(user.permissionGroup)}
-                                    >
-                                        {user.permissionGroup}
-                                    </AccessBadge>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-2">
-                            <a
-                                href={keycloakUserDetailsUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
-                            >
-                                <ExternalLink className="h-4 w-4" />
-                                Manage in Keycloak
-                            </a>
-
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="rounded-xl p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
-                                aria-label="Close details"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="mb-10 grid grid-cols-2 gap-8">
-                        <div>
-                            <p className="mb-2 text-sm text-app-text-muted">Account state</p>
-                            <div className="flex items-center gap-2 text-sm font-medium text-app-text">
-                                <CheckCircle2
-                                    className={`h-4 w-4 ${
-                                        user.enabled
-                                            ? "text-app-success-solid"
-                                            : "text-app-danger-solid"
-                                    }`}
-                                />
-                                {user.enabled ? "Enabled" : "Disabled"}
-                            </div>
-                        </div>
-
-                        <div>
-                            <p className="mb-2 text-sm text-app-text-muted">Onboarding</p>
-                            <div className="flex items-center gap-2 text-sm font-medium text-app-text">
-                                <CheckCircle2
-                                    className={`h-4 w-4 ${
-                                        user.hasCompletedOnboarding
-                                            ? "text-app-success-solid"
-                                            : "text-app-warning-solid"
-                                    }`}
-                                />
-                                {user.hasCompletedOnboarding ? "Completed" : "Open"}
-                            </div>
-                        </div>
-                    </div>
-
-                    <Section>
-                        <dl>
-                            <DetailRow label="Email" value={user.email} />
-                            <DetailRow label="Username" value={user.username} />
-                            <DetailRow label="First name" value={user.firstName} />
-                            <DetailRow label="Last name" value={user.lastName} />
-                            <DetailRow label="Role" value={user.permissionGroup} />
-                            <DetailRow label="User ID" value={user.id} mono />
-                        </dl>
-                    </Section>
-
-                    <Section>
-                        <ProjectAccessPanel
-                            assignedProjects={user.projects}
-                            availableProjects={availableProjects}
-                            availableRoles={availableRoles}
-                            primaryRoleId={primaryRoleId}
-                            secondaryRoleIds={secondaryRoleIds}
-                            onPrimaryRoleChange={setPrimaryRoleId}
-                            onSecondaryRoleToggle={toggleSecondaryRole}
+            <div className="mb-10 grid grid-cols-2 gap-8">
+                <div>
+                    <p className="mb-2 text-sm text-app-text-muted">Account state</p>
+                    <div className="flex items-center gap-2 text-sm font-medium text-app-text">
+                        <CheckCircle2
+                            className={`h-4 w-4 ${
+                                user.enabled
+                                    ? "text-app-success-solid"
+                                    : "text-app-danger-solid"
+                            }`}
                         />
-                    </Section>
+                        {user.enabled ? "Enabled" : "Disabled"}
+                    </div>
+                </div>
+
+                <div>
+                    <p className="mb-2 text-sm text-app-text-muted">Onboarding</p>
+                    <div className="flex items-center gap-2 text-sm font-medium text-app-text">
+                        <CheckCircle2
+                            className={`h-4 w-4 ${
+                                user.hasCompletedOnboarding
+                                    ? "text-app-success-solid"
+                                    : "text-app-warning-solid"
+                            }`}
+                        />
+                        {user.hasCompletedOnboarding ? "Completed" : "Open"}
+                    </div>
                 </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 rounded-bl-3xl border-t border-app-border bg-app-surface px-4 py-4 lg:px-5">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
-                >
-                    Cancel
-                </button>
+            <Section>
+                <dl>
+                    <DetailRow label="Email" value={user.email} />
+                    <DetailRow label="Username" value={user.username} />
+                    <DetailRow label="First name" value={user.firstName} />
+                    <DetailRow label="Last name" value={user.lastName} />
+                    <DetailRow label="Role" value={user.permissionGroup} />
+                    <DetailRow label="User ID" value={user.id} mono />
+                </dl>
+            </Section>
 
-                <button
-                    type="button"
-                    onClick={() => void handleSave()}
-                    disabled={isSaving}
-                    className="inline-flex items-center gap-2 rounded-xl bg-app-text px-5 py-2.5 text-sm font-medium text-app-text-inverse transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Save
-                </button>
+            <Section>
+                <ProjectAccessPanel
+                    assignedProjects={user.projects}
+                    availableProjects={availableProjects}
+                    availableRoles={availableRoles}
+                    primaryRoleId={primaryRoleId}
+                    secondaryRoleIds={secondaryRoleIds}
+                    onPrimaryRoleChange={setPrimaryRoleId}
+                    onSecondaryRoleToggle={toggleSecondaryRole}
+                />
+            </Section>
+        </DetailsSideDrawer>
+    );
+}
+
+type AdminTab = "users" | "projects";
+type ProjectStatus = "active" | "paused" | "archived";
+
+type ProjectMetadata = {
+    description?: string;
+    tags?: string[];
+    artifacts?: unknown[];
+    artifactCount?: number;
+    status?: string;
+};
+
+type AdminProject = ProjectSummary & {
+    description: string;
+    tags: string[];
+    memberCount: number;
+    artifactCount: number;
+    status: ProjectStatus;
+};
+
+const PROJECT_TAG_VARIANTS: Array<
+    "success" | "brand" | "warning" | "neutral" | "danger"
+> = ["brand", "warning", "success", "neutral"];
+
+function normalizeProjectStatus(status?: string): ProjectStatus {
+    const normalizedStatus = status?.trim().toLowerCase();
+
+    if (
+        normalizedStatus === "active" ||
+        normalizedStatus === "paused" ||
+        normalizedStatus === "archived"
+    ) {
+        return normalizedStatus;
+    }
+
+    return "active";
+}
+
+function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+    if (status === "active") return <AccessBadge variant="success">Active</AccessBadge>;
+    if (status === "paused") return <AccessBadge variant="warning">Paused</AccessBadge>;
+
+    return <AccessBadge variant="neutral">Archived</AccessBadge>;
+}
+
+function StatusDot({ active }: { active: boolean }) {
+    return (
+        <span
+            className={`inline-block h-2 w-2 rounded-full ${
+                active ? "bg-app-success-solid" : "bg-app-danger-solid"
+            }`}
+        />
+    );
+}
+
+function TabSwitcher({
+                         activeTab,
+                         onChange,
+                     }: {
+    activeTab: AdminTab;
+    onChange: (tab: AdminTab) => void;
+}) {
+    return (
+        <div className="flex gap-1 rounded-2xl border border-app-border bg-app-surface-muted p-1">
+            <button
+                type="button"
+                onClick={() => onChange("users")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                    activeTab === "users"
+                        ? "bg-app-surface text-app-text shadow-sm"
+                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                }`}
+            >
+                <Users className="h-4 w-4" />
+                Users
+            </button>
+
+            <button
+                type="button"
+                onClick={() => onChange("projects")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                    activeTab === "projects"
+                        ? "bg-app-surface text-app-text shadow-sm"
+                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                }`}
+            >
+                <Layers className="h-4 w-4" />
+                Projects
+            </button>
+        </div>
+    );
+}
+
+function ProjectDetailsDrawer({
+                                  project,
+                                  isOpen,
+                                  onClose,
+                              }: {
+    project: AdminProject;
+    isOpen: boolean;
+    onClose: () => void;
+}) {
+    return (
+        <DetailsSideDrawer
+            isOpen={isOpen}
+            onClose={onClose}
+            title={project.name}
+            closeAriaLabel="Close project details"
+            widthClassName="w-[min(94vw,30rem)]"
+            leading={
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-muted text-app-text-muted">
+                    <Folder className="h-6 w-6" />
+                </div>
+            }
+            badge={<ProjectStatusBadge status={project.status} />}
+        >
+            <div className="mb-6 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-app-border bg-app-surface-muted p-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                        Members
+                    </p>
+                    <p className="text-xl font-bold text-app-text">
+                        {project.memberCount}
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-app-border bg-app-surface-muted p-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                        Artifacts
+                    </p>
+                    <p className="text-xl font-bold text-app-text">
+                        {project.artifactCount}
+                    </p>
+                </div>
             </div>
-        </aside>
+
+            <div className="mb-6">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                    Tags
+                </p>
+
+                {project.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                        {project.tags.map((tag, index) => (
+                            <AccessBadge
+                                key={tag}
+                                variant={
+                                    PROJECT_TAG_VARIANTS[
+                                    index % PROJECT_TAG_VARIANTS.length
+                                        ]
+                                }
+                            >
+                                {tag}
+                            </AccessBadge>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="rounded-xl border border-dashed border-app-border px-4 py-6 text-center">
+                        <p className="text-sm text-app-text-muted">
+                            No tags available
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            <div className="mb-6">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                    Description
+                </p>
+                <p className="text-sm leading-relaxed text-app-text-muted">
+                    {project.description}
+                </p>
+            </div>
+
+            <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                    Sources & artifacts
+                </p>
+                <div className="rounded-xl border border-app-border bg-app-surface-muted px-4 py-6 text-center">
+                    <FileText className="mx-auto mb-2 h-5 w-5 text-app-text-disabled" />
+                    <p className="text-sm text-app-text-muted">
+                        Artifact details are not part of the current project summary yet.
+                    </p>
+                </div>
+            </div>
+        </DetailsSideDrawer>
     );
 }
 
 export function AdminPage() {
+    const [activeTab, setActiveTab] = useState<AdminTab>("users");
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
         new Set(),
     );
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+    const [selectedProject, setSelectedProject] = useState<AdminProject | null>(
+        null,
+    );
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     const [loadingState, setLoadingState] = useState<LoadingState>("idle");
     const [errorMessage, setErrorMessage] = useState("");
 
     const [searchValue, setSearchValue] = useState("");
+    const [projectSearchValue, setProjectSearchValue] = useState("");
     const [userFilter, setUserFilter] = useState<UserFilter>("all");
     const [showFilters, setShowFilters] = useState(false);
 
     const [page, setPage] = useState(1);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [savingUserId, setSavingUserId] = useState<string | null>(null);
+    const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
 
     const loadUsers = useCallback(async () => {
         setLoadingState((current) => (current === "idle" ? "loading" : current));
@@ -955,7 +1107,7 @@ export function AdminPage() {
     }, [loadUsers]);
 
     useEffect(() => {
-        if (!selectedUser) {
+        if (!selectedUser && !selectedProject) {
             setIsDrawerOpen(false);
             return;
         }
@@ -965,7 +1117,7 @@ export function AdminPage() {
         });
 
         return () => window.cancelAnimationFrame(animationFrameId);
-    }, [selectedUser]);
+    }, [selectedUser, selectedProject]);
 
     const availableRoles = useMemo(
         () => adminUserService.getAvailableRolesFromUsers(users),
@@ -973,12 +1125,51 @@ export function AdminPage() {
     );
 
     const availableProjects = useMemo(() => {
-        const projectMap = new Map<string, ProjectSummary>();
+        const projectMap = new Map<string, AdminProject>();
 
         users.forEach((user) => {
             user.projects.forEach((project) => {
-                if (!projectMap.has(project.id)) {
-                    projectMap.set(project.id, project);
+                const projectMetadata = project as ProjectSummary & ProjectMetadata;
+                const tags = Array.isArray(projectMetadata.tags)
+                    ? projectMetadata.tags
+                    : [];
+                const artifactCount =
+                    typeof projectMetadata.artifactCount === "number"
+                        ? projectMetadata.artifactCount
+                        : Array.isArray(projectMetadata.artifacts)
+                            ? projectMetadata.artifacts.length
+                            : 0;
+                const description =
+                    projectMetadata.description?.trim() ||
+                    "No project description available yet.";
+                const existingProject = projectMap.get(project.id);
+
+                if (!existingProject) {
+                    projectMap.set(project.id, {
+                        ...project,
+                        description,
+                        tags,
+                        memberCount: 1,
+                        artifactCount,
+                        status: normalizeProjectStatus(projectMetadata.status),
+                    });
+                    return;
+                }
+
+                existingProject.memberCount += 1;
+                existingProject.artifactCount = Math.max(
+                    existingProject.artifactCount,
+                    artifactCount,
+                );
+                existingProject.tags = Array.from(
+                    new Set([...existingProject.tags, ...tags]),
+                );
+
+                if (
+                    existingProject.description === "No project description available yet." &&
+                    description !== "No project description available yet."
+                ) {
+                    existingProject.description = description;
                 }
             });
         });
@@ -1028,6 +1219,27 @@ export function AdminPage() {
         });
     }, [users, searchValue, userFilter]);
 
+    const filteredProjects = useMemo(() => {
+        const normalizedSearch = projectSearchValue.trim().toLowerCase();
+
+        return availableProjects.filter((project) => {
+            const searchableValues = [
+                project.id,
+                project.name,
+                project.description,
+                project.status,
+                ...project.tags,
+            ];
+
+            return (
+                normalizedSearch.length === 0 ||
+                searchableValues.some((value) =>
+                    value.toLowerCase().includes(normalizedSearch),
+                )
+            );
+        });
+    }, [availableProjects, projectSearchValue]);
+
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
 
     const paginatedUsers = useMemo(() => {
@@ -1074,15 +1286,73 @@ export function AdminPage() {
     };
 
     const openUserDetails = (user: AdminUser) => {
+        setOpenUserMenuId(null);
+        setSelectedProject(null);
         setSelectedUser(user);
     };
 
-    const closeUserDetails = () => {
+    const toggleUserContextMenu = (
+        event: MouseEvent<HTMLButtonElement>,
+        userId: string,
+    ) => {
+        event.stopPropagation();
+        setOpenUserMenuId((currentUserMenuId) =>
+            currentUserMenuId === userId ? null : userId,
+        );
+    };
+
+    const openUserDetailsFromMenu = (
+        event: MouseEvent<HTMLButtonElement>,
+        user: AdminUser,
+    ) => {
+        event.stopPropagation();
+        openUserDetails(user);
+    };
+
+    const handleDeleteUserFromMenu = async (
+        event: MouseEvent<HTMLButtonElement>,
+        userId: string,
+    ) => {
+        event.stopPropagation();
+        setOpenUserMenuId(null);
+
+        const userServiceWithDelete = adminUserService as typeof adminUserService & {
+            deleteUser?: (userId: string) => Promise<void>;
+        };
+
+        if (!userServiceWithDelete.deleteUser) return;
+
+        await userServiceWithDelete.deleteUser(userId);
+        setUsers((currentUsers) =>
+            currentUsers.filter((currentUser) => currentUser.id !== userId),
+        );
+        setSelectedUserIds((currentSelectedUserIds) => {
+            const nextSelectedUserIds = new Set(currentSelectedUserIds);
+            nextSelectedUserIds.delete(userId);
+            return nextSelectedUserIds;
+        });
+    };
+
+    const openProjectDetails = (project: AdminProject) => {
+        setOpenUserMenuId(null);
+        setSelectedUser(null);
+        setSelectedProject(project);
+    };
+
+    const closeDetails = () => {
+        setOpenUserMenuId(null);
         setIsDrawerOpen(false);
 
         window.setTimeout(() => {
             setSelectedUser(null);
+            setSelectedProject(null);
         }, DRAWER_CLOSE_DELAY_MS);
+    };
+
+    const handleTabChange = (tab: AdminTab) => {
+        setOpenUserMenuId(null);
+        closeDetails();
+        setActiveTab(tab);
     };
 
     const handleRefresh = async () => {
@@ -1116,103 +1386,375 @@ export function AdminPage() {
     const showInitialLoading =
         loadingState === "idle" || loadingState === "loading";
 
-    return (
-        <div className="min-h-screen bg-app-bg px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-7xl">
-                <header className="mb-8">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-app-border bg-app-surface text-app-brand shadow-sm">
-                            <Terminal className="h-5 w-5" />
+    const renderUsersTab = () => {
+        if (paginatedUsers.length === 0) {
+            return (
+                <div className="overflow-hidden rounded-2xl border border-app-border bg-app-surface">
+                    <p className="text-base font-medium text-app-text">No users found</p>
+                    <p className="mt-1 text-sm text-app-text-muted">
+                        Try another search term or change the filters.
+                    </p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="overflow-hidden rounded-2xl border border-app-border bg-app-surface">
+                <div className="hidden lg:block">
+                    <div className="grid grid-cols-[44px_2.5fr_1.8fr_1.8fr_52px] items-center border-b border-app-border bg-app-surface-muted px-5 py-3.5">
+                        <div className="flex items-center">
+                            <SelectionCheckbox
+                                checked={allVisibleUsersSelected}
+                                onChange={toggleAllVisibleUsers}
+                                ariaLabel="Select all users"
+                            />
                         </div>
-                        <h1 className="text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
-                            User management
-                        </h1>
+
+                        <TableHeader>User</TableHeader>
+                        <TableHeader>Permission</TableHeader>
+                        <TableHeader>Projects</TableHeader>
+                        <div />
                     </div>
-                </header>
 
-                <section>
-                    <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-baseline gap-2">
-                            <h2 className="text-xl font-semibold text-app-text">All users</h2>
-                            <span className="text-xl font-medium text-app-text-disabled">
-                {filteredUsers.length}
-              </span>
-                        </div>
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <div className="relative w-full sm:w-72">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-disabled" />
-                                <input
-                                    value={searchValue}
-                                    onChange={(event) => {
-                                        setSearchValue(event.target.value);
-                                        setPage(1);
-                                    }}
-                                    placeholder="Search"
-                                    className="h-10 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text outline-none transition-colors placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
+                    {paginatedUsers.map((user) => (
+                        <div
+                            key={user.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openUserDetails(user)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    openUserDetails(user);
+                                }
+                            }}
+                            className="group grid cursor-pointer grid-cols-[44px_2.5fr_1.8fr_1.8fr_52px] items-center border-b border-app-border px-5 py-4 transition-colors last:border-b-0 hover:bg-app-surface-hover focus:outline-none focus-visible:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-brand-glow"
+                        >
+                            <div
+                                className="flex items-center"
+                                onClick={(event) => event.stopPropagation()}
+                                onKeyDown={(event) => event.stopPropagation()}
+                            >
+                                <SelectionCheckbox
+                                    checked={selectedUserIds.has(user.id)}
+                                    onChange={() => toggleUserSelection(user.id)}
+                                    ariaLabel={`Select ${getDisplayName(user)}`}
                                 />
                             </div>
 
-                            <div className="relative">
+                            <div className="min-h-11 min-w-0 text-left">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold text-app-brand-text">
+                                        {getInitials(user)}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="truncate text-sm font-semibold text-app-text">
+                                                {getDisplayName(user)}
+                                            </span>
+                                        </div>
+                                        <div className="truncate text-xs text-app-text-muted">
+                                            {user.email}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <PermissionGroupBadge permissionGroup={user.permissionGroup} />
+
+                            <ProjectList projects={user.projects} />
+
+                            <div
+                                className="relative flex items-center justify-end"
+                                onClick={(event) => event.stopPropagation()}
+                                onKeyDown={(event) => event.stopPropagation()}
+                            >
                                 <button
                                     type="button"
-                                    onClick={() => setShowFilters((current) => !current)}
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-app-border bg-app-surface px-4 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                                    onClick={(event) => toggleUserContextMenu(event, user.id)}
+                                    className="flex h-11 w-11 items-center justify-center rounded-xl text-app-text-muted transition-colors hover:bg-app-surface-muted hover:text-app-text"
+                                    aria-label={`Open context menu for ${getDisplayName(user)}`}
+                                    aria-haspopup="menu"
+                                    aria-expanded={openUserMenuId === user.id}
                                 >
-                                    <SlidersHorizontal className="h-4 w-4 text-app-text-muted" />
-                                    Filters
+                                    <MoreVertical className="h-4 w-4" />
                                 </button>
 
-                                {showFilters && (
-                                    <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-app-border bg-app-surface p-2 shadow-xl">
-                                        {[
-                                            ["all", "All users"],
-                                            ["enabled", "Enabled"],
-                                            ["disabled", "Disabled"],
-                                            ["onboarded", "Onboarding completed"],
-                                            ["not-onboarded", "Onboarding open"],
-                                        ].map(([value, label]) => (
-                                            <button
-                                                key={value}
-                                                type="button"
-                                                onClick={() => {
-                                                    setUserFilter(value as UserFilter);
-                                                    setShowFilters(false);
-                                                    setPage(1);
-                                                }}
-                                                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                                                    userFilter === value
-                                                        ? "bg-app-brand-soft text-app-brand-text"
-                                                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
-                                                }`}
-                                            >
-                                                {label}
-                                            </button>
-                                        ))}
+                                {openUserMenuId === user.id && (
+                                    <div
+                                        role="menu"
+                                        className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl"
+                                    >
+                                        <button
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={(event) => openUserDetailsFromMenu(event, user)}
+                                            className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                                        >
+                                            Open details
+                                        </button>
+                                        <button
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={(event) => void handleDeleteUserFromMenu(event, user.id)}
+                                            className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-bg"
+                                        >
+                                            Delete
+                                        </button>
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    ))}
+                </div>
 
-                            <button
-                                type="button"
-                                onClick={() => void handleRefresh()}
-                                disabled={isRefreshing}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60"
-                                aria-label="Refresh users"
-                            >
-                                <RefreshCw
-                                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                                />
-                            </button>
+                <div className="space-y-3 p-3 lg:hidden">
+                    {paginatedUsers.map((user) => (
+                        <div
+                            key={user.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openUserDetails(user)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    openUserDetails(user);
+                                }
+                            }}
+                            className="cursor-pointer rounded-2xl border border-app-border bg-app-surface p-4 transition-colors hover:bg-app-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-app-brand-glow"
+                        >
+                            <div className="flex items-start gap-3">
+                                <div
+                                    onClick={(event) => event.stopPropagation()}
+                                    onKeyDown={(event) => event.stopPropagation()}
+                                >
+                                    <SelectionCheckbox
+                                        checked={selectedUserIds.has(user.id)}
+                                        onChange={() => toggleUserSelection(user.id)}
+                                        ariaLabel={`Select ${getDisplayName(user)}`}
+                                    />
+                                </div>
+
+                                <div className="min-h-11 min-w-0 flex-1 text-left">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="truncate text-sm font-semibold text-app-text">
+                                                    {getDisplayName(user)}
+                                                </span>
+                                                <StatusDot active={user.enabled} />
+                                            </div>
+                                            <div className="truncate text-xs text-app-text-muted">
+                                                {user.email}
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            className="relative shrink-0"
+                                            onClick={(event) => event.stopPropagation()}
+                                            onKeyDown={(event) => event.stopPropagation()}
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={(event) => toggleUserContextMenu(event, user.id)}
+                                                className="flex h-11 w-11 items-center justify-center rounded-xl text-app-text-muted transition-colors hover:bg-app-surface-muted hover:text-app-text"
+                                                aria-label={`Open context menu for ${getDisplayName(user)}`}
+                                                aria-haspopup="menu"
+                                                aria-expanded={openUserMenuId === user.id}
+                                            >
+                                                <MoreVertical className="h-4 w-4" />
+                                            </button>
+
+                                            {openUserMenuId === user.id && (
+                                                <div
+                                                    role="menu"
+                                                    className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        role="menuitem"
+                                                        onClick={(event) => openUserDetailsFromMenu(event, user)}
+                                                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                                                    >
+                                                        Open details
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        role="menuitem"
+                                                        onClick={(event) => void handleDeleteUserFromMenu(event, user.id)}
+                                                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-bg"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4">
+                                        <div className="mb-2 text-xs text-app-text-disabled">
+                                            Permission
+                                        </div>
+                                        <PermissionGroupBadge permissionGroup={user.permissionGroup} />
+                                    </div>
+
+                                    <div className="mt-4">
+                                        <div className="mb-2 text-xs text-app-text-disabled">
+                                            Projects
+                                        </div>
+                                        <ProjectList projects={user.projects} max={3} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderProjectsTab = () => {
+        if (filteredProjects.length === 0) {
+            return (
+                <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-app-border bg-app-surface px-6 text-center">
+                    <p className="text-base font-medium text-app-text">
+                        No projects found
+                    </p>
+                    <p className="mt-1 text-sm text-app-text-muted">
+                        Try another search term or assign users to projects first.
+                    </p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-3">
+                {filteredProjects.map((project) => (
+                    <button
+                        key={project.id}
+                        type="button"
+                        onClick={() => openProjectDetails(project)}
+                        className="group flex w-full cursor-pointer flex-col gap-4 overflow-hidden rounded-2xl border border-app-border bg-app-surface p-5 text-left transition-colors hover:border-app-border-strong hover:bg-app-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-app-brand-glow sm:flex-row sm:items-start sm:justify-between"
+                        aria-label={`Open details for ${project.name}`}
+                    >
+                        <div className="flex min-w-0 flex-1 items-start gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface-muted text-app-text-muted">
+                                <Folder className="h-5 w-5" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    <span className="text-sm font-semibold text-app-text">
+                                        {project.name}
+                                    </span>
+                                </div>
+
+                                {project.tags.length > 0 && (
+                                    <div className="mb-3 flex flex-wrap gap-1.5">
+                                        {project.tags.map((tag, index) => (
+                                            <AccessBadge
+                                                key={tag}
+                                                variant={
+                                                    PROJECT_TAG_VARIANTS[
+                                                    index % PROJECT_TAG_VARIANTS.length
+                                                        ]
+                                                }
+                                            >
+                                                {tag}
+                                            </AccessBadge>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <p className="line-clamp-2 text-sm leading-relaxed text-app-text-muted">
+                                    {project.description}
+                                </p>
+
+                                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-app-text-disabled">
+                                    <span className="flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5" />
+                                        {project.memberCount} members
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <FileText className="h-3.5 w-3.5" />
+                                        {project.artifactCount} artifacts
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl text-app-text-muted transition-colors group-hover:text-app-text sm:self-center">
+                            <ChevronRight className="h-4 w-4" />
+                        </div>
+                    </button>
+                ))}
+            </div>
+        );
+    };
+
+    return (
+        <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+                <header className="mb-8">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-app-border bg-app-surface text-app-brand shadow-sm">
+                                <Terminal className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
+                                    Admin Console
+                                </h1>
+                                <p className="text-sm text-app-text-muted">
+                                    Manage users, roles, and project access
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
+                                <Users className="h-4 w-4 text-app-text-muted" />
+                                <span className="text-sm font-semibold text-app-text">
+                                    {users.length}
+                                </span>
+                                <span className="text-sm text-app-text-muted">users</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
+                                <Layers className="h-4 w-4 text-app-text-muted" />
+                                <span className="text-sm font-semibold text-app-text">
+                                    {availableProjects.length}
+                                </span>
+                                <span className="text-sm text-app-text-muted">projects</span>
+                            </div>
                         </div>
                     </div>
+                </header>
 
-                    <div className="overflow-hidden rounded-2xl border border-app-border bg-app-surface">
+                <div className="overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-sm">
+                    <div className="flex flex-col gap-4 border-b border-app-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                        <TabSwitcher activeTab={activeTab} onChange={handleTabChange} />
+
+                        <button
+                            type="button"
+                            onClick={() => void handleRefresh()}
+                            disabled={isRefreshing}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label="Refresh admin data"
+                        >
+                            <RefreshCw
+                                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                            />
+                        </button>
+                    </div>
+
+                    <div className="p-6">
                         {showInitialLoading ? (
                             <div className="flex min-h-96 items-center justify-center">
                                 <div className="flex flex-col items-center gap-3 text-app-text-muted">
                                     <Loader2 className="h-8 w-8 animate-spin text-app-brand" />
-                                    <p className="text-sm">Loading users...</p>
+                                    <p className="text-sm">Loading admin data...</p>
                                 </div>
                             </div>
                         ) : loadingState === "error" ? (
@@ -1220,7 +1762,7 @@ export function AdminPage() {
                                 <div className="max-w-md">
                                     <AlertCircle className="mx-auto mb-4 h-10 w-10 text-app-danger-solid" />
                                     <h3 className="text-base font-semibold text-app-text">
-                                        Users could not be loaded
+                                        Admin data could not be loaded
                                     </h3>
                                     <p className="mt-2 text-sm text-app-text-muted">
                                         {errorMessage}
@@ -1228,172 +1770,199 @@ export function AdminPage() {
                                     <button
                                         type="button"
                                         onClick={() => void handleRefresh()}
-                                        className="mt-5 rounded-xl bg-app-text px-5 py-2.5 text-sm font-medium text-app-text-inverse transition-colors hover:opacity-90"
+                                        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-app-text px-5 py-2.5 text-sm font-medium text-app-text-inverse transition-colors hover:opacity-90"
                                     >
                                         Try again
                                     </button>
                                 </div>
                             </div>
-                        ) : paginatedUsers.length === 0 ? (
-                            <div className="flex min-h-96 flex-col items-center justify-center px-6 text-center">
-                                <p className="text-base font-medium text-app-text">
-                                    No users found
-                                </p>
-                                <p className="mt-1 text-sm text-app-text-muted">
-                                    Try another search term or change the filters.
-                                </p>
-                            </div>
-                        ) : (
+                        ) : activeTab === "users" ? (
                             <>
-                                <div className="hidden lg:block">
-                                    <div className="grid grid-cols-[56px_2.2fr_2fr_2fr_44px] items-center border-b border-app-border bg-app-surface-muted px-5 py-4">
-                                        <div className="flex items-center">
-                                            <SelectionCheckbox
-                                                checked={allVisibleUsersSelected}
-                                                onChange={toggleAllVisibleUsers}
-                                                ariaLabel="Select all users"
+                                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-sm font-semibold text-app-text">
+                                            {filteredUsers.length} users
+                                        </span>
+                                        {selectedUserIds.size > 0 && (
+                                            <span className="text-sm text-app-brand-text">
+                                                {selectedUserIds.size} selected
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-disabled" />
+                                            <input
+                                                value={searchValue}
+                                                onChange={(event) => {
+                                                    setSearchValue(event.target.value);
+                                                    setPage(1);
+                                                }}
+                                                placeholder="Search users..."
+                                                className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
                                             />
                                         </div>
 
-                                        <TableHeader>User name</TableHeader>
-                                        <TableHeader>Roles</TableHeader>
-                                        <TableHeader>Projects</TableHeader>
-                                        <div />
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowFilters((current) => !current)}
+                                                className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors ${
+                                                    userFilter !== "all"
+                                                        ? "border-app-brand-border bg-app-brand-soft text-app-brand-text"
+                                                        : "border-app-border bg-app-surface text-app-text hover:bg-app-surface-hover"
+                                                }`}
+                                            >
+                                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                                                Filter
+                                            </button>
+
+                                            {showFilters && (
+                                                <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl">
+                                                    {[
+                                                        ["all", "All users"],
+                                                        ["enabled", "Enabled"],
+                                                        ["disabled", "Disabled"],
+                                                        ["onboarded", "Onboarding completed"],
+                                                        ["not-onboarded", "Onboarding open"],
+                                                    ].map(([value, label]) => (
+                                                        <button
+                                                            key={value}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setUserFilter(value as UserFilter);
+                                                                setShowFilters(false);
+                                                                setPage(1);
+                                                            }}
+                                                            className={`flex min-h-11 w-full items-center justify-between px-4 py-3 text-sm transition-colors ${
+                                                                userFilter === value
+                                                                    ? "bg-app-brand-soft text-app-brand-text"
+                                                                    : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                                                            }`}
+                                                        >
+                                                            {label}
+                                                            {userFilter === value && (
+                                                                <Check className="h-3.5 w-3.5" />
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-
-                                    {paginatedUsers.map((user) => (
-                                        <div
-                                            key={user.id}
-                                            className="grid grid-cols-[56px_2.2fr_2fr_2fr_44px] items-center border-b border-app-border px-5 py-5 transition-colors last:border-b-0 hover:bg-app-surface-hover"
-                                        >
-                                            <div className="flex items-center">
-                                                <SelectionCheckbox
-                                                    checked={selectedUserIds.has(user.id)}
-                                                    onChange={() => toggleUserSelection(user.id)}
-                                                    ariaLabel={`Select ${getDisplayName(user)}`}
-                                                />
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => openUserDetails(user)}
-                                                className="min-w-0 text-left"
-                                            >
-                                                <div className="truncate text-sm font-semibold text-app-text">
-                                                    {getDisplayName(user)}
-                                                </div>
-                                                <div className="truncate text-sm text-app-text-muted">
-                                                    {user.email}
-                                                </div>
-                                            </button>
-
-                                            <RoleList roles={user.roles} />
-
-                                            <ProjectList projects={user.projects} />
-
-                                            <button
-                                                type="button"
-                                                onClick={() => openUserDetails(user)}
-                                                className="flex h-9 w-9 items-center justify-center rounded-lg text-app-text-muted transition-colors hover:bg-app-surface-muted hover:text-app-text"
-                                                aria-label={`Open details for ${getDisplayName(user)}`}
-                                            >
-                                                <MoreVertical className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    ))}
                                 </div>
 
-                                <div className="space-y-3 p-3 lg:hidden">
-                                    {paginatedUsers.map((user) => (
-                                        <div
-                                            key={user.id}
-                                            className="rounded-2xl border border-app-border bg-app-surface p-4"
+                                {renderUsersTab()}
+
+                                {totalPages > 1 && (
+                                    <div className="mt-4 flex items-center justify-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+                                            disabled={page === 1}
+                                            className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
+                                            aria-label="Previous page"
                                         >
-                                            <div className="flex items-start gap-3">
-                                                <SelectionCheckbox
-                                                    checked={selectedUserIds.has(user.id)}
-                                                    onChange={() => toggleUserSelection(user.id)}
-                                                    ariaLabel={`Select ${getDisplayName(user)}`}
-                                                />
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </button>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openUserDetails(user)}
-                                                    className="min-w-0 flex-1 text-left"
-                                                >
-                                                    <div className="truncate text-sm font-semibold text-app-text">
-                                                        {getDisplayName(user)}
-                                                    </div>
-                                                    <div className="truncate text-sm text-app-text-muted">
-                                                        {user.email}
-                                                    </div>
+                                        {Array.from(
+                                            { length: totalPages },
+                                            (_, index) => index + 1,
+                                        ).map((pageNumber) => (
+                                            <button
+                                                key={pageNumber}
+                                                type="button"
+                                                onClick={() => setPage(pageNumber)}
+                                                className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-colors ${
+                                                    page === pageNumber
+                                                        ? "bg-app-surface-muted text-app-text"
+                                                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                                                }`}
+                                            >
+                                                {pageNumber}
+                                            </button>
+                                        ))}
 
-                                                    <div className="mt-4">
-                                                        <div className="mb-2 text-xs text-app-text-disabled">
-                                                            Roles
-                                                        </div>
-                                                        <RoleList roles={user.roles} max={3} />
-                                                    </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
+                                            disabled={page === totalPages}
+                                            className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
+                                            aria-label="Next page"
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <span className="text-sm font-semibold text-app-text">
+                                        {filteredProjects.length} projects
+                                    </span>
 
-                                                    <div className="mt-4">
-                                                        <div className="mb-2 text-xs text-app-text-disabled">
-                                                            Projects
-                                                        </div>
-                                                        <ProjectList projects={user.projects} max={3} />
-                                                    </div>
-                                                </button>
-                                            </div>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-disabled" />
+                                            <input
+                                                value={projectSearchValue}
+                                                onChange={(event) =>
+                                                    setProjectSearchValue(event.target.value)
+                                                }
+                                                placeholder="Search projects..."
+                                                className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
+                                            />
                                         </div>
-                                    ))}
+
+                                        <button
+                                            type="button"
+                                            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            New Project
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {renderProjectsTab()}
                             </>
                         )}
                     </div>
-
-                    {loadingState === "success" && totalPages > 1 && (
-                        <div className="mt-5 flex items-center justify-center gap-2">
-                            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                                (pageNumber) => (
-                                    <button
-                                        key={pageNumber}
-                                        type="button"
-                                        onClick={() => setPage(pageNumber)}
-                                        className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                                            page === pageNumber
-                                                ? "bg-app-surface-muted text-app-text"
-                                                : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
-                                        }`}
-                                    >
-                                        {pageNumber}
-                                    </button>
-                                ),
-                            )}
-                        </div>
-                    )}
-                </section>
+                </div>
             </div>
 
-            {selectedUser && (
-                <>
-                    <button
-                        type="button"
-                        aria-label="Close user details overlay"
-                        onClick={closeUserDetails}
-                        className={`fixed inset-0 z-30 bg-app-overlay transition-opacity duration-300 ${
-                            isDrawerOpen ? "opacity-100" : "opacity-0"
-                        }`}
-                    />
+            {(selectedUser || selectedProject) && (
+                <button
+                    type="button"
+                    aria-label="Close details overlay"
+                    onClick={closeDetails}
+                    className={`fixed inset-0 z-30 bg-app-overlay transition-opacity duration-300 ${
+                        isDrawerOpen ? "opacity-100" : "opacity-0"
+                    }`}
+                />
+            )}
 
-                    <UserDetailsDrawer
-                        user={selectedUser}
-                        availableRoles={availableRoles}
-                        availableProjects={availableProjects}
-                        isOpen={isDrawerOpen}
-                        isSaving={savingUserId === selectedUser.id}
-                        onClose={closeUserDetails}
-                        onSaveRoles={handleSaveRoles}
-                    />
-                </>
+            {selectedUser && (
+                <UserDetailsDrawer
+                    user={selectedUser}
+                    availableRoles={availableRoles}
+                    availableProjects={availableProjects}
+                    isOpen={isDrawerOpen}
+                    isSaving={savingUserId === selectedUser.id}
+                    onClose={closeDetails}
+                    onSaveRoles={handleSaveRoles}
+                />
+            )}
+
+            {selectedProject && (
+                <ProjectDetailsDrawer
+                    project={selectedProject}
+                    isOpen={isDrawerOpen}
+                    onClose={closeDetails}
+                />
             )}
         </div>
     );
