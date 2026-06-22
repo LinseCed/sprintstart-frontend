@@ -9,6 +9,7 @@ export interface KnowledgeGapOwner {
 export type KnowledgeGapSeverity = 'high' | 'medium' | 'low';
 
 export interface KnowledgeGap {
+    id: string;
     component: string;
     missingTypes: string[];
     lastUpdated: string;

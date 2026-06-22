@@ -10,6 +10,7 @@ import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
 import { PmDashboardView } from '../pages/PmDashboardView.tsx';
 import { FaqDetailPage } from '../features/faq/components/faqDetailView.tsx';
+import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/knowledgeGapsDetailPage.tsx';
 
 export function AppRouter() {
     return (
@@ -26,6 +27,7 @@ export function AppRouter() {
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
                 <Route path="/pm-dashboard" element={<PmDashboardView />} />
                 <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
+                <Route path="/insights/knowledge-gaps/:gapId" element={<KnowledgeGapsDetailPage />} />
             </Routes>
         </AuthGuard>
     );
