@@ -101,9 +101,10 @@ export function TeamMemberDetailPage() {
                                 <h1 className="text-2xl font-bold text-app-text">
                                     {user.firstname} {user.lastname}
                                 </h1>
-
                                 <p className="text-sm text-app-text-muted">
-                                    {user.role.name}
+                                    {user.roles.length > 0
+                                        ? user.roles.map((role) => role.name).join(', ')
+                                        : 'No role assigned'}
                                 </p>
                             </div>
                         </div>

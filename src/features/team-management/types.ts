@@ -12,6 +12,11 @@ export type SkipRequest = {
     reviewedAt: string | null;
 };
 
+export type ProjectRoles = {
+    id: string;
+    name: string;
+};
+
 export type TeamOverviewUser = {
     userId: string;
     firstname: string;
@@ -20,10 +25,7 @@ export type TeamOverviewUser = {
         id: string;
         name: string;
     };
-    role: {
-        id: string;
-        name: string;
-    };
+    roles: ProjectRoles[];
     progressPercentage: number;
     currentPhase: {
         id: string;
@@ -40,4 +42,9 @@ export type TeamOverviewUser = {
 
 export type TeamOverviewFilters = {
     roleId: string;
+    sortBy:
+        | 'LONGEST_STEP'
+        | 'SHORTEST_STEP'
+        | 'HIGHEST_PROGRESS'
+        | 'LOWEST_PROGRESS';
 };

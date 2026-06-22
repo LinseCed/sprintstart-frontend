@@ -10,7 +10,11 @@ const AT_RISK_AFTER_DAYS = 5;
 
 function getElapsedDays(startedAt: string): number {
     const started = new Date(startedAt).getTime();
-    return Math.floor((Date.now() - started) / (1000 * 60 * 60 * 24));
+
+    return Math.max(
+        0,
+        Math.floor((Date.now() - started) / (1000 * 60 * 60 * 24))
+    );
 }
 
 function getInitials(firstname: string, lastname: string): string {
@@ -19,6 +23,7 @@ function getInitials(firstname: string, lastname: string): string {
 
 export function TeamMemberCard({ user }: TeamMemberCardProps) {
     const elapsedDays = getElapsedDays(user.currentStep.startedAt);
+    const progressPercentage = Math.round(user.progressPercentage * 100);
     const isAtRisk = elapsedDays > AT_RISK_AFTER_DAYS;
 
     const hasPendingSkipRequest =
@@ -27,15 +32,15 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
     return (
         <Link
             to={`/team/${user.userId}`}
-            className="group relative flex flex-col gap-4 rounded-xl border border-app-border bg-app-surface p-4 transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover"
+            className="group relative flex flex-col rounded-2xl border border-app-border bg-app-surface p-4 transition-all hover:border-app-brand-border-strong hover:bg-app-surface-hover hover:shadow-md"
         >
-            <div className="absolute right-3 top-3 flex items-center gap-1">
+            <div className="absolute right-3 top-3 flex items-center gap-1.5">
                 {user.hasFeedback && (
                     <span
                         title="Has left feedback on this path"
                         className="flex h-6 w-6 items-center justify-center rounded-full bg-app-brand-soft text-app-brand-text"
                     >
-                        <MessageSquareText className="h-3.5 w-3.5" />
+                        <MessageSquareText className="h-3 w-3" />
                     </span>
                 )}
 
@@ -44,58 +49,57 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
                         title="Open skip request"
                         className="flex h-6 w-6 items-center justify-center rounded-full bg-app-surface-muted text-app-text-muted"
                     >
-                        <SkipForward className="h-3.5 w-3.5" />
+                        <SkipForward className="h-3 w-3" />
                     </span>
                 )}
             </div>
 
-            <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-app-brand-soft text-sm font-semibold text-app-brand-text">
+            <div className="flex items-center gap-3 pr-14">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-app-brand-soft text-xs font-semibold text-app-brand-text">
                     {getInitials(user.firstname, user.lastname)}
                 </div>
 
                 <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-app-text">
+                    <p className="truncate text-sm font-semibold text-app-text">
                         {user.firstname} {user.lastname}
                     </p>
-
-                    <p className="truncate text-xs text-app-text-subtle">
-                        {user.role.name}
+                    <p className="text-sm text-app-text-muted">
+                        {user.roles.length > 0
+                            ? user.roles.map((role) => role.name).join(', ')
+                            : 'No role assigned'}
                     </p>
                 </div>
             </div>
 
-            <div>
-                <p className="mb-1 truncate text-xs text-app-text-subtle">
-                    {user.currentPhase.title}
-                </p>
+            <div className="mt-3">
+                <div className="flex items-start justify-between gap-3">
+                    <p className="line-clamp-2 text-sm font-medium text-app-text">
+                        {user.currentStep.title}
+                    </p>
 
-                <div className="flex items-center gap-2">
+                    <span
+                        className={`shrink-0 text-xs ${
+                            isAtRisk
+                                ? 'font-medium text-app-warning-text'
+                                : 'text-app-text-muted'
+                        }`}
+                    >
+                        {elapsedDays}d
+                    </span>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-app-progress-track">
                         <div
-                            className="h-full rounded-full bg-gradient-to-r from-app-progress-fill to-app-progress-fill-end"
-                            style={{
-                                width: `${Math.round(user.progressPercentage * 100)}%`,
-                            }}
+                            className="h-full rounded-full bg-gradient-to-r from-app-progress-fill to-app-progress-fill-end transition-all duration-500"
+                            style={{ width: `${progressPercentage}%` }}
                         />
                     </div>
 
-                    <span className="text-xs tabular-nums text-app-text-subtle">
-                        {Math.round(user.progressPercentage * 100)}%
+                    <span className="text-xs font-medium tabular-nums text-app-text">
+                        {progressPercentage}%
                     </span>
                 </div>
             </div>
-
-            <p
-                className={`text-xs tabular-nums ${
-                    isAtRisk
-                        ? 'font-medium text-app-warning-text'
-                        : 'text-app-text-subtle'
-                }`}
-            >
-                On "{user.currentStep.title}" for {elapsedDays}{' '}
-                {elapsedDays === 1 ? 'day' : 'days'}
-            </p>
         </Link>
     );
 }

@@ -13,6 +13,7 @@ export function TeamManagementPage() {
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<TeamOverviewFilters>({
         roleId: 'all',
+        sortBy: 'LONGEST_STEP',
     });
 
     useEffect(() => {
@@ -26,9 +27,36 @@ export function TeamManagementPage() {
     }, []);
 
     const filteredUsers = useMemo(() => {
-        return users.filter((user) => {
-            return filters.roleId === 'all' || user.role.id === filters.roleId;
+        const result = users.filter((user) => {
+            return filters.roleId === 'all' || user.roles.some((role) => role.id === filters.roleId);
         });
+
+        result.sort((a, b) => {
+            switch (filters.sortBy) {
+                case 'LONGEST_STEP':
+                    return (
+                        new Date(a.currentStep.startedAt).getTime() -
+                        new Date(b.currentStep.startedAt).getTime()
+                    );
+
+                case 'SHORTEST_STEP':
+                    return (
+                        new Date(b.currentStep.startedAt).getTime() -
+                        new Date(a.currentStep.startedAt).getTime()
+                    );
+
+                case 'HIGHEST_PROGRESS':
+                    return b.progressPercentage - a.progressPercentage;
+
+                case 'LOWEST_PROGRESS':
+                    return a.progressPercentage - b.progressPercentage;
+
+                default:
+                    return 0;
+            }
+        });
+
+        return result;
     }, [users, filters]);
 
     if (loading) {

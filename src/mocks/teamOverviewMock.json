@@ -4,24 +4,15 @@
       "userId": "1",
       "firstname": "Anna",
       "lastname": "Fischer",
-      "project": {
-        "id": "p4",
-        "name": "Data Platform"
-      },
-      "role": {
-        "id": "r3",
-        "name": "QA Engineer"
-      },
+      "project": { "id": "p4", "name": "Data Platform" },
+      "roles": [{ "id": "r3", "name": "QA Engineer" }],
       "progressPercentage": 0.25,
-      "currentPhase": {
-        "id": "phase4",
-        "title": "Phase 4 - Practice"
-      },
+      "currentPhase": { "id": "phase4", "title": "Phase 4 - Practice" },
       "currentStep": {
         "id": "step-1",
         "title": "Complete security training",
         "startedAt": "2026-06-18T17:30:31.369Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": false
     },
@@ -29,56 +20,41 @@
       "userId": "2",
       "firstname": "Lukas",
       "lastname": "Koch",
-      "project": {
-        "id": "p4",
-        "name": "Data Platform"
-      },
-      "role": {
-        "id": "r6",
-        "name": "Data Engineer"
-      },
+      "project": { "id": "p4", "name": "Data Platform" },
+      "roles": [
+        { "id": "r1", "name": "Backend Developer" },
+        { "id": "r4", "name": "DevOps Engineer" }
+      ],
       "progressPercentage": 0.28,
-      "currentPhase": {
-        "id": "phase2",
-        "title": "Phase 2 - Fundamentals"
-      },
+      "currentPhase": { "id": "phase2", "title": "Phase 2 - Fundamentals" },
       "currentStep": {
         "id": "step-2",
         "title": "Complete architecture walkthrough",
         "startedAt": "2026-06-06T17:30:31.382Z",
         "skip": {
-            "id": "skip-2",
-            "stepId": "step-2",
-            "reason": "Already completed similar architecture onboarding.",
-            "status": "PENDING",
-            "reviewComment": null,
-            "reviewedAt": null
+          "id": "skip-2",
+          "stepId": "step-2",
+          "reason": "Already completed similar architecture onboarding.",
+          "status": "PENDING",
+          "reviewComment": null,
+          "reviewedAt": null
         }
-    },
+      },
       "hasFeedback": false
     },
     {
       "userId": "3",
       "firstname": "Mia",
       "lastname": "Zimmermann",
-      "project": {
-        "id": "p1",
-        "name": "SprintStart"
-      },
-      "role": {
-        "id": "r4",
-        "name": "DevOps Engineer"
-      },
+      "project": { "id": "p1", "name": "SprintStart" },
+      "roles": [{ "id": "r4", "name": "DevOps Engineer" }],
       "progressPercentage": 0.73,
-      "currentPhase": {
-        "id": "phase3",
-        "title": "Phase 3 - Deep Dive"
-      },
+      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
       "currentStep": {
         "id": "step-3",
         "title": "Join sprint planning",
         "startedAt": "2026-06-21T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": false
     },
@@ -86,24 +62,18 @@
       "userId": "4",
       "firstname": "Felix",
       "lastname": "Krause",
-      "project": {
-        "id": "p1",
-        "name": "SprintStart"
-      },
-      "role": {
-        "id": "r4",
-        "name": "DevOps Engineer"
-      },
+      "project": { "id": "p1", "name": "SprintStart" },
+      "roles": [
+        { "id": "r1", "name": "Backend Developer" },
+        { "id": "r4", "name": "DevOps Engineer" }
+      ],
       "progressPercentage": 0.69,
-      "currentPhase": {
-        "id": "phase1",
-        "title": "Phase 1 - Setup"
-      },
+      "currentPhase": { "id": "phase1", "title": "Phase 1 - Setup" },
       "currentStep": {
         "id": "step-4",
         "title": "Install required tooling",
         "startedAt": "2026-06-20T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": true
     },
@@ -111,24 +81,15 @@
       "userId": "5",
       "firstname": "Laura",
       "lastname": "Huber",
-      "project": {
-        "id": "p3",
-        "name": "Mobile Companion App"
-      },
-      "role": {
-        "id": "r1",
-        "name": "Backend Developer"
-      },
+      "project": { "id": "p3", "name": "Mobile Companion App" },
+      "roles": [{ "id": "r1", "name": "Backend Developer" }],
       "progressPercentage": 0.29,
-      "currentPhase": {
-        "id": "phase1",
-        "title": "Phase 1 - Setup"
-      },
+      "currentPhase": { "id": "phase1", "title": "Phase 1 - Setup" },
       "currentStep": {
         "id": "step-5",
         "title": "Read team handbook",
         "startedAt": "2026-06-13T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": false
     },
@@ -136,30 +97,21 @@
       "userId": "6",
       "firstname": "Jonas",
       "lastname": "Weiß",
-      "project": {
-        "id": "p3",
-        "name": "Mobile Companion App"
-      },
-      "role": {
-        "id": "r1",
-        "name": "Backend Developer"
-      },
+      "project": { "id": "p3", "name": "Mobile Companion App" },
+      "roles": [{ "id": "r1", "name": "Backend Developer" }],
       "progressPercentage": 0.57,
-      "currentPhase": {
-        "id": "phase1",
-        "title": "Phase 1 - Setup"
-      },
+      "currentPhase": { "id": "phase1", "title": "Phase 1 - Setup" },
       "currentStep": {
         "id": "step-6",
         "title": "Access project repositories",
         "startedAt": "2026-06-11T17:30:31.382Z",
         "skip": {
-            "id": "skip-6",
-            "stepId": "step-6",
-            "reason": "Already has repository access.",
-            "status": "PENDING",
-            "reviewComment": null,
-            "reviewedAt": null
+          "id": "skip-6",
+          "stepId": "step-6",
+          "reason": "Already has repository access.",
+          "status": "PENDING",
+          "reviewComment": null,
+          "reviewedAt": null
         }
       },
       "hasFeedback": true
@@ -168,56 +120,41 @@
       "userId": "7",
       "firstname": "Sophie",
       "lastname": "Meyer",
-      "project": {
-        "id": "p2",
-        "name": "Onboarding Redesign"
-      },
-      "role": {
-        "id": "r2",
-        "name": "Frontend Developer"
-      },
+      "project": { "id": "p2", "name": "Onboarding Redesign" },
+      "roles": [
+        { "id": "r1", "name": "Backend Developer" },
+        { "id": "r4", "name": "DevOps Engineer" }
+      ],
       "progressPercentage": 0.26,
-      "currentPhase": {
-        "id": "phase3",
-        "title": "Phase 3 - Deep Dive"
-      },
-     "currentStep": {
+      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentStep": {
         "id": "step-7",
         "title": "Deep dive into core domain model",
         "startedAt": "2026-06-12T17:30:31.382Z",
         "skip": {
-            "id": "skip-7",
-            "stepId": "step-7",
-            "reason": "Already worked with this domain model.",
-            "status": "PENDING",
-            "reviewComment": null,
-            "reviewedAt": null
+          "id": "skip-7",
+          "stepId": "step-7",
+          "reason": "Already worked with this domain model.",
+          "status": "PENDING",
+          "reviewComment": null,
+          "reviewedAt": null
         }
-     },
+      },
       "hasFeedback": true
     },
     {
       "userId": "8",
       "firstname": "Maximilian",
       "lastname": "Klein",
-      "project": {
-        "id": "p2",
-        "name": "Onboarding Redesign"
-      },
-      "role": {
-        "id": "r1",
-        "name": "Backend Developer"
-      },
+      "project": { "id": "p2", "name": "Onboarding Redesign" },
+      "roles": [{ "id": "r1", "name": "Backend Developer" }],
       "progressPercentage": 0.09,
-      "currentPhase": {
-        "id": "phase3",
-        "title": "Phase 3 - Deep Dive"
-      },
+      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
       "currentStep": {
         "id": "step-8",
         "title": "Join sprint planning",
         "startedAt": "2026-06-09T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": false
     },
@@ -225,24 +162,18 @@
       "userId": "9",
       "firstname": "Emma",
       "lastname": "Krüger",
-      "project": {
-        "id": "p5",
-        "name": "Customer Portal"
-      },
-      "role": {
-        "id": "r3",
-        "name": "QA Engineer"
-      },
+      "project": { "id": "p5", "name": "Customer Portal" },
+      "roles": [
+        { "id": "r3", "name": "QA Engineer" },
+        { "id": "r2", "name": "Frontend Developer" }
+      ],
       "progressPercentage": 0.33,
-      "currentPhase": {
-        "id": "phase4",
-        "title": "Phase 4 - Practice"
-      },
+      "currentPhase": { "id": "phase4", "title": "Phase 4 - Practice" },
       "currentStep": {
         "id": "step-9",
         "title": "Own a small feature end-to-end",
         "startedAt": "2026-06-20T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": true
     },
@@ -250,24 +181,15 @@
       "userId": "10",
       "firstname": "Paul",
       "lastname": "Köhler",
-      "project": {
-        "id": "p3",
-        "name": "Mobile Companion App"
-      },
-      "role": {
-        "id": "r4",
-        "name": "DevOps Engineer"
-      },
+      "project": { "id": "p3", "name": "Mobile Companion App" },
+      "roles": [{ "id": "r4", "name": "DevOps Engineer" }],
       "progressPercentage": 0.26,
-      "currentPhase": {
-        "id": "phase4",
-        "title": "Phase 4 - Practice"
-      },
+      "currentPhase": { "id": "phase4", "title": "Phase 4 - Practice" },
       "currentStep": {
         "id": "step-10",
         "title": "Own a small feature end-to-end",
         "startedAt": "2026-06-09T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": false
     },
@@ -275,24 +197,18 @@
       "userId": "11",
       "firstname": "Lena",
       "lastname": "Fuchs",
-      "project": {
-        "id": "p4",
-        "name": "Data Platform"
-      },
-      "role": {
-        "id": "r2",
-        "name": "Frontend Developer"
-      },
+      "project": { "id": "p4", "name": "Data Platform" },
+      "roles": [
+        { "id": "r2", "name": "Frontend Developer" },
+        { "id": "r6", "name": "Data Engineer" }
+      ],
       "progressPercentage": 0.5,
-      "currentPhase": {
-        "id": "phase3",
-        "title": "Phase 3 - Deep Dive"
-      },
+      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
       "currentStep": {
         "id": "step-11",
         "title": "Deep dive into core domain model",
         "startedAt": "2026-06-19T17:30:31.382Z",
-        "skip":null
+        "skip": null
       },
       "hasFeedback": false
     },
@@ -300,32 +216,23 @@
       "userId": "12",
       "firstname": "Tim",
       "lastname": "Müller",
-      "project": {
-        "id": "p5",
-        "name": "Customer Portal"
-      },
-      "role": {
-        "id": "r3",
-        "name": "QA Engineer"
-      },
+      "project": { "id": "p5", "name": "Customer Portal" },
+      "roles": [{ "id": "r3", "name": "QA Engineer" }],
       "progressPercentage": 0.64,
-      "currentPhase": {
-        "id": "phase3",
-        "title": "Phase 3 - Deep Dive"
-      },
-    "currentStep": {
+      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentStep": {
         "id": "step-12",
         "title": "Shadow a code review",
         "startedAt": "2026-06-11T17:30:31.382Z",
         "skip": {
-            "id": "skip-12",
-            "stepId": "step-12",
-            "reason": "Participated in code reviews before joining the team.",
-            "status": "PENDING",
-            "reviewComment": null,
-            "reviewedAt": null
+          "id": "skip-12",
+          "stepId": "step-12",
+          "reason": "Participated in code reviews before joining the team.",
+          "status": "PENDING",
+          "reviewComment": null,
+          "reviewedAt": null
         }
-     },
+      },
       "hasFeedback": false
     }
   ]
