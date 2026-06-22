@@ -3,7 +3,7 @@
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 
-export function PmDashboardView() {
+export function PmDashboardPage() {
     return (
         <div className="p-6">
             <div className="grid grid-cols-12 gap-6">
