@@ -8,6 +8,8 @@ import { OnBoardingItemPage } from '../features/onboarding/components/OnBoarding
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
+import { PmDashboardView } from '../pages/PmDashboardView.tsx';
+import { FaqDetailPage } from '../features/faq/components/faqDetailView.tsx';
 
 export function AppRouter() {
     return (
@@ -22,6 +24,8 @@ export function AppRouter() {
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
+                <Route path="/pm-dashboard" element={<PmDashboardView />} />
+                <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
             </Routes>
         </AuthGuard>
     );
