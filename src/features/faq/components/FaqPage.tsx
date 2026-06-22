@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 
 export function FaqPage() {
@@ -45,9 +46,7 @@ export function FaqPage() {
     return (
       <div className="flex flex-col items-center gap-2 py-20">
         <AlertCircle className="w-5 h-5 text-app-text-muted" />
-        <p className="text-app-text-muted">
-          Could not load FAQ data.
-        </p>
+        <p className="text-app-text-muted">Could not load FAQ data.</p>
       </div>
     );
   }
@@ -58,87 +57,154 @@ export function FaqPage() {
 
   const [hero, ...rest] = sorted;
 
+  const totalGroups = overview.groups.length;
+
+  const totalQuestions = overview.groups.reduce(
+    (sum, group) => sum + group.count,
+    0,
+  );
+
+  const mostAskedCount = hero?.count ?? 0;
+
+  const totalDocuments = new Set(
+    overview.groups.flatMap((group) =>
+      group.topDocuments.map((doc) => doc.id),
+    ),
+  ).size;
+
   const goToDetail = (group: FAQGroup) =>
     void navigate(`/insights/faq/${group.groupId}`);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      {/* Page Header */}
+    <div className="min-h-screen bg-app-bg">
+      {/* Header */}
+      <div className="border-b border-app-border bg-app-bg/90">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <button
+            onClick={() => void navigate("/pm-dashboard")}
+            className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to PM-Dashboard
+          </button>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-app-text">
-          Recurring Questions
-        </h1>
-        <p className="text-sm text-app-text-muted">
-          Frequently asked questions grouped by topic and ranked by usage.
-        </p>
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold text-app-text">
+              Recurring Questions
+            </h1>
+            <p className="text-sm text-app-text-muted">
+              Frequently asked questions grouped by topic and ranked by
+              frequency.
+            </p>
+          </div>
+
+          {/* Statistics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-app-border bg-app-surface p-3">
+              <div className="text-2xl font-semibold text-app-text">
+                {totalGroups}
+              </div>
+              <div className="text-xs text-app-text-muted">
+                Question groups
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-app-border bg-app-surface p-3">
+              <div className="text-2xl font-semibold text-app-text">
+                {totalQuestions}
+              </div>
+              <div className="text-xs text-app-text-muted">
+                Total questions
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-app-border bg-app-surface p-3">
+              <div className="text-2xl font-semibold text-app-text">
+                {mostAskedCount}
+              </div>
+              <div className="text-xs text-app-text-muted">
+                Top frequency
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-app-border bg-app-surface p-3">
+              <div className="text-2xl font-semibold text-app-text">
+                {totalDocuments}
+              </div>
+              <div className="text-xs text-app-text-muted">
+                Linked documents
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Hero Card */}
+      {/* Content */}
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        {/* Hero Card */}
+        <button
+          onClick={() => goToDetail(hero)}
+          className="w-full text-left rounded-2xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-5 mb-6 relative overflow-hidden"
+        >
+          <span className="absolute top-5 right-5 text-4xl font-semibold text-app-border-strong">
+            {hero.count}
+          </span>
 
-      <button
-        onClick={() => goToDetail(hero)}
-        className="w-full text-left rounded-2xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-5 mb-6 relative overflow-hidden"
-      >
-        <span className="absolute top-5 right-5 text-4xl font-semibold text-app-border-strong">
-          {hero.count}
-        </span>
+          <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-1 rounded-full mb-3">
+            <TrendingUp className="w-3 h-3" />
+            Most asked
+          </div>
 
-        <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-1 rounded-full mb-3">
-          <TrendingUp className="w-3 h-3" />
-          Most asked
-        </div>
+          <p className="text-lg font-semibold text-app-text leading-snug mb-4 pr-16">
+            {hero.question}
+          </p>
 
-        <p className="text-lg font-semibold text-app-text leading-snug mb-4 pr-16">
-          {hero.question}
-        </p>
+          <div className="flex flex-wrap gap-2">
+            {hero.topDocuments.map((doc) => (
+              <span
+                key={doc.id}
+                className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface-muted border border-app-border rounded-full px-2 py-1"
+              >
+                <FileText className="w-3 h-3" />
+                {doc.title}
+              </span>
+            ))}
+          </div>
+        </button>
 
-        <div className="flex flex-wrap gap-2">
-          {hero.topDocuments.map((doc) => (
-            <span
-              key={doc.id}
-              className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface-muted border border-app-border rounded-full px-2 py-1"
+        {/* FAQ List */}
+        <div className="space-y-3">
+          {rest.map((group) => (
+            <button
+              key={group.groupId}
+              onClick={() => goToDetail(group)}
+              className="w-full text-left rounded-xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-4"
             >
-              <FileText className="w-3 h-3" />
-              {doc.title}
-            </span>
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <p className="text-sm font-medium text-app-text">
+                  {group.question}
+                </p>
+
+                <span className="text-lg font-semibold text-app-brand shrink-0">
+                  {group.count}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {group.topDocuments.map((doc) => (
+                  <span
+                    key={doc.id}
+                    className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface-muted border border-app-border rounded-full px-2 py-0.5"
+                  >
+                    <FileText className="w-3 h-3" />
+                    {doc.title}
+                  </span>
+                ))}
+              </div>
+            </button>
           ))}
         </div>
-      </button>
-
-      {/* All Remaining Questions */}
-
-      <div className="space-y-3">
-        {rest.map((group) => (
-          <button
-            key={group.groupId}
-            onClick={() => goToDetail(group)}
-            className="w-full text-left rounded-xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-4"
-          >
-            <div className="flex items-start justify-between gap-4 mb-2">
-              <p className="text-sm font-medium text-app-text">
-                {group.question}
-              </p>
-
-              <span className="text-lg font-semibold text-app-brand shrink-0">
-                {group.count}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {group.topDocuments.map((doc) => (
-                <span
-                  key={doc.id}
-                  className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface-muted border border-app-border rounded-full px-2 py-0.5"
-                >
-                  <FileText className="w-3 h-3" />
-                  {doc.title}
-                </span>
-              ))}
-            </div>
-          </button>
-        ))}
-      </div>
+      </main>
     </div>
   );
 }
