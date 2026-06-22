@@ -7,6 +7,9 @@ type AccountFormProps = {
     onUpdate: (data: Partial<UserProfile>) => Promise<void>;
 };
 
+/**
+ * Form component for updating user account information, including name, email, and avatar.
+ */
 export function AccountForm({ profile, onUpdate }: AccountFormProps) {
     const [firstname, setFirstname] = useState(profile.firstname || '');
     const [lastname, setLastname] = useState(profile.lastname || '');

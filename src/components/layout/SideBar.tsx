@@ -67,6 +67,9 @@ function getNavLinkClass(isActive: boolean): string {
     ].join(' ');
 }
 
+/**
+ * Renders the navigation links and user profile section within the sidebar.
+ */
 function SidebarContent({ onNavigate }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
 
@@ -169,6 +172,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                                 }`
                             }
                             title="Profile Settings"
+                            aria-label="Profile Settings"
                         >
                             <Settings className="h-4 w-4" />
                         </NavLink>
@@ -193,6 +197,10 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
     );
 }
 
+/**
+ * Main application sidebar for navigation.
+ * Handles both the desktop sticky sidebar and the mobile slide-out menu.
+ */
 export function SideBar() {
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 

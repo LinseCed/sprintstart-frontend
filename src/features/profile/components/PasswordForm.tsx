@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { userService } from '../../../services/userService';
 
+/**
+ * Form component for changing the user's password.
+ * Includes validation for matching passwords and minimum length.
+ */
 export function PasswordForm() {
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');

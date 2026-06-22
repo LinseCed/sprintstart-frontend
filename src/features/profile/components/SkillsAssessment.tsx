@@ -8,6 +8,10 @@ type SkillsAssessmentProps = {
     onUpdate: (data: Partial<UserProfile>) => Promise<void>;
 };
 
+/**
+ * Component for users to self-assess their proficiency across various skills.
+ * Updates the user profile with the selected skill levels.
+ */
 export function SkillsAssessment({ profile, onUpdate }: SkillsAssessmentProps) {
     const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
     const [userSkills, setUserSkills] = useState<UserSkill[]>(profile.skills || []);

@@ -7,6 +7,10 @@ import { PasswordForm } from './PasswordForm';
 import { SkillsAssessment } from './SkillsAssessment';
 import { Loader2 } from 'lucide-react';
 
+/**
+ * Wrapper layout for the profile settings view.
+ * Coordinates loading of the user profile and passes data to specific forms.
+ */
 export function ProfileLayout() {
     const { refetchProfile } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
