@@ -30,8 +30,8 @@
           "username": "max.mustermann",
           "email": "max.mustermann@example.com",
           "projectRoles": [
-            "MANAGER",
-            "TEAMLEAD"
+            "PM",
+            "Backend Dev"
           ]
         },
         {
@@ -39,7 +39,7 @@
           "username": "lisa.meier",
           "email": "lisa.meier@example.com",
           "projectRoles": [
-            "MEMBER"
+            "Frontend Dev"
           ]
         }
       ]
@@ -74,7 +74,7 @@
           "username": "max.mustermann",
           "email": "max.mustermann@example.com",
           "projectRoles": [
-            "MEMBER"
+            "Backend Dev"
           ]
         },
         {
@@ -82,7 +82,7 @@
           "username": "tom.schneider",
           "email": "tom.schneider@example.com",
           "projectRoles": [
-            "MANAGER"
+            "DevOps"
           ]
         }
       ]
@@ -117,7 +117,7 @@
           "username": "lisa.meier",
           "email": "lisa.meier@example.com",
           "projectRoles": [
-            "TEAMLEAD"
+            "Frontend Dev"
           ]
         },
         {
@@ -125,7 +125,7 @@
           "username": "tom.schneider",
           "email": "tom.schneider@example.com",
           "projectRoles": [
-            "MEMBER"
+            "QA"
           ]
         }
       ]
@@ -160,7 +160,7 @@
           "username": "max.mustermann",
           "email": "max.mustermann@example.com",
           "projectRoles": [
-            "TEAMLEAD"
+            "PM"
           ]
         },
         {
@@ -168,7 +168,7 @@
           "username": "sarah.klein",
           "email": "sarah.klein@example.com",
           "projectRoles": [
-            "MEMBER"
+            "HR"
           ]
         }
       ]
@@ -203,7 +203,7 @@
           "username": "lisa.meier",
           "email": "lisa.meier@example.com",
           "projectRoles": [
-            "MANAGER"
+            "QA"
           ]
         },
         {
@@ -211,7 +211,7 @@
           "username": "sarah.klein",
           "email": "sarah.klein@example.com",
           "projectRoles": [
-            "MEMBER"
+            "DevOps"
           ]
         }
       ]

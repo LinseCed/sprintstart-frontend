@@ -12,6 +12,7 @@ import {
     Search,
     SlidersHorizontal,
     Terminal,
+    Trash2,
     Users,
 } from "lucide-react";
 import { adminUserService } from "../services/adminUserService";
@@ -61,6 +62,10 @@ export function AdminPage() {
     const [isDeletingUser, setIsDeletingUser] = useState(false);
     const [deleteUserErrorMessage, setDeleteUserErrorMessage] = useState("");
 
+    const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+    const [isBulkDeletingUsers, setIsBulkDeletingUsers] = useState(false);
+    const [bulkDeleteErrorMessage, setBulkDeleteErrorMessage] = useState("");
+
     const loadAdminData = useCallback(async () => {
         try {
             const [nextUsers, nextProjects] = await Promise.all([
@@ -103,7 +108,6 @@ export function AdminPage() {
     useEffect(() => {
         void Promise.resolve().then(loadAdminData);
     }, [loadAdminData]);
-
 
     const availableProjects = useMemo<ProjectSummary[]>(() => {
         return projects
@@ -286,6 +290,14 @@ export function AdminPage() {
             setUsers((currentUsers) =>
                 currentUsers.filter((currentUser) => currentUser.id !== userId),
             );
+
+            setProjects((currentProjects) =>
+                currentProjects.map((project) => ({
+                    ...project,
+                    users: project.users.filter((user) => user.id !== userId),
+                })),
+            );
+
             setSelectedUserIds((currentSelectedUserIds) => {
                 const nextSelectedUserIds = new Set(currentSelectedUserIds);
                 nextSelectedUserIds.delete(userId);
@@ -307,6 +319,75 @@ export function AdminPage() {
             );
         } finally {
             setIsDeletingUser(false);
+        }
+    };
+
+    const requestBulkUserDelete = () => {
+        if (selectedUserIds.size === 0) return;
+
+        setOpenUserMenuId(null);
+        setBulkDeleteErrorMessage("");
+        setIsBulkDeleteDialogOpen(true);
+    };
+
+    const cancelBulkUserDelete = () => {
+        if (isBulkDeletingUsers) return;
+
+        setIsBulkDeleteDialogOpen(false);
+        setBulkDeleteErrorMessage("");
+    };
+
+    const confirmBulkUserDelete = async () => {
+        const userIdsToDelete = Array.from(selectedUserIds);
+
+        if (userIdsToDelete.length === 0) {
+            setIsBulkDeleteDialogOpen(false);
+            return;
+        }
+
+        const userIdsToDeleteSet = new Set(userIdsToDelete);
+
+        setIsBulkDeletingUsers(true);
+        setBulkDeleteErrorMessage("");
+
+        try {
+            await Promise.all(
+                userIdsToDelete.map((userId) => adminUserService.deleteUser(userId)),
+            );
+
+            setUsers((currentUsers) =>
+                currentUsers.filter((currentUser) => !userIdsToDeleteSet.has(currentUser.id)),
+            );
+
+            setProjects((currentProjects) =>
+                currentProjects.map((project) => ({
+                    ...project,
+                    users: project.users.filter(
+                        (user) => !userIdsToDeleteSet.has(user.id),
+                    ),
+                })),
+            );
+
+            setSelectedUser((currentSelectedUser) =>
+                currentSelectedUser && userIdsToDeleteSet.has(currentSelectedUser.id)
+                    ? null
+                    : currentSelectedUser,
+            );
+
+            if (selectedUser && userIdsToDeleteSet.has(selectedUser.id)) {
+                setIsDrawerOpen(false);
+            }
+
+            setSelectedUserIds(new Set());
+            setIsBulkDeleteDialogOpen(false);
+        } catch (error) {
+            setBulkDeleteErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Selected users could not be deleted.",
+            );
+        } finally {
+            setIsBulkDeletingUsers(false);
         }
     };
 
@@ -458,14 +539,26 @@ export function AdminPage() {
                         ) : activeTab === "users" ? (
                             <>
                                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex items-baseline gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-sm font-semibold text-app-text">
                                             {filteredUsers.length} users
                                         </span>
+
                                         {selectedUserIds.size > 0 && (
                                             <span className="text-sm text-app-brand-text">
                                                 {selectedUserIds.size} selected
                                             </span>
+                                        )}
+
+                                        {selectedUserIds.size > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={requestBulkUserDelete}
+                                                className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-app-danger-bg bg-app-danger-bg px-3 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Delete All
+                                            </button>
                                         )}
                                     </div>
 
@@ -655,7 +748,9 @@ export function AdminPage() {
                 description={
                     userPendingDelete ? (
                         <>
-                            Are you sure you want to delete <strong>{getDisplayName(userPendingDelete)}</strong>? This action cannot be undone.
+                            Are you sure you want to delete{" "}
+                            <strong>{getDisplayName(userPendingDelete)}</strong>? This action
+                            cannot be undone.
                         </>
                     ) : undefined
                 }
@@ -667,6 +762,27 @@ export function AdminPage() {
                 errorMessage={deleteUserErrorMessage}
                 onClose={cancelUserDelete}
                 onConfirm={() => void confirmUserDelete()}
+            />
+
+            <AlertDialog
+                isOpen={isBulkDeleteDialogOpen}
+                title="Delete selected users?"
+                description={
+                    <>
+                        Are you sure you want to delete{" "}
+                        <strong>{selectedUserIds.size}</strong>{" "}
+                        {selectedUserIds.size === 1 ? "selected user" : "selected users"}? This
+                        action cannot be undone.
+                    </>
+                }
+                confirmLabel="Delete All"
+                cancelLabel="Cancel"
+                variant="danger"
+                isLoading={isBulkDeletingUsers}
+                loadingLabel="Deleting..."
+                errorMessage={bulkDeleteErrorMessage}
+                onClose={cancelBulkUserDelete}
+                onConfirm={() => void confirmBulkUserDelete()}
             />
         </div>
     );

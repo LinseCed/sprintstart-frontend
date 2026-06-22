@@ -1,7 +1,6 @@
-import { Users } from "lucide-react";
+import { UserRound, Users } from "lucide-react";
 import type { ProjectUser, ProjectUserSummary } from "../types";
 import { RoleBadgeList } from "./RoleBadgeList";
-import { StatusDot } from "./StatusDot";
 
 type ProjectUserListProps = {
     users: Array<ProjectUser | ProjectUserSummary>;
@@ -23,18 +22,25 @@ export function ProjectUserList({ users }: ProjectUserListProps) {
                 const displayName =
                     "firstName" in user && "lastName" in user
                         ? [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-                          user.username ||
-                          user.email
+                        user.username ||
+                        user.email
                         : user.username || user.email;
+
                 const globalRoles = "roles" in user ? user.roles : [];
+                const hasGlobalRoles = globalRoles.length > 0;
+                const hasProjectRoles = user.projectRoles.length > 0;
 
                 return (
                     <div
                         key={user.id}
-                        className="rounded-xl border border-app-border bg-app-surface-muted p-4"
+                        className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2.5 transition hover:border-app-border-strong hover:bg-app-surface-hover"
                     >
-                        <div className="mb-3 flex items-start justify-between gap-3">
-                            <div className="min-w-0">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface">
+                                <UserRound className="h-4 w-4 text-app-text-muted" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-app-text">
                                     {displayName}
                                 </p>
@@ -43,22 +49,22 @@ export function ProjectUserList({ users }: ProjectUserListProps) {
                                 </p>
                             </div>
 
-                            {"enabled" in user && <StatusDot active={user.enabled} />}
-                        </div>
+                            <div className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2">
+                                {hasGlobalRoles && (
+                                    <div className="flex items-center">
+                                        <RoleBadgeList roles={globalRoles} variant="neutral" />
+                                    </div>
+                                )}
 
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div>
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
-                                    Global roles
-                                </p>
-                                <RoleBadgeList roles={globalRoles} variant="neutral" />
-                            </div>
+                                {hasGlobalRoles && hasProjectRoles && (
+                                    <div className="h-6 shrink-0 border-l-3 border-app-surface" />
+                                )}
 
-                            <div>
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
-                                    Project roles
-                                </p>
-                                <RoleBadgeList roles={user.projectRoles} variant="brand" />
+                                {hasProjectRoles && (
+                                    <div className="flex items-center">
+                                        <RoleBadgeList roles={user.projectRoles} variant="brand" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

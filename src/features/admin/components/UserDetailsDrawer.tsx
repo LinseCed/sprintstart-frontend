@@ -280,6 +280,7 @@ export function UserDetailsDrawer({
                 <dl>
                     {isEditing ? (
                         <>
+                            <DetailRow label="Username" value={user.username} />
                             <EditableDetailRow
                                 label="Email"
                                 value={draftUser.email}
@@ -287,7 +288,6 @@ export function UserDetailsDrawer({
                                 type="email"
                                 autoComplete="email"
                             />
-                            <DetailRow label="Username" value={user.username} />
                             <EditableDetailRow
                                 label="First name"
                                 value={draftUser.firstName}

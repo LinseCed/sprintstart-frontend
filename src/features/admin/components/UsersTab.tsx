@@ -37,7 +37,7 @@ export function UsersTab({
         event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>,
     ) => {
         return (
-            event.target instanceof HTMLElement &&
+            event.target instanceof Element &&
             event.target.closest("[data-user-row-action='true']") !== null
         );
     };
