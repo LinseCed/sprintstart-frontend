@@ -181,8 +181,10 @@ export function KnowledgeGapWidget() {
     (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
   );
 
-  // Show top 5 in widget
-  const preview = sorted.slice(0, 5);
+  // Show top in widget
+  const preview = sorted.slice(0, 4);
+
+  const gapCount = sorted.length;
 
   // ── RENDER ─────────────────────────────────────────────
 
@@ -200,7 +202,7 @@ export function KnowledgeGapWidget() {
           onClick={() => void navigate("/insights/knowledge-gaps")}
           className="flex items-center gap-1 text-xs text-app-text-muted hover:text-app-text transition-colors"
         >
-          See all
+          See all ({gapCount})
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
