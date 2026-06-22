@@ -1,0 +1,93 @@
+#kc-header-wrapper {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.sprintstart-logo {
+    color: var(--color-app-brand);
+    height: 3rem;
+    width: 3rem;
+}
+
+.header {
+    color: var(--color-app-text);
+    font-weight: 600;
+}
+
+.login-pf body {
+    background: var(--color-app-bg);
+}
+
+.card-pf {
+    background: var(--color-app-surface);
+    border: none;
+    border-radius: 1.5rem;
+}
+
+#kc-page-title {
+    color: var(--color-app-text);
+    font-weight: 600;
+}
+
+div.kcFormGroupClass {
+    color: var(--color-app-text-muted);
+    font-weight: 600;
+}
+
+.pf-c-form-control {
+    background: var(--color-app-surface-muted);
+    border-color: var(--color-app-border-muted);
+    border-radius: 1.5rem;
+    padding-left: 0.8rem;
+    color: var(--color-app-text);
+    font-weight: 500;
+}
+
+.pf-c-form-control:focus {
+    outline: none;
+}
+
+.password-visibility-btn {
+    margin: 0 1rem 0 1rem;
+}
+
+.visibility-icon {
+    color: var(--color-app-brand);
+}
+
+.pf-c-button {
+    border: none;
+}
+
+.checkbox > label:nth-child(1) > span:nth-child(2) {
+    color: var(--color-app-text-subtle);
+}
+
+.kcFormOptionsWrapperClass > span:nth-child(1) > a:nth-child(1) > span:nth-child(1) {
+    color: var(--color-app-brand);
+}
+
+#kc-login {
+    border-radius: 1.5rem;
+    background-color: var(--color-app-brand);
+    font-weight: 600;
+}
+
+.btn-lg:hover {
+    background: var(--color-app-brand-hover);
+}
+
+#kc-info-wrapper {
+    border-radius: 0 0 1.5rem 1.5rem;
+    color: var(--color-app-surface-muted);
+}
+
+#kc-registration > span:nth-child(1) > span:nth-child(1) {
+    color: var(--color-app-text-muted);
+}
+
+#kc-registration > span:nth-child(1) > a:nth-child(2) > span:nth-child(1) {
+    color: var(--color-app-brand);
+}
