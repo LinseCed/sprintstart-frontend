@@ -1,0 +1,20 @@
+{
+    "id": "1",
+    "component": "auth-service",
+    "missingTypes": [
+        "runbook",
+        "adr"
+    ],
+    "lastUpdated": "2025-05-01T00:00:00Z",
+    "owners": [
+        {
+            "id": "user_001",
+            "username": "jdoe",
+            "firstname": "John",
+            "lastname": "Doe",
+            "workingArea": "BACKEND"
+        }
+    ],
+    "severity": "high",
+    "relatedQuestions": 12
+}
