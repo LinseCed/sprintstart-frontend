@@ -65,10 +65,12 @@ export function FaqWidget() {
 
   // Sort by count descending, take top 5
   const sorted = [...overview.groups]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+    .sort((a, b) => b.count - a.count);
 
-  const [hero, ...rest] = sorted;
+  const sliced = sorted.slice(0,5);
+
+
+  const [hero, ...rest] = sliced;
 
   const goToDetail = (group: FAQGroup) =>
     void navigate(`/insights/faq/${group.groupId}`);
@@ -89,7 +91,7 @@ export function FaqWidget() {
           onClick={() => void navigate("/insights/faq")}
           className="flex items-center gap-1 text-xs text-app-text-muted hover:text-app-text transition-colors"
         >
-          See all
+          See all ({sorted.length})
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>

@@ -9,6 +9,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
 import { PmDashboardView } from '../pages/PmDashboardView.tsx';
+import { FaqPage } from '../features/faq/components/FaqPage.tsx';
 import { FaqDetailPage } from '../features/faq/components/faqDetailView.tsx';
 
 export function AppRouter() {
@@ -25,6 +26,7 @@ export function AppRouter() {
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
                 <Route path="/pm-dashboard" element={<PmDashboardView />} />
+                <Route path="/insights/faq" element={<FaqPage />} />
                 <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
             </Routes>
         </AuthGuard>
