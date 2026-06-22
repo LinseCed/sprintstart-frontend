@@ -1,4 +1,5 @@
-import { Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
+import { ProjectRolesModal } from '../../features/team-management/components/ProjectRolesModal';
 import { useEffect, useMemo, useState } from 'react';
 import { TeamMemberFilters } from '../../features/team-management/components/TeamMemberFilters';
 import { TeamMemberCard } from '../../features/team-management/components/TeamMemberCard';
@@ -15,6 +16,7 @@ export function TeamManagementPage() {
         roleId: 'all',
         sortBy: 'LONGEST_STEP',
     });
+    const [rolesModalOpen, setRolesModalOpen] = useState(false);
 
     useEffect(() => {
         async function loadTeamOverview() {
@@ -98,7 +100,7 @@ export function TeamManagementPage() {
             </div>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
-                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 className="text-lg font-semibold text-app-text">
                             Team members
@@ -108,11 +110,22 @@ export function TeamManagementPage() {
                         </p>
                     </div>
 
-                    <TeamMemberFilters
-                        users={users}
-                        filters={filters}
-                        onFiltersChange={setFilters}
-                    />
+                    <div className="flex flex-col items-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setRolesModalOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Create role
+                        </button>
+
+                        <TeamMemberFilters
+                            users={users}
+                            filters={filters}
+                            onFiltersChange={setFilters}
+                        />
+                    </div>
                 </div>
 
                 {filteredUsers.length === 0 ? (
@@ -128,6 +141,11 @@ export function TeamManagementPage() {
                         ))}
                     </div>
                 )}
+
+                <ProjectRolesModal
+                    open={rolesModalOpen}
+                    onClose={() => setRolesModalOpen(false)}
+                />
             </main>
         </div>
     );

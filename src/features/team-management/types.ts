@@ -12,10 +12,6 @@ export type SkipRequest = {
     reviewedAt: string | null;
 };
 
-export type ProjectRoles = {
-    id: string;
-    name: string;
-};
 
 export type TeamOverviewUser = {
     userId: string;
@@ -25,7 +21,7 @@ export type TeamOverviewUser = {
         id: string;
         name: string;
     };
-    roles: ProjectRoles[];
+    roles: ProjectRole[];
     progressPercentage: number;
     currentPhase: {
         id: string;
@@ -38,6 +34,25 @@ export type TeamOverviewUser = {
         skip: SkipRequest | null;
     };
     hasFeedback: boolean;
+};
+
+export type ProjectRole = {
+    id: string;
+    name: string;
+    description: string;
+};
+
+export type SkillLevel =
+    | 'BEGINNER'
+    | 'INTERMEDIATE'
+    | 'ADVANCED'
+    | 'EXPERT';
+
+export type Skill = {
+    id: string;
+    name: string;
+    roleId: string;
+    level?: SkillLevel;
 };
 
 export type TeamOverviewFilters = {

@@ -4,10 +4,22 @@
       "userId": "1",
       "firstname": "Anna",
       "lastname": "Fischer",
-      "project": { "id": "p4", "name": "Data Platform" },
-      "roles": [{ "id": "r3", "name": "QA Engineer" }],
+      "project": {
+        "id": "p4",
+        "name": "Data Platform"
+      },
+      "roles": [
+        {
+          "id": "r3",
+          "name": "QA Engineer",
+          "description": "Ensures product quality through testing, bug tracking, and validation."
+        }
+      ],
       "progressPercentage": 0.25,
-      "currentPhase": { "id": "phase4", "title": "Phase 4 - Practice" },
+      "currentPhase": {
+        "id": "phase4",
+        "title": "Phase 4 - Practice"
+      },
       "currentStep": {
         "id": "step-1",
         "title": "Complete security training",
@@ -20,13 +32,27 @@
       "userId": "2",
       "firstname": "Lukas",
       "lastname": "Koch",
-      "project": { "id": "p4", "name": "Data Platform" },
+      "project": {
+        "id": "p4",
+        "name": "Data Platform"
+      },
       "roles": [
-        { "id": "r1", "name": "Backend Developer" },
-        { "id": "r4", "name": "DevOps Engineer" }
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        },
+        {
+          "id": "r4",
+          "name": "DevOps Engineer",
+          "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
+        }
       ],
       "progressPercentage": 0.28,
-      "currentPhase": { "id": "phase2", "title": "Phase 2 - Fundamentals" },
+      "currentPhase": {
+        "id": "phase2",
+        "title": "Phase 2 - Fundamentals"
+      },
       "currentStep": {
         "id": "step-2",
         "title": "Complete architecture walkthrough",
@@ -46,10 +72,22 @@
       "userId": "3",
       "firstname": "Mia",
       "lastname": "Zimmermann",
-      "project": { "id": "p1", "name": "SprintStart" },
-      "roles": [{ "id": "r4", "name": "DevOps Engineer" }],
+      "project": {
+        "id": "p1",
+        "name": "SprintStart"
+      },
+      "roles": [
+        {
+          "id": "r4",
+          "name": "DevOps Engineer",
+          "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
+        }
+      ],
       "progressPercentage": 0.73,
-      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentPhase": {
+        "id": "phase3",
+        "title": "Phase 3 - Deep Dive"
+      },
       "currentStep": {
         "id": "step-3",
         "title": "Join sprint planning",
@@ -62,13 +100,27 @@
       "userId": "4",
       "firstname": "Felix",
       "lastname": "Krause",
-      "project": { "id": "p1", "name": "SprintStart" },
+      "project": {
+        "id": "p1",
+        "name": "SprintStart"
+      },
       "roles": [
-        { "id": "r1", "name": "Backend Developer" },
-        { "id": "r4", "name": "DevOps Engineer" }
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        },
+        {
+          "id": "r4",
+          "name": "DevOps Engineer",
+          "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
+        }
       ],
       "progressPercentage": 0.69,
-      "currentPhase": { "id": "phase1", "title": "Phase 1 - Setup" },
+      "currentPhase": {
+        "id": "phase1",
+        "title": "Phase 1 - Setup"
+      },
       "currentStep": {
         "id": "step-4",
         "title": "Install required tooling",
@@ -81,10 +133,22 @@
       "userId": "5",
       "firstname": "Laura",
       "lastname": "Huber",
-      "project": { "id": "p3", "name": "Mobile Companion App" },
-      "roles": [{ "id": "r1", "name": "Backend Developer" }],
+      "project": {
+        "id": "p3",
+        "name": "Mobile Companion App"
+      },
+      "roles": [
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        }
+      ],
       "progressPercentage": 0.29,
-      "currentPhase": { "id": "phase1", "title": "Phase 1 - Setup" },
+      "currentPhase": {
+        "id": "phase1",
+        "title": "Phase 1 - Setup"
+      },
       "currentStep": {
         "id": "step-5",
         "title": "Read team handbook",
@@ -97,10 +161,22 @@
       "userId": "6",
       "firstname": "Jonas",
       "lastname": "Weiß",
-      "project": { "id": "p3", "name": "Mobile Companion App" },
-      "roles": [{ "id": "r1", "name": "Backend Developer" }],
+      "project": {
+        "id": "p3",
+        "name": "Mobile Companion App"
+      },
+      "roles": [
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        }
+      ],
       "progressPercentage": 0.57,
-      "currentPhase": { "id": "phase1", "title": "Phase 1 - Setup" },
+      "currentPhase": {
+        "id": "phase1",
+        "title": "Phase 1 - Setup"
+      },
       "currentStep": {
         "id": "step-6",
         "title": "Access project repositories",
@@ -120,13 +196,27 @@
       "userId": "7",
       "firstname": "Sophie",
       "lastname": "Meyer",
-      "project": { "id": "p2", "name": "Onboarding Redesign" },
+      "project": {
+        "id": "p2",
+        "name": "Onboarding Redesign"
+      },
       "roles": [
-        { "id": "r1", "name": "Backend Developer" },
-        { "id": "r4", "name": "DevOps Engineer" }
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        },
+        {
+          "id": "r4",
+          "name": "DevOps Engineer",
+          "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
+        }
       ],
       "progressPercentage": 0.26,
-      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentPhase": {
+        "id": "phase3",
+        "title": "Phase 3 - Deep Dive"
+      },
       "currentStep": {
         "id": "step-7",
         "title": "Deep dive into core domain model",
@@ -146,10 +236,22 @@
       "userId": "8",
       "firstname": "Maximilian",
       "lastname": "Klein",
-      "project": { "id": "p2", "name": "Onboarding Redesign" },
-      "roles": [{ "id": "r1", "name": "Backend Developer" }],
+      "project": {
+        "id": "p2",
+        "name": "Onboarding Redesign"
+      },
+      "roles": [
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        }
+      ],
       "progressPercentage": 0.09,
-      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentPhase": {
+        "id": "phase3",
+        "title": "Phase 3 - Deep Dive"
+      },
       "currentStep": {
         "id": "step-8",
         "title": "Join sprint planning",
@@ -162,13 +264,27 @@
       "userId": "9",
       "firstname": "Emma",
       "lastname": "Krüger",
-      "project": { "id": "p5", "name": "Customer Portal" },
+      "project": {
+        "id": "p5",
+        "name": "Customer Portal"
+      },
       "roles": [
-        { "id": "r3", "name": "QA Engineer" },
-        { "id": "r2", "name": "Frontend Developer" }
+        {
+          "id": "r3",
+          "name": "QA Engineer",
+          "description": "Ensures product quality through testing, bug tracking, and validation."
+        },
+        {
+          "id": "r2",
+          "name": "Frontend Developer",
+          "description": "Builds and maintains user interfaces and client-side functionality."
+        }
       ],
       "progressPercentage": 0.33,
-      "currentPhase": { "id": "phase4", "title": "Phase 4 - Practice" },
+      "currentPhase": {
+        "id": "phase4",
+        "title": "Phase 4 - Practice"
+      },
       "currentStep": {
         "id": "step-9",
         "title": "Own a small feature end-to-end",
@@ -181,10 +297,22 @@
       "userId": "10",
       "firstname": "Paul",
       "lastname": "Köhler",
-      "project": { "id": "p3", "name": "Mobile Companion App" },
-      "roles": [{ "id": "r4", "name": "DevOps Engineer" }],
+      "project": {
+        "id": "p3",
+        "name": "Mobile Companion App"
+      },
+      "roles": [
+        {
+          "id": "r4",
+          "name": "DevOps Engineer",
+          "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
+        }
+      ],
       "progressPercentage": 0.26,
-      "currentPhase": { "id": "phase4", "title": "Phase 4 - Practice" },
+      "currentPhase": {
+        "id": "phase4",
+        "title": "Phase 4 - Practice"
+      },
       "currentStep": {
         "id": "step-10",
         "title": "Own a small feature end-to-end",
@@ -197,13 +325,27 @@
       "userId": "11",
       "firstname": "Lena",
       "lastname": "Fuchs",
-      "project": { "id": "p4", "name": "Data Platform" },
+      "project": {
+        "id": "p4",
+        "name": "Data Platform"
+      },
       "roles": [
-        { "id": "r2", "name": "Frontend Developer" },
-        { "id": "r6", "name": "Data Engineer" }
+        {
+          "id": "r2",
+          "name": "Frontend Developer",
+          "description": "Builds and maintains user interfaces and client-side functionality."
+        },
+        {
+          "id": "r6",
+          "name": "Data Engineer",
+          "description": "Builds and maintains data pipelines, models, and analytics infrastructure."
+        }
       ],
       "progressPercentage": 0.5,
-      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentPhase": {
+        "id": "phase3",
+        "title": "Phase 3 - Deep Dive"
+      },
       "currentStep": {
         "id": "step-11",
         "title": "Deep dive into core domain model",
@@ -216,10 +358,22 @@
       "userId": "12",
       "firstname": "Tim",
       "lastname": "Müller",
-      "project": { "id": "p5", "name": "Customer Portal" },
-      "roles": [{ "id": "r3", "name": "QA Engineer" }],
+      "project": {
+        "id": "p5",
+        "name": "Customer Portal"
+      },
+      "roles": [
+        {
+          "id": "r3",
+          "name": "QA Engineer",
+          "description": "Ensures product quality through testing, bug tracking, and validation."
+        }
+      ],
       "progressPercentage": 0.64,
-      "currentPhase": { "id": "phase3", "title": "Phase 3 - Deep Dive" },
+      "currentPhase": {
+        "id": "phase3",
+        "title": "Phase 3 - Deep Dive"
+      },
       "currentStep": {
         "id": "step-12",
         "title": "Shadow a code review",
