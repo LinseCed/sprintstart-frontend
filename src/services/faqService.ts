@@ -4,7 +4,7 @@ import type {
     FAQDetail,
 } from '../features/faq/types';
 import faqMock  from '../mocks/faqMock.json';
-import faqSensitiveMock  from '../mocks/faqSensitiveMock.json';
+import faqDetailMock  from '../mocks/faqDetailMock.json';
 
 export const insightsService = {
 
@@ -31,7 +31,7 @@ export const insightsService = {
             );
         } catch (error) {
             console.error(`Error fetching FAQ group with ID ${groupId}:`, error);
-            return faqSensitiveMock;
+            return faqDetailMock;
         }
     },
 };
