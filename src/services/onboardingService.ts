@@ -6,6 +6,7 @@ import type {
     OnboardingResourceEndpoint,
     StepStatus,
 } from '../features/onboarding/types';
+import onboardingStepMock from '../mocks/onboardingStepMock.json';
 
 /**
  * Service responsible for managing onboarding paths, steps, and associated tasks.
@@ -28,7 +29,13 @@ export const onboardingService = {
      * Retrieves detailed information for a specific onboarding step from the backend.
      */
     async fetchStep(stepId: string): Promise<OnboardingStepDetail> {
+        return onboardingStepMock as OnboardingStepDetail;
+        try {
         return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/me/steps/${stepId}`);
+        } catch (error) {
+            console.error(`Error fetching onboarding step with ID ${stepId}:`, error);
+            return onboardingStepMock as OnboardingStepDetail;
+        }
     },
 
     /**
@@ -45,7 +52,7 @@ export const onboardingService = {
                 estimatedMinutes: step.estimatedMinutes,
                 expectedOutcome: step.expectedOutcome ?? '',
                 status: newStatus,
-                skipReason: step.skipReason ?? '',
+                skip: step.skip ?? null,
             }),
         });
     },
@@ -64,7 +71,15 @@ export const onboardingService = {
                 estimatedMinutes: step.estimatedMinutes,
                 expectedOutcome: step.expectedOutcome ?? '',
                 status: 'SKIPPED',
-                skipReason: reason,
+                skip: {
+                    id: '',
+                    stepId: step.id,
+                    reason: reason,
+                    accepted: 'PENDING',
+                    createdAt: new Date().toISOString(),
+                    reviewComment: null,
+                    reviewedAt: null,
+                },
             }),
         });
     },

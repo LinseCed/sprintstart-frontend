@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Trophy,
   CircleArrowRight,
+  Lightbulb,
 } from "lucide-react";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
@@ -64,8 +65,8 @@ export function OnBoardingItemPage() {
 
   const [loadingState, setLoadingState] = useState<LoadingState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [skipReason, setSkipReason] = useState<string>("");
-  const [skipLoading, setSkipLoading] = useState<boolean>(false);
+  //const [skipReason, setSkipReason] = useState<string>("");
+  //const [skipLoading, setSkipLoading] = useState<boolean>(false);
 
   const [localFinished, setLocalFinished] = useState<Set<string>>(new Set());
 
@@ -115,7 +116,7 @@ export function OnBoardingItemPage() {
       try {
         const step = await onboardingService.fetchStep(stepId);
         setStepDetail(step);
-        setSkipReason(step.skipReason ?? "");
+        //setSkipReason(step.skipReason ?? "");
 
         const fetchedTasks = await onboardingService.fetchTasks(stepId);
         setTasks(fetchedTasks);
@@ -139,23 +140,23 @@ export function OnBoardingItemPage() {
   }, [stepId]);
 
   // ── TOGGLE TASK ───────────────────────────────────────────
-  const skipCurrentStep = async (): Promise<void> => {
-    if (!stepDetail) return;
-    const reason = skipReason.trim();
-    if (!reason) return;
+  //const skipCurrentStep = async (): Promise<void> => {
+  //  if (!stepDetail) return;
+  //  const reason = skipReason.trim();
+  //  if (!reason) return;
 
-    setSkipLoading(true);
-    try {
-      await onboardingService.skipStep(stepDetail, reason);
-      setStepDetail((prev) =>
-        prev ? { ...prev, status: "SKIPPED", skipReason: reason } : prev,
-      );
-    } catch (err) {
-      console.error("Error skipping step:", err);
-    } finally {
-      setSkipLoading(false);
-    }
-  };
+  //  setSkipLoading(true);
+  //    try {
+  //    await onboardingService.skipStep(stepDetail, reason);
+  //    setStepDetail((prev) =>
+  //      prev ? { ...prev, status: "SKIPPED", skipReason: reason } : prev,
+  //    );
+  //  } catch (err) {
+  //    console.error("Error skipping step:", err);
+  //  } finally {
+  //    setSkipLoading(false);
+  //  }
+  //};
 
   const toggleTask = (taskId: string): void => {
     const isCurrentlyDone = localFinished.has(taskId);
@@ -286,6 +287,26 @@ export function OnBoardingItemPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Expected Outcomes */}
+            {stepDetail.expectedOutcomes && stepDetail.expectedOutcomes.length > 0 && (
+              <div className="rounded-2xl border border-app-border bg-app-surface p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lightbulb className="w-5 h-5 text-app-brand" />
+                  <h2 className="font-semibold text-app-text">
+                    Expected Outcomes
+                  </h2>
+                </div>
+                <ul className="space-y-3">
+                  {stepDetail.expectedOutcomes.map((outcome, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-app-success-solid shrink-0 mt-0.5" />
+                      <span className="text-sm text-app-text">{outcome}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* TASKS (Step by Step) */}
             {sortedTasks.length > 0 && (
               <div className="rounded-2xl border border-app-border bg-app-surface p-6">
@@ -391,6 +412,7 @@ export function OnBoardingItemPage() {
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6">
+
             {/* STATUS */}
             <div className="rounded-2xl border border-app-border bg-app-surface p-5">
               <h3 className="font-semibold text-app-text text-sm mb-3">
@@ -470,26 +492,26 @@ export function OnBoardingItemPage() {
                 Skip Step
               </h3>
               <textarea
-                value={skipReason}
-                onChange={(event) => setSkipReason(event.target.value)}
+                //value={step.skip?.reason || ''}
+                //onChange={(event) => setSkipReason(event.target.value)}
                 placeholder="Reason for skipping..."
                 className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
-                disabled={skipLoading || stepDetail.status === "SKIPPED"}
+                //disabled={skipLoading || stepDetail.status === "SKIPPED"}
               />
               <button
                 className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
-                onClick={() => void skipCurrentStep()}
+                //onClick={() => void skipCurrentStep()}
                 disabled={
-                  skipLoading ||
-                  !skipReason.trim() ||
+                //  skipLoading ||
+                //  !skipReason.trim() ||
                   stepDetail.status === "SKIPPED"
                 }
               >
-                {skipLoading
+                {/* skipLoading
                   ? "Skipping..."
                   : stepDetail.status === "SKIPPED"
                     ? "Step Skipped"
-                    : "Skip Step"}
+                    : "Skip Step"*/}
               </button>
             </div>
 

@@ -26,6 +26,25 @@ export interface OnboardingPathSummaryEndpoint {
 
 export type StepStatus = "WAITING" | "IN_PROGRESS" | "FINISHED" | "SKIPPED";
 export type StepType = "VIDEO" | "DOCUMENT" | "TASK" | "LINK";
+export type SkipStepStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface OnboardingStepFeedback {
+  id: string;
+  stepId: string;
+  helpful: boolean;
+  comment: string;
+  createdAt: string;
+}
+
+export interface OnboardingStepSkip {
+  id: string;
+  stepId: string;
+  reason: string;
+  accepted: SkipStepStatus;
+  createdAt: string;
+  reviewComment: string | null;
+  reviewedAt: string | null;
+}
 
 export interface OnboardingStepEndpoint {
   id: string;
@@ -35,9 +54,14 @@ export interface OnboardingStepEndpoint {
   description: string;
   type: StepType;
   estimatedMinutes: number;
+  expectedOutcomes: string[];
+  tasks: OnboardingTaskEndpoint[];
+  resources: OnboardingResourceEndpoint[];
   status: StepStatus;
+  startedAt: string | null;
   completedAt: string | null;
-  skipReason: string | null;
+  feedback: OnboardingStepFeedback | null;
+  skip: OnboardingStepSkip | null;
 }
 
 export interface OnboardingPhaseEndpoint {
