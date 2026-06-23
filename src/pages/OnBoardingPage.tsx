@@ -134,7 +134,7 @@ export function OnBoardingPage() {
   const nextTask =
     OnBoardingPathEndpoint?.phases
       .flatMap((phase) => phase.steps)
-      .find((step) => step.status !== "FINISHED") ?? null;
+      .find((step) => step.status !== "FINISHED" && step.status !== "SKIPPED") ?? null;
 
   // ── RENDER: LOADING STATE ──────────────────────────────────
   if (loadingState === "loading" || loadingState === "idle") {
