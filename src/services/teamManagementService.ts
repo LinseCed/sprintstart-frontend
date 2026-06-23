@@ -1,7 +1,9 @@
 import { apiClient } from './apiClient';
 import teamOverviewMock from '../mocks/teamOverviewMock.json';
+import skillsMock from '../mocks/skillsMock.json';
 import type {
     ProjectRole,
+    Skill,
     TeamOverviewUser,
 } from '../features/team-management/types';
 
@@ -14,6 +16,8 @@ let mockProjectRoles: ProjectRole[] = Array.from(
             .map((role) => [role.id, role])
     ).values()
 );
+
+let mockSkills = skillsMock.skills as Skill[];
 
 export async function getTeamOverview(): Promise<TeamOverviewUser[]> {
     try {
@@ -131,5 +135,42 @@ export async function unassignProjectRoleFromUser(
                 roles: user.roles.filter((role) => role.id !== roleId),
             };
         });
+    }
+}
+
+export async function getSkills(): Promise<Skill[]> {
+    try {
+        const response = await apiClient.fetch<{ skills?: Skill[]; skill?: Skill[] }>(
+            '/api/v1/skills'
+        );
+
+        return response.skills ?? response.skill ?? [];
+    } catch {
+        return mockSkills;
+    }
+}
+
+export async function createSkill(
+    name: string,
+    roleId: string
+): Promise<Skill> {
+    try {
+        return await apiClient.fetch<Skill>('/api/v1/skills', {
+            method: 'POST',
+            body: JSON.stringify({
+                name,
+                roleId,
+            }),
+        });
+    } catch {
+        const newSkill: Skill = {
+            id: `mock-skill-${Date.now()}`,
+            name,
+            roleId,
+        };
+
+        mockSkills = [...mockSkills, newSkill];
+
+        return newSkill;
     }
 }

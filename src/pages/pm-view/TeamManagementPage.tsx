@@ -117,7 +117,7 @@ export function TeamManagementPage() {
                             className="inline-flex items-center gap-2 rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover"
                         >
                             <Plus className="h-4 w-4" />
-                            Create role
+                            Manage role
                         </button>
 
                         <TeamMemberFilters
