@@ -55,7 +55,6 @@ export const userService = {
         // Save frontend-only fields to sessionStorage so they persist during frontend-only development
         const frontendOnlyFields: Partial<UserProfile> = {};
         if (profile.profileIcon !== undefined) frontendOnlyFields.profileIcon = profile.profileIcon;
-        if (profile.skills !== undefined) frontendOnlyFields.skills = profile.skills;
         if (profile.email !== undefined) frontendOnlyFields.email = profile.email;
         if (profile.firstname !== undefined) frontendOnlyFields.firstname = profile.firstname;
         if (profile.lastname !== undefined) frontendOnlyFields.lastname = profile.lastname;
@@ -93,15 +92,5 @@ export const userService = {
      */
     logout(): Promise<void> {
         return Promise.resolve();
-    },
-
-    /**
-     * Updates the user's password.
-     */
-    async updatePassword(oldPassword: string, newPassword: string): Promise<{ message: string }> {
-        return await apiClient.fetch<{ message: string }>('/api/v1/users/me/password', {
-            method: 'PUT',
-            body: JSON.stringify({ oldPassword, newPassword }),
-        });
     }
 };

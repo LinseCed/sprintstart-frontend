@@ -4,7 +4,6 @@ import { userService } from '../../../services/userService';
 import type { UserProfile } from '../../../services/types';
 import { AccountForm } from './AccountForm';
 import { PasswordForm } from './PasswordForm';
-import { SkillsAssessment } from './SkillsAssessment';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -64,13 +63,12 @@ export function ProfileLayout() {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight text-app-text">User Profile</h1>
                 <p className="text-app-text-muted">
-                    Manage your account settings, password, and skill assessments.
+                    Manage your account settings and password.
                 </p>
             </div>
 
             <AccountForm profile={profile} onUpdate={handleUpdateProfile} />
             <PasswordForm />
-            <SkillsAssessment profile={profile} onUpdate={handleUpdateProfile} />
         </div>
     );
 }
