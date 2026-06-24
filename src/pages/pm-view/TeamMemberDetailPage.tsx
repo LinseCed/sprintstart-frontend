@@ -68,7 +68,7 @@ export function TeamMemberDetailPage() {
                         className="inline-flex items-center gap-1.5 text-sm text-app-text-muted hover:text-app-text"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Back to team
+                        Back
                     </button>
 
                     <div className="mt-6 rounded-3xl border border-app-border bg-app-surface p-8">
@@ -95,7 +95,7 @@ export function TeamMemberDetailPage() {
                         className="inline-flex items-center gap-1.5 text-sm text-app-text-muted hover:text-app-text mb-4"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Back to team
+                        Back
                     </button>
 
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
