@@ -17,7 +17,6 @@ export default defineConfig({
       '/auth': {
         target: 'http://127.0.0.1:8081',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/auth/, ''),
       },
     },
   },
