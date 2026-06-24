@@ -1,6 +1,7 @@
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, ArrowLeft } from 'lucide-react';
 import { ProjectRolesModal } from '../../features/team-management/components/ProjectRolesModal';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TeamMemberFilters } from '../../features/team-management/components/TeamMemberFilters';
 import { TeamMemberCard } from '../../features/team-management/components/TeamMemberCard';
 import type {
@@ -10,6 +11,7 @@ import type {
 import { getTeamOverview } from '../../services/teamManagementService';
 
 export function TeamManagementPage() {
+    const navigate = useNavigate();
     const [users, setUsers] = useState<TeamOverviewUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<TeamOverviewFilters>({
@@ -73,6 +75,14 @@ export function TeamManagementPage() {
         <div className="min-h-screen bg-app-bg">
             <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <button
+                        onClick={() => void navigate('/pm-dashboard')}
+                        className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to PM-Dashboard
+                    </button>
+
                     <div className="flex items-center justify-between gap-4">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
