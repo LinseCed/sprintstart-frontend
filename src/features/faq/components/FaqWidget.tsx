@@ -102,7 +102,7 @@ export function FaqWidget() {
         className="w-full text-left rounded-2xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-4 mb-3 relative overflow-hidden"
       >
         {/* Big count in the corner */}
-        <span className="absolute top-4 right-4 text-3xl font-semibold text-app-border-strong">
+        <span className="absolute top-4 right-4 text-3xl font-semibold text-app-brand">
           {hero.count}
         </span>
 
