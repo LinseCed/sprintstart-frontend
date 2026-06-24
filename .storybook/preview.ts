@@ -1,4 +1,5 @@
 import type { Preview } from "@storybook/react-vite";
+import type { StoryContext } from "@storybook/react";
 
 const preview: Preview = {
   parameters: {
@@ -9,7 +10,7 @@ const preview: Preview = {
       },
     },
     options: {
-      storySort: (a, b) => {
+      storySort: (a: StoryContext, b: StoryContext) => {
         const orderedPagesPrefix = [
           "Introduction",
           "login/login.ftl",
@@ -54,7 +55,7 @@ const preview: Preview = {
           "account/totp.ftl",
         ];
 
-        function getHardCodedWeight(title) {
+        function getHardCodedWeight(title: string) {
           for (let i = 0; i < orderedPagesPrefix.length; i++) {
             if (
               title

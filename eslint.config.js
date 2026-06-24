@@ -11,6 +11,14 @@ export default defineConfig(
   [
     globalIgnores(["dist", "node_modules", "coverage"]),
     {
+      ignores: [
+        "src/keycloak-theme/**",
+        "public/keycloak-theme/**",
+        ".storybook/**"
+      ]
+    },
+
+    {
       files: ["**/*.{ts,tsx}"],
       extends: [
         js.configs.recommended,
@@ -64,10 +72,6 @@ export default defineConfig(
           },
         ],
       },
-      ignores: [
-          "src/keycloak-theme/**",
-          "public/keycloak-theme/**"
-      ]
     },
     prettier,
   ],
