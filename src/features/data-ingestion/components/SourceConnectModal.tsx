@@ -1,19 +1,13 @@
 import {
     RefreshCw,
     X,
-    type LucideIcon,
 } from "lucide-react";
 import type { FormEvent } from "react";
-import type { SourceSystem } from "../../types/ingestionTypes.ts";
-
-export type ConnectState = "idle" | "loading" | "success" | "error";
-
-export type SourceConnectMeta = {
-    name: string;
-    type: string;
-    icon: LucideIcon;
-    description: string;
-};
+import type {
+    ConnectState,
+    SourceConnectMeta,
+    SourceSystem,
+} from "../types.ts";
 
 type SourceConnectModalProps = {
     selectedSourceSystem: SourceSystem;

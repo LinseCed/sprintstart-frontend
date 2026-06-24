@@ -16,44 +16,26 @@ import {
 import {
     getIngestionRuns,
     getIngestionStatus,
-} from "../../services/ingestionService.ts";
+} from "../../../services/ingestionService.ts";
+import {
+    DETAILS_RUN_LIMIT,
+    formatDateTime,
+    formatNumber,
+    getSourceStatusLabel,
+} from "../data.ts";
 import type {
     IngestionRun,
+    LoadingState,
+    SourceDetailsSource,
     SourceIngestionStatus,
     SourceSystem,
-} from "../../types/ingestionTypes.ts";
-
-export type SourceStatus = "connected" | "warning";
-
-export type SourceDetailsSource = {
-    sourceSystem: SourceSystem;
-    name: string;
-    type: string;
-    status: SourceStatus;
-    artifacts: number;
-    lastSync: string;
-    errors: number;
-    latestIngestedCount?: number;
-    latestUpdatedCount?: number;
-    failedItems?: SourceIngestionStatus["failedItems"];
-
-    /**
-     * Optional fields can still exist on the page source object,
-     * but this details panel does not render them because the backend
-     * does not currently provide them.
-     */
-    description?: string;
-    nextSync?: string;
-};
-
-type LoadingState = "idle" | "loading" | "success" | "error";
+    SourceStatus,
+} from "../types.ts";
 
 type SourceDetailsPanelProps = {
     source: SourceDetailsSource;
     onClose: () => void;
 };
-
-const DETAILS_RUN_LIMIT = 10;
 
 async function fetchSourceDetails(sourceSystem: SourceSystem) {
     const [statusData, runData] = await Promise.all([
@@ -590,29 +572,4 @@ function BadgeWarning({
             {children}
         </span>
     );
-}
-
-function getSourceStatusLabel(hasNeverSynced: boolean, hasErrors: boolean) {
-    if (hasNeverSynced) return "Not synced";
-    if (hasErrors) return "Warning";
-    return "Connected";
-}
-
-function formatDateTime(value: string | null) {
-    if (!value) return "Never";
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-    }).format(date);
-}
-
-function formatNumber(value: number) {
-    return new Intl.NumberFormat(undefined).format(value);
 }

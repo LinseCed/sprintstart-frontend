@@ -1,7 +1,7 @@
 import type {
     IngestionRun,
     SourceIngestionStatus,
-} from "../types/ingestionTypes.ts";
+} from "../features/data-ingestion/types.ts";
 
 /**
  * Fetches the most recent ingestion runs.
