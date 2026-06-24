@@ -174,3 +174,38 @@ export async function createSkill(
         return newSkill;
     }
 }
+
+export async function deleteProjectRole(roleId: string): Promise<void> {
+    try {
+        await apiClient.fetch(`/api/v1/projectRoles/${roleId}`, {
+            method: 'DELETE',
+        });
+
+        return;
+    } catch {
+        mockProjectRoles = mockProjectRoles.filter(
+            (role) => role.id !== roleId
+        );
+
+        mockSkills = mockSkills.filter(
+            (skill) => skill.roleId !== roleId
+        );
+
+        mockUsers = mockUsers.map((user) => ({
+            ...user,
+            roles: user.roles.filter((role) => role.id !== roleId),
+        }));
+    }
+}
+
+export async function deleteSkill(skillId: string): Promise<void> {
+    try {
+        await apiClient.fetch(`/api/v1/skills/${skillId}`, {
+            method: 'DELETE',
+        });
+
+        return;
+    } catch {
+        mockSkills = mockSkills.filter((skill) => skill.id !== skillId);
+    }
+}
