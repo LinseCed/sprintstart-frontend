@@ -1,7 +1,7 @@
 if (window.kcContext !== undefined) {
-  import("./keycloak-theme/main");
+  void import("./keycloak-theme/main");
 } else if (import.meta.env.VITE_KC_DEV === "true") {
-  import("./keycloak-theme/main.dev");
+  void import("./keycloak-theme/main.dev");
 } else {
-  import("./main-app");
+  void import("./main-app");
 }

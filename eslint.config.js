@@ -64,6 +64,10 @@ export default defineConfig(
           },
         ],
       },
+      ignores: [
+          "src/keycloak-theme/**",
+          "public/keycloak-theme/**"
+      ]
     },
     prettier,
   ],
