@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { TeamOverviewUser } from '../../features/team-management/types';
 import { getTeamMember } from '../../services/teamManagementService';
 
@@ -19,6 +19,8 @@ function getInitials(firstname: string, lastname: string): string {
 
 export function TeamMemberDetailPage() {
     const { userId } = useParams<{ userId: string }>();
+
+    const navigate = useNavigate();
 
     const [user, setUser] = useState<TeamOverviewUser | undefined>(undefined);
     const [loading, setLoading] = useState(true);
@@ -49,17 +51,25 @@ export function TeamMemberDetailPage() {
         );
     }
 
+    function goBack() {
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+            void navigate(-1);
+        } else {
+            void navigate('/team-management');
+        }
+    }
+
     if (!user) {
         return (
             <div className="min-h-screen bg-app-bg">
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <Link
-                        to="/team-management"
+                    <button
+                        onClick={goBack}
                         className="inline-flex items-center gap-1.5 text-sm text-app-text-muted hover:text-app-text"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Back to team
-                    </Link>
+                    </button>
 
                     <div className="mt-6 rounded-3xl border border-app-border bg-app-surface p-8">
                         <p className="text-sm text-app-text">
@@ -80,13 +90,13 @@ export function TeamMemberDetailPage() {
         <div className="min-h-screen bg-app-bg">
             <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <Link
-                        to="/team-management"
+                    <button
+                        onClick={goBack}
                         className="inline-flex items-center gap-1.5 text-sm text-app-text-muted hover:text-app-text mb-4"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Back to team
-                    </Link>
+                    </button>
 
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center gap-4">
