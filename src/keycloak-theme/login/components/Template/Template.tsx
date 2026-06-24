@@ -51,6 +51,19 @@ export function Template(props: {
       msgStr("loginTitle", kcContext.realm.displayName || kcContext.realm.name);
   }, []);
 
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme");
+
+    const theme =
+        storedTheme ??
+        (window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(theme);
+  }, []);
+
   useSetClassName({
     qualifiedName: "html",
     className: kcClsx("kcHtmlClass"),

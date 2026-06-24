@@ -37,7 +37,7 @@ div.kcFormGroupClass {
 }
 
 .pf-c-form-control {
-    background: var(--color-app-surface-muted);
+    background-color: var(--color-app-surface-muted);
     border-color: var(--color-app-border-muted);
     border-radius: 1.5rem;
     padding-left: 0.8rem;
@@ -47,6 +47,10 @@ div.kcFormGroupClass {
 
 .pf-c-form-control:focus {
     outline: none;
+}
+
+.pf-c-input-group {
+    background-color: var(--color-app-surface);
 }
 
 .password-visibility-btn {
@@ -69,19 +73,34 @@ div.kcFormGroupClass {
     color: var(--color-app-brand);
 }
 
-#kc-login {
-    border-radius: 1.5rem;
+.kcButtonClass.pf-c-button {
     background-color: var(--color-app-brand);
+    border-radius: 1.5rem;
     font-weight: 600;
 }
 
-.btn-lg:hover {
+.kcButtonClass.pf-c-button:hover {
     background: var(--color-app-brand-hover);
+}
+
+.kcButtonClass.pf-c-button:disabled {
+    background: var(--color-app-brand-soft);
+    color: var(--color-app-text-disabled);
+}
+
+input:autofill {
+    background-color: var(--color-app-surface-muted) !important;
+    color: var(--color-app-text) !important;
+}
+
+input[type="checkbox"] {
+    accent-color: var(--color-app-brand);
 }
 
 #kc-info-wrapper {
     border-radius: 0 0 1.5rem 1.5rem;
-    color: var(--color-app-surface-muted);
+    background-color: var(--color-app-surface-muted);
+    color: var(--color-app-text-muted);
 }
 
 #kc-registration > span:nth-child(1) > span:nth-child(1) {
@@ -90,4 +109,26 @@ div.kcFormGroupClass {
 
 #kc-registration > span:nth-child(1) > a:nth-child(2) > span:nth-child(1) {
     color: var(--color-app-brand);
+}
+
+#kc-info-wrapper > span:nth-child(1) {
+    color: var(--color-app-text-muted);
+}
+
+span.subtitle > span:nth-child(2) {
+    color: var(--color-app-text-muted);
+}
+
+.col-md-10 {
+    display: flex;
+    justify-content: flex-start;
+    padding: 0;
+}
+
+#input-error-username, #input-error-password, #input-error-password-confirm, #input-error-email, #input-error-firstName, #input-error-lastName {
+    color: var(--color-app-danger-text);
+}
+
+.required {
+    color: var(--color-app-danger-text);
 }
