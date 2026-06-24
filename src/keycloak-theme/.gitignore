@@ -4,6 +4,7 @@
 # login/styleLevelCustomization.tsx
 # login/components/PasswordWrapper.tsx
 # login/components/Template/Template.tsx
+# login/pages/login-passkeys-conditional-authenticate/Page.tsx
 # === Owned files end =====
 
 # === @keycloakify/login-ui v250004.7.2 ===
@@ -66,7 +67,6 @@
 /login/pages/login-page-expired/index.ts
 /login/pages/login-page-expired/Page.tsx
 /login/pages/login-passkeys-conditional-authenticate/index.ts
-/login/pages/login-passkeys-conditional-authenticate/Page.tsx
 /login/pages/login-passkeys-conditional-authenticate/useScript.tsx
 /login/pages/login-password/index.ts
 /login/pages/login-password/Page.tsx
