@@ -209,3 +209,17 @@ export async function deleteSkill(skillId: string): Promise<void> {
         mockSkills = mockSkills.filter((skill) => skill.id !== skillId);
     }
 }
+
+export async function addRoleToTeamMember(
+    userId: string,
+    roleId: string
+): Promise<void> {
+    console.log('add role to member', { userId, roleId });
+}
+
+export async function removeRoleFromTeamMember(
+    userId: string,
+    roleId: string
+): Promise<void> {
+    console.log('remove role from member', { userId, roleId });
+}
