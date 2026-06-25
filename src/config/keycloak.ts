@@ -2,14 +2,15 @@ import Keycloak from 'keycloak-js';
 
 /**
  * Keycloak configuration for the SprintStart frontend.
- * 
- * Uses environment variables from .env for flexibility across different environments.
+ *
+ * The Keycloak server is proxied through the same origin as the frontend at
+ * /auth (see nginx.conf / frontend-nginx-config), so the URL never needs
+ * per-environment configuration.
  */
-const authority = String(import.meta.env.VITE_KEYCLOAK_AUTHORITY || 'http://localhost:8081/realms/sprintstart');
 const clientId = String(import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'sprintstart-frontend');
 
 const keycloak = new Keycloak({
-    url: authority.replace('/realms/sprintstart', ''),
+    url: `${window.location.origin}/auth`,
     realm: 'sprintstart',
     clientId,
 });
