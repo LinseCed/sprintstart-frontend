@@ -5,6 +5,7 @@ import type {
     ProjectRole,
     Skill,
     TeamOverviewUser,
+    UserSkillAssessment
 } from '../features/team-management/types';
 
 let mockUsers = teamOverviewMock.users as TeamOverviewUser[];
@@ -222,4 +223,43 @@ export async function removeRoleFromTeamMember(
     roleId: string
 ): Promise<void> {
     console.log('remove role from member', { userId, roleId });
+}
+
+let mockSkillAssessments: UserSkillAssessment[] = [];
+
+export async function hasCompletedSkillAssessment(
+    userId: string
+): Promise<boolean> {
+    try {
+        const response = await apiClient.fetch<{ completed: boolean }>(
+            `/api/v1/users/${userId}/skill-assessments/completed`
+        );
+
+        return response.completed;
+    } catch {
+        return mockSkillAssessments.some(
+            (assessment) => assessment.userId === userId
+        );
+    }
+}
+
+export async function saveUserSkillAssessments(
+    assessments: UserSkillAssessment[]
+): Promise<void> {
+    try {
+        await apiClient.fetch(`/api/v1/skill-assessments`, {
+            method: 'POST',
+            body: JSON.stringify({ assessments }),
+        });
+    } catch {
+        mockSkillAssessments = mockSkillAssessments.filter(
+            (assessment) =>
+                !assessments.some(
+                    (incoming) =>
+                        incoming.userId === assessment.userId &&
+                        incoming.skillId === assessment.skillId
+                )
+        );
+        mockSkillAssessments = [...mockSkillAssessments, ...assessments];
+    }
 }

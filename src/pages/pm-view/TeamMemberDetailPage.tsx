@@ -1,6 +1,6 @@
 import { ArrowLeft, Plus, X, Pencil } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import type {
     ProjectRole,
     TeamOverviewUser,

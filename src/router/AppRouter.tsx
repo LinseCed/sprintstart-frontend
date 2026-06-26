@@ -8,6 +8,7 @@ import { OnBoardingItemPage } from '../features/onboarding/components/OnBoarding
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';
+import { SkillWizardPage } from '../pages/SkillWizardPage';
 import { TeamManagementPage } from '../pages/pm-view/TeamManagementPage.tsx';
 import { TeamMemberDetailPage } from '../pages/pm-view/TeamMemberDetailPage.tsx';
 import { PmDashboardPage } from '../pages/PmDashboardPage.tsx';
@@ -22,6 +23,7 @@ export function AppRouter() {
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/selection-wizard" element={<SelectionWizardPage />} />
+                <Route path="/skill-wizard" element={<SkillWizardPage />} />
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />
