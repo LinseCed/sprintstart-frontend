@@ -9,14 +9,15 @@ import prettier from "eslint-config-prettier/flat";
 import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig(
   [
-    globalIgnores(["dist", "node_modules", "coverage"]),
-    {
-      ignores: [
-        "src/keycloak-theme/**",
-        "public/keycloak-theme/**",
-        ".storybook/**"
-      ]
-    },
+    globalIgnores([
+      "dist",
+      "dist_keycloak",
+      "node_modules",
+      "coverage",
+      "src/keycloak-theme/**",
+      "public/keycloak-theme/**",
+      "public/keycloakify-dev-resources/**",
+    ]),
 
     {
       files: ["**/*.{ts,tsx}"],
