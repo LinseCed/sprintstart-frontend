@@ -14,13 +14,13 @@ WORKDIR /app
 # Copy package-related files first to leverage Docker's caching mechanism
 COPY package.json package-lock.json* ./
 
+# Copy the rest of the application source code into the container
+COPY . .
+
 RUN npm install
 
 # Install project dependencies using npm ci (ensures a clean, reproducible install)
 RUN --mount=type=cache,target=/root/.npm npm ci
-
-# Copy the rest of the application source code into the container
-COPY . .
 
 # Build the React.js application (outputs to /app/dist)
 RUN npm run build
