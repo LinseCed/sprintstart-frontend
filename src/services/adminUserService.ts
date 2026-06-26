@@ -30,8 +30,24 @@
 import { apiClient } from "./apiClient";
 import adminPageMock from "../mocks/adminPageMock.json";
 
-const USE_ADMIN_PAGE_MOCKS = true;
+const USE_ADMIN_PAGE_MOCKS = import.meta.env.VITE_USE_ADMIN_PAGE_MOCKS === "true";
 const MOCK_DELAY_MS = 180;
+
+type BackendPermissionGroup = "ADMIN" | "HR" | "PM" | "USER";
+
+type BackendUserResponse = {
+    id: string;
+    authId: string;
+    username: string;
+    email: string | null;
+    firstName: string;
+    lastName: string;
+    workingArea: string;
+    permissionGroup: BackendPermissionGroup;
+    enabled: boolean;
+    profileIcon: string | null;
+    hasCompletedOnboarding: boolean;
+};
 
 export type RoleType = "primary" | "secondary";
 
@@ -69,6 +85,7 @@ export type UserProfile = {
 
 export type AdminUser = {
     id: string;
+    authId?: string;
     username: string;
     email: string;
     firstName: string;
@@ -190,6 +207,91 @@ function toUserRole(assignment: RoleAssignment): UserRole {
     };
 }
 
+function toPermissionGroupLabel(permissionGroup: string): string {
+    switch (permissionGroup.trim().toUpperCase()) {
+        case "PM":
+        case "PROJECT_MANAGER":
+        case "PROJECT MANAGER":
+            return "Project Manager";
+        case "HR":
+            return "HR";
+        case "ADMIN":
+            return "Admin";
+        case "USER":
+        default:
+            return "User";
+    }
+}
+
+function toBackendPermissionGroup(permissionGroup: string): BackendPermissionGroup {
+    switch (permissionGroup.trim().toUpperCase()) {
+        case "ADMIN":
+            return "ADMIN";
+        case "HR":
+            return "HR";
+        case "PM":
+        case "PROJECT_MANAGER":
+        case "PROJECT MANAGER":
+            return "PM";
+        case "USER":
+        default:
+            return "USER";
+    }
+}
+
+function toUserRoleFromWorkingArea(workingArea: string): UserRole[] {
+    if (workingArea === "NO_WORKING_AREA") {
+        return [];
+    }
+
+    const name = workingArea
+        .split("_")
+        .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+        .join(" ");
+
+    return [
+        {
+            id: `working-area-${workingArea.toLowerCase().replaceAll("_", "-")}`,
+            name,
+            description: "Assigned working area",
+            type: "primary",
+        },
+    ];
+}
+
+function toAdminUser(user: BackendUserResponse): AdminUser {
+    return {
+        id: user.id,
+        authId: user.authId,
+        username: user.username,
+        email: user.email ?? "",
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles: toUserRoleFromWorkingArea(user.workingArea),
+        permissionGroup: toPermissionGroupLabel(user.permissionGroup),
+        projects: [],
+        enabled: user.enabled,
+        profileIcon: user.profileIcon ?? "",
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
+    };
+}
+
+function toUserProfile(user: BackendUserResponse): UserProfile {
+    return {
+        ...toAdminUser(user),
+        authId: user.authId,
+    };
+}
+
+function toBackendUpdateRequest(request: UpdateAdminUserRequest) {
+    return {
+        ...request,
+        permissionGroup: request.permissionGroup
+            ? toBackendPermissionGroup(request.permissionGroup)
+            : undefined,
+    };
+}
+
 export const adminUserService = {
     /**
      * GET /api/v1/users/me
@@ -203,7 +305,8 @@ export const adminUserService = {
             return withMockDelay(mock.usersMe);
         }
 
-        return apiClient.fetch<UserProfile>("/api/v1/users/me");
+        const user = await apiClient.fetch<BackendUserResponse>("/api/v1/users/me");
+        return toUserProfile(user);
     },
 
     /**
@@ -216,7 +319,8 @@ export const adminUserService = {
             return withMockDelay(mockAdminUsers);
         }
 
-        return apiClient.fetch<AdminUser[]>("/api/v1/admin/users");
+        const users = await apiClient.fetch<BackendUserResponse[]>("/api/v1/admin/users");
+        return users.map(toAdminUser);
     },
 
     /**
@@ -229,7 +333,10 @@ export const adminUserService = {
             return withMockDelay(getMockUserById(userId));
         }
 
-        return apiClient.fetch<AdminUser>(`/api/v1/admin/users/${userId}`);
+        const user = await apiClient.fetch<BackendUserResponse>(
+            `/api/v1/admin/users/${userId}`,
+        );
+        return toAdminUser(user);
     },
 
     /**
@@ -257,15 +364,18 @@ export const adminUserService = {
             return withMockDelay(updatedUser);
         }
 
-        await apiClient.fetch<void>(`/api/v1/admin/users/${userId}`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
+        const updatedUser = await apiClient.fetch<BackendUserResponse>(
+            `/api/v1/admin/users/${userId}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(toBackendUpdateRequest(request)),
             },
-            body: JSON.stringify(request),
-        });
+        );
 
-        return adminUserService.getUserById(userId);
+        return toAdminUser(updatedUser);
     },
 
     /**
@@ -327,15 +437,18 @@ export const adminUserService = {
             return withMockDelay(updatedUser);
         }
 
-        await apiClient.fetch<void>(`/api/v1/admin/users/${userId}/enabled`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
+        const updatedUser = await apiClient.fetch<BackendUserResponse>(
+            `/api/v1/admin/users/${userId}/enabled`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(request),
             },
-            body: JSON.stringify(request),
-        });
+        );
 
-        return adminUserService.getUserById(userId);
+        return toAdminUser(updatedUser);
     },
 
     /**
