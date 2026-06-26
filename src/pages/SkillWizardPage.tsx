@@ -4,12 +4,11 @@ import { SkillWizard } from '../features/team-management/components/SkillWizard'
 import {
     getSkills,
     getTeamMember,
-    saveUserSkillAssessments,
+    saveUserSkills,
 } from '../services/teamManagementService';
 import type {
     Skill,
     TeamOverviewUser,
-    UserSkillAssessment,
 } from '../features/team-management/types';
 import { useAuth } from '../context/useAuth';
 
@@ -56,12 +55,14 @@ export function SkillWizardPage() {
     }, [profile?.id]);
 
     function handleClose() {
-        navigate('/team-management');
+        navigate('/onboarding');
     }
 
-    async function handleSubmit(assessments: UserSkillAssessment[]) {
-        await saveUserSkillAssessments(assessments);
-        navigate('/team-management');
+    async function handleSubmit(skills: Skill[]) {
+        if (!user) return;
+
+        await saveUserSkills(user.userId, skills);
+        navigate('/onboarding');
     }
 
     if (loading) {
@@ -84,10 +85,10 @@ export function SkillWizardPage() {
 
                     <div className="mt-6 flex justify-center">
                         <Link
-                            to="/team-management"
+                            to="/onboarding"
                             className="rounded-xl border border-app-border bg-app-bg px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover"
                         >
-                            Back to team overview
+                            Back to onboarding
                         </Link>
                     </div>
                 </div>

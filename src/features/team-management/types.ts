@@ -22,6 +22,7 @@ export type TeamOverviewUser = {
         name: string;
     };
     roles: ProjectRole[];
+    skills: Skill[];
     progressPercentage: number;
     currentPhase: {
         id: string;
@@ -55,11 +56,11 @@ export type Skill = {
     level?: SkillLevel;
 };
 
-export type UserSkillAssessment = {
-    userId: string;
-    skillId: string;
-    level: SkillLevel;
-};
+// export type UserSkillAssessment = {
+//     userId: string;
+//     skillId: string;
+//     level: SkillLevel;
+// };
 
 export type TeamOverviewFilters = {
     roleId: string;

@@ -4,7 +4,6 @@ import type {
     Skill,
     SkillLevel,
     TeamOverviewUser,
-    UserSkillAssessment,
 } from '../types';
 
 type SkillSelfAssessmentWizardProps = {
@@ -12,7 +11,7 @@ type SkillSelfAssessmentWizardProps = {
     user: TeamOverviewUser;
     skills: Skill[];
     onClose: () => void;
-    onSubmit: (assessments: UserSkillAssessment[]) => Promise<void> | void;
+    onSubmit: (skills: Skill[]) => Promise<void> | void;
 };
 
 const SKILL_LEVELS: { value: SkillLevel; label: string }[] = [
@@ -51,8 +50,7 @@ export function SkillWizard({
 
         await onSubmit(
             requiredSkills.map((skill) => ({
-                userId: user.userId,
-                skillId: skill.id,
+                ...skill,
                 level: selectedLevels[skill.id],
             }))
         );
@@ -109,12 +107,11 @@ export function SkillWizard({
                                                     [skill.id]: level.value,
                                                 }))
                                             }
-                                            className={`rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
-                                                selectedLevels[skill.id] ===
-                                                level.value
+                                            className={`rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${selectedLevels[skill.id] ===
+                                                    level.value
                                                     ? 'border-app-brand bg-app-brand-soft text-app-brand'
                                                     : 'border-app-border bg-app-surface text-app-text-muted hover:border-app-brand hover:text-app-brand'
-                                            }`}
+                                                }`}
                                         >
                                             {level.label}
                                         </button>

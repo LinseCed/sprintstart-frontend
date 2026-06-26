@@ -5,7 +5,6 @@ import type {
     ProjectRole,
     Skill,
     TeamOverviewUser,
-    UserSkillAssessment
 } from '../features/team-management/types';
 
 let mockUsers = teamOverviewMock.users as TeamOverviewUser[];
@@ -23,7 +22,7 @@ let mockSkills = skillsMock.skills as Skill[];
 export async function getTeamOverview(): Promise<TeamOverviewUser[]> {
     try {
         const response = await apiClient.fetch<{ users: TeamOverviewUser[] }>(
-            '/api/v1/onboarding/team-overview'
+            '/api/v1/users/team-overview'
         );
 
         return response.users;
@@ -225,7 +224,7 @@ export async function removeRoleFromTeamMember(
     console.log('remove role from member', { userId, roleId });
 }
 
-let mockSkillAssessments: UserSkillAssessment[] = [];
+//let mockSkillAssessments: { userId: string; skillId: string; level: SkillLevel }[] = [];
 
 export async function hasCompletedSkillAssessment(
     userId: string
@@ -237,29 +236,31 @@ export async function hasCompletedSkillAssessment(
 
         return response.completed;
     } catch {
-        return mockSkillAssessments.some(
-            (assessment) => assessment.userId === userId
-        );
+        const user = mockUsers.find((mockUser) => mockUser.userId === userId);
+
+        return !!user && user.skills.length > 0;
     }
 }
 
-export async function saveUserSkillAssessments(
-    assessments: UserSkillAssessment[]
+export async function saveUserSkills(
+    userId: string,
+    skills: Skill[]
 ): Promise<void> {
     try {
-        await apiClient.fetch(`/api/v1/skill-assessments`, {
-            method: 'POST',
-            body: JSON.stringify({ assessments }),
+        await apiClient.fetch(`/api/v1/users/${userId}/skills`, {
+            method: 'PUT',
+            body: JSON.stringify({ skills }),
         });
+
+        return;
     } catch {
-        mockSkillAssessments = mockSkillAssessments.filter(
-            (assessment) =>
-                !assessments.some(
-                    (incoming) =>
-                        incoming.userId === assessment.userId &&
-                        incoming.skillId === assessment.skillId
-                )
-        );
-        mockSkillAssessments = [...mockSkillAssessments, ...assessments];
+        mockUsers = mockUsers.map((user) => {
+            if (user.userId !== userId) return user;
+
+            return {
+                ...user,
+                skills,
+            };
+        });
     }
 }
