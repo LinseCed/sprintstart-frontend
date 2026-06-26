@@ -3,13 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SkillWizard } from '../features/team-management/components/SkillWizard';
 import {
     getSkills,
-    getTeamMember,
-    saveUserSkills,
+    getMyTeamOverview,
+    saveUserSkillAssessments,
 } from '../services/teamManagementService';
-import type {
-    Skill,
-    TeamOverviewUser,
-} from '../features/team-management/types';
+import type { CreateSkillAssessmentRequest } from '../services/teamManagementService';
+import type { Skill, TeamOverviewUser } from '../features/team-management/types';
 import { useAuth } from '../context/useAuth';
 
 export function SkillWizardPage() {
@@ -22,18 +20,18 @@ export function SkillWizardPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!profile?.id) {
-            setError('No logged in user found.');
-            setLoading(false);
-            return;
-        }
-
-        const currentUserId = profile.id;
+        const currentUserId = profile?.id;
 
         async function loadData() {
+            if (!currentUserId) {
+                setError('No logged in user found.');
+                setLoading(false);
+                return;
+            }
+
             try {
                 const [memberData, skillsData] = await Promise.all([
-                    getTeamMember(currentUserId),
+                    getMyTeamOverview(),
                     getSkills(),
                 ]);
 
@@ -55,14 +53,12 @@ export function SkillWizardPage() {
     }, [profile?.id]);
 
     function handleClose() {
-        navigate('/onboarding');
+        void navigate('/onboarding');
     }
 
-    async function handleSubmit(skills: Skill[]) {
-        if (!user) return;
-
-        await saveUserSkills(user.userId, skills);
-        navigate('/onboarding');
+    async function handleSubmit(assessments: CreateSkillAssessmentRequest[]) {
+        await saveUserSkillAssessments(assessments);
+        void navigate('/onboarding');
     }
 
     if (loading) {

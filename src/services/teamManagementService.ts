@@ -1,150 +1,195 @@
-import { apiClient } from './apiClient';
-import teamOverviewMock from '../mocks/teamOverviewMock.json';
-import skillsMock from '../mocks/skillsMock.json';
+import { apiClient } from "./apiClient";
+import teamOverviewMock from "../mocks/teamOverviewMock.json";
+import skillsMock from "../mocks/skillsMock.json";
 import type {
-    ProjectRole,
-    Skill,
-    TeamOverviewUser,
-} from '../features/team-management/types';
+  ProjectRole,
+  Skill,
+  TeamOverviewUser,
+  UserSkillAssessment,
+  SkillLevel,
+} from "../features/team-management/types";
 
 let mockUsers = teamOverviewMock.users as TeamOverviewUser[];
 
 let mockProjectRoles: ProjectRole[] = Array.from(
-    new Map(
-        mockUsers
-            .flatMap((user) => user.roles)
-            .map((role) => [role.id, role])
-    ).values()
+  new Map(
+    mockUsers.flatMap((user) => user.roles).map((role) => [role.id, role]),
+  ).values(),
 );
 
 let mockSkills = skillsMock.skills as Skill[];
 
-export async function getTeamOverview(): Promise<TeamOverviewUser[]> {
-    try {
-        const response = await apiClient.fetch<{ users: TeamOverviewUser[] }>(
-            '/api/v1/users/team-overview'
+export async function getTeamOverview(
+  roleId?: string,
+  sortBy?: string,
+): Promise<TeamOverviewUser[]> {
+  try {
+    const params = new URLSearchParams();
+    if (roleId && roleId !== "all") params.append("roleIds", roleId);
+    if (sortBy) params.append("sortBy", sortBy);
+    params.append("size", "100");
+
+    const query = params.toString();
+    const url = `/api/v1/onboarding/team-overview${query ? `?${query}` : ""}`;
+
+        const response = await apiClient.fetch<{ content: TeamOverviewUser[] }>(
+            url,
         );
 
-        return response.users;
+        return response.content.map((user) => ({
+            ...user,
+            roles: user.roles.map(
+                (role: ProjectRole & { roleId?: string }) => ({
+                    ...role,
+                    id: role.id || role.roleId || '',
+                }),
+            ),
+        }));
     } catch {
         return mockUsers;
     }
 }
 
 export async function getTeamMember(
-    userId: string
+    userId: string,
 ): Promise<TeamOverviewUser | undefined> {
     const users = await getTeamOverview();
 
     return users.find((user) => user.userId === userId);
 }
 
-export async function getProjectRoles(): Promise<ProjectRole[]> {
+export async function getMyTeamOverview(): Promise<TeamOverviewUser> {
     try {
-        const response = await apiClient.fetch<{
-            projectRoles: ProjectRole[];
-        }>('/api/v1/projectRoles');
+    const user = await apiClient.fetch<TeamOverviewUser>("/api/v1/onboarding/me/team-overview");
+    return {
+      ...user,
+      roles: user.roles.map(
+    (role: ProjectRole & { roleId?: string }) => ({
+        ...role,
+        id: role.id || role.roleId || '',
+    }),
+),
+    };
+  } catch {
+    // Fallback to finding the first user in mock for development
+    return mockUsers[0];
+  }
+}
 
-        return response.projectRoles;
-    } catch {
-        return mockProjectRoles;
-    }
+export async function getProjectRoles(): Promise<ProjectRole[]> {
+  try {
+    const response = await apiClient.fetch<
+      { projectRoles?: ProjectRole[] } | ProjectRole[]
+    >("/api/v1/projectRoles");
+
+    return Array.isArray(response) ? response : (response.projectRoles ?? []);
+  } catch {
+    return mockProjectRoles;
+  }
 }
 
 export async function createProjectRole(
-    name: string,
-    description: string
+  name: string,
+  description: string,
 ): Promise<ProjectRole> {
-    try {
-        return await apiClient.fetch<ProjectRole>('/api/v1/projectRoles', {
-            method: 'POST',
-            body: JSON.stringify({
-                name,
-                description,
-            }),
-        });
-    } catch {
-        const newRole: ProjectRole = {
-            id: `mock-role-${Date.now()}`,
-            name,
-            description,
-        };
+  try {
+    return await apiClient.fetch<ProjectRole>("/api/v1/projectRoles", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        description,
+      }),
+    });
+  } catch {
+    const newRole: ProjectRole = {
+      id: `mock-role-${Date.now()}`,
+      name,
+      description,
+    };
 
-        mockProjectRoles = [...mockProjectRoles, newRole];
+    mockProjectRoles = [...mockProjectRoles, newRole];
 
-        return newRole;
-    }
+    return newRole;
+  }
 }
 
 export async function assignProjectRoleToUser(
-    userId: string,
-    roleId: string
+  userId: string,
+  roleId: string,
 ): Promise<void> {
-    try {
-        await apiClient.fetch(`/api/v1/users/${userId}/project-roles`, {
-            method: 'POST',
-            body: JSON.stringify({
-                projectRoleId: roleId,
-            }),
-        });
+  try {
+    await apiClient.fetch(`/api/v1/users/${userId}/project-roles`, {
+      method: "POST",
+      body: JSON.stringify({
+        roleId: roleId,
+      }),
+    });
 
-        return;
-    } catch {
-        const role = mockProjectRoles.find(
-            (projectRole) => projectRole.id === roleId
-        );
+    return;
+  } catch {
+    const role = mockProjectRoles.find(
+      (projectRole) => projectRole.id === roleId,
+    );
 
-        if (!role) return;
+    if (!role) return;
 
-        mockUsers = mockUsers.map((user) => {
-            if (user.userId !== userId) return user;
+    mockUsers = mockUsers.map((user) => {
+      if (user.userId !== userId) return user;
 
-            const alreadyAssigned = user.roles.some(
-                (userRole) => userRole.id === roleId
-            );
+      const alreadyAssigned = user.roles.some(
+        (userRole) => userRole.id === roleId,
+      );
 
-            if (alreadyAssigned) return user;
+      if (alreadyAssigned) return user;
 
-            return {
-                ...user,
-                roles: [...user.roles, role],
-            };
-        });
-    }
+      return {
+        ...user,
+        roles: [...user.roles, role],
+      };
+    });
+  }
 }
 
 export async function unassignProjectRoleFromUser(
-    userId: string,
-    roleId: string
+  userId: string,
+  roleId: string,
 ): Promise<void> {
-    try {
-        await apiClient.fetch(
-            `/api/v1/users/${userId}/project-roles/${roleId}`,
-            {
-                method: 'DELETE',
-            }
-        );
+  try {
+    await apiClient.fetch(`/api/v1/users/${userId}/project-roles/${roleId}`, {
+      method: "DELETE",
+    });
 
-        return;
-    } catch {
-        mockUsers = mockUsers.map((user) => {
-            if (user.userId !== userId) return user;
+    return;
+  } catch {
+    mockUsers = mockUsers.map((user) => {
+      if (user.userId !== userId) return user;
 
-            return {
-                ...user,
-                roles: user.roles.filter((role) => role.id !== roleId),
-            };
-        });
-    }
+      return {
+        ...user,
+        roles: user.roles.filter((role) => role.id !== roleId),
+      };
+    });
+  }
 }
+
+type SkillResponseDto = {
+    id: string;
+    name: string;
+    roleId?: string;
+    projectRole?: {
+        id: string;
+    };
+};
 
 export async function getSkills(): Promise<Skill[]> {
     try {
-        const response = await apiClient.fetch<{ skills?: Skill[]; skill?: Skill[] }>(
-            '/api/v1/skills'
-        );
+        const response = await apiClient.fetch<SkillResponseDto[]>('/api/v1/skills');
 
-        return response.skills ?? response.skill ?? [];
+        return response.map(skill => ({
+            id: skill.id,
+            name: skill.name,
+            roleId: skill.projectRole?.id || skill.roleId || '',
+        }));
     } catch {
         return mockSkills;
     }
@@ -155,13 +200,19 @@ export async function createSkill(
     roleId: string
 ): Promise<Skill> {
     try {
-        return await apiClient.fetch<Skill>('/api/v1/skills', {
+        const response = await apiClient.fetch<SkillResponseDto>('/api/v1/skills', {
             method: 'POST',
             body: JSON.stringify({
                 name,
                 roleId,
             }),
         });
+
+        return {
+            id: response.id,
+            name: response.name,
+            roleId: response.projectRole?.id || response.roleId || '',
+        };
     } catch {
         const newSkill: Skill = {
             id: `mock-skill-${Date.now()}`,
@@ -176,91 +227,130 @@ export async function createSkill(
 }
 
 export async function deleteProjectRole(roleId: string): Promise<void> {
-    try {
-        await apiClient.fetch(`/api/v1/projectRoles/${roleId}`, {
-            method: 'DELETE',
-        });
+  try {
+    await apiClient.fetch(`/api/v1/projectRoles/${roleId}`, {
+      method: "DELETE",
+    });
 
-        return;
-    } catch {
-        mockProjectRoles = mockProjectRoles.filter(
-            (role) => role.id !== roleId
-        );
+    return;
+  } catch {
+    mockProjectRoles = mockProjectRoles.filter((role) => role.id !== roleId);
 
-        mockSkills = mockSkills.filter(
-            (skill) => skill.roleId !== roleId
-        );
+    mockSkills = mockSkills.filter((skill) => skill.roleId !== roleId);
 
-        mockUsers = mockUsers.map((user) => ({
-            ...user,
-            roles: user.roles.filter((role) => role.id !== roleId),
-        }));
-    }
+    mockUsers = mockUsers.map((user) => ({
+      ...user,
+      roles: user.roles.filter((role) => role.id !== roleId),
+    }));
+  }
 }
 
 export async function deleteSkill(skillId: string): Promise<void> {
-    try {
-        await apiClient.fetch(`/api/v1/skills/${skillId}`, {
-            method: 'DELETE',
-        });
+  try {
+    await apiClient.fetch(`/api/v1/skills/${skillId}`, {
+      method: "DELETE",
+    });
 
-        return;
-    } catch {
-        mockSkills = mockSkills.filter((skill) => skill.id !== skillId);
-    }
+    return;
+  } catch {
+    mockSkills = mockSkills.filter((skill) => skill.id !== skillId);
+  }
 }
 
-export async function addRoleToTeamMember(
-    userId: string,
-    roleId: string
-): Promise<void> {
-    console.log('add role to member', { userId, roleId });
-}
+// Removed mock role functions
 
-export async function removeRoleFromTeamMember(
-    userId: string,
-    roleId: string
-): Promise<void> {
-    console.log('remove role from member', { userId, roleId });
-}
+export type CreateSkillAssessmentRequest = {
+    userId: string;
+    skillId: string;
+    level: SkillLevel;
+};
 
-//let mockSkillAssessments: { userId: string; skillId: string; level: SkillLevel }[] = [];
+let mockSkillAssessments: CreateSkillAssessmentRequest[] = [];
 
 export async function hasCompletedSkillAssessment(
-    userId: string
+    userId: string,
 ): Promise<boolean> {
     try {
-        const response = await apiClient.fetch<{ completed: boolean }>(
-            `/api/v1/users/${userId}/skill-assessments/completed`
+        const response = await apiClient.fetch<UserSkillAssessment[]>(
+            `/api/v1/users/${userId}/skill-assessments/completed`,
         );
 
-        return response.completed;
+        return response.length > 0;
     } catch {
-        const user = mockUsers.find((mockUser) => mockUser.userId === userId);
-
-        return !!user && user.skills.length > 0;
+        return mockSkillAssessments.some(
+            (assessment) => assessment.userId === userId,
+        );
     }
 }
 
-export async function saveUserSkills(
-    userId: string,
-    skills: Skill[]
+export async function saveUserSkillAssessments(
+    assessments: CreateSkillAssessmentRequest[],
 ): Promise<void> {
     try {
-        await apiClient.fetch(`/api/v1/users/${userId}/skills`, {
-            method: 'PUT',
-            body: JSON.stringify({ skills }),
-        });
-
-        return;
+        await Promise.all(
+            assessments.map((assessment) =>
+                apiClient.fetch('/api/v1/skill-assessments', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        userId: assessment.userId,
+                        skillId: assessment.skillId,
+                        level: assessment.level,
+                    }),
+                }),
+            ),
+        );
     } catch {
-        mockUsers = mockUsers.map((user) => {
-            if (user.userId !== userId) return user;
+        mockSkillAssessments = mockSkillAssessments.filter(
+            (assessment) =>
+                !assessments.some(
+                    (incoming) =>
+                        incoming.userId === assessment.userId &&
+                        incoming.skillId === assessment.skillId,
+                ),
+        );
 
-            return {
-                ...user,
-                skills,
-            };
-        });
+        mockSkillAssessments = [...mockSkillAssessments, ...assessments];
+    }
+}
+
+type UserSkillAssessmentResponse = {
+    id: string;
+    level: SkillLevel;
+    skill: {
+        id: string;
+        name: string;
+        projectRole?: {
+            id: string;
+            name: string;
+            description: string;
+        };
+    };
+};
+
+export type UserSkillLevel = {
+    id: string;
+    skillId: string;
+    skillName: string;
+    roleName: string;
+    level: SkillLevel;
+};
+
+export async function getUserSkillLevels(
+    userId: string,
+): Promise<UserSkillLevel[]> {
+    try {
+        const response = await apiClient.fetch<UserSkillAssessmentResponse[]>(
+            `/api/v1/users/${userId}/skill-assessments/completed`,
+        );
+
+        return response.map((assessment) => ({
+            id: assessment.id,
+            skillId: assessment.skill?.id ?? '',
+            skillName: assessment.skill?.name ?? 'Unknown skill',
+            roleName: assessment.skill?.projectRole?.name ?? 'Unknown role',
+            level: assessment.level,
+        }));
+    } catch {
+        return [];
     }
 }

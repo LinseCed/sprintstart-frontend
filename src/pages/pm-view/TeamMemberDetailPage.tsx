@@ -6,10 +6,12 @@ import type {
     TeamOverviewUser,
 } from '../../features/team-management/types';
 import {
-    addRoleToTeamMember,
+    assignProjectRoleToUser,
     getProjectRoles,
     getTeamMember,
-    removeRoleFromTeamMember,
+    unassignProjectRoleFromUser,
+    getUserSkillLevels,
+    type UserSkillLevel,
 } from '../../services/teamManagementService';
 
 function getElapsedDays(startedAt: string): number {
@@ -37,6 +39,7 @@ export function TeamMemberDetailPage() {
     const [rolesModalOpen, setRolesModalOpen] = useState(false);
     const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
     const [roleToRemove, setRoleToRemove] = useState<ProjectRole | null>(null);
+    const [skillLevels, setSkillLevels] = useState<UserSkillLevel[]>([]);
 
     useEffect(() => {
         async function loadMember() {
@@ -44,6 +47,9 @@ export function TeamMemberDetailPage() {
                 setLoading(false);
                 return;
             }
+
+            const skills = await getUserSkillLevels(userId);
+            setSkillLevels(skills);
 
             const [memberData, rolesData] = await Promise.all([
                 getTeamMember(userId),
@@ -78,7 +84,7 @@ export function TeamMemberDetailPage() {
 
         setSavingRoleId(selectedRoleId);
 
-        await addRoleToTeamMember(user.userId, selectedRoleId);
+        await assignProjectRoleToUser(user.userId, selectedRoleId);
 
         setUser({
             ...user,
@@ -94,7 +100,7 @@ export function TeamMemberDetailPage() {
 
         setSavingRoleId(roleId);
 
-        await removeRoleFromTeamMember(user.userId, roleId);
+        await unassignProjectRoleFromUser(user.userId, roleId);
 
         setUser({
             ...user,
@@ -144,7 +150,7 @@ export function TeamMemberDetailPage() {
         );
     }
 
-    const elapsedDays = getElapsedDays(user.currentStep.startedAt);
+    const elapsedDays = user.currentStep?.startedAt ? getElapsedDays(user.currentStep.startedAt) : 0;
     const progressPercentage = Math.round(user.progressPercentage * 100);
 
     return (
@@ -202,14 +208,16 @@ export function TeamMemberDetailPage() {
                         <div className="lg:text-right">
                             <p className="text-xs font-medium uppercase tracking-wide text-app-text-muted">
                                 Current Step
-                                <span className="ml-2 font-normal normal-case">
-                                    · {elapsedDays}{' '}
-                                    {elapsedDays === 1 ? 'day' : 'days'} ago
-                                </span>
+                                {user.currentStep?.startedAt && (
+                                    <span className="ml-2 font-normal normal-case">
+                                        · {elapsedDays}{' '}
+                                        {elapsedDays === 1 ? 'day' : 'days'} ago
+                                    </span>
+                                )}
                             </p>
 
                             <p className="mt-2 text-sm font-medium text-app-text">
-                                {user.currentStep.title}
+                                {user.currentStep?.title || 'Onboarding Completed'}
                             </p>
                         </div>
                     </div>
@@ -232,11 +240,51 @@ export function TeamMemberDetailPage() {
             </div>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
-                <div className="rounded-3xl border border-app-border bg-app-surface p-6 sm:p-8">
-                    <p className="text-sm text-app-text-muted">
-                        Feedback, skill gaps and onboarding insights will
-                        appear here.
-                    </p>
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-3xl border border-app-border bg-app-surface p-6">
+                        <h2 className="text-lg font-semibold text-app-text">
+                            Skill Assessment
+                        </h2>
+
+                        {skillLevels.length === 0 ? (
+                            <p className="mt-3 text-sm text-app-text-muted">
+                                No completed skill assessment.
+                            </p>
+                        ) : (
+                            <div className="mt-4 space-y-2">
+                                {skillLevels.map((skill) => (
+                                    <div
+                                        key={skill.id}
+                                        className="flex items-center justify-between rounded-xl border border-app-border bg-app-surface-muted px-4 py-3"
+                                    >
+                                        <div>
+                                            <p className="font-medium text-app-text">
+                                                {skill.skillName}
+                                            </p>
+
+                                            <p className="text-sm text-app-text-muted">
+                                                {skill.roleName}
+                                            </p>
+                                        </div>
+
+                                        <span className="rounded-full bg-app-brand-soft px-3 py-1 text-sm font-medium text-app-brand">
+                                            {skill.level}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="rounded-3xl border border-app-border bg-app-surface p-6">
+                        <h2 className="text-lg font-semibold text-app-text">
+                            Feedback & Insights
+                        </h2>
+
+                        <p className="mt-3 text-sm text-app-text-muted">
+                            Feedback, skill gaps and onboarding insights will appear here.
+                        </p>
+                    </div>
                 </div>
             </main>
 
@@ -357,8 +405,8 @@ export function TeamMemberDetailPage() {
 
                             <button
                                 type="button"
-                                onClick={async () => {
-                                    await handleRemoveRole(roleToRemove.id);
+                                onClick={() => {
+                                    void handleRemoveRole(roleToRemove.id);
                                     setRoleToRemove(null);
                                 }}
                                 disabled={savingRoleId === roleToRemove.id}
@@ -371,5 +419,6 @@ export function TeamMemberDetailPage() {
                 </div>
             )}
         </div>
+
     );
 }

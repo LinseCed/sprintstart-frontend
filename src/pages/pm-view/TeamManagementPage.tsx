@@ -32,22 +32,27 @@ export function TeamManagementPage() {
 
     const filteredUsers = useMemo(() => {
         const result = users.filter((user) => {
-            return filters.roleId === 'all' || user.roles.some((role) => role.id === filters.roleId);
+            return (
+                filters.roleId === 'all' ||
+                user.roles.some((role) => role.id === filters.roleId)
+            );
         });
+
+        const getStartedAtTime = (user: TeamOverviewUser) => {
+            if (!user.currentStep?.startedAt) {
+                return 0;
+            }
+
+            return new Date(user.currentStep.startedAt).getTime();
+        };
 
         result.sort((a, b) => {
             switch (filters.sortBy) {
                 case 'LONGEST_STEP':
-                    return (
-                        new Date(a.currentStep.startedAt).getTime() -
-                        new Date(b.currentStep.startedAt).getTime()
-                    );
+                    return getStartedAtTime(a) - getStartedAtTime(b);
 
                 case 'SHORTEST_STEP':
-                    return (
-                        new Date(b.currentStep.startedAt).getTime() -
-                        new Date(a.currentStep.startedAt).getTime()
-                    );
+                    return getStartedAtTime(b) - getStartedAtTime(a);
 
                 case 'HIGHEST_PROGRESS':
                     return b.progressPercentage - a.progressPercentage;

@@ -36,7 +36,7 @@ export function TeamMemberFilters({
             >
                 <option value="all">All roles</option>
 
-                {roles.map((role) => (
+                {(roles || []).map((role) => (
                     <option key={role.id} value={role.id}>
                         {role.name}
                     </option>
