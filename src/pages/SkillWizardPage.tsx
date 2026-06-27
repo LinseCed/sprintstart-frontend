@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SkillWizard } from '../features/team-management/components/SkillWizard';
 import {
+    getSkillAssessmentPromptState,
     getSkills,
     getMyTeamOverview,
+    markSkillAssessmentPromptCompleted,
+    markSkillAssessmentPromptDismissed,
     saveUserSkillAssessments,
 } from '../services/teamManagementService';
 import type { CreateSkillAssessmentRequest } from '../services/teamManagementService';
@@ -53,11 +56,22 @@ export function SkillWizardPage() {
     }, [profile?.id]);
 
     function handleClose() {
+        if (
+            user?.userId &&
+            getSkillAssessmentPromptState(user.userId) !== 'completed'
+        ) {
+            markSkillAssessmentPromptDismissed(user.userId);
+        }
+
         void navigate('/onboarding');
     }
 
     async function handleSubmit(assessments: CreateSkillAssessmentRequest[]) {
         await saveUserSkillAssessments(assessments);
+        if (user?.userId) {
+            markSkillAssessmentPromptCompleted(user.userId);
+        }
+
         void navigate('/onboarding');
     }
 

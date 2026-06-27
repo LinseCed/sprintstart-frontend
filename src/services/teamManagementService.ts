@@ -267,6 +267,44 @@ export type CreateSkillAssessmentRequest = {
 
 let mockSkillAssessments: CreateSkillAssessmentRequest[] = [];
 
+const skillAssessmentPromptStatePrefix = 'skill-assessment-prompt-state';
+
+export type SkillAssessmentPromptState = 'dismissed' | 'completed';
+
+function getSkillAssessmentPromptStateKey(userId: string) {
+    return `${skillAssessmentPromptStatePrefix}:${userId}`;
+}
+
+export function getSkillAssessmentPromptState(
+    userId: string,
+): SkillAssessmentPromptState | null {
+    if (typeof window === 'undefined') return null;
+
+    const value = window.localStorage.getItem(
+        getSkillAssessmentPromptStateKey(userId),
+    );
+
+    return value === 'dismissed' || value === 'completed' ? value : null;
+}
+
+export function markSkillAssessmentPromptDismissed(userId: string): void {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(
+        getSkillAssessmentPromptStateKey(userId),
+        'dismissed',
+    );
+}
+
+export function markSkillAssessmentPromptCompleted(userId: string): void {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(
+        getSkillAssessmentPromptStateKey(userId),
+        'completed',
+    );
+}
+
 export async function hasCompletedSkillAssessment(
     userId: string,
 ): Promise<boolean> {

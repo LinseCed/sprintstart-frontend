@@ -9,6 +9,7 @@ import { useAuth } from "../context/useAuth";
 import { WorkingArea } from "../services/types.ts";
 
 import {
+    getSkillAssessmentPromptState,
     getMyTeamOverview,
     hasCompletedSkillAssessment,
 } from "../services/teamManagementService";
@@ -22,6 +23,7 @@ interface LocationState {
         pathname: string;
     };
 }
+
 
 export function AuthGuard({ children }: AuthGuardProps) {
     const { status, profile } = useAuth();
@@ -40,23 +42,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 return;
             }
 
-            if (
-                location.pathname === "/login" ||
-                location.pathname === "/selection-wizard" ||
-                location.pathname === "/skill-wizard"
-            ) {
-                setNeedsSkillAssessment(false);
-                setCheckingSkillAssessment(false);
-                return;
-            }
+        
 
             setCheckingSkillAssessment(true);
 
             const teamMember = await getMyTeamOverview();
-            const completed = await hasCompletedSkillAssessment(profile.id);
+            const completed = await hasCompletedSkillAssessment(teamMember.userId);
+            const promptState = getSkillAssessmentPromptState(teamMember.userId);
 
             setNeedsSkillAssessment(
-                !!teamMember && teamMember.roles.length > 0 && !completed,
+                !!teamMember &&
+                    teamMember.roles.length > 0 &&
+                    !completed &&
+                    promptState === null,
             );
 
             setCheckingSkillAssessment(false);
@@ -99,8 +97,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         status === "authenticated" &&
         profile?.id &&
         !checkingSkillAssessment &&
-        needsSkillAssessment &&
-        location.pathname !== "/skill-wizard"
+        needsSkillAssessment
     ) {
         return <Navigate to="/skill-wizard" replace />;
     }

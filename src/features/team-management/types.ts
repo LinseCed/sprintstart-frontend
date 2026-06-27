@@ -33,7 +33,7 @@ export type TeamOverviewUser = {
         title: string;
         startedAt: string;
         skip: SkipRequest | null;
-    };
+    } | null;
     hasFeedback: boolean;
 };
 
