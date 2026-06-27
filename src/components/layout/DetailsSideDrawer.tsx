@@ -48,7 +48,7 @@ export function DetailsSideDrawer({
                                 </div>
 
                                 {badge && (
-                                    <div className="mt-2 flex items-center gap-1.5 text-sm text-app-text-muted">
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-app-text-muted">
                                         {badge}
                                     </div>
                                 )}

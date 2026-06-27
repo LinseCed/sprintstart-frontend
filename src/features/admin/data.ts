@@ -60,6 +60,7 @@ export function getUserEditFormState(user: AdminUser): UserEditFormState {
         firstName: user.firstName,
         lastName: user.lastName,
         permissionGroup: user.permissionGroup,
+        enabled: user.enabled,
     };
 }
 

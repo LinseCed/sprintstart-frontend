@@ -20,6 +20,7 @@ export type UserEditFormState = {
     firstName: string;
     lastName: string;
     permissionGroup: string;
+    enabled: boolean;
 };
 
 export type ProjectOverview = AdminProject;

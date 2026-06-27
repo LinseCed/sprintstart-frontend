@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { AlertCircle, Check, CheckCircle2, Edit, Loader2, Trash2 } from "lucide-react";
+import {
+    AlertCircle,
+    Check,
+    Edit,
+    Loader2,
+    Trash2,
+} from "lucide-react";
 import { adminUserService } from "../../../services/adminUserService";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
 import {
@@ -22,6 +28,7 @@ import { EditableDetailRow } from "./EditableDetailRow";
 import { EditableSelectDetailRow } from "./EditableSelectDetailRow";
 import { ProjectAccessPanel } from "./ProjectAccessPanel";
 import { Section } from "./Section";
+import { UserStatusSection } from "./UserStatusSection";
 
 type UserDetailsDrawerProps = {
     user: AdminUser;
@@ -77,6 +84,8 @@ export function UserDetailsDrawer({
         ? draftUser.permissionGroup
         : user.permissionGroup;
 
+    const visibleEnabled = isEditing ? draftUser.enabled : user.enabled;
+
     const closeDrawer = () => {
         setEditingUserId(null);
         setSaveError(null);
@@ -101,7 +110,10 @@ export function UserDetailsDrawer({
         setEditingUserId(null);
     };
 
-    const updateDraftField = (field: keyof UserEditFormState, value: string) => {
+    const updateDraftField = (
+        field: Exclude<keyof UserEditFormState, "enabled">,
+        value: string,
+    ) => {
         setDraftUserState((currentDraftUserState) => {
             const currentDraftUser =
                 currentDraftUserState.userId === user.id
@@ -113,6 +125,23 @@ export function UserDetailsDrawer({
                 draftUser: {
                     ...currentDraftUser,
                     [field]: value,
+                },
+            };
+        });
+    };
+
+    const updateDraftEnabled = (enabled: boolean) => {
+        setDraftUserState((currentDraftUserState) => {
+            const currentDraftUser =
+                currentDraftUserState.userId === user.id
+                    ? currentDraftUserState.draftUser
+                    : getUserEditFormState(user);
+
+            return {
+                userId: user.id,
+                draftUser: {
+                    ...currentDraftUser,
+                    enabled,
                 },
             };
         });
@@ -146,7 +175,13 @@ export function UserDetailsDrawer({
         setSaveError(null);
 
         try {
-            const updatedUser = await adminUserService.updateUser(user.id, request);
+            let updatedUser = await adminUserService.updateUser(user.id, request);
+
+            if (draftUser.enabled !== user.enabled) {
+                updatedUser = await adminUserService.updateUserEnabled(user.id, {
+                    enabled: draftUser.enabled,
+                });
+            }
 
             onUserUpdated(updatedUser);
             setDraftUserState({
@@ -236,33 +271,13 @@ export function UserDetailsDrawer({
                 ) : undefined
             }
         >
-            <div className="mb-10 grid grid-cols-2 gap-8">
-                <div>
-                    <p className="mb-2 text-sm text-app-text-muted">Account state</p>
-                    <div className="flex items-center gap-2 text-sm font-medium text-app-text">
-                        <CheckCircle2
-                            className={`h-4 w-4 ${
-                                user.enabled ? "text-app-success-solid" : "text-app-danger-solid"
-                            }`}
-                        />
-                        {user.enabled ? "Enabled" : "Disabled"}
-                    </div>
-                </div>
-
-                <div>
-                    <p className="mb-2 text-sm text-app-text-muted">Onboarding</p>
-                    <div className="flex items-center gap-2 text-sm font-medium text-app-text">
-                        <CheckCircle2
-                            className={`h-4 w-4 ${
-                                user.hasCompletedOnboarding
-                                    ? "text-app-success-solid"
-                                    : "text-app-warning-solid"
-                            }`}
-                        />
-                        {user.hasCompletedOnboarding ? "Completed" : "Open"}
-                    </div>
-                </div>
-            </div>
+            <UserStatusSection
+                isEditing={isEditing}
+                enabled={visibleEnabled}
+                onboardingCompleted={user.hasCompletedOnboarding}
+                disabled={isSaving}
+                onEnabledChange={updateDraftEnabled}
+            />
 
             <Section>
                 {saveErrorMessage && (
