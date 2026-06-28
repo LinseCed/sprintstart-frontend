@@ -29,7 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 });
 
                 if (authenticated) {
-                    const data = await userService.getProfile();
+                    let data = await userService.getProfile();
+                    let retries = 0;
+                    const maxRetries = 5;
+                    const delayMs = 1000;
+                    
+                    while (!data && retries < maxRetries) {
+                        console.log(`Profile not found, retrying in ${delayMs}ms... (${retries + 1}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, delayMs));
+                        data = await userService.getProfile();
+                        retries++;
+                    }
 
                     if (data) {
                         setProfile(data);
@@ -37,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     } else {
                         // User exists in Keycloak but not in Backend DB yet
                         // In a real app, we might trigger a registration or show a setup page
-                        console.warn("User authenticated in Keycloak but no profile found in backend.");
+                        console.warn("User authenticated in Keycloak but no profile found in backend after retries.");
                         setStatus('unauthenticated');
                     }
                 } else {
