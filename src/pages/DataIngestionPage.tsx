@@ -123,6 +123,59 @@ function storeGithubRepository(repository: GithubRepositoryReference) {
     );
 }
 
+function buildDataSources(
+    sourceStatuses: SourceIngestionStatus[],
+    runs: IngestionRun[],
+): DataSource[] {
+    const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
+    const latestRunBySource = new Map<SourceSystem, IngestionRun>();
+
+    sourceStatuses.forEach((status) => {
+        statusBySource.set(status.sourceSystem, status);
+    });
+
+    runs.forEach((run) => {
+        if (!latestRunBySource.has(run.sourceSystem)) {
+            latestRunBySource.set(run.sourceSystem, run);
+        }
+    });
+
+    return SOURCE_SYSTEMS.filter((sourceSystem) => {
+        const status = statusBySource.get(sourceSystem);
+        return (
+            status?.lastRunTime !== null &&
+            status?.lastRunTime !== undefined
+        ) || latestRunBySource.has(sourceSystem);
+    }).map((sourceSystem) => {
+        const source = createDataSource(
+            sourceSystem,
+            statusBySource.get(sourceSystem),
+        );
+        const latestRun = latestRunBySource.get(sourceSystem);
+
+        if (!latestRun) return source;
+
+        const hasErrors = latestRun.failedCount > 0;
+
+        return {
+            ...source,
+            status: hasErrors ? "warning" : "connected",
+            statusLabel: getSourceStatusLabel(false, hasErrors),
+            artifacts: latestRun.ingestedCount,
+            lastSync: formatDateTime(latestRun.startedAt),
+            errors: latestRun.failedCount,
+            lastRunAt: latestRun.startedAt,
+            latestIngestedCount: latestRun.ingestedCount,
+            latestUpdatedCount: latestRun.updatedCount,
+            failedItems: latestRun.failedItems,
+        };
+    });
+}
+
+function hasSourceSystem(sources: DataSource[], sourceSystem: SourceSystem) {
+    return sources.some((source) => source.sourceSystem === sourceSystem);
+}
+
 export function DataIngestionPage() {
     const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
     const [selectedSourceSystem, setSelectedSourceSystem] =
@@ -155,29 +208,47 @@ export function DataIngestionPage() {
     >(null);
     const [pollingUntil, setPollingUntil] = useState<number | null>(null);
 
-    const loadData = useCallback(async (showLoading = true) => {
-        if (showLoading) {
-            setLoadingState("loading");
-        }
-        setErrorMessage(null);
-
-        try {
-            const { statusData, runData } = await fetchIngestionData();
+    const commitIngestionData = useCallback(
+        (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
+            const nextSources = buildDataSources(statusData, runData);
 
             setSourceStatuses(statusData);
             setRuns(runData);
-            setLoadingState("success");
-        } catch (error) {
-            if (showLoading) {
-                setLoadingState("error");
-            }
-            setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to load ingestion data",
+            setSelectedSourceSystem((currentSourceSystem) =>
+                currentSourceSystem &&
+                !hasSourceSystem(nextSources, currentSourceSystem)
+                    ? null
+                    : currentSourceSystem,
             );
-        }
-    }, []);
+        },
+        [],
+    );
+
+    const loadData = useCallback(
+        async (showLoading = true) => {
+            if (showLoading) {
+                setLoadingState("loading");
+            }
+            setErrorMessage(null);
+
+            try {
+                const { statusData, runData } = await fetchIngestionData();
+
+                commitIngestionData(statusData, runData);
+                setLoadingState("success");
+            } catch (error) {
+                if (showLoading) {
+                    setLoadingState("error");
+                }
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to load ingestion data",
+                );
+            }
+        },
+        [commitIngestionData],
+    );
 
     useEffect(() => {
         let isMounted = true;
@@ -186,8 +257,7 @@ export function DataIngestionPage() {
             .then(({ statusData, runData }) => {
                 if (!isMounted) return;
 
-                setSourceStatuses(statusData);
-                setRuns(runData);
+                commitIngestionData(statusData, runData);
                 setLoadingState("success");
             })
             .catch((error: unknown) => {
@@ -204,7 +274,7 @@ export function DataIngestionPage() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [commitIngestionData]);
 
     useEffect(() => {
         const hasRunningRun = runs.some((run) => run.status === "RUNNING");
@@ -340,60 +410,10 @@ export function DataIngestionPage() {
         [lastGithubRepository, loadData],
     );
 
-    const sources = useMemo<DataSource[]>(() => {
-        const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
-        const latestRunBySource = new Map<SourceSystem, IngestionRun>();
-
-        sourceStatuses.forEach((status) => {
-            statusBySource.set(status.sourceSystem, status);
-        });
-
-        runs.forEach((run) => {
-            if (!latestRunBySource.has(run.sourceSystem)) {
-                latestRunBySource.set(run.sourceSystem, run);
-            }
-        });
-
-        return SOURCE_SYSTEMS.filter((sourceSystem) => {
-            const status = statusBySource.get(sourceSystem);
-            return (
-                status?.lastRunTime !== null &&
-                status?.lastRunTime !== undefined
-            ) || latestRunBySource.has(sourceSystem);
-        }).map((sourceSystem) => {
-            const source = createDataSource(
-                sourceSystem,
-                statusBySource.get(sourceSystem),
-            );
-            const latestRun = latestRunBySource.get(sourceSystem);
-
-            if (!latestRun) return source;
-
-            const hasErrors = latestRun.failedCount > 0;
-
-            return {
-                ...source,
-                status: hasErrors ? "warning" : "connected",
-                statusLabel: getSourceStatusLabel(false, hasErrors),
-                artifacts: latestRun.ingestedCount,
-                lastSync: formatDateTime(latestRun.startedAt),
-                errors: latestRun.failedCount,
-                lastRunAt: latestRun.startedAt,
-                latestIngestedCount: latestRun.ingestedCount,
-                latestUpdatedCount: latestRun.updatedCount,
-                failedItems: latestRun.failedItems,
-            };
-        });
-    }, [runs, sourceStatuses]);
-
-    useEffect(() => {
-        if (
-            selectedSourceSystem &&
-            !sources.some((source) => source.sourceSystem === selectedSourceSystem)
-        ) {
-            setSelectedSourceSystem(null);
-        }
-    }, [selectedSourceSystem, sources]);
+    const sources = useMemo<DataSource[]>(
+        () => buildDataSources(sourceStatuses, runs),
+        [runs, sourceStatuses],
+    );
 
     const selectedSource = useMemo(() => {
         if (!selectedSourceSystem) return null;
