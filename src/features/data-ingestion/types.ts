@@ -4,11 +4,7 @@ export type SourceSystem = "GITHUB" | "JIRA" | "UPLOAD";
 
 export type IngestionRunStatus = "RUNNING" | "SUCCESS" | "FAILED";
 
-export type ArtifactType =
-    | "COMMIT"
-    | "FILE"
-    | "ISSUE"
-    | "PULL_REQUEST";
+export type ArtifactType = "COMMIT" | "FILE" | "ISSUE" | "PULL_REQUEST";
 
 export type IngestionRun = {
     runId: string;
@@ -19,11 +15,17 @@ export type IngestionRun = {
     updatedCount: number;
     failedCount: number;
     status: IngestionRunStatus;
+    failedItems: FailedArtifact[];
 };
 
 export type FailedArtifact = {
     artifactIdentifier: string;
     reason: string;
+};
+
+export type GithubRepositoryReference = {
+    owner: string;
+    name: string;
 };
 
 export type SourceIngestionStatus = {

@@ -24,6 +24,7 @@ import {
     getSourceStatusLabel,
 } from "../data.ts";
 import type {
+    GithubRepositoryReference,
     IngestionRun,
     LoadingState,
     SourceDetailsSource,
@@ -34,6 +35,8 @@ import type {
 
 type SourceDetailsPanelProps = {
     source: SourceDetailsSource;
+    githubRepository?: GithubRepositoryReference | null;
+    onUpdateSource?: (sourceSystem: SourceSystem) => Promise<void>;
     onClose: () => void;
 };
 
@@ -58,10 +61,17 @@ async function fetchSourceDetails(sourceSystem: SourceSystem) {
 
 export function SourceDetailsPanel({
                                        source,
+                                       githubRepository = null,
+                                       onUpdateSource,
                                        onClose,
                                    }: SourceDetailsPanelProps) {
     const [loadingState, setLoadingState] = useState<LoadingState>("idle");
+    const [updateState, setUpdateState] = useState<LoadingState>("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+    const [updateErrorMessage, setUpdateErrorMessage] = useState<string | null>(
+        null,
+    );
     const [sourceStatus, setSourceStatus] =
         useState<SourceIngestionStatus | null>(null);
     const [recentRuns, setRecentRuns] = useState<IngestionRun[]>([]);
@@ -127,35 +137,65 @@ export function SourceDetailsPanel({
     const visibleErrorMessage = hasLoadedSelectedSource ? errorMessage : null;
 
     const isLoading = loadingState === "loading" || !hasLoadedSelectedSource;
+    const isUpdating = updateState === "loading";
+
+    const handleUpdateSource = useCallback(async () => {
+        if (!onUpdateSource) return;
+
+        setUpdateState("loading");
+        setUpdateMessage(null);
+        setUpdateErrorMessage(null);
+
+        try {
+            await onUpdateSource(source.sourceSystem);
+            setUpdateState("success");
+            setUpdateMessage("Update started. The page will refresh while ingestion runs.");
+            await loadSourceDetails();
+        } catch (error) {
+            setUpdateState("error");
+            setUpdateErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to start source update",
+            );
+        }
+    }, [loadSourceDetails, onUpdateSource, source.sourceSystem]);
 
     const details = useMemo(() => {
+        const latestRun = visibleRecentRuns[0] ?? null;
         const ingestedCount =
+            latestRun?.ingestedCount ??
             visibleSourceStatus?.ingestedCount ??
             source.latestIngestedCount ??
             source.artifacts;
 
         const updatedCount =
+            latestRun?.updatedCount ??
             visibleSourceStatus?.updatedCount ??
             source.latestUpdatedCount ??
             0;
 
         const failedCount =
+            latestRun?.failedCount ??
             visibleSourceStatus?.failedCount ??
             source.errors;
 
         const failedItems =
+            latestRun?.failedItems ??
             visibleSourceStatus?.failedItems ??
             source.failedItems ??
             [];
 
-        const lastSync =
-            visibleSourceStatus?.lastRunTime !== undefined
+        const lastSync = latestRun
+            ? formatDateTime(latestRun.startedAt)
+            : visibleSourceStatus?.lastRunTime !== undefined
                 ? formatDateTime(visibleSourceStatus.lastRunTime)
                 : source.lastSync;
 
         const hasNeverSynced =
-            visibleSourceStatus?.lastRunTime === null ||
-            lastSync === "Never";
+            !latestRun &&
+            (visibleSourceStatus?.lastRunTime === null ||
+                lastSync === "Never");
 
         const hasErrors = failedCount > 0;
 
@@ -173,7 +213,7 @@ export function SourceDetailsPanel({
             hasNeverSynced,
             hasErrors,
         };
-    }, [source, visibleSourceStatus]);
+    }, [source, visibleRecentRuns, visibleSourceStatus]);
 
     return (
         <>
@@ -211,6 +251,18 @@ export function SourceDetailsPanel({
                         {visibleErrorMessage && (
                             <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
                                 {visibleErrorMessage}
+                            </div>
+                        )}
+
+                        {updateMessage && (
+                            <div className="rounded-2xl border border-app-success-border bg-app-success-bg px-4 py-3 text-sm text-app-success-text">
+                                {updateMessage}
+                            </div>
+                        )}
+
+                        {updateErrorMessage && (
+                            <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
+                                {updateErrorMessage}
                             </div>
                         )}
 
@@ -350,22 +402,45 @@ export function SourceDetailsPanel({
                 </div>
 
                 <div className="border-t border-app-border bg-app-surface px-6 py-5">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            void loadSourceDetails();
-                        }}
-                        disabled={isLoading}
-                        className="w-full rounded-xl bg-app-brand px-4 py-3 font-medium text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        <span className="flex items-center justify-center gap-2">
-                            <RefreshCw
-                                size={16}
-                                className={isLoading ? "animate-spin" : ""}
-                            />
-                            Refresh Details
-                        </span>
-                    </button>
+                    <div className="space-y-3">
+                        {onUpdateSource && source.sourceSystem === "GITHUB" && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    void handleUpdateSource();
+                                }}
+                                disabled={isLoading || isUpdating}
+                                className="w-full rounded-xl bg-app-brand px-4 py-3 font-medium text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <span className="flex items-center justify-center gap-2">
+                                    <RefreshCw
+                                        size={16}
+                                        className={isUpdating ? "animate-spin" : ""}
+                                    />
+                                    {githubRepository
+                                        ? `Update ${githubRepository.owner}/${githubRepository.name}`
+                                        : "Update GitHub repositories"}
+                                </span>
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void loadSourceDetails();
+                            }}
+                            disabled={isLoading || isUpdating}
+                            className="w-full rounded-xl border border-app-border bg-app-surface-muted px-4 py-3 font-medium text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                <RefreshCw
+                                    size={16}
+                                    className={isLoading ? "animate-spin" : ""}
+                                />
+                                Refresh Details
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </aside>
         </>

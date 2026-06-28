@@ -1,7 +1,4 @@
-import {
-    RefreshCw,
-    X,
-} from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import type { FormEvent } from "react";
 import type {
     ConnectState,
@@ -25,26 +22,25 @@ type SourceConnectModalProps = {
 };
 
 export function SourceConnectModal({
-                                       selectedSourceSystem,
-                                       sourceSystems,
-                                       sourceMeta,
-                                       owner,
-                                       repositoryName,
-                                       connectState,
-                                       errorMessage,
-                                       onSourceSystemChange,
-                                       onOwnerChange,
-                                       onRepositoryNameChange,
-                                       onClose,
-                                       onSubmit,
-                                   }: SourceConnectModalProps) {
+    selectedSourceSystem,
+    sourceSystems,
+    sourceMeta,
+    owner,
+    repositoryName,
+    connectState,
+    errorMessage,
+    onSourceSystemChange,
+    onOwnerChange,
+    onRepositoryNameChange,
+    onClose,
+    onSubmit,
+}: SourceConnectModalProps) {
     const isLoading = connectState === "loading";
     const selectedMeta = sourceMeta[selectedSourceSystem];
     const SelectedIcon = selectedMeta.icon;
     const isGithubSelected = selectedSourceSystem === "GITHUB";
 
-    const isSubmitDisabled =
-        isLoading || !isGithubSelected || !owner.trim() || !repositoryName.trim();
+    const isSubmitDisabled = isLoading || !isGithubSelected || !owner.trim();
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 py-4 sm:items-center">
@@ -56,7 +52,8 @@ export function SourceConnectModal({
                         </h2>
 
                         <p className="mt-1 text-sm text-app-text-muted">
-                            Choose which source type you want to connect to SprintStart.
+                            Choose which source type you want to connect to
+                            SprintStart.
                         </p>
                     </div>
 
@@ -81,14 +78,17 @@ export function SourceConnectModal({
                             {sourceSystems.map((sourceSystem) => {
                                 const meta = sourceMeta[sourceSystem];
                                 const Icon = meta.icon;
-                                const isSelected = selectedSourceSystem === sourceSystem;
+                                const isSelected =
+                                    selectedSourceSystem === sourceSystem;
                                 const isAvailable = sourceSystem === "GITHUB";
 
                                 return (
                                     <button
                                         key={sourceSystem}
                                         type="button"
-                                        onClick={() => onSourceSystemChange(sourceSystem)}
+                                        onClick={() =>
+                                            onSourceSystemChange(sourceSystem)
+                                        }
                                         disabled={isLoading}
                                         className={`rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                                             isSelected
@@ -127,7 +127,10 @@ export function SourceConnectModal({
                     <div className="rounded-2xl border border-app-border bg-app-surface-muted p-4">
                         <div className="flex items-start gap-3">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-app-bg-soft">
-                                <SelectedIcon size={20} className="text-app-text-muted" />
+                                <SelectedIcon
+                                    size={20}
+                                    className="text-app-text-muted"
+                                />
                             </div>
 
                             <div>
@@ -150,8 +153,9 @@ export function SourceConnectModal({
 
                     {!isGithubSelected && (
                         <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
-                            {selectedMeta.type} can already be selected in the UI, but no
-                            frontend service is connected for this source type yet.
+                            {selectedMeta.type} can already be selected in the
+                            UI, but no frontend service is connected for this
+                            source type yet.
                         </div>
                     )}
 
@@ -168,9 +172,11 @@ export function SourceConnectModal({
                                 <input
                                     id="github-owner"
                                     value={owner}
-                                    onChange={(event) => onOwnerChange(event.target.value)}
+                                    onChange={(event) =>
+                                        onOwnerChange(event.target.value)
+                                    }
                                     disabled={isLoading}
-                                    placeholder="SprintStartProject"
+                                    placeholder="SprintStartProject, SprintStartProject/sprintstart-backend, or GitHub URL"
                                     className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
                                 />
                             </div>
@@ -187,10 +193,12 @@ export function SourceConnectModal({
                                     id="github-repository-name"
                                     value={repositoryName}
                                     onChange={(event) =>
-                                        onRepositoryNameChange(event.target.value)
+                                        onRepositoryNameChange(
+                                            event.target.value,
+                                        )
                                     }
                                     disabled={isLoading}
-                                    placeholder="sprintstart-backend"
+                                    placeholder="sprintstart-backend (optional when owner field contains owner/repo)"
                                     className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
                                 />
                             </div>
@@ -218,8 +226,8 @@ export function SourceConnectModal({
                             {isLoading
                                 ? "Connecting..."
                                 : isGithubSelected
-                                    ? "Connect Source"
-                                    : "Not Available Yet"}
+                                  ? "Connect Source"
+                                  : "Not Available Yet"}
                         </button>
                     </div>
                 </form>

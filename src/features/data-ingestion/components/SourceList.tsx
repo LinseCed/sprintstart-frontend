@@ -13,6 +13,20 @@ export function SourceList({
     selectedSourceSystem,
     onSelectSource,
 }: SourceListProps) {
+    if (sources.length === 0) {
+        return (
+            <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted p-8 text-center">
+                <h3 className="text-lg font-semibold text-app-text">
+                    No connected sources
+                </h3>
+
+                <p className="mt-2 text-sm text-app-text-muted">
+                    Connect a source to start ingestion and show source details here.
+                </p>
+            </div>
+        );
+    }
+
     return (
         <>
             {sources.map((source) => {

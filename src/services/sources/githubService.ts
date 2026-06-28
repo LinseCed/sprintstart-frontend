@@ -10,6 +10,10 @@ export type ConnectGithubRepositoryResponse = {
     transactionId: string;
 };
 
+export type UpdateGithubRepositoryResponse = {
+    transactionId: string;
+};
+
 export type UpdateGithubRepositoryRequest = {
     owner: string;
     name: string;
@@ -40,8 +44,8 @@ export async function connectGithubRepository(
 /**
  * Triggers an update for all connected GitHub repositories.
  */
-export async function updateAllGithubRepositories(): Promise<void> {
-    await apiClient.fetch("/api/v1/github/update-all", {
+export async function updateAllGithubRepositories(): Promise<UpdateGithubRepositoryResponse> {
+    return apiClient.fetch<UpdateGithubRepositoryResponse>("/api/v1/github/update-all", {
         method: "POST",
     });
 }
@@ -53,8 +57,8 @@ export async function updateAllGithubRepositories(): Promise<void> {
  */
 export async function updateGithubRepository(
     request: UpdateGithubRepositoryRequest,
-): Promise<void> {
-    await apiClient.fetch("/api/v1/github/update", {
+): Promise<UpdateGithubRepositoryResponse> {
+    return apiClient.fetch<UpdateGithubRepositoryResponse>("/api/v1/github/update", {
         method: "POST",
         body: JSON.stringify(request),
     });

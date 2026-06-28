@@ -16,6 +16,8 @@ import { SourceDetailsPanel } from "../features/data-ingestion/components/Source
 import { SourceList } from "../features/data-ingestion/components/SourceList.tsx";
 import {
     createDataSource,
+    formatDateTime,
+    getSourceStatusLabel,
     INGESTION_RUN_LIMIT,
     SOURCE_META,
     SOURCE_SYSTEMS,
@@ -24,6 +26,7 @@ import type {
     ActiveTab,
     ConnectState,
     DataSource,
+    GithubRepositoryReference,
     IngestionRun,
     LoadingState,
     SourceIngestionStatus,
@@ -33,7 +36,14 @@ import {
     getIngestionRuns,
     getIngestionStatus,
 } from "../services/ingestionService.ts";
-import { connectGithubRepository } from "../services/sources/githubService.ts";
+import {
+    connectGithubRepository,
+    updateAllGithubRepositories,
+    updateGithubRepository,
+} from "../services/sources/githubService.ts";
+
+const GITHUB_REPOSITORY_STORAGE_KEY =
+    "sprintstart:data-ingestion:last-github-repository";
 
 async function fetchIngestionData() {
     const [statusData, runData] = await Promise.all([
@@ -44,14 +54,83 @@ async function fetchIngestionData() {
     return { statusData, runData };
 }
 
+function parseGithubRepositoryInput(
+    ownerInput: string,
+    repositoryInput: string,
+) {
+    const trimmedOwnerInput = ownerInput.trim();
+    const trimmedRepositoryInput = repositoryInput.trim();
+    const parsedOwnerInput = parseGithubRepositoryReference(trimmedOwnerInput);
+
+    if (parsedOwnerInput) {
+        return parsedOwnerInput;
+    }
+
+    if (trimmedOwnerInput && trimmedRepositoryInput) {
+        return {
+            owner: trimmedOwnerInput,
+            name: trimmedRepositoryInput,
+        };
+    }
+
+    return null;
+}
+
+function parseGithubRepositoryReference(value: string) {
+    const normalizedInput = value
+        .replace(/^https?:\/\/github\.com\//i, "")
+        .replace(/^github\.com\//i, "")
+        .replace(/^git@github\.com:/i, "")
+        .replace(/\.git$/i, "")
+        .replace(/^\/+|\/+$/g, "");
+
+    const [owner, name] = normalizedInput
+        .split("/")
+        .filter((segment) => segment.length > 0);
+
+    if (owner && name) {
+        return { owner, name };
+    }
+
+    return null;
+}
+
+function readStoredGithubRepository(): GithubRepositoryReference | null {
+    try {
+        const value = window.localStorage.getItem(GITHUB_REPOSITORY_STORAGE_KEY);
+
+        if (!value) return null;
+
+        const repository = JSON.parse(value) as Partial<GithubRepositoryReference>;
+
+        if (repository.owner && repository.name) {
+            return {
+                owner: repository.owner,
+                name: repository.name,
+            };
+        }
+    } catch {
+        window.localStorage.removeItem(GITHUB_REPOSITORY_STORAGE_KEY);
+    }
+
+    return null;
+}
+
+function storeGithubRepository(repository: GithubRepositoryReference) {
+    window.localStorage.setItem(
+        GITHUB_REPOSITORY_STORAGE_KEY,
+        JSON.stringify(repository),
+    );
+}
+
 export function DataIngestionPage() {
     const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
     const [selectedSourceSystem, setSelectedSourceSystem] =
         useState<SourceSystem | null>(null);
 
-    const [sourceStatuses, setSourceStatuses] = useState<SourceIngestionStatus[]>(
-        [],
-    );
+    const [sourceStatuses, setSourceStatuses] = useState<
+        SourceIngestionStatus[]
+    >([]);
     const [runs, setRuns] = useState<IngestionRun[]>([]);
     const [loadingState, setLoadingState] = useState<LoadingState>("loading");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -62,17 +141,24 @@ export function DataIngestionPage() {
 
     const [githubOwner, setGithubOwner] = useState("");
     const [githubRepositoryName, setGithubRepositoryName] = useState("");
+    const [lastGithubRepository, setLastGithubRepository] =
+        useState<GithubRepositoryReference | null>(() =>
+            readStoredGithubRepository(),
+        );
 
     const [connectState, setConnectState] = useState<ConnectState>("idle");
-    const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(
-        null,
-    );
+    const [connectErrorMessage, setConnectErrorMessage] = useState<
+        string | null
+    >(null);
     const [connectSuccessMessage, setConnectSuccessMessage] = useState<
         string | null
     >(null);
+    const [pollingUntil, setPollingUntil] = useState<number | null>(null);
 
-    const loadData = useCallback(async () => {
-        setLoadingState("loading");
+    const loadData = useCallback(async (showLoading = true) => {
+        if (showLoading) {
+            setLoadingState("loading");
+        }
         setErrorMessage(null);
 
         try {
@@ -82,7 +168,9 @@ export function DataIngestionPage() {
             setRuns(runData);
             setLoadingState("success");
         } catch (error) {
-            setLoadingState("error");
+            if (showLoading) {
+                setLoadingState("error");
+            }
             setErrorMessage(
                 error instanceof Error
                     ? error.message
@@ -118,6 +206,32 @@ export function DataIngestionPage() {
         };
     }, []);
 
+    useEffect(() => {
+        const hasRunningRun = runs.some((run) => run.status === "RUNNING");
+        const isPollingWindowActive =
+            pollingUntil !== null && Date.now() < pollingUntil;
+
+        if (!hasRunningRun && !isPollingWindowActive) {
+            return undefined;
+        }
+
+        const intervalId = window.setInterval(() => {
+            const shouldStopPolling =
+                pollingUntil !== null &&
+                Date.now() >= pollingUntil &&
+                !runs.some((run) => run.status === "RUNNING");
+
+            if (shouldStopPolling) {
+                setPollingUntil(null);
+                return;
+            }
+
+            void loadData(false);
+        }, 3000);
+
+        return () => window.clearInterval(intervalId);
+    }, [loadData, pollingUntil, runs]);
+
     const handleOpenSourceModal = () => {
         setConnectState("idle");
         setConnectErrorMessage(null);
@@ -148,24 +262,26 @@ export function DataIngestionPage() {
                     );
                 }
 
-                const trimmedOwner = githubOwner.trim();
-                const trimmedRepositoryName = githubRepositoryName.trim();
+                const parsedRepository = parseGithubRepositoryInput(
+                    githubOwner,
+                    githubRepositoryName,
+                );
 
-                if (!trimmedOwner || !trimmedRepositoryName) {
+                if (!parsedRepository) {
                     throw new Error(
-                        "Please enter both repository owner and repository name.",
+                        "Please enter a GitHub repository as owner/name, a GitHub URL, or owner and repository name.",
                     );
                 }
 
-                await connectGithubRepository({
-                    owner: trimmedOwner,
-                    name: trimmedRepositoryName,
-                });
+                await connectGithubRepository(parsedRepository);
+                storeGithubRepository(parsedRepository);
+                setLastGithubRepository(parsedRepository);
 
                 setConnectState("success");
                 setConnectSuccessMessage(
-                    `GitHub repository "${trimmedOwner}/${trimmedRepositoryName}" connected. Initial ingestion is running in the background.`,
+                    `GitHub repository "${parsedRepository.owner}/${parsedRepository.name}" connected. Initial ingestion is running in the background.`,
                 );
+                setPollingUntil(Date.now() + 60000);
 
                 setGithubOwner("");
                 setGithubRepositoryName("");
@@ -194,24 +310,98 @@ export function DataIngestionPage() {
         ],
     );
 
+    const handleUpdateSource = useCallback(
+        async (sourceSystem: SourceSystem) => {
+            if (sourceSystem !== "GITHUB") {
+                throw new Error(
+                    `${SOURCE_META[sourceSystem].type} updates are not available yet.`,
+                );
+            }
+
+            const response = lastGithubRepository
+                ? await updateGithubRepository(lastGithubRepository)
+                : await updateAllGithubRepositories();
+
+            const repositoryLabel = lastGithubRepository
+                ? `${lastGithubRepository.owner}/${lastGithubRepository.name}`
+                : "all connected GitHub repositories";
+
+            setPollingUntil(Date.now() + 60000);
+            setConnectSuccessMessage(
+                `Update for ${repositoryLabel} started. Transaction ${response.transactionId}.`,
+            );
+
+            await loadData(false);
+
+            window.setTimeout(() => {
+                void loadData(false);
+            }, 1500);
+        },
+        [lastGithubRepository, loadData],
+    );
+
     const sources = useMemo<DataSource[]>(() => {
         const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
+        const latestRunBySource = new Map<SourceSystem, IngestionRun>();
 
         sourceStatuses.forEach((status) => {
             statusBySource.set(status.sourceSystem, status);
         });
 
-        return SOURCE_SYSTEMS.map((sourceSystem) =>
-            createDataSource(sourceSystem, statusBySource.get(sourceSystem)),
-        );
-    }, [sourceStatuses]);
+        runs.forEach((run) => {
+            if (!latestRunBySource.has(run.sourceSystem)) {
+                latestRunBySource.set(run.sourceSystem, run);
+            }
+        });
+
+        return SOURCE_SYSTEMS.filter((sourceSystem) => {
+            const status = statusBySource.get(sourceSystem);
+            return (
+                status?.lastRunTime !== null &&
+                status?.lastRunTime !== undefined
+            ) || latestRunBySource.has(sourceSystem);
+        }).map((sourceSystem) => {
+            const source = createDataSource(
+                sourceSystem,
+                statusBySource.get(sourceSystem),
+            );
+            const latestRun = latestRunBySource.get(sourceSystem);
+
+            if (!latestRun) return source;
+
+            const hasErrors = latestRun.failedCount > 0;
+
+            return {
+                ...source,
+                status: hasErrors ? "warning" : "connected",
+                statusLabel: getSourceStatusLabel(false, hasErrors),
+                artifacts: latestRun.ingestedCount,
+                lastSync: formatDateTime(latestRun.startedAt),
+                errors: latestRun.failedCount,
+                lastRunAt: latestRun.startedAt,
+                latestIngestedCount: latestRun.ingestedCount,
+                latestUpdatedCount: latestRun.updatedCount,
+                failedItems: latestRun.failedItems,
+            };
+        });
+    }, [runs, sourceStatuses]);
+
+    useEffect(() => {
+        if (
+            selectedSourceSystem &&
+            !sources.some((source) => source.sourceSystem === selectedSourceSystem)
+        ) {
+            setSelectedSourceSystem(null);
+        }
+    }, [selectedSourceSystem, sources]);
 
     const selectedSource = useMemo(() => {
         if (!selectedSourceSystem) return null;
 
         return (
-            sources.find((source) => source.sourceSystem === selectedSourceSystem) ??
-            null
+            sources.find(
+                (source) => source.sourceSystem === selectedSourceSystem,
+            ) ?? null
         );
     }, [selectedSourceSystem, sources]);
 
@@ -248,7 +438,9 @@ export function DataIngestionPage() {
 
                                 <button
                                     type="button"
-                                    onClick={() => setConnectSuccessMessage(null)}
+                                    onClick={() =>
+                                        setConnectSuccessMessage(null)
+                                    }
                                     className="self-start rounded-lg px-2 py-1 text-xs font-semibold transition hover:bg-app-surface sm:self-auto"
                                 >
                                     Dismiss
@@ -273,13 +465,18 @@ export function DataIngestionPage() {
                                 {!isLoading && activeTab === "sources" ? (
                                     <SourceList
                                         sources={sources}
-                                        selectedSourceSystem={selectedSourceSystem}
+                                        selectedSourceSystem={
+                                            selectedSourceSystem
+                                        }
                                         onSelectSource={setSelectedSourceSystem}
                                     />
                                 ) : null}
 
                                 {!isLoading && activeTab === "artifacts" ? (
-                                    <ArtifactTable />
+                                    <ArtifactTable
+                                        sources={sources}
+                                        runs={runs}
+                                    />
                                 ) : null}
 
                                 {!isLoading && activeTab === "runs" ? (
@@ -294,6 +491,12 @@ export function DataIngestionPage() {
             {selectedSource && (
                 <SourceDetailsPanel
                     source={selectedSource}
+                    githubRepository={
+                        selectedSource.sourceSystem === "GITHUB"
+                            ? lastGithubRepository
+                            : null
+                    }
+                    onUpdateSource={handleUpdateSource}
                     onClose={() => setSelectedSourceSystem(null)}
                 />
             )}
