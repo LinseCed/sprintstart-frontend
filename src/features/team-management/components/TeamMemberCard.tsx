@@ -40,8 +40,8 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
             <div className="absolute right-3 top-3 flex items-center gap-1.5">
                 {user.hasFeedback && (
                     <span
-                        title="Has left feedback on this path"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-app-brand-soft text-app-brand-text"
+                        title="Unread onboarding feedback"
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-app-warning-border bg-app-warning-bg text-app-warning-text shadow-sm"
                     >
                         <MessageSquareText className="h-3 w-3" />
                     </span>
@@ -50,7 +50,7 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
                 {hasPendingSkipRequest && (
                     <span
                         title="Open skip request"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-app-surface-muted text-app-text-muted"
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-app-danger-border bg-app-danger-bg text-app-danger-text shadow-sm"
                     >
                         <SkipForward className="h-3 w-3" />
                     </span>

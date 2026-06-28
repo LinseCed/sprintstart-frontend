@@ -1,7 +1,7 @@
 export type SkipRequestStatus =
     | 'PENDING'
-    | 'APPROVED'
-    | 'REJECTED';
+    | 'ACCEPTED'
+    | 'DENIED';
 
 export type SkipRequest = {
     id: string;

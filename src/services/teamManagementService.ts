@@ -171,6 +171,61 @@ export async function unassignProjectRoleFromUser(
   }
 }
 
+export async function acceptOnboardingSkipRequest(
+  skipId: string,
+  reviewComment = "",
+): Promise<void> {
+  await apiClient.fetch(`/api/v1/admin/onboarding/skips/${skipId}/accept`, {
+    method: "POST",
+    body: JSON.stringify({
+      reviewComment,
+    }),
+  });
+}
+
+export async function denyOnboardingSkipRequest(
+  skipId: string,
+  reviewComment = "",
+): Promise<void> {
+  await apiClient.fetch(`/api/v1/admin/onboarding/skips/${skipId}/deny`, {
+    method: "POST",
+    body: JSON.stringify({
+      reviewComment,
+    }),
+  });
+}
+
+export type OnboardingFeedback = {
+  id: string;
+  userId?: string;
+  stepId?: string | null;
+  stepTitle?: string | null;
+  message: string;
+  createdAt: string;
+  read?: boolean;
+  readAt?: string | null;
+};
+
+export async function getUserOnboardingFeedback(
+  userId: string,
+): Promise<OnboardingFeedback[]> {
+  try {
+    return await apiClient.fetch<OnboardingFeedback[]>(
+      `/api/v1/admin/onboarding/users/${userId}/feedback`,
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function markOnboardingFeedbackRead(
+  feedbackId: string,
+): Promise<void> {
+  await apiClient.fetch(`/api/v1/admin/onboarding/feedback/${feedbackId}/read`, {
+    method: "POST",
+  });
+}
+
 type SkillResponseDto = {
     id: string;
     name: string;
