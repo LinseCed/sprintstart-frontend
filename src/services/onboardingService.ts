@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import type {
     OnboardingPathEndpoint,
     OnboardingStepDetail,
+    OnboardingSkipEndpoint,
     OnboardingTaskEndpoint,
     OnboardingResourceEndpoint,
     StepStatus,
@@ -28,6 +29,13 @@ export const onboardingService = {
     },
 
     async updateStepStatus(step: OnboardingStepDetail, newStatus: StepStatus): Promise<void> {
+        if (newStatus === 'FINISHED') {
+            await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}/complete`, {
+                method: 'PUT',
+            });
+            return;
+        }
+
         await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}`, {
             method: 'PUT',
             body: JSON.stringify({
@@ -36,17 +44,22 @@ export const onboardingService = {
                 description: step.description,
                 type: step.type ?? 'TASK',
                 estimatedMinutes: step.estimatedMinutes,
-                expectedOutcome: step.expectedOutcomes?.[0] ?? '',
+expectedOutcome: step.expectedOutcomes?.[0] ?? '',
                 status: newStatus,
                 skip: step.skip ?? null,
             }),
         });
     },
 
-    async skipStep(step: OnboardingStepDetail, reason: string): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}/skips`, {
+    /**
+     * Marks an onboarding step as skipped with a provided reason on the backend.
+     */
+    async skipStep(step: OnboardingStepDetail, reason: string): Promise<OnboardingSkipEndpoint> {
+        return await apiClient.fetch<OnboardingSkipEndpoint>(`/api/v1/onboarding/me/steps/${step.id}/skips`, {
             method: 'POST',
-            body: JSON.stringify({ reason }),
+            body: JSON.stringify({
+                reason,
+            }),
         });
     },
 

@@ -98,7 +98,19 @@ export interface OnboardingResourceEndpoint {
   url: string;
 }
 
+export interface OnboardingSkipEndpoint {
+  id: string;
+  stepId: string;
+  status: SkipStatus;
+  reason: string;
+  reviewComment: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+  reviewedAt?: string | null;
+}
+
 export interface OnboardingStepDetail extends OnboardingStepEndpoint {
     tasks: OnboardingTaskEndpoint[];
     resources: OnboardingResourceEndpoint[];
+    skip?: OnboardingSkipEndpoint | null;
 }
