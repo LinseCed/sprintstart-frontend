@@ -7,12 +7,14 @@ import { TeamMemberCard } from '../../features/team-management/components/TeamMe
 import type {
     TeamOverviewFilters,
     TeamOverviewUser,
+    ProjectRole,
 } from '../../features/team-management/types';
-import { getTeamOverview } from '../../services/teamManagementService';
+import { getTeamOverview, getProjectRoles } from '../../services/teamManagementService';
 
 export function TeamManagementPage() {
     const navigate = useNavigate();
     const [users, setUsers] = useState<TeamOverviewUser[]>([]);
+    const [roles, setRoles] = useState<ProjectRole[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<TeamOverviewFilters>({
         roleId: 'all',
@@ -22,8 +24,12 @@ export function TeamManagementPage() {
 
     useEffect(() => {
         async function loadTeamOverview() {
-            const data = await getTeamOverview();
-            setUsers(data);
+            const [usersData, rolesData] = await Promise.all([
+                getTeamOverview(),
+                getProjectRoles(),
+            ]);
+            setUsers(usersData);
+            setRoles(rolesData);
             setLoading(false);
         }
 
@@ -136,7 +142,7 @@ export function TeamManagementPage() {
                         </button>
 
                         <TeamMemberFilters
-                            users={users}
+                            roles={roles}
                             filters={filters}
                             onFiltersChange={setFilters}
                         />

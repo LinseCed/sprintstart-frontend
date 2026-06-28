@@ -42,7 +42,7 @@ export function SkillWizard({
     }, [skills, user.roles]);
 
     const allSkillsRated =
-        requiredSkills.length > 0 &&
+        requiredSkills.length === 0 ||
         requiredSkills.every((skill) => selectedLevels[skill.id]);
 
     async function handleSubmit() {
@@ -168,7 +168,7 @@ export function SkillWizard({
                                 : 'cursor-not-allowed bg-app-surface-muted text-app-text-disabled'
                         }`}
                     >
-                        Save Assessment
+                        {requiredSkills.length === 0 ? 'Continue' : 'Save Assessment'}
                     </button>
                 </div>
             </div>

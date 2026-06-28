@@ -5,7 +5,6 @@ import type {
   ProjectRole,
   Skill,
   TeamOverviewUser,
-  UserSkillAssessment,
   SkillLevel,
 } from "../features/team-management/types";
 
@@ -309,7 +308,7 @@ export async function hasCompletedSkillAssessment(
     userId: string,
 ): Promise<boolean> {
     try {
-        const response = await apiClient.fetch<UserSkillAssessment[]>(
+        const response = await apiClient.fetch<{ userId: string; skillId: string; level: SkillLevel }[]>(
             `/api/v1/users/${userId}/skill-assessments/completed`,
         );
 
@@ -325,18 +324,15 @@ export async function saveUserSkillAssessments(
     assessments: CreateSkillAssessmentRequest[],
 ): Promise<void> {
     try {
-        await Promise.all(
-            assessments.map((assessment) =>
-                apiClient.fetch('/api/v1/skill-assessments', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        userId: assessment.userId,
-                        skillId: assessment.skillId,
-                        level: assessment.level,
-                    }),
+        for (const assessment of assessments) {
+            await apiClient.fetch('/api/v1/skill-assessments', {
+                method: 'POST',
+                body: JSON.stringify({
+                    skillId: assessment.skillId,
+                    level: assessment.level,
                 }),
-            ),
-        );
+            });
+        }
     } catch {
         mockSkillAssessments = mockSkillAssessments.filter(
             (assessment) =>
@@ -351,20 +347,6 @@ export async function saveUserSkillAssessments(
     }
 }
 
-type UserSkillAssessmentResponse = {
-    id: string;
-    level: SkillLevel;
-    skill: {
-        id: string;
-        name: string;
-        projectRole?: {
-            id: string;
-            name: string;
-            description: string;
-        };
-    };
-};
-
 export type UserSkillLevel = {
     id: string;
     skillId: string;
@@ -377,17 +359,26 @@ export async function getUserSkillLevels(
     userId: string,
 ): Promise<UserSkillLevel[]> {
     try {
-        const response = await apiClient.fetch<UserSkillAssessmentResponse[]>(
-            `/api/v1/users/${userId}/skill-assessments/completed`,
-        );
+        const [assessments, skills, roles] = await Promise.all([
+            apiClient.fetch<{ userId: string; skillId: string; level: SkillLevel }[]>(
+                `/api/v1/users/${userId}/skill-assessments/completed`,
+            ),
+            getSkills(),
+            getProjectRoles(),
+        ]);
 
-        return response.map((assessment) => ({
-            id: assessment.id,
-            skillId: assessment.skill?.id ?? '',
-            skillName: assessment.skill?.name ?? 'Unknown skill',
-            roleName: assessment.skill?.projectRole?.name ?? 'Unknown role',
-            level: assessment.level,
-        }));
+        return assessments.map((assessment) => {
+            const skill = skills.find((s) => s.id === assessment.skillId);
+            const role = roles.find((r) => r.id === skill?.roleId);
+
+            return {
+                id: `${userId}-${assessment.skillId}`,
+                skillId: assessment.skillId,
+                skillName: skill?.name ?? 'Unknown skill',
+                roleName: role?.name ?? 'Unknown role',
+                level: assessment.level,
+            };
+        });
     } catch {
         return [];
     }

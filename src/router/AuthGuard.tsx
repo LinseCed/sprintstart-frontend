@@ -12,6 +12,7 @@ import {
     getSkillAssessmentPromptState,
     getMyTeamOverview,
     hasCompletedSkillAssessment,
+    getSkills,
 } from "../services/teamManagementService";
 
 interface AuthGuardProps {
@@ -49,10 +50,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
             const teamMember = await getMyTeamOverview();
             const completed = await hasCompletedSkillAssessment(teamMember.userId);
             const promptState = getSkillAssessmentPromptState(teamMember.userId);
+            const allSkills = await getSkills();
+
+            const hasSkillsForRoles = !!teamMember && teamMember.roles.some((role) =>
+                allSkills.some((skill) => skill.roleId === role.id)
+            );
 
             setNeedsSkillAssessment(
                 !!teamMember &&
-                    teamMember.roles.length > 0 &&
+                    hasSkillsForRoles &&
                     !completed &&
                     promptState === null,
             );
@@ -97,7 +103,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
         status === "authenticated" &&
         profile?.id &&
         !checkingSkillAssessment &&
-        needsSkillAssessment
+        needsSkillAssessment &&
+        location.pathname !== "/skill-wizard"
     ) {
         return <Navigate to="/skill-wizard" replace />;
     }
