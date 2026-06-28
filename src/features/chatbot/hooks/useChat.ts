@@ -5,23 +5,12 @@ import {
     getChats,
     getMessages,
     streamMessage
-} from "../services/chatService";
+} from "../../../services/chatService";
 
-import type { Chat, ChatMessage, Citation } from "../types/chatTypes";
+import type { Chat, ChatMessage, Citation } from "../types";
 
 type MessagesByChat = Record<string, ChatMessage[]>;
 
-/**
- * Custom hook for managing the chatbot state, message history, and streaming logic.
- * 
- * It handles:
- * - Loading existing chat sessions from the backend on mount.
- * - Synchronizing message history for the active chat ID.
- * - Sequential streaming of AI responses with optimistic UI updates.
- * - Navigation between different chat conversations.
- * 
- * @returns An object containing chat state, message history, and handlers for sending messages.
- */
 export function useChat() {
     const { id: chatId } = useParams();
     const navigate = useNavigate();
@@ -31,26 +20,26 @@ export function useChat() {
     const [isThinking, setIsThinking] = useState(false);
     const [newRequest, setNewRequest] = useState("");
     const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    /**
-     * Initial data load: Fetches the list of all chat conversations for the user sidebar.
-     */
     useEffect(() => {
+        /**
+         * Loads all chats created by the user.
+         */
         void (async () => {
             const data = await getChats();
             setChats(data.chats);
         })();
     }, []);
 
-    /**
-     * Synchronization effect: Loads messages for the current chatId if they haven't been fetched yet.
-     * Prevents redundant API calls by checking the local `messagesByChat` cache.
-     */
     useEffect(() => {
         if (!chatId) return;
 
         if (messagesByChat[chatId]) return;
 
+        /**
+         * Loads all messages from the current chat.
+         */
         void (async () => {
             const data = await getMessages(chatId);
 
@@ -66,11 +55,14 @@ export function useChat() {
         return messagesByChat[chatId] ?? [];
     }, [messagesByChat, chatId]);
 
-    const refreshChats = useCallback(async () => {
+    const refreshChats = async () => {
         const data = await getChats();
         setChats(data.chats);
-    }, []);
+    };
 
+    /**
+     * Adds a new user message and the corresponding response to the current conversation.
+     */
     const addMessage = useCallback(async (text: string) => {
         if (!text.trim()) return;
 
@@ -80,7 +72,7 @@ export function useChat() {
         if (!currentChatId) {
             const newChat = await createChat("00000000-0000-0000-0000-000000000001");
 
-            // setChats(prev => [newChat, ...prev]); // TODO: ask team what they prefer
+            setChats(prev => [newChat, ...prev]);
 
             currentChatId = newChat.id;
 
@@ -123,6 +115,8 @@ export function useChat() {
 
         try {
             await streamMessage(currentChatId, text, {
+
+                // if the stream element is a normal text chunk, append it to the response message
                 onToken: token => {
                     setMessagesByChat(prev => ({
                         ...prev,
@@ -134,6 +128,7 @@ export function useChat() {
                     }));
                 },
 
+                // if the stream element is a citations, add it to the citations list of the response message
                 onCitation: citation => {
                     setMessagesByChat(prev => ({
                         ...prev,
@@ -148,6 +143,7 @@ export function useChat() {
                     }));
                 },
 
+                // if the stream element marks the end of the stream, finalize the message
                 onDone: () => {
                     setIsThinking(false);
 
@@ -163,6 +159,7 @@ export function useChat() {
                     void refreshChats();
                 },
 
+                // if the stream element is an error, abort
                 onError: err => {
                     console.error(err);
                     setIsThinking(false);
@@ -172,8 +169,11 @@ export function useChat() {
             console.error(e);
             setIsThinking(false);
         }
-    }, [chatId, navigate, chats, refreshChats]);
+    }, [chatId, navigate, chats]);
 
+    /**
+     * Adds the newly created messages to the chat.
+     */
     const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -183,6 +183,9 @@ export function useChat() {
         setNewRequest("");
     }, [newRequest, addMessage]);
 
+    /**
+     * The chat currently used by the user.
+     */
     const activeChat = useMemo(() => {
         if (!chatId) return null;
         return chats.find(c => c.id === chatId) ?? null;
@@ -194,6 +197,9 @@ export function useChat() {
         activeChat,
 
         messages,
+
+        sidebarOpen,
+        setSidebarOpen,
 
         handleSubmit,
         addMessage,

@@ -1,3 +1,4 @@
+import { apiClient } from './apiClient';
 import { DocumentStatus, type DocumentMetadata, type UploadResult } from './types';
 
 /**
@@ -6,50 +7,35 @@ import { DocumentStatus, type DocumentMetadata, type UploadResult } from './type
  */
 export const knowledgeService = {
     /**
-     * Fetches all documents uploaded by a specific user.
-     * 
-     * Includes a bypass for the 'test-user-id' to support offline/E2E testing.
+     * Fetches all documents uploaded by a specific user from the backend.
      * 
      * @param uploaderId - The unique ID of the user who uploaded the files.
      * @returns A promise resolving to an array of document metadata.
-     * @throws Error if the backend request fails.
      */
     async fetchDocuments(uploaderId: string): Promise<DocumentMetadata[]> {
-        // --- TESTUSER BYPASS ---
-        if (uploaderId === 'test-user-id') {
-            return [
-                { id: 'doc-1', name: 'Welcome_Guide.pdf', mime: 'application/pdf', status: DocumentStatus.COMPLETED, uploadDate: new Date().toISOString() },
-                { id: 'doc-2', name: 'Architecture.png', mime: 'image/png', status: DocumentStatus.PROCESSING, uploadDate: new Date().toISOString() }
-            ];
-        }
-        // -----------------------
-        const response = await fetch(`/api/v1/uploads?uploaderId=${uploaderId}`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch documents');
-        }
+        try {
+            const data = await apiClient.fetch<Array<{
+                id: string;
+                filename: string;
+                mime: string;
+                uploadedAt: string;
+            }>>(`/api/v1/uploads?uploaderId=${uploaderId}`);
 
-        const data = await response.json() as Array<{
-            id: string;
-            filename: string;
-            mime: string;
-            uploadedAt: string;
-        }>;
-
-        return data.map(item => ({
-            id: item.id,
-            name: item.filename,
-            mime: item.mime,
-            status: DocumentStatus.COMPLETED, // Logic for processing status will be added with AI integration
-            uploadDate: item.uploadedAt
-        }));
+            return data.map(item => ({
+                id: item.id,
+                name: item.filename,
+                mime: item.mime,
+                status: DocumentStatus.COMPLETED,
+                uploadDate: item.uploadedAt
+            }));
+        } catch (error) {
+            console.error("Failed to fetch documents:", error);
+            return [];
+        }
     },
 
     /**
-     * Uploads one or more files to the knowledge base.
-     * 
-     * Files are uploaded sequentially to the backend. Each result indicates 
-     * success or contains an error message if the specific file failed.
+     * Uploads one or more files to the knowledge base on the backend.
      * 
      * @param files - Array of File objects to upload.
      * @param uploaderId - The unique ID of the user performing the upload.
@@ -63,25 +49,13 @@ export const knowledgeService = {
             formData.append('files', file);
 
             try {
-                const response = await fetch(`/api/v1/uploads?uploaderId=${uploaderId}`, {
+                const uploadResults = await apiClient.fetch<UploadResult[]>(`/api/v1/uploads?uploaderId=${uploaderId}`, {
                     method: 'POST',
                     body: formData,
                 });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    results.push({
-                        id: '',
-                        filename: file.name,
-                        status: 'failed',
-                        error: errorText || response.statusText
-                    });
-                    continue;
-                }
-
-                const uploadResults = await response.json() as UploadResult[];
                 results.push(...uploadResults);
             } catch (error) {
+                console.error(`Failed to upload file ${file.name}:`, error);
                 results.push({
                     id: '',
                     filename: file.name,
@@ -99,16 +73,10 @@ export const knowledgeService = {
      * 
      * @param id - The unique identifier of the document to delete.
      * @returns A promise that resolves when the deletion is successful.
-     * @throws Error if the deletion fails.
      */
     async deleteDocument(id: string): Promise<void> {
-        const response = await fetch(`/api/v1/uploads/${id}`, {
+        await apiClient.fetch(`/api/v1/uploads/${id}`, {
             method: 'DELETE',
         });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Delete failed: ${errorText || response.statusText}`);
-        }
     }
 };

@@ -14,6 +14,7 @@ node_modules
 dist
 dist-ssr
 coverage
+test-results
 
 # Environment files
 .env
@@ -43,3 +44,6 @@ Thumbs.db
 
 # Temporary files
 *.sw?
+
+# Agent instructions
+GEMINI.md

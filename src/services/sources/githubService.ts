@@ -1,27 +1,61 @@
+import { apiClient } from "../apiClient.ts";
+
 export type ConnectGithubRepositoryRequest = {
+    owner: string;
+    name: string;
+    token?: string; // Kept for compatibility, but the backend currently uses its own GITHUB_PAT
+};
+
+export type ConnectGithubRepositoryResponse = {
+    transactionId: string;
+};
+
+export type UpdateGithubRepositoryRequest = {
     owner: string;
     name: string;
 };
 
 /**
- * Connects a GitHub repository to SprintStart.
- *
- * This triggers the backend GitHub connector, which starts fetching repository
- * files, issues, pull requests and other GitHub data in the background.
+ * Connects a GitHub repository to SprintStart by notifying the backend.
+ * The backend handles the actual ingestion asynchronously.
  *
  * @param request - The GitHub repository owner and repository name.
- * @throws Error if the repository connection fails.
+ * @returns The backend transaction identifier for the accepted connection job.
+ * @throws Error if the connection request fails.
  */
 export async function connectGithubRepository(
     request: ConnectGithubRepositoryRequest,
-): Promise<void> {
-    const res = await fetch("/api/v1/github/connect", {
+): Promise<ConnectGithubRepositoryResponse> {
+    const { owner, name } = request;
+
+    return apiClient.fetch<ConnectGithubRepositoryResponse>("/api/v1/github/connect", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            owner,
+            name,
+        }),
+    });
+}
+
+/**
+ * Triggers an update for all connected GitHub repositories.
+ */
+export async function updateAllGithubRepositories(): Promise<void> {
+    await apiClient.fetch("/api/v1/github/update-all", {
+        method: "POST",
+    });
+}
+
+/**
+ * Triggers an update for a specific connected GitHub repository.
+ *
+ * @param request - The GitHub repository owner and repository name.
+ */
+export async function updateGithubRepository(
+    request: UpdateGithubRepositoryRequest,
+): Promise<void> {
+    await apiClient.fetch("/api/v1/github/update", {
+        method: "POST",
         body: JSON.stringify(request),
     });
-
-    if (!res.ok) {
-        throw new Error("Failed to connect GitHub repository");
-    }
 }

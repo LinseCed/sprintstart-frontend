@@ -1,67 +1,41 @@
-import type {Chat, ChatMessage, Citation} from "../types/chatTypes.ts";
+import { apiClient } from "./apiClient";
+import keycloak from "../config/keycloak";
+import type { Chat, ChatMessage, StreamHandlers } from "../features/chatbot/types";
 
 /**
- * Fetches all available chat conversations for the current session.
- * 
- * @returns A promise resolving to an object containing an array of Chat objects.
- * @throws Error if the backend request fails.
+ * Retrieves all created chats.
+ *
+ * @throws Error if the backend request fails
  */
 export async function getChats() {
-    const res = await fetch(`/api/v1/chats`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) throw new Error("Failed to load chats");
-    return res.json() as Promise<{ chats: Chat[] }>;
+    const response = await apiClient.fetch<{ chats: Chat[] }>(`/api/v1/chats`);
+    return response;
 }
 
 /**
- * Creates a new chat conversation for a specific user.
- * 
- * @param userId - The ID of the user starting the chat.
- * @returns A promise resolving to the newly created Chat object.
- * @throws Error if the chat creation fails.
+ * Creates a new chat for a specific user.
+ *
+ * @param userId The user starting the conversation.
  */
 export async function createChat(userId: string) {
-    const res = await fetch(`/api/v1/chats`, {
+    return await apiClient.fetch<Chat>(`/api/v1/chats`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            userId
-        })
+        body: JSON.stringify({ userId }),
     });
-    return res.json() as Promise<Chat>;
 }
 
 /**
- * Retrieves all messages for a specific chat conversation.
- * 
- * @param chatId - The unique identifier of the chat.
- * @returns A promise resolving to an object containing an array of ChatMessage objects.
- * @throws Error if the messages cannot be loaded.
+ * Retrieves all messages from a specific chat.
+ *
+ * @param chatId The chat the messages belong to.
  */
 export async function getMessages(chatId: string) {
-    const res = await fetch(`/api/v1/chats/${chatId}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-    })
-    return res.json() as Promise<{ messages: ChatMessage[] }>
+    return await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
 }
 
 /**
- * Handlers for processing real-time streaming events from the AI.
+ * Generic stream event returned by the backend when sending a prompt.
  */
-export type StreamHandlers = {
-    /** Called for every new text token received from the LLM. */
-    onToken: (token: string) => void;
-    /** Called when the LLM provides a source citation for its response. */
-    onCitation: (citation: Citation) => void;
-    /** Called when the stream has successfully finished. */
-    onDone: () => void;
-    /** Optional handler for stream-specific errors. */
-    onError?: (message: string) => void;
-};
-
 interface ChatEvent {
     type: "token" | "citation" | "done" | "error";
     content?: string;
@@ -72,32 +46,44 @@ interface ChatEvent {
 }
 
 /**
- * Sends a message to the AI and streams the response in real-time.
- * 
- * This function handles Server-Sent Events (SSE) from the backend, parsing
- * tokens, citations, and status updates as they arrive.
- * 
- * @param chatId - The ID of the chat conversation.
- * @param text - The user's prompt or message.
- * @param handlers - A set of callbacks to handle different stream events.
- * @returns A promise that resolves once the stream processing is complete.
- * @throws Error if the stream cannot be established or the network fails.
+ * Creates a new prompt and handles the chat response.
+ *
+ * @param chatId The chat the prompt is created in
+ * @param text The content of the prompt
+ * @param handlers Helper operations handling the output of the chat response
  */
 export async function streamMessage(
     chatId: string,
     text: string,
     handlers: StreamHandlers
 ): Promise<void> {
+    // Ensure the token is up to date (refresh if it expires in < 30s)
+    try {
+        if (keycloak.authenticated) {
+            await keycloak.updateToken(30);
+        }
+    } catch (error) {
+        console.error('Failed to refresh Keycloak token for stream', error);
+        void keycloak.login();
+        return;
+    }
+
     const res = await fetch(`/api/v1/chats/prompt`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${keycloak.token}`
         },
         body: JSON.stringify({
             "chatId": chatId,
             "msg": text
         })
     });
+
+    if (!res.ok) {
+        handlers.onError?.(`HTTP error! status: ${res.status}`);
+        return;
+    }
 
     const reader = res.body?.getReader();
 

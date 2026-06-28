@@ -4,7 +4,7 @@ import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { OnBoardingPage } from '../pages/OnBoardingPage';
-import { OnBoardingItemPage } from '../components/onboarding/OnBoardingItemPage';
+import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SelectionWizardPage } from '../pages/SelectionWizardPage';

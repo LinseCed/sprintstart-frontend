@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import type {
   OnboardingPathEndpoint,
   OnboardingPhaseEndpoint,
-} from "../types/onboarding";
+} from "../features/onboarding/types";
 import { useNavigate } from "react-router-dom";
 import { onboardingService } from "../services/onboardingService";
 import { userService } from "../services/userService";
@@ -80,7 +80,7 @@ export function OnBoardingPage() {
         const profile = await userService.getProfile();
         if (!profile?.id) throw new Error("No user found.");
 
-        const path = await onboardingService.fetchPath(profile.id);
+        const path = await onboardingService.fetchPath();
         setOnBoardingPath(path);
         setLoadingState("success");
       } catch (err) {

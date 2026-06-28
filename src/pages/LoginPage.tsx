@@ -1,20 +1,12 @@
-import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
-import { Rocket } from 'lucide-react';
+import { Rocket, LogIn } from 'lucide-react';
 import { ThemeToggle } from '../components/common/ThemeToggle';
 
 export function LoginPage() {
-    const [username, setUsername] = useState('');
-    const [firstname, setFirstname] = useState('');
-    const [lastname, setLastname] = useState('');
     const { login, status } = useAuth();
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (username.trim() && firstname.trim() && lastname.trim()) {
-            void login(username.trim(), firstname.trim(), lastname.trim());
-        }
+    const handleLogin = () => {
+        void login();
     };
 
     return (
@@ -23,96 +15,48 @@ export function LoginPage() {
                 <ThemeToggle showLabel={false} className="bg-app-surface border border-app-border shadow-sm" />
             </div>
 
-            <div className="w-full max-w-md space-y-8 rounded-2xl border border-app-border bg-app-surface p-6 shadow-2xl backdrop-blur-sm sm:p-10">
+            <div className="w-full max-w-md space-y-8 rounded-2xl border border-app-border bg-app-surface p-6 shadow-2xl backdrop-blur-sm sm:p-10 text-center">
                 <div className="flex flex-col items-center space-y-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-app-brand shadow-lg">
-                        <Rocket className="h-7 w-7 text-white" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-app-brand shadow-lg">
+                        <Rocket className="h-9 w-9 text-white" />
                     </div>
 
-                    <div className="space-y-1 text-center">
-                        <h2 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
+                    <div className="space-y-1">
+                        <h2 className="text-3xl font-bold tracking-tight text-app-text">
                             SprintStart
                         </h2>
-
                         <p className="text-sm text-app-text-muted">
-                            Sign in to your account to continue
+                            AI-Assisted Software Engineering Onboarding
                         </p>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-4">
-                        <div>
-                            <label
-                                htmlFor="username"
-                                className="mb-1.5 block text-sm font-medium text-app-text-muted"
-                            >
-                                Username
-                            </label>
-
-                            <input
-                                id="username"
-                                type="text"
-                                required
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full rounded-xl border border-app-border-muted bg-app-surface-muted px-4 py-3 text-app-text placeholder:text-app-text-disabled transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-focus"
-                                placeholder="e.g. jdoe"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <label
-                                    htmlFor="firstname"
-                                    className="mb-1.5 block text-sm font-medium text-app-text-muted"
-                                >
-                                    First Name
-                                </label>
-
-                                <input
-                                    id="firstname"
-                                    type="text"
-                                    required
-                                    value={firstname}
-                                    onChange={(e) => setFirstname(e.target.value)}
-                                    className="w-full rounded-xl border border-app-border-muted bg-app-surface-muted px-4 py-3 text-app-text placeholder:text-app-text-disabled transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-focus"
-                                    placeholder="John"
-                                />
-                            </div>
-
-                            <div>
-                                <label
-                                    htmlFor="lastname"
-                                    className="mb-1.5 block text-sm font-medium text-app-text-muted"
-                                >
-                                    Last Name
-                                </label>
-
-                                <input
-                                    id="lastname"
-                                    type="text"
-                                    required
-                                    value={lastname}
-                                    onChange={(e) => setLastname(e.target.value)}
-                                    className="w-full rounded-xl border border-app-border-muted bg-app-surface-muted px-4 py-3 text-app-text placeholder:text-app-text-disabled transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-focus"
-                                    placeholder="Doe"
-                                />
-                            </div>
-                        </div>
+                <div className="space-y-6 pt-4">
+                    <div className="rounded-xl bg-app-surface-muted p-4 border border-app-border-muted text-left">
+                        <p className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-2">
+                            SSO Authentication
+                        </p>
+                        <p className="text-sm text-app-text">
+                            You will be redirected to our secure identity provider to sign in.
+                        </p>
                     </div>
 
                     <button
-                        type="submit"
+                        onClick={handleLogin}
                         disabled={status === 'loading'}
-                        className="w-full rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-app-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-3 rounded-xl bg-app-brand px-6 py-4 text-base font-semibold text-white shadow-md transition-all hover:bg-opacity-90 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-app-focus disabled:opacity-50 disabled:hover:scale-100"
                     >
-                        {status === 'loading' ? 'Signing in...' : 'Sign In'}
+                        {status === 'loading' ? (
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : (
+                            <LogIn className="h-5 w-5" />
+                        )}
+                        Sign in with SSO
                     </button>
-                </form>
 
-                <div className="pt-2 text-center text-xs text-app-text-muted">
-                    Tip: Use any username. New usernames will be registered automatically.
+                    <p className="text-xs text-app-text-disabled">
+                        Securely managed by Keycloak OpenID Connect
+                    </p>
                 </div>
             </div>
         </div>
