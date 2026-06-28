@@ -31,7 +31,7 @@ export type SkipStepStatus = "PENDING" | "APPROVED" | "REJECTED";
 export interface OnboardingStepFeedback {
   id: string;
   stepId: string;
-  helpful: boolean;
+  helpful: boolean | null;
   comment: string;
   createdAt: string;
 }
@@ -40,8 +40,7 @@ export interface OnboardingStepSkip {
   id: string;
   stepId: string;
   reason: string;
-  accepted: SkipStepStatus;
-  createdAt: string;
+  accepted: boolean | null;
   reviewComment: string | null;
   reviewedAt: string | null;
 }
@@ -100,7 +99,6 @@ export interface OnboardingResourceEndpoint {
 }
 
 export interface OnboardingStepDetail extends OnboardingStepEndpoint {
-    expectedOutcome?: string;
     tasks: OnboardingTaskEndpoint[];
     resources: OnboardingResourceEndpoint[];
 }

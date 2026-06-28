@@ -25,6 +25,8 @@ import {
   Trophy,
   CircleArrowRight,
   Lightbulb,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
@@ -65,8 +67,13 @@ export function OnBoardingItemPage() {
 
   const [loadingState, setLoadingState] = useState<LoadingState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  //const [skipReason, setSkipReason] = useState<string>("");
-  //const [skipLoading, setSkipLoading] = useState<boolean>(false);
+  const [skipReason, setSkipReason] = useState<string>("");
+  const [skipLoading, setSkipLoading] = useState<boolean>(false);
+
+  const [feedbackHelpful, setFeedbackHelpful] = useState<boolean | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState<string>("");
+  const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
 
   const [localFinished, setLocalFinished] = useState<Set<string>>(new Set());
 
@@ -116,6 +123,11 @@ export function OnBoardingItemPage() {
       try {
         const step = await onboardingService.fetchStep(stepId);
         setStepDetail(step);
+        if (step.feedback) {
+          setFeedbackHelpful(step.feedback.helpful);
+          setFeedbackComment(step.feedback.comment ?? "");
+          setFeedbackSubmitted(true);
+        }
         //setSkipReason(step.skipReason ?? "");
 
         const fetchedTasks = await onboardingService.fetchTasks(stepId);
@@ -139,24 +151,37 @@ export function OnBoardingItemPage() {
     void load();
   }, [stepId]);
 
-  // ── TOGGLE TASK ───────────────────────────────────────────
-  //const skipCurrentStep = async (): Promise<void> => {
-  //  if (!stepDetail) return;
-  //  const reason = skipReason.trim();
-  //  if (!reason) return;
+  // ── SKIP ──────────────────────────────────────────────────
+  const skipCurrentStep = async (): Promise<void> => {
+    if (!stepDetail) return;
+    const reason = skipReason.trim();
+    if (!reason) return;
 
-  //  setSkipLoading(true);
-  //    try {
-  //    await onboardingService.skipStep(stepDetail, reason);
-  //    setStepDetail((prev) =>
-  //      prev ? { ...prev, status: "SKIPPED", skipReason: reason } : prev,
-  //    );
-  //  } catch (err) {
-  //    console.error("Error skipping step:", err);
-  //  } finally {
-  //    setSkipLoading(false);
-  //  }
-  //};
+    setSkipLoading(true);
+    try {
+      await onboardingService.skipStep(stepDetail, reason);
+      setStepDetail((prev) =>
+        prev ? { ...prev, status: "SKIPPED" } : prev,
+      );
+    } catch (err) {
+      console.error("Error skipping step:", err);
+    } finally {
+      setSkipLoading(false);
+    }
+  };
+
+  const submitFeedback = async (): Promise<void> => {
+    if (!stepDetail || feedbackHelpful === null) return;
+    setFeedbackLoading(true);
+    try {
+      await onboardingService.submitFeedback(stepDetail.id, feedbackHelpful, feedbackComment);
+      setFeedbackSubmitted(true);
+    } catch (err) {
+      console.error("Error submitting feedback:", err);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   const toggleTask = (taskId: string): void => {
     const isCurrentlyDone = localFinished.has(taskId);
@@ -492,26 +517,22 @@ export function OnBoardingItemPage() {
                 Skip Step
               </h3>
               <textarea
-                //value={step.skip?.reason || ''}
-                //onChange={(event) => setSkipReason(event.target.value)}
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
                 placeholder="Reason for skipping..."
                 className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
-                //disabled={skipLoading || stepDetail.status === "SKIPPED"}
+                disabled={skipLoading || stepDetail.status === "SKIPPED"}
               />
               <button
                 className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
-                //onClick={() => void skipCurrentStep()}
-                disabled={
-                //  skipLoading ||
-                //  !skipReason.trim() ||
-                  stepDetail.status === "SKIPPED"
-                }
+                onClick={() => void skipCurrentStep()}
+                disabled={skipLoading || !skipReason.trim() || stepDetail.status === "SKIPPED"}
               >
-                {/* skipLoading
+                {skipLoading
                   ? "Skipping..."
                   : stepDetail.status === "SKIPPED"
                     ? "Step Skipped"
-                    : "Skip Step"*/}
+                    : "Skip Step"}
               </button>
             </div>
 
@@ -521,13 +542,69 @@ export function OnBoardingItemPage() {
                 <MessageSquareCheck className="w-4 h-4 text-app-brand" />
                 Feedback
               </h3>
-              <textarea
-                placeholder="Your feedback about this step..."
-                className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
-              />
-              <button className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all">
-                Submit feedback
-              </button>
+              {feedbackSubmitted ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm text-app-text-muted">
+                    {feedbackHelpful ? (
+                      <ThumbsUp className="w-4 h-4 text-app-success-solid" />
+                    ) : (
+                      <ThumbsDown className="w-4 h-4 text-app-danger-solid" />
+                    )}
+                    <span>{feedbackHelpful ? "Marked as helpful" : "Marked as not helpful"}</span>
+                  </div>
+                  {feedbackComment && (
+                    <p className="text-sm text-app-text bg-app-surface-muted rounded-xl p-3">
+                      {feedbackComment}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setFeedbackSubmitted(false)}
+                    className="text-xs text-app-text-muted hover:text-app-text transition-all text-left"
+                  >
+                    Edit feedback
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setFeedbackHelpful(true)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                        feedbackHelpful === true
+                          ? "border-app-success-border bg-app-success-bg text-app-success-text"
+                          : "border-app-border text-app-text-muted hover:border-app-brand-border-strong"
+                      }`}
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      Helpful
+                    </button>
+                    <button
+                      onClick={() => setFeedbackHelpful(false)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                        feedbackHelpful === false
+                          ? "border-app-danger-border bg-app-danger-bg text-app-danger-text"
+                          : "border-app-border text-app-text-muted hover:border-app-brand-border-strong"
+                      }`}
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                      Not helpful
+                    </button>
+                  </div>
+                  <textarea
+                    value={feedbackComment}
+                    onChange={(e) => setFeedbackComment(e.target.value)}
+                    placeholder="Any comments? (optional)"
+                    className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
+                  />
+                  <button
+                    onClick={() => void submitFeedback()}
+                    disabled={feedbackHelpful === null || feedbackLoading}
+                    className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
+                  >
+                    {feedbackLoading ? "Submitting..." : "Submit feedback"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
