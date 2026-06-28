@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const delayMs = 1000;
                     
                     while (!data && retries < maxRetries) {
-                        console.log(`Profile not found, retrying in ${delayMs}ms... (${retries + 1}/${maxRetries})`);
+                        console.warn(`Profile not found, retrying in ${delayMs}ms... (${retries + 1}/${maxRetries})`);
                         await new Promise(resolve => setTimeout(resolve, delayMs));
                         data = await userService.getProfile();
                         retries++;
