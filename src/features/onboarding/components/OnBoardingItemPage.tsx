@@ -128,8 +128,7 @@ export function OnBoardingItemPage() {
           setFeedbackComment(step.feedback.comment ?? "");
           setFeedbackSubmitted(true);
         }
-        //setSkipReason(step.skipReason ?? "");
-        setSkipReason(step.skip?.reason ?? step.skipReason ?? "");
+        setSkipReason(step.skip?.reason ?? "");
 
         const fetchedTasks = await onboardingService.fetchTasks(stepId);
         setTasks(fetchedTasks);
@@ -160,9 +159,23 @@ export function OnBoardingItemPage() {
 
     setSkipLoading(true);
     try {
-      const skip = await onboardingService.skipStep(stepDetail, reason);
+      const created = await onboardingService.skipStep(stepDetail, reason);
+      // The create-skip response is status-based; the step-detail skip block is
+      // accepted-based (null = still pending), so map it into that shape.
       setStepDetail((prev) =>
-        prev ? { ...prev, skip } : prev,
+        prev
+          ? {
+              ...prev,
+              skip: {
+                id: created.id,
+                stepId: created.stepId,
+                reason: created.reason,
+                accepted: null,
+                reviewComment: created.reviewComment,
+                reviewedAt: null,
+              },
+            }
+          : prev,
       );
     } catch (err) {
       console.error("Error skipping step:", err);
@@ -172,7 +185,7 @@ export function OnBoardingItemPage() {
   };
 
   const submitFeedback = async (): Promise<void> => {
-    if (!stepDetail || feedbackHelpful === null) return;
+    if (!stepDetail || feedbackHelpful === null || !feedbackComment.trim()) return;
     setFeedbackLoading(true);
     try {
       await onboardingService.submitFeedback(stepDetail.id, feedbackHelpful, feedbackComment);
@@ -192,7 +205,10 @@ export function OnBoardingItemPage() {
   // ── DERIVED ───────────────────────────────────────────────
   const sortedTasks = [...tasks].sort((a, b) => a.position - b.position);
   const doneTasks = sortedTasks.filter((t) => localFinished.has(t.id)).length;
-  const hasPendingSkipRequest = stepDetail?.skip?.status === "PENDING";
+  // The step-detail skip block exposes `accepted` (null = pending review).
+  const hasPendingSkipRequest = stepDetail?.skip
+    ? stepDetail.skip.accepted === null
+    : false;
   const allTasksDone =
     sortedTasks.length === 0 || doneTasks === sortedTasks.length;
   const taskPercentage =
@@ -603,12 +619,16 @@ export function OnBoardingItemPage() {
                   <textarea
                     value={feedbackComment}
                     onChange={(e) => setFeedbackComment(e.target.value)}
-                    placeholder="Any comments? (optional)"
+                    placeholder="Tell us what worked or what was missing..."
                     className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
                   />
                   <button
                     onClick={() => void submitFeedback()}
-                    disabled={feedbackHelpful === null || feedbackLoading}
+                    disabled={
+                      feedbackHelpful === null ||
+                      !feedbackComment.trim() ||
+                      feedbackLoading
+                    }
                     className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
                   >
                     {feedbackLoading ? "Submitting..." : "Submit feedback"}

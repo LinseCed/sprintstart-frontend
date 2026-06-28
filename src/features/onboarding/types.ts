@@ -26,7 +26,8 @@ export interface OnboardingPathSummaryEndpoint {
 
 export type StepStatus = "WAITING" | "IN_PROGRESS" | "FINISHED" | "SKIPPED";
 export type StepType = "VIDEO" | "DOCUMENT" | "TASK" | "LINK";
-export type SkipStepStatus = "PENDING" | "APPROVED" | "REJECTED";
+// Matches the backend SkipStatus enum (CreateOnboardingSkipResponse.status etc.)
+export type SkipStatus = "PENDING" | "ACCEPTED" | "DENIED";
 
 export interface OnboardingStepFeedback {
   id: string;
@@ -112,5 +113,4 @@ export interface OnboardingSkipEndpoint {
 export interface OnboardingStepDetail extends OnboardingStepEndpoint {
     tasks: OnboardingTaskEndpoint[];
     resources: OnboardingResourceEndpoint[];
-    skip?: OnboardingSkipEndpoint | null;
 }
