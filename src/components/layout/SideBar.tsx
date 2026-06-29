@@ -173,7 +173,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                             </span>
 
                             <span className="truncate text-[10px] font-medium uppercase tracking-wider text-app-text-muted">
-                                {profile.workingArea.replace('_', ' ')}
+                                {profile.workingArea?.replace('_', ' ') || 'NO WORKING AREA'}
                             </span>
                         </div>
                     </div>
