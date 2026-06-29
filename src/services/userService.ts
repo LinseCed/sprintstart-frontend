@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { Role, type UserProfile } from './types';
+import { WorkingArea, type UserProfile } from './types';
 
 /**
  * Service managing user authentication, profile retrieval, and updates.
@@ -50,8 +50,7 @@ export const userService = {
      */
     async resetProfile(): Promise<void> {
         await this.updateProfile({
-            primaryRole: Role.NO_ROLE,
-            secondaryRole: Role.NO_ROLE
+            workingArea: WorkingArea.NO_WORKING_AREA,
         });
     },
 
