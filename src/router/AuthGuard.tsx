@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import {
+    canAccessRoute,
+    getDefaultRoute,
+    getMatchingProtectedRoute,
+} from '../auth/accessPolicy';
 import { useAuth } from '../context/useAuth';
-import { WorkingArea } from "../services/types.ts";
+import { WorkingArea } from '../services/types.ts';
 
 interface AuthGuardProps {
     children: ReactNode;
@@ -33,17 +38,41 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // 2. Prevent authenticated users from going back to login
     if (status === 'authenticated' && location.pathname === '/login') {
         const state = location.state as LocationState;
-        const from = state?.from?.pathname || '/';
+        const fromPath = state?.from?.pathname;
+        const fromRoute = fromPath ? getMatchingProtectedRoute(fromPath) : null;
+        const from =
+            fromPath && fromRoute && canAccessRoute(profile, fromRoute)
+                ? fromPath
+                : getDefaultRoute(profile);
+
         return <Navigate to={from} replace />;
     }
 
-    // 3. No role yet → wizard (but don't redirect if already there)
+    // 3. No working area yet -> wizard (but don't redirect if already there)
     if (
-        status === "authenticated" &&
+        status === 'authenticated' &&
         profile?.workingArea === WorkingArea.NO_WORKING_AREA &&
-        location.pathname !== "/selection-wizard"
+        !canAccessRoute(profile, '/admin') &&
+        location.pathname !== '/selection-wizard'
     ) {
         return <Navigate to="/selection-wizard" replace />;
+    }
+
+    if (
+        status === 'authenticated' &&
+        (profile?.workingArea !== WorkingArea.NO_WORKING_AREA ||
+            canAccessRoute(profile, '/admin')) &&
+        location.pathname === '/selection-wizard'
+    ) {
+        return <Navigate to={getDefaultRoute(profile)} replace />;
+    }
+
+    if (status === 'authenticated') {
+        const protectedRoute = getMatchingProtectedRoute(location.pathname);
+
+        if (protectedRoute && !canAccessRoute(profile, protectedRoute)) {
+            return <Navigate to={getDefaultRoute(profile)} replace />;
+        }
     }
 
     return <>{children}</>;
