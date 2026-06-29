@@ -104,7 +104,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                 </h1>
             </div>
 
-            <nav className="flex-1 space-y-[5px] px-[16px] py-[20px]">
+            <nav className="min-h-0 flex-1 space-y-[5px] overflow-y-auto px-[16px] py-[20px]">
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}
