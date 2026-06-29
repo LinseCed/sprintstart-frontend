@@ -22,12 +22,15 @@ function getInitials(firstname: string, lastname: string): string {
 }
 
 export function TeamMemberCard({ user }: TeamMemberCardProps) {
-    const elapsedDays = getElapsedDays(user.currentStep.startedAt);
+    const elapsedDays = user.currentStep?.startedAt
+        ? getElapsedDays(user.currentStep.startedAt)
+        : 0;
+
     const progressPercentage = Math.round(user.progressPercentage * 100);
-    const isAtRisk = elapsedDays > AT_RISK_AFTER_DAYS;
+    const isAtRisk = !!user.currentStep && elapsedDays > AT_RISK_AFTER_DAYS;
 
     const hasPendingSkipRequest =
-        user.currentStep.skip?.status === 'PENDING';
+        user.currentStep?.skip?.status === 'PENDING';
 
     return (
         <Link
@@ -37,8 +40,8 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
             <div className="absolute right-3 top-3 flex items-center gap-1.5">
                 {user.hasFeedback && (
                     <span
-                        title="Has left feedback on this path"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-app-brand-soft text-app-brand-text"
+                        title="Unread onboarding feedback"
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-app-warning-border bg-app-warning-bg text-app-warning-text shadow-sm"
                     >
                         <MessageSquareText className="h-3 w-3" />
                     </span>
@@ -47,7 +50,7 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
                 {hasPendingSkipRequest && (
                     <span
                         title="Open skip request"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-app-surface-muted text-app-text-muted"
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-app-danger-border bg-app-danger-bg text-app-danger-text shadow-sm"
                     >
                         <SkipForward className="h-3 w-3" />
                     </span>
@@ -74,7 +77,7 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
             <div className="mt-3">
                 <div className="flex items-start justify-between gap-3">
                     <p className="line-clamp-2 text-sm font-medium text-app-text">
-                        {user.currentStep.title}
+                        {user.currentStep?.title ?? 'No current step'}
                     </p>
 
                     <span
@@ -84,9 +87,10 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
                                 : 'text-app-text-muted'
                         }`}
                     >
-                        {elapsedDays}d
+                        {user.currentStep ? `${elapsedDays}d` : '—'}
                     </span>
                 </div>
+
                 <div className="mt-3 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-app-progress-track">
                         <div

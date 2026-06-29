@@ -1,0 +1,6 @@
+[allowlist]
+description = "Ignore npm script names"
+
+regexes = [
+    '''dev-keycloak-theme'''
+]

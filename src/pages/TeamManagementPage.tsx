@@ -1,18 +1,20 @@
 import { Plus, Users, ArrowLeft } from 'lucide-react';
-import { ProjectRolesModal } from '../../features/team-management/components/ProjectRolesModal';
+import { ProjectRolesModal } from '../features/team-management/components/ProjectRolesModal';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TeamMemberFilters } from '../../features/team-management/components/TeamMemberFilters';
-import { TeamMemberCard } from '../../features/team-management/components/TeamMemberCard';
+import { TeamMemberFilters } from '../features/team-management/components/TeamMemberFilters';
+import { TeamMemberCard } from '../features/team-management/components/TeamMemberCard';
 import type {
     TeamOverviewFilters,
     TeamOverviewUser,
-} from '../../features/team-management/types';
-import { getTeamOverview } from '../../services/teamManagementService';
+    ProjectRole,
+} from '../features/team-management/types';
+import { getTeamOverview, getProjectRoles } from '../services/teamManagementService';
 
 export function TeamManagementPage() {
     const navigate = useNavigate();
     const [users, setUsers] = useState<TeamOverviewUser[]>([]);
+    const [roles, setRoles] = useState<ProjectRole[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<TeamOverviewFilters>({
         roleId: 'all',
@@ -22,8 +24,12 @@ export function TeamManagementPage() {
 
     useEffect(() => {
         async function loadTeamOverview() {
-            const data = await getTeamOverview();
-            setUsers(data);
+            const [usersData, rolesData] = await Promise.all([
+                getTeamOverview(),
+                getProjectRoles(),
+            ]);
+            setUsers(usersData);
+            setRoles(rolesData);
             setLoading(false);
         }
 
@@ -32,22 +38,27 @@ export function TeamManagementPage() {
 
     const filteredUsers = useMemo(() => {
         const result = users.filter((user) => {
-            return filters.roleId === 'all' || user.roles.some((role) => role.id === filters.roleId);
+            return (
+                filters.roleId === 'all' ||
+                user.roles.some((role) => role.id === filters.roleId)
+            );
         });
+
+        const getStartedAtTime = (user: TeamOverviewUser) => {
+            if (!user.currentStep?.startedAt) {
+                return 0;
+            }
+
+            return new Date(user.currentStep.startedAt).getTime();
+        };
 
         result.sort((a, b) => {
             switch (filters.sortBy) {
                 case 'LONGEST_STEP':
-                    return (
-                        new Date(a.currentStep.startedAt).getTime() -
-                        new Date(b.currentStep.startedAt).getTime()
-                    );
+                    return getStartedAtTime(a) - getStartedAtTime(b);
 
                 case 'SHORTEST_STEP':
-                    return (
-                        new Date(b.currentStep.startedAt).getTime() -
-                        new Date(a.currentStep.startedAt).getTime()
-                    );
+                    return getStartedAtTime(b) - getStartedAtTime(a);
 
                 case 'HIGHEST_PROGRESS':
                     return b.progressPercentage - a.progressPercentage;
@@ -131,7 +142,7 @@ export function TeamManagementPage() {
                         </button>
 
                         <TeamMemberFilters
-                            users={users}
+                            roles={roles}
                             filters={filters}
                             onFiltersChange={setFilters}
                         />

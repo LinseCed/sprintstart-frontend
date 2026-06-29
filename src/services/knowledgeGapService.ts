@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { ApiError } from './apiClient';
 import type {
     KnowledgeGapOverview,
     KnowledgeGap
@@ -15,7 +16,10 @@ export const knowledgeGapService = {
                 '/api/v1/insights/knowledge-gaps'
             );
         } catch (error) {
-            console.error('Error fetching knowledge gaps:', error);
+            if (!(error instanceof ApiError && error.status === 404)) {
+                console.error('Error fetching knowledge gaps:', error);
+            }
+
             return knowledgeGapMock as KnowledgeGapOverview;
         }
     },
@@ -26,10 +30,13 @@ export const knowledgeGapService = {
                 `/api/v1/insights/knowledge-gaps/${gapId}`
             );
         } catch (error) {
-            console.error(
-                `Error fetching knowledge gap with ID ${gapId}:`,
-                error
-            );
+            if (!(error instanceof ApiError && error.status === 404)) {
+                console.error(
+                    `Error fetching knowledge gap with ID ${gapId}:`,
+                    error
+                );
+            }
+
             return knowledgeGapDetailMock as KnowledgeGap;
         }
     },

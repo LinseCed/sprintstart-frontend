@@ -1,7 +1,7 @@
 export type SkipRequestStatus =
     | 'PENDING'
-    | 'APPROVED'
-    | 'REJECTED';
+    | 'ACCEPTED'
+    | 'DENIED';
 
 export type SkipRequest = {
     id: string;
@@ -22,6 +22,7 @@ export type TeamOverviewUser = {
         name: string;
     };
     roles: ProjectRole[];
+    skills: Skill[];
     progressPercentage: number;
     currentPhase: {
         id: string;
@@ -32,7 +33,7 @@ export type TeamOverviewUser = {
         title: string;
         startedAt: string;
         skip: SkipRequest | null;
-    };
+    } | null;
     hasFeedback: boolean;
 };
 
@@ -54,6 +55,12 @@ export type Skill = {
     roleId: string;
     level?: SkillLevel;
 };
+
+ export type UserSkillAssessment = {
+     userId: string;
+     skillId: string;
+     level: SkillLevel;
+ };
 
 export type TeamOverviewFilters = {
     roleId: string;

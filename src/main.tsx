@@ -1,13 +1,7 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import App from './App';
-import './styles/index.css';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-        <BrowserRouter>
-            <App />
-        </BrowserRouter>
-    </React.StrictMode>,
-);
+if (window.kcContext !== undefined) {
+  void import("./keycloak-theme/main");
+} else if (import.meta.env.VITE_KC_DEV === "true") {
+  void import("./keycloak-theme/main.dev");
+} else {
+  void import("./main-app");
+}

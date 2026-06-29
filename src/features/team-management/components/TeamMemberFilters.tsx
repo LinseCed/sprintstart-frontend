@@ -1,26 +1,19 @@
 import type {
     TeamOverviewFilters,
-    TeamOverviewUser,
+    ProjectRole,
 } from '../types';
 
 type TeamMemberFiltersProps = {
-    users: TeamOverviewUser[];
+    roles: ProjectRole[];
     filters: TeamOverviewFilters;
     onFiltersChange: (filters: TeamOverviewFilters) => void;
 };
 
 export function TeamMemberFilters({
-    users,
+    roles,
     filters,
     onFiltersChange,
 }: TeamMemberFiltersProps) {
-    const roles = Array.from(
-        new Map(
-            users
-                .flatMap((user) => user.roles)
-                .map((role) => [role.id, role])
-        ).values()
-    );
 
     return (
         <div className="flex flex-wrap items-center gap-2">
@@ -36,7 +29,7 @@ export function TeamMemberFilters({
             >
                 <option value="all">All roles</option>
 
-                {roles.map((role) => (
+                {(roles || []).map((role) => (
                     <option key={role.id} value={role.id}>
                         {role.name}
                     </option>

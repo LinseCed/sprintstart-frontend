@@ -1,6 +1,35 @@
 {
   "users": [
     {
+      "userId": "7faae48c-f9f2-4e85-899f-7c5fca87d371",
+      "firstname": "Hallo",
+      "lastname": "idfk",
+      "project": {
+        "id": "p4",
+        "name": "Data Platform"
+      },
+      "roles": [
+        {
+          "id": "r1",
+          "name": "Backend Developer",
+          "description": "Develops and maintains server-side logic, APIs, and databases."
+        }
+      ],
+      "skills": [],
+      "progressPercentage": 0.5,
+      "currentPhase": {
+        "id": "phase4",
+        "title": "Phase 4 - Practice"
+      },
+      "currentStep": {
+        "id": "step-1",
+        "title": "Complete security training",
+        "startedAt": "2026-06-18T17:30:31.369Z",
+        "skip": null
+      },
+      "hasFeedback": false
+    },
+    {
       "userId": "1",
       "firstname": "Anna",
       "lastname": "Fischer",
@@ -15,6 +44,7 @@
           "description": "Ensures product quality through testing, bug tracking, and validation."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.25,
       "currentPhase": {
         "id": "phase4",
@@ -48,6 +78,7 @@
           "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.28,
       "currentPhase": {
         "id": "phase2",
@@ -83,6 +114,7 @@
           "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.73,
       "currentPhase": {
         "id": "phase3",
@@ -116,6 +148,7 @@
           "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.69,
       "currentPhase": {
         "id": "phase1",
@@ -144,6 +177,7 @@
           "description": "Develops and maintains server-side logic, APIs, and databases."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.29,
       "currentPhase": {
         "id": "phase1",
@@ -172,6 +206,7 @@
           "description": "Develops and maintains server-side logic, APIs, and databases."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.57,
       "currentPhase": {
         "id": "phase1",
@@ -212,6 +247,7 @@
           "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.26,
       "currentPhase": {
         "id": "phase3",
@@ -247,6 +283,7 @@
           "description": "Develops and maintains server-side logic, APIs, and databases."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.09,
       "currentPhase": {
         "id": "phase3",
@@ -280,6 +317,7 @@
           "description": "Builds and maintains user interfaces and client-side functionality."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.33,
       "currentPhase": {
         "id": "phase4",
@@ -308,6 +346,7 @@
           "description": "Manages infrastructure, CI/CD pipelines, and deployment processes."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.26,
       "currentPhase": {
         "id": "phase4",
@@ -341,6 +380,7 @@
           "description": "Builds and maintains data pipelines, models, and analytics infrastructure."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.5,
       "currentPhase": {
         "id": "phase3",
@@ -369,6 +409,7 @@
           "description": "Ensures product quality through testing, bug tracking, and validation."
         }
       ],
+      "skills": [],
       "progressPercentage": 0.64,
       "currentPhase": {
         "id": "phase3",

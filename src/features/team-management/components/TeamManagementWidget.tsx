@@ -67,9 +67,11 @@ type MemberRowProps = {
 };
 
 function MemberRow({ user, onClick }: MemberRowProps) {
-    const elapsedDays = getElapsedDays(user.currentStep.startedAt);
+    const elapsedDays = user.currentStep?.startedAt
+        ? getElapsedDays(user.currentStep.startedAt)
+        : 0;
     const progressPercentage = Math.round(user.progressPercentage * 100);
-    const isAtRisk = elapsedDays > AT_RISK_AFTER_DAYS;
+    const isAtRisk = !!user.currentStep && elapsedDays > AT_RISK_AFTER_DAYS;
 
     return (
         <button
@@ -88,7 +90,7 @@ function MemberRow({ user, onClick }: MemberRowProps) {
                     {user.firstname} {user.lastname}
                 </p>
                 <p className="truncate text-xs text-app-text-muted">
-                    {user.currentStep.title}
+                    {user.currentStep?.title ?? 'No current step'}
                 </p>
 
                 {/* Progress bar */}
@@ -111,7 +113,7 @@ function MemberRow({ user, onClick }: MemberRowProps) {
                     isAtRisk ? 'text-app-warning-text' : 'text-app-text-muted'
                 }`}
             >
-                {elapsedDays}d
+                {user.currentStep ? `${elapsedDays}d` : '—'}
             </span>
         </button>
     );
@@ -169,16 +171,22 @@ export function TeamManagementWidget() {
     // Sort by longest time on current step (most stuck first), take top 4
     const mostStuck = [...users]
         .sort(
-            (a, b) =>
-                new Date(a.currentStep.startedAt).getTime() -
-                new Date(b.currentStep.startedAt).getTime()
+            (a, b) => {
+                if (!a.currentStep?.startedAt) return 1;
+                if (!b.currentStep?.startedAt) return -1;
+
+                return (
+                    new Date(a.currentStep.startedAt).getTime() -
+                    new Date(b.currentStep.startedAt).getTime()
+                );
+            }
         )
         .slice(0, 4);
 
     // Unread counts across ALL users, not just the visible 4
     const pendingFeedbackCount = users.filter((u) => u.hasFeedback).length;
     const pendingSkipCount = users.filter(
-        (u) => u.currentStep.skip?.status === 'PENDING'
+        (u) => u.currentStep?.skip?.status === 'PENDING'
     ).length;
 
     // ── RENDER ───────────────────────────────────────────────

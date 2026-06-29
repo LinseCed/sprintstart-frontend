@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import type {
     OnboardingPathEndpoint,
     OnboardingStepDetail,
+    OnboardingSkipEndpoint,
     OnboardingTaskEndpoint,
     OnboardingResourceEndpoint,
     StepStatus,
@@ -35,6 +36,13 @@ export const onboardingService = {
      * Updates the completion status of a specific onboarding step on the backend.
      */
     async updateStepStatus(step: OnboardingStepDetail, newStatus: StepStatus): Promise<void> {
+        if (newStatus === 'FINISHED') {
+            await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}/complete`, {
+                method: 'PUT',
+            });
+            return;
+        }
+
         await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}`, {
             method: 'PUT',
             body: JSON.stringify({
@@ -44,8 +52,6 @@ export const onboardingService = {
                 type: step.type ?? 'TASK',
                 estimatedMinutes: step.estimatedMinutes,
                 expectedOutcome: step.expectedOutcome ?? '',
-                status: newStatus,
-                skipReason: step.skipReason ?? '',
             }),
         });
     },
@@ -53,18 +59,11 @@ export const onboardingService = {
     /**
      * Marks an onboarding step as skipped with a provided reason on the backend.
      */
-    async skipStep(step: OnboardingStepDetail, reason: string): Promise<void> {
-        await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}`, {
-            method: 'PUT',
+    async skipStep(step: OnboardingStepDetail, reason: string): Promise<OnboardingSkipEndpoint> {
+        return await apiClient.fetch<OnboardingSkipEndpoint>(`/api/v1/onboarding/me/steps/${step.id}/skips`, {
+            method: 'POST',
             body: JSON.stringify({
-                position: step.position,
-                title: step.title,
-                description: step.description,
-                type: step.type ?? 'TASK',
-                estimatedMinutes: step.estimatedMinutes,
-                expectedOutcome: step.expectedOutcome ?? '',
-                status: 'SKIPPED',
-                skipReason: reason,
+                reason,
             }),
         });
     },
