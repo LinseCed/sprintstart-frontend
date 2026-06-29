@@ -81,7 +81,10 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
     const location = useLocation();
 
-    const isPmSectionActive = location.pathname.startsWith('/pm-dashboard') || location.pathname.startsWith('/insights/faq');
+    const isPmSectionActive =
+        location.pathname.startsWith('/pm-dashboard') ||
+        location.pathname.startsWith('/insights/faq') ||
+        location.pathname.startsWith('/insights/knowledge-gaps');
 
     return (
         <div className="flex h-full flex-col bg-app-bg text-app-text">
