@@ -19,13 +19,13 @@ import type {
     OnboardingPathEndpoint,
     OnboardingStepEndpoint,
     OnboardingTaskEndpoint,
-} from '../../features/onboarding/types';
+} from '../features/onboarding/types';
 import type {
     ProjectRole,
     TeamOverviewUser,
-} from '../../features/team-management/types';
-import type { KnowledgeGap } from '../../features/knowledge-gaps/types';
-import { knowledgeGapService } from '../../services/knowledgeGapService';
+} from '../features/team-management/types';
+import type { KnowledgeGap } from '../features/knowledge-gaps/types';
+import { knowledgeGapService } from '../services/knowledgeGapService';
 import {
     assignProjectRoleToUser,
     getProjectRoles,
@@ -38,12 +38,13 @@ import {
     markOnboardingFeedbackRead,
     getUserOnboardingPath,
     createOnboardingStepForPhase,
+    createOnboardingTaskForStep,
     deleteOnboardingStep,
     deleteOnboardingTask,
     getOnboardingTasksByStep,
     type OnboardingFeedback,
     type UserSkillLevel,
-} from '../../services/teamManagementService';
+} from '../services/teamManagementService';
 
 type DetailOnboardingStep = OnboardingStepEndpoint & {
     startedAt?: string | null;
@@ -142,7 +143,17 @@ export function TeamMemberDetailPage() {
     const [customStepTitle, setCustomStepTitle] = useState('');
     const [customStepDescription, setCustomStepDescription] = useState('');
     const [customStepMinutes, setCustomStepMinutes] = useState('30');
+    const [customStepTasks, setCustomStepTasks] = useState<
+        Array<{ title: string; description: string }>
+    >([{ title: '', description: '' }]);
     const [addingStep, setAddingStep] = useState(false);
+    const [taskInsertTarget, setTaskInsertTarget] = useState<{
+        stepId: string;
+        position: number;
+    } | null>(null);
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDescription, setNewTaskDescription] = useState('');
+    const [addingTask, setAddingTask] = useState(false);
     const [stepActionId, setStepActionId] = useState<string | null>(null);
     const [stepTaskCounts, setStepTaskCounts] = useState<
         Record<string, { done: number; total: number }>
@@ -373,6 +384,24 @@ export function TeamMemberDetailPage() {
         }
     }
 
+    async function refreshStepTasks(stepId: string) {
+        const nextTasks = await getOnboardingTasksByStep(stepId);
+
+        setStepTasksById((current) => ({
+            ...current,
+            [stepId]: nextTasks,
+        }));
+        setStepTaskCounts((current) => ({
+            ...current,
+            [stepId]: {
+                done: nextTasks.filter((item) => item.finished).length,
+                total: nextTasks.length,
+            },
+        }));
+
+        return nextTasks;
+    }
+
     async function handleDeleteTask(task: OnboardingTaskEndpoint) {
         setStepActionId(task.stepId);
         setOnboardingError('');
@@ -380,18 +409,7 @@ export function TeamMemberDetailPage() {
         try {
             await deleteOnboardingTask(task.id);
             setTaskToDelete(null);
-            const nextTasks = await getOnboardingTasksByStep(task.stepId);
-            setStepTasksById((current) => ({
-                ...current,
-                [task.stepId]: nextTasks,
-            }));
-            setStepTaskCounts((current) => ({
-                ...current,
-                [task.stepId]: {
-                    done: nextTasks.filter((item) => item.finished).length,
-                    total: nextTasks.length,
-                },
-            }));
+            await refreshStepTasks(task.stepId);
             await refreshOnboardingPath();
         } catch (error) {
             setOnboardingError(
@@ -400,6 +418,38 @@ export function TeamMemberDetailPage() {
                     : 'Unable to delete task.',
             );
         } finally {
+            setStepActionId(null);
+        }
+    }
+
+    async function handleCreateTask() {
+        if (!taskInsertTarget || !newTaskTitle.trim()) return;
+
+        setAddingTask(true);
+        setStepActionId(taskInsertTarget.stepId);
+        setOnboardingError('');
+
+        try {
+            await createOnboardingTaskForStep(taskInsertTarget.stepId, {
+                position: taskInsertTarget.position,
+                title: newTaskTitle.trim(),
+                description: newTaskDescription.trim(),
+                finished: false,
+            });
+
+            setTaskInsertTarget(null);
+            setNewTaskTitle('');
+            setNewTaskDescription('');
+            await refreshStepTasks(taskInsertTarget.stepId);
+            await refreshOnboardingPath();
+        } catch (error) {
+            setOnboardingError(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to create task.',
+            );
+        } finally {
+            setAddingTask(false);
             setStepActionId(null);
         }
     }
@@ -437,7 +487,7 @@ export function TeamMemberDetailPage() {
         setOnboardingError('');
 
         try {
-            await createOnboardingStepForPhase(targetPhaseId, {
+            const createdStep = await createOnboardingStepForPhase(targetPhaseId, {
                 position:
                     stepInsertTarget?.position ?? selectedPhase.steps?.length ?? 0,
                 title: customStepTitle.trim(),
@@ -445,12 +495,35 @@ export function TeamMemberDetailPage() {
                 type: 'TASK',
                 estimatedMinutes: Number(customStepMinutes) || 30,
             });
+            const tasksToCreate = customStepTasks
+                .map((task) => ({
+                    title: task.title.trim(),
+                    description: task.description.trim(),
+                }))
+                .filter((task) => task.title.length > 0);
+
+            await Promise.all(
+                tasksToCreate.map((task, index) =>
+                    createOnboardingTaskForStep(createdStep.id, {
+                        position: index,
+                        title: task.title,
+                        description: task.description,
+                        finished: false,
+                    }),
+                ),
+            );
 
             setCustomStepTitle('');
             setCustomStepDescription('');
             setCustomStepMinutes('30');
+            setCustomStepTasks([{ title: '', description: '' }]);
             setStepInsertTarget(null);
+            setSelectedStepId(createdStep.id);
+            setDetailStepId(createdStep.id);
             await refreshOnboardingPath();
+            if (tasksToCreate.length > 0) {
+                await refreshStepTasks(createdStep.id);
+            }
         } catch (error) {
             setOnboardingError(
                 error instanceof Error
@@ -537,12 +610,12 @@ export function TeamMemberDetailPage() {
         null;
     const detailStep = allSteps.find((step) => step.id === detailStepId) ?? null;
     const detailStepTasks = detailStep ? stepTasksById[detailStep.id] ?? [] : [];
+    const sortedDetailStepTasks = [...detailStepTasks].sort(
+        (a, b) => a.position - b.position,
+    );
     const detailStepDoneTasks = detailStepTasks.filter((task) => task.finished).length;
     const detailStepActualMinutes = detailStep ? getActualMinutes(detailStep) : null;
-    const detailStepTimingDelta =
-        detailStepActualMinutes && detailStep?.estimatedMinutes
-            ? detailStepActualMinutes - detailStep.estimatedMinutes
-            : null;
+
     const detailStepFeedback = detailStep
         ? feedbackItems.filter((feedback) => feedback.stepId === detailStep.id)
         : [];
@@ -567,12 +640,6 @@ export function TeamMemberDetailPage() {
         allSteps.find(
             (step) => step.status !== 'FINISHED' && step.status !== 'SKIPPED',
         ) ?? null;
-    const insertTargetPhase =
-        phases.find((phase) => phase.id === stepInsertTarget?.phaseId) ??
-        selectedPhase;
-    const insertTargetSteps = [...(insertTargetPhase?.steps ?? [])].sort(
-        (a, b) => a.position - b.position,
-    );
 
     return (
         <div className="min-h-screen bg-app-bg">
@@ -793,31 +860,30 @@ export function TeamMemberDetailPage() {
                                                 )}
                                             </div>
 
-                                            {selectedPhase && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setStepInsertTarget({
-                                                            phaseId: selectedPhase.id,
-                                                            position:
-                                                                selectedPhaseSteps.length,
-                                                        })
-                                                    }
-                                                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse transition-colors hover:bg-app-brand-hover"
-                                                >
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                    Add step
-                                                </button>
-                                            )}
                                         </div>
 
                                         <div className="space-y-3">
                                             {selectedPhaseSteps.length === 0 ? (
                                                 <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-5 text-sm text-app-text-muted">
-                                                    This phase has no steps yet.
+                                                    <p>This phase has no steps yet.</p>
+                                                    {selectedPhase && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setStepInsertTarget({
+                                                                    phaseId: selectedPhase.id,
+                                                                    position: 0,
+                                                                })
+                                                            }
+                                                            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover"
+                                                        >
+                                                            <Plus className="h-3.5 w-3.5" />
+                                                            Add first step
+                                                        </button>
+                                                    )}
                                                 </div>
                                             ) : (
-                                                selectedPhaseSteps.map((step) => {
+                                                selectedPhaseSteps.map((step, index) => {
                                                     const skipReason =
                                                         step.skip?.reason || step.skipReason;
                                                     const isSelected = step.id === selectedStep?.id;
@@ -829,9 +895,27 @@ export function TeamMemberDetailPage() {
                                                             : null;
 
                                                     return (
-                                                        <div
-                                                            key={step.id}
-                                                            role="button"
+                                                        <div key={step.id} className="group/step-insert space-y-1">
+                                                            {index === 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        selectedPhase &&
+                                                                        setStepInsertTarget({
+                                                                            phaseId: selectedPhase.id,
+                                                                            position: 0,
+                                                                        })
+                                                                    }
+                                                                    className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
+                                                                    aria-label={`Add step before ${step.title}`}
+                                                                    title="Add step here"
+                                                                >
+                                                                    <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
+                                                                </button>
+                                                            )}
+
+                                                            <div
+                                                                role="button"
                                                             tabIndex={0}
                                                             onClick={() => {
                                                                 setSelectedStepId(step.id);
@@ -936,6 +1020,23 @@ export function TeamMemberDetailPage() {
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                        </div>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    selectedPhase &&
+                                                                    setStepInsertTarget({
+                                                                        phaseId: selectedPhase.id,
+                                                                        position: index + 1,
+                                                                    })
+                                                                }
+                                                                className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
+                                                                aria-label={`Add step after ${step.title}`}
+                                                                title="Add step here"
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
+                                                            </button>
                                                         </div>
                                                     );
                                                 })
@@ -1474,7 +1575,7 @@ export function TeamMemberDetailPage() {
                                 </h2>
 
                                 <p className="mt-1 text-sm text-app-text-muted">
-                                    Choose where this project-specific step should appear.
+                                    Add the project-specific step for the selected slot.
                                 </p>
                             </div>
 
@@ -1489,59 +1590,7 @@ export function TeamMemberDetailPage() {
                             </button>
                         </div>
 
-                        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                            <label className="block">
-                                <span className="text-xs font-medium text-app-text-muted">
-                                    Phase
-                                </span>
-                                <select
-                                    value={stepInsertTarget.phaseId}
-                                    onChange={(event) => {
-                                        const phase = phases.find(
-                                            (candidate) =>
-                                                candidate.id === event.target.value,
-                                        );
-
-                                        setStepInsertTarget({
-                                            phaseId: event.target.value,
-                                            position: phase?.steps?.length ?? 0,
-                                        });
-                                    }}
-                                    className="mt-1 w-full rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                >
-                                    {phases.map((phase) => (
-                                        <option key={phase.id} value={phase.id}>
-                                            {phase.title}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label className="block">
-                                <span className="text-xs font-medium text-app-text-muted">
-                                    Position
-                                </span>
-                                <select
-                                    value={stepInsertTarget.position}
-                                    onChange={(event) =>
-                                        setStepInsertTarget({
-                                            ...stepInsertTarget,
-                                            position: Number(event.target.value),
-                                        })
-                                    }
-                                    className="mt-1 w-full rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                >
-                                    <option value={0}>At the beginning</option>
-                                    {insertTargetSteps.map((step, index) => (
-                                        <option key={step.id} value={index + 1}>
-                                            After {step.title}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        </div>
-
-                        <div className="mt-4 space-y-3">
+                        <div className="mt-5 space-y-3">
                             <input
                                 value={customStepTitle}
                                 onChange={(event) =>
@@ -1575,6 +1624,90 @@ export function TeamMemberDetailPage() {
                                     className="mt-1 w-32 rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
                                 />
                             </label>
+
+                            <div className="rounded-2xl border border-app-border bg-app-surface-muted p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-xs font-semibold text-app-text">
+                                        Tasks
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setCustomStepTasks((current) => [
+                                                ...current,
+                                                { title: '', description: '' },
+                                            ])
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-app-brand hover:bg-app-brand-soft"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Add task
+                                    </button>
+                                </div>
+
+                                <div className="mt-3 space-y-2">
+                                    {customStepTasks.map((task, index) => (
+                                        <div
+                                            key={index}
+                                            className="grid gap-2 rounded-xl border border-app-border bg-app-bg p-2"
+                                        >
+                                            <div className="flex gap-2">
+                                                <input
+                                                    value={task.title}
+                                                    onChange={(event) =>
+                                                        setCustomStepTasks((current) =>
+                                                            current.map((item, itemIndex) =>
+                                                                itemIndex === index
+                                                                    ? {
+                                                                          ...item,
+                                                                          title: event.target.value,
+                                                                      }
+                                                                    : item,
+                                                            ),
+                                                        )
+                                                    }
+                                                    placeholder="Task title"
+                                                    className="min-w-0 flex-1 rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                                />
+                                                {customStepTasks.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setCustomStepTasks((current) =>
+                                                                current.filter(
+                                                                    (_, itemIndex) => itemIndex !== index,
+                                                                ),
+                                                            )
+                                                        }
+                                                        className="rounded-lg p-2 text-app-text-muted hover:bg-app-danger-bg hover:text-app-danger-text"
+                                                        aria-label="Remove task row"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <input
+                                                value={task.description}
+                                                onChange={(event) =>
+                                                    setCustomStepTasks((current) =>
+                                                        current.map((item, itemIndex) =>
+                                                            itemIndex === index
+                                                                ? {
+                                                                      ...item,
+                                                                      description: event.target.value,
+                                                                  }
+                                                                : item,
+                                                        ),
+                                                    )
+                                                }
+                                                placeholder="Optional task description"
+                                                className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
                             {onboardingError && (
                                 <p className="text-xs text-app-danger-text">
@@ -1698,18 +1831,90 @@ export function TeamMemberDetailPage() {
                             </div>
 
                             <div className="mt-3 space-y-2">
-                                {detailStepTasks.length === 0 ? (
-                                    <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                                        No tasks for this step.
-                                    </p>
+                                {sortedDetailStepTasks.length === 0 ? (
+                                    <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
+                                        <p>No tasks for this step.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setTaskInsertTarget({
+                                                    stepId: detailStep.id,
+                                                    position: 0,
+                                                })
+                                            }
+                                            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            Add first task
+                                        </button>
+                                    </div>
                                 ) : (
-                                    detailStepTasks
-                                        .sort((a, b) => a.position - b.position)
-                                        .map((task) => (
-                                            <div
-                                                key={task.id}
-                                                className="flex items-start justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3"
-                                            >
+                                    sortedDetailStepTasks.map((task, index) => (
+                                        <div key={task.id} className="group/task-insert space-y-1">
+                                            {index === 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setTaskInsertTarget({
+                                                            stepId: detailStep.id,
+                                                            position: 0,
+                                                        })
+                                                    }
+                                                    className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
+                                                    aria-label={`Add task before ${task.title}`}
+                                                    title="Add task here"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
+                                                </button>
+                                            )}
+
+                                            {index === 0 &&
+                                                taskInsertTarget?.stepId === detailStep.id &&
+                                                taskInsertTarget.position === 0 && (
+                                                    <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
+                                                        <input
+                                                            value={newTaskTitle}
+                                                            onChange={(event) =>
+                                                                setNewTaskTitle(event.target.value)
+                                                            }
+                                                            placeholder="Task title"
+                                                            className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                                        />
+                                                        <input
+                                                            value={newTaskDescription}
+                                                            onChange={(event) =>
+                                                                setNewTaskDescription(event.target.value)
+                                                            }
+                                                            placeholder="Optional description"
+                                                            className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                                        />
+                                                        <div className="mt-3 flex justify-end gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTaskInsertTarget(null);
+                                                                    setNewTaskTitle('');
+                                                                    setNewTaskDescription('');
+                                                                }}
+                                                                disabled={addingTask}
+                                                                className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void handleCreateTask()}
+                                                                disabled={addingTask || newTaskTitle.trim().length === 0}
+                                                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                {addingTask ? 'Adding...' : 'Add task'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                            <div className="flex items-start justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3">
                                                 <div className="flex min-w-0 gap-3">
                                                     {task.finished ? (
                                                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-app-success-solid" />
@@ -1744,8 +1949,114 @@ export function TeamMemberDetailPage() {
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
-                                        ))
+
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setTaskInsertTarget({
+                                                        stepId: detailStep.id,
+                                                        position: index + 1,
+                                                    })
+                                                }
+                                                className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
+                                                aria-label={`Add task after ${task.title}`}
+                                                title="Add task here"
+                                            >
+                                                <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
+                                            </button>
+
+                                            {taskInsertTarget?.stepId === detailStep.id &&
+                                                taskInsertTarget.position === index + 1 && (
+                                                    <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
+                                                        <input
+                                                            value={newTaskTitle}
+                                                            onChange={(event) =>
+                                                                setNewTaskTitle(event.target.value)
+                                                            }
+                                                            placeholder="Task title"
+                                                            className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                                        />
+                                                        <input
+                                                            value={newTaskDescription}
+                                                            onChange={(event) =>
+                                                                setNewTaskDescription(event.target.value)
+                                                            }
+                                                            placeholder="Optional description"
+                                                            className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                                        />
+                                                        <div className="mt-3 flex justify-end gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTaskInsertTarget(null);
+                                                                    setNewTaskTitle('');
+                                                                    setNewTaskDescription('');
+                                                                }}
+                                                                disabled={addingTask}
+                                                                className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void handleCreateTask()}
+                                                                disabled={addingTask || newTaskTitle.trim().length === 0}
+                                                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                {addingTask ? 'Adding...' : 'Add task'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                        </div>
+                                    ))
                                 )}
+
+                                {taskInsertTarget?.stepId === detailStep.id &&
+                                    sortedDetailStepTasks.length === 0 && (
+                                        <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
+                                            <input
+                                                value={newTaskTitle}
+                                                onChange={(event) =>
+                                                    setNewTaskTitle(event.target.value)
+                                                }
+                                                placeholder="Task title"
+                                                className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                            />
+                                            <input
+                                                value={newTaskDescription}
+                                                onChange={(event) =>
+                                                    setNewTaskDescription(event.target.value)
+                                                }
+                                                placeholder="Optional description"
+                                                className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                                            />
+                                            <div className="mt-3 flex justify-end gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setTaskInsertTarget(null);
+                                                        setNewTaskTitle('');
+                                                        setNewTaskDescription('');
+                                                    }}
+                                                    disabled={addingTask}
+                                                    className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleCreateTask()}
+                                                    disabled={addingTask || newTaskTitle.trim().length === 0}
+                                                    className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                    {addingTask ? 'Adding...' : 'Add task'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                             </div>
                         </section>
 

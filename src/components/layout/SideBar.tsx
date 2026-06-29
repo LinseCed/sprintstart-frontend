@@ -47,11 +47,6 @@ const navItems: SidebarNavItem[] = [
         path: '/onboarding',
         icon: <Rocket className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
-    {
-        label: 'Skills',
-        path: '/skill-wizard',
-        icon: <User className="h-[18px] w-[18px] shrink-0 transition-colors" />,
-    },
 ];
 
 const projectManagerNavItems: SidebarNavItem[] = [

@@ -288,11 +288,28 @@ export type CreateOnboardingStepRequest = {
   expectedOutcome?: string;
 };
 
+export type CreateOnboardingTaskRequest = {
+  position: number;
+  title: string;
+  description: string;
+  finished?: boolean;
+};
+
 export async function createOnboardingStepForPhase(
   phaseId: string,
   request: CreateOnboardingStepRequest,
-): Promise<void> {
-  await apiClient.fetch(`/api/v1/onboarding/phases/${phaseId}/steps`, {
+): Promise<OnboardingStepEndpoint> {
+  return await apiClient.fetch<OnboardingStepEndpoint>(`/api/v1/onboarding/phases/${phaseId}/steps`, {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export async function createOnboardingTaskForStep(
+  stepId: string,
+  request: CreateOnboardingTaskRequest,
+): Promise<OnboardingTaskEndpoint> {
+  return await apiClient.fetch<OnboardingTaskEndpoint>(`/api/v1/onboarding/steps/${stepId}/tasks`, {
     method: "POST",
     body: JSON.stringify(request),
   });
