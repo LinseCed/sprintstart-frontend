@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     BookOpen,
+    Briefcase,
     ChartColumn,
     Database,
     LogOut,
@@ -51,9 +52,19 @@ const navItems: SidebarNavItem[] = [
 
 const projectManagerNavItems: SidebarNavItem[] = [
     {
+        label: 'PM Dashboard',
+        path: '/pm-dashboard',
+        icon: <Briefcase className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    {
         label: 'Data Ingestion',
         path: '/data-ingestion',
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+     {
+        label: 'Team Management',
+        path: '/team-management',
+        icon: <User className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 
