@@ -1,37 +1,4 @@
-// ============================================================
-// adminUserService.ts
-// ============================================================
-//
-// Mock-first service for the Admin Page.
-//
-// Put adminPageMock.json in:
-//   src/mocks/adminPageMock.json
-//
-// Ownership boundary based on the latest API discussion:
-//
-// Keycloak-owned but exposed through SprintStart backend orchestration:
-// - username
-// - email
-// - firstName
-// - lastName
-// - permissionGroup
-// - enabled / disabled
-// - delete user
-//
-// SprintStart-owned:
-// - roles = project-related working areas
-// - projects
-// - profileIcon
-// - hasCompletedOnboarding
-//
-// Password flows are intentionally not part of this service.
-// Password change, reset and initial setup should stay inside Keycloak flows.
-
 import { apiClient } from "./apiClient";
-import adminPageMock from "../mocks/adminPageMock.json";
-
-const USE_ADMIN_PAGE_MOCKS = import.meta.env.VITE_USE_ADMIN_PAGE_MOCKS === "true";
-const MOCK_DELAY_MS = 180;
 
 type BackendPermissionGroup = "ADMIN" | "HR" | "PM" | "USER";
 
@@ -124,56 +91,6 @@ export type AvailableRole = {
     description: string;
 };
 
-type AdminPageMock = {
-    usersMe: UserProfile;
-    adminUsers: AdminUser[];
-};
-
-const mock = adminPageMock as AdminPageMock;
-let mockAdminUsers: AdminUser[] = clone(mock.adminUsers);
-
-function wait(ms: number) {
-    return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
-}
-
-function clone<T>(value: T): T {
-    if (typeof structuredClone === "function") {
-        return structuredClone(value);
-    }
-
-    return JSON.parse(JSON.stringify(value)) as T;
-}
-
-async function withMockDelay<T>(value: T): Promise<T> {
-    await wait(MOCK_DELAY_MS);
-    return clone(value);
-}
-
-function getMockUserById(userId: string): AdminUser {
-    const user = mockAdminUsers.find((candidate) => candidate.id === userId);
-
-    if (!user) {
-        throw new Error(`User with id "${userId}" was not found.`);
-    }
-
-    return user;
-}
-
-function updateMockUser(userId: string, patch: Partial<AdminUser>): AdminUser {
-    const user = getMockUserById(userId);
-
-    const updatedUser: AdminUser = {
-        ...user,
-        ...patch,
-    };
-
-    mockAdminUsers = mockAdminUsers.map((candidate) =>
-        candidate.id === userId ? updatedUser : candidate,
-    );
-
-    return updatedUser;
-}
-
 function getAvailableRolesFromUsers(users: AdminUser[]): AvailableRole[] {
     const roleMap = new Map<string, AvailableRole>();
 
@@ -192,19 +109,6 @@ function getAvailableRolesFromUsers(users: AdminUser[]): AvailableRole[] {
     return Array.from(roleMap.values()).sort((left, right) =>
         left.name.localeCompare(right.name),
     );
-}
-
-function toUserRole(assignment: RoleAssignment): UserRole {
-    const availableRole = getAvailableRolesFromUsers(mockAdminUsers).find(
-        (role) => role.id === assignment.id,
-    );
-
-    return {
-        id: assignment.id,
-        name: availableRole?.name ?? assignment.id,
-        description: availableRole?.description ?? "",
-        type: assignment.type,
-    };
 }
 
 function toPermissionGroupLabel(permissionGroup: string): string {
@@ -301,10 +205,6 @@ export const adminUserService = {
      * SprintStart-owned data.
      */
     async getCurrentUser(): Promise<UserProfile> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            return withMockDelay(mock.usersMe);
-        }
-
         const user = await apiClient.fetch<BackendUserResponse>("/api/v1/users/me");
         return toUserProfile(user);
     },
@@ -315,10 +215,6 @@ export const adminUserService = {
      * Returns all users visible for admin user management.
      */
     async getUsers(): Promise<AdminUser[]> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            return withMockDelay(mockAdminUsers);
-        }
-
         const users = await apiClient.fetch<BackendUserResponse[]>("/api/v1/admin/users");
         return users.map(toAdminUser);
     },
@@ -329,10 +225,6 @@ export const adminUserService = {
      * Returns detailed information for a specific user.
      */
     async getUserById(userId: string): Promise<AdminUser> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            return withMockDelay(getMockUserById(userId));
-        }
-
         const user = await apiClient.fetch<BackendUserResponse>(
             `/api/v1/admin/users/${userId}`,
         );
@@ -359,11 +251,6 @@ export const adminUserService = {
         userId: string,
         request: UpdateAdminUserRequest,
     ): Promise<AdminUser> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            const updatedUser = updateMockUser(userId, request);
-            return withMockDelay(updatedUser);
-        }
-
         const updatedUser = await apiClient.fetch<BackendUserResponse>(
             `/api/v1/admin/users/${userId}`,
             {
@@ -395,14 +282,6 @@ export const adminUserService = {
         userId: string,
         request: UpdateAdminUserRolesRequest,
     ): Promise<AdminUser> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            const updatedUser = updateMockUser(userId, {
-                roles: request.roles.map(toUserRole),
-            });
-
-            return withMockDelay(updatedUser);
-        }
-
         await apiClient.fetch<void>(`/api/v1/admin/users/${userId}/roles`, {
             method: "PATCH",
             headers: {
@@ -429,14 +308,6 @@ export const adminUserService = {
         userId: string,
         request: UpdateAdminUserEnabledRequest,
     ): Promise<AdminUser> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            const updatedUser = updateMockUser(userId, {
-                enabled: request.enabled,
-            });
-
-            return withMockDelay(updatedUser);
-        }
-
         const updatedUser = await apiClient.fetch<BackendUserResponse>(
             `/api/v1/admin/users/${userId}/enabled`,
             {
@@ -459,19 +330,6 @@ export const adminUserService = {
      * PATCH /api/v1/admin/users/{id}/enabled
      */
     async deleteUser(userId: string): Promise<DeleteAdminUserResponse> {
-        if (USE_ADMIN_PAGE_MOCKS) {
-            getMockUserById(userId);
-
-            mockAdminUsers = mockAdminUsers.filter(
-                (candidate) => candidate.id !== userId,
-            );
-
-            return withMockDelay({
-                id: userId,
-                deleted: true,
-            });
-        }
-
         return apiClient.fetch<DeleteAdminUserResponse>(
             `/api/v1/admin/users/${userId}`,
             {
