@@ -154,6 +154,14 @@ function SourceStatusBadge({ source }: { source: DataSource }) {
         );
     }
 
+    if (source.status === "running") {
+        return (
+            <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
+                {source.statusLabel}
+            </span>
+        );
+    }
+
     return (
         <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
             {source.statusLabel}

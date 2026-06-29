@@ -30,6 +30,7 @@ export const apiClient = {
         try {
             if (keycloak.authenticated) {
                 await keycloak.updateToken(30);
+                console.log("ACCESS TOKEN", keycloak.token);
             }
         } catch (error) {
             console.error('Failed to refresh Keycloak token', error);

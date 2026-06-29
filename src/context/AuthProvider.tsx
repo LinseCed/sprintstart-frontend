@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { userService } from '../services/userService';
-import type { UserProfile } from '../services/types';
+import { PermissionGroup, type UserProfile } from '../services/types';
 import { AuthContext, type AuthStatus } from './AuthContext';
 import keycloak from '../config/keycloak';
+import { ensureDefaultGithubPatFromEnv } from '../services/sources/githubService';
 
 /**
  * Provider component that manages the global authentication state via Keycloak.
@@ -12,6 +13,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [status, setStatus] = useState<AuthStatus>('loading');
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const isInitialized = useRef(false);
+    const isGithubPatBootstrapped = useRef(false);
 
     useEffect(() => {
         /**
@@ -32,6 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const data = await userService.getProfile();
 
                     if (data) {
+                        if (isAdmin(data)) {
+                            await bootstrapAdminGithubPat(isGithubPatBootstrapped);
+                        }
                         setProfile(data);
                         setStatus('authenticated');
                     } else {
@@ -62,7 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const refetchProfile = async () => {
         const data = await userService.getProfile();
-        if (data) setProfile(data);
+        if (data) {
+            if (isAdmin(data)) {
+                await bootstrapAdminGithubPat(isGithubPatBootstrapped);
+            }
+            setProfile(data);
+        }
     };
 
     return (
@@ -70,4 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             {children}
         </AuthContext.Provider>
     );
+}
+
+function isAdmin(profile: UserProfile): boolean {
+    return profile.permissionGroup === PermissionGroup.ADMIN;
+}
+
+async function bootstrapAdminGithubPat(bootstrappedRef: { current: boolean }): Promise<void> {
+    if (bootstrappedRef.current) {
+        return;
+    }
+
+    bootstrappedRef.current = true;
+    try {
+        await ensureDefaultGithubPatFromEnv();
+    } catch (error) {
+        console.warn('Failed to bootstrap configured GitHub PAT for admin user.', error);
+    }
 }

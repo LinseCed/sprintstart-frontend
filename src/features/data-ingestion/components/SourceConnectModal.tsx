@@ -12,11 +12,14 @@ type SourceConnectModalProps = {
     sourceMeta: Record<SourceSystem, SourceConnectMeta>;
     owner: string;
     repositoryName: string;
+    tokenName: string;
+    tokenNames: string[];
     connectState: ConnectState;
     errorMessage: string | null;
     onSourceSystemChange: (sourceSystem: SourceSystem) => void;
     onOwnerChange: (value: string) => void;
     onRepositoryNameChange: (value: string) => void;
+    onTokenNameChange: (value: string) => void;
     onClose: () => void;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -27,11 +30,14 @@ export function SourceConnectModal({
     sourceMeta,
     owner,
     repositoryName,
+    tokenName,
+    tokenNames,
     connectState,
     errorMessage,
     onSourceSystemChange,
     onOwnerChange,
     onRepositoryNameChange,
+    onTokenNameChange,
     onClose,
     onSubmit,
 }: SourceConnectModalProps) {
@@ -39,8 +45,14 @@ export function SourceConnectModal({
     const selectedMeta = sourceMeta[selectedSourceSystem];
     const SelectedIcon = selectedMeta.icon;
     const isGithubSelected = selectedSourceSystem === "GITHUB";
+    const hasGithubTokens = tokenNames.length > 0;
 
-    const isSubmitDisabled = isLoading || !isGithubSelected || !owner.trim();
+    const isSubmitDisabled =
+        isLoading ||
+        !isGithubSelected ||
+        !owner.trim() ||
+        !tokenName.trim() ||
+        !hasGithubTokens;
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 py-4 sm:items-center">
@@ -201,6 +213,44 @@ export function SourceConnectModal({
                                     placeholder="sprintstart-backend (optional when owner field contains owner/repo)"
                                     className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
                                 />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="github-token-name"
+                                    className="text-sm font-medium text-app-text"
+                                >
+                                    GitHub access token
+                                </label>
+
+                                <select
+                                    id="github-token-name"
+                                    value={tokenName}
+                                    onChange={(event) =>
+                                        onTokenNameChange(event.target.value)
+                                    }
+                                    disabled={isLoading || !hasGithubTokens}
+                                    className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {hasGithubTokens ? (
+                                        tokenNames.map((name) => (
+                                            <option key={name} value={name}>
+                                                {name}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option value="">
+                                            No saved tokens available
+                                        </option>
+                                    )}
+                                </select>
+
+                                {!hasGithubTokens && (
+                                    <p className="mt-2 text-sm text-app-warning-text">
+                                        Add a GitHub personal access token first,
+                                        then come back to connect a repository.
+                                    </p>
+                                )}
                             </div>
                         </>
                     )}

@@ -24,6 +24,7 @@ type CanonicalIngestionRunResponse = {
     updatedCount?: number;
     failedCount?: number;
     failedItems?: CanonicalFailedArtifact[];
+    status?: IngestionRunStatus | "SUCCESS" | null;
 };
 
 type CanonicalSourceIngestionStatusResponse = {
@@ -33,6 +34,7 @@ type CanonicalSourceIngestionStatusResponse = {
     updatedCount?: number;
     failedCount?: number;
     failedItems?: CanonicalFailedArtifact[];
+    status?: IngestionRunStatus | "SUCCESS" | null;
 };
 
 const MIN_LIMIT = 1;
@@ -52,13 +54,33 @@ function mapFailedArtifact(item: CanonicalFailedArtifact): FailedArtifact {
     };
 }
 
-function getRunStatus(run: CanonicalIngestionRunResponse): IngestionRunStatus {
+function normalizeRunStatus(
+    status: CanonicalIngestionRunResponse["status"],
+): IngestionRunStatus | null {
+    switch (status) {
+        case "CONNECTED":
+        case "RUNNING":
+        case "COMPLETED":
+        case "PARTIAL":
+        case "FAILED":
+            return status;
+        case "SUCCESS":
+            return "COMPLETED";
+        default:
+            return null;
+    }
+}
+
+function inferRunStatus(run: CanonicalIngestionRunResponse): IngestionRunStatus {
+    const normalizedStatus = normalizeRunStatus(run.status);
+
+    if (normalizedStatus) return normalizedStatus;
     if (!run.finishedAt) return "RUNNING";
 
     const failedCount = run.failedCount ?? 0;
     const failedItemCount = run.failedItems?.length ?? 0;
 
-    return failedCount > 0 || failedItemCount > 0 ? "FAILED" : "SUCCESS";
+    return failedCount > 0 || failedItemCount > 0 ? "FAILED" : "COMPLETED";
 }
 
 function mapIngestionRun(run: CanonicalIngestionRunResponse): IngestionRun {
@@ -72,7 +94,7 @@ function mapIngestionRun(run: CanonicalIngestionRunResponse): IngestionRun {
         ingestedCount: run.ingestedCount ?? 0,
         updatedCount: run.updatedCount ?? 0,
         failedCount: run.failedCount ?? failedItems.length,
-        status: getRunStatus(run),
+        status: inferRunStatus(run),
         failedItems: failedItems.map(mapFailedArtifact),
     };
 }
@@ -88,6 +110,7 @@ function mapIngestionStatus(
         ingestedCount: status.ingestedCount ?? 0,
         updatedCount: status.updatedCount ?? 0,
         failedCount: status.failedCount ?? failedItems.length,
+        status: normalizeRunStatus(status.status),
         failedItems,
     };
 }

@@ -1,5 +1,11 @@
 import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
-import { formatDateTime, formatNumber, getSourceLabel } from "../data.ts";
+import {
+    formatDateTime,
+    formatNumber,
+    getRunStatusLabel,
+    getRunStatusTone,
+    getSourceLabel,
+} from "../data.ts";
 import type { DataSource, FailedArtifact, IngestionRun } from "../types.ts";
 
 type ArtifactTableProps = {
@@ -36,21 +42,21 @@ export function ArtifactTable({ sources, runs }: ArtifactTableProps) {
                 <SummaryCard
                     title="Latest Ingested"
                     value={formatNumber(latestIngestedCount)}
-                    description="new canonical artifacts in latest source statuses"
+                    description=""
                     tone="success"
                 />
 
                 <SummaryCard
                     title="Latest Updated"
                     value={formatNumber(latestUpdatedCount)}
-                    description="updated canonical artifacts in latest source statuses"
+                    description=""
                     tone="neutral"
                 />
 
                 <SummaryCard
                     title="Failed Artifacts"
                     value={formatNumber(latestFailedCount)}
-                    description="failed items reported by latest source statuses"
+                    description=""
                     tone={latestFailedCount > 0 ? "warning" : "success"}
                 />
             </div>
@@ -60,11 +66,6 @@ export function ArtifactTable({ sources, runs }: ArtifactTableProps) {
                     <h3 className="text-sm font-semibold text-app-text">
                         Recent Artifact Activity
                     </h3>
-
-                    <p className="mt-1 text-sm text-app-text-muted">
-                        Canonical ingestion counters returned by the backend per
-                        run.
-                    </p>
                 </div>
 
                 {latestRuns.length > 0 ? (
@@ -97,7 +98,7 @@ export function ArtifactTable({ sources, runs }: ArtifactTableProps) {
                                 </div>
 
                                 <div>
-                                    <RunHealth failedCount={run.failedCount} />
+                                    <RunHealth run={run} />
                                 </div>
                             </article>
                         ))}
@@ -112,11 +113,6 @@ export function ArtifactTable({ sources, runs }: ArtifactTableProps) {
                     <h3 className="text-sm font-semibold text-app-text">
                         Failed Artifact Details
                     </h3>
-
-                    <p className="mt-1 text-sm text-app-text-muted">
-                        Failed source artifacts from the latest source status
-                        and recent runs.
-                    </p>
                 </div>
 
                 {failedRows.length > 0 ? (
@@ -283,8 +279,27 @@ function CountPill({
     );
 }
 
-function RunHealth({ failedCount }: { failedCount: number }) {
-    if (failedCount > 0) {
+function RunHealth({ run }: { run: IngestionRun }) {
+    const tone = getRunStatusTone(run.status);
+
+    if (tone === "success" && run.failedCount === 0) {
+        return (
+            <span className="inline-flex items-center gap-2 roundReed-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
+                <CheckCircle2 size={13} />
+                No failures
+            </span>
+        );
+    }
+
+    if (tone === "running") {
+        return (
+            <span className="inline-flex items-center gap-2 rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
+                {getRunStatusLabel(run.status)}
+            </span>
+        );
+    }
+
+    if (run.failedCount > 0) {
         return (
             <span className="inline-flex items-center gap-2 rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
                 <AlertTriangle size={13} />
@@ -294,9 +309,9 @@ function RunHealth({ failedCount }: { failedCount: number }) {
     }
 
     return (
-        <span className="inline-flex items-center gap-2 rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-            <CheckCircle2 size={13} />
-            No failures
+        <span className="inline-flex items-center gap-2 rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
+            <AlertTriangle size={13} />
+            {getRunStatusLabel(run.status)}
         </span>
     );
 }

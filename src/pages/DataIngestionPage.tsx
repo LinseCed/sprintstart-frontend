@@ -17,8 +17,10 @@ import { SourceList } from "../features/data-ingestion/components/SourceList.tsx
 import {
     createDataSource,
     formatDateTime,
+    getSourceStatus,
     getSourceStatusLabel,
     INGESTION_RUN_LIMIT,
+    isRunInProgress,
     SOURCE_META,
     SOURCE_SYSTEMS,
 } from "../features/data-ingestion/data.ts";
@@ -38,6 +40,7 @@ import {
 } from "../services/ingestionService.ts";
 import {
     connectGithubRepository,
+    getGithubPatNames,
     updateAllGithubRepositories,
     updateGithubRepository,
 } from "../services/sources/githubService.ts";
@@ -156,11 +159,16 @@ function buildDataSources(
         if (!latestRun) return source;
 
         const hasErrors = latestRun.failedCount > 0;
+        const status = getSourceStatus(false, hasErrors, latestRun.status);
 
         return {
             ...source,
-            status: hasErrors ? "warning" : "connected",
-            statusLabel: getSourceStatusLabel(false, hasErrors),
+            status,
+            statusLabel: getSourceStatusLabel(
+                false,
+                hasErrors,
+                latestRun.status,
+            ),
             artifacts: latestRun.ingestedCount,
             lastSync: formatDateTime(latestRun.startedAt),
             errors: latestRun.failedCount,
@@ -194,6 +202,8 @@ export function DataIngestionPage() {
 
     const [githubOwner, setGithubOwner] = useState("");
     const [githubRepositoryName, setGithubRepositoryName] = useState("");
+    const [githubTokenName, setGithubTokenName] = useState("");
+    const [githubTokenNames, setGithubTokenNames] = useState<string[]>([]);
     const [lastGithubRepository, setLastGithubRepository] =
         useState<GithubRepositoryReference | null>(() =>
             readStoredGithubRepository(),
@@ -277,7 +287,7 @@ export function DataIngestionPage() {
     }, [commitIngestionData]);
 
     useEffect(() => {
-        const hasRunningRun = runs.some((run) => run.status === "RUNNING");
+        const hasRunningRun = runs.some((run) => isRunInProgress(run.status));
         const isPollingWindowActive =
             pollingUntil !== null && Date.now() < pollingUntil;
 
@@ -289,7 +299,7 @@ export function DataIngestionPage() {
             const shouldStopPolling =
                 pollingUntil !== null &&
                 Date.now() >= pollingUntil &&
-                !runs.some((run) => run.status === "RUNNING");
+                !runs.some((run) => isRunInProgress(run.status));
 
             if (shouldStopPolling) {
                 setPollingUntil(null);
@@ -307,6 +317,19 @@ export function DataIngestionPage() {
         setConnectErrorMessage(null);
         setSelectedConnectSourceSystem("GITHUB");
         setIsSourceModalOpen(true);
+
+        void getGithubPatNames()
+            .then((tokenNames) => {
+                setGithubTokenNames(tokenNames);
+                setGithubTokenName((currentTokenName) =>
+                    currentTokenName.trim()
+                        ? currentTokenName
+                        : tokenNames[0] ?? "",
+                );
+            })
+            .catch(() => {
+                setGithubTokenNames([]);
+            });
     };
 
     const handleCloseSourceModal = () => {
@@ -343,7 +366,18 @@ export function DataIngestionPage() {
                     );
                 }
 
-                await connectGithubRepository(parsedRepository);
+                const trimmedTokenName = githubTokenName.trim();
+
+                if (!trimmedTokenName) {
+                    throw new Error(
+                        "Please choose a saved GitHub access token.",
+                    );
+                }
+
+                await connectGithubRepository({
+                    ...parsedRepository,
+                    tokenName: trimmedTokenName,
+                });
                 storeGithubRepository(parsedRepository);
                 setLastGithubRepository(parsedRepository);
 
@@ -375,6 +409,7 @@ export function DataIngestionPage() {
         [
             githubOwner,
             githubRepositoryName,
+            githubTokenName,
             loadData,
             selectedConnectSourceSystem,
         ],
@@ -528,6 +563,8 @@ export function DataIngestionPage() {
                     sourceMeta={SOURCE_META}
                     owner={githubOwner}
                     repositoryName={githubRepositoryName}
+                    tokenName={githubTokenName}
+                    tokenNames={githubTokenNames}
                     connectState={connectState}
                     errorMessage={connectErrorMessage}
                     onSourceSystemChange={(sourceSystem) => {
@@ -537,6 +574,7 @@ export function DataIngestionPage() {
                     }}
                     onOwnerChange={setGithubOwner}
                     onRepositoryNameChange={setGithubRepositoryName}
+                    onTokenNameChange={setGithubTokenName}
                     onClose={handleCloseSourceModal}
                     onSubmit={(event) => {
                         void handleConnectSource(event);

@@ -2,7 +2,12 @@ import type { LucideIcon } from "lucide-react";
 
 export type SourceSystem = "GITHUB" | "JIRA" | "UPLOAD";
 
-export type IngestionRunStatus = "RUNNING" | "SUCCESS" | "FAILED";
+export type IngestionRunStatus =
+    | "CONNECTED"
+    | "RUNNING"
+    | "COMPLETED"
+    | "PARTIAL"
+    | "FAILED";
 
 export type ArtifactType = "COMMIT" | "FILE" | "ISSUE" | "PULL_REQUEST";
 
@@ -34,6 +39,7 @@ export type SourceIngestionStatus = {
     ingestedCount: number;
     updatedCount: number;
     failedCount: number;
+    status: IngestionRunStatus | null;
     failedItems: FailedArtifact[];
 };
 
@@ -43,7 +49,7 @@ export type LoadingState = "idle" | "loading" | "success" | "error";
 
 export type ConnectState = "idle" | "loading" | "success" | "error";
 
-export type SourceStatus = "connected" | "warning";
+export type SourceStatus = "connected" | "running" | "warning";
 
 export type SourceMeta = {
     name: string;

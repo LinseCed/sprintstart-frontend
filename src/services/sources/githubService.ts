@@ -3,7 +3,7 @@ import { apiClient } from "../apiClient.ts";
 export type ConnectGithubRepositoryRequest = {
     owner: string;
     name: string;
-    token?: string; // Kept for compatibility, but the backend currently uses its own GITHUB_PAT
+    tokenName: string;
 };
 
 export type ConnectGithubRepositoryResponse = {
@@ -30,13 +30,38 @@ export type UpdateGithubRepositoryRequest = {
 export async function connectGithubRepository(
     request: ConnectGithubRepositoryRequest,
 ): Promise<ConnectGithubRepositoryResponse> {
-    const { owner, name } = request;
+    const { owner, name, tokenName } = request;
 
     return apiClient.fetch<ConnectGithubRepositoryResponse>("/api/v1/github/connect", {
         method: "POST",
         body: JSON.stringify({
             owner,
             name,
+            tokenName,
+        }),
+    });
+}
+
+export async function getGithubPatNames(): Promise<string[]> {
+    return apiClient.fetch<string[]>("/api/v1/github/pat");
+}
+
+export async function ensureDefaultGithubPatFromEnv(): Promise<void> {
+    const githubPat = String(import.meta.env.VITE_GITHUB_PAT || "").trim();
+    if (!githubPat) {
+        return;
+    }
+
+    const tokenNames = await getGithubPatNames();
+    if (tokenNames.includes("default")) {
+        return;
+    }
+
+    await apiClient.fetch<void>("/api/v1/github/pat", {
+        method: "POST",
+        body: JSON.stringify({
+            name: "default",
+            token: githubPat,
         }),
     });
 }

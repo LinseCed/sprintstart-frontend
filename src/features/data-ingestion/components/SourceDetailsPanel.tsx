@@ -1,10 +1,6 @@
 import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock3,
     RefreshCw,
     X,
-    type LucideIcon,
 } from "lucide-react";
 import {
     useCallback,
@@ -21,6 +17,10 @@ import {
     DETAILS_RUN_LIMIT,
     formatDateTime,
     formatNumber,
+    formatRunFinishedAt,
+    getRunStatusLabel,
+    getRunStatusTone,
+    getSourceStatus,
     getSourceStatusLabel,
 } from "../data.ts";
 import type {
@@ -58,6 +58,8 @@ async function fetchSourceDetails(sourceSystem: SourceSystem) {
         recentRuns: currentSourceRuns,
     };
 }
+
+const EMPTY_RECENT_RUNS: IngestionRun[] = [];
 
 export function SourceDetailsPanel({
                                        source,
@@ -133,7 +135,9 @@ export function SourceDetailsPanel({
     const hasLoadedSelectedSource = loadedSourceSystem === source.sourceSystem;
 
     const visibleSourceStatus = hasLoadedSelectedSource ? sourceStatus : null;
-    const visibleRecentRuns = hasLoadedSelectedSource ? recentRuns : [];
+    const visibleRecentRuns = hasLoadedSelectedSource
+        ? recentRuns
+        : EMPTY_RECENT_RUNS;
     const visibleErrorMessage = hasLoadedSelectedSource ? errorMessage : null;
 
     const isLoading = loadingState === "loading" || !hasLoadedSelectedSource;
@@ -198,13 +202,21 @@ export function SourceDetailsPanel({
                 lastSync === "Never");
 
         const hasErrors = failedCount > 0;
-
-        const status: SourceStatus =
-            hasNeverSynced || hasErrors ? "warning" : "connected";
+        const latestStatus =
+            visibleSourceStatus?.status ?? latestRun?.status ?? null;
+        const status: SourceStatus = getSourceStatus(
+            hasNeverSynced,
+            hasErrors,
+            latestStatus,
+        );
 
         return {
             status,
-            statusLabel: getSourceStatusLabel(hasNeverSynced, hasErrors),
+            statusLabel: getSourceStatusLabel(
+                hasNeverSynced,
+                hasErrors,
+                latestStatus,
+            ),
             ingestedCount,
             updatedCount,
             failedCount,
@@ -271,6 +283,8 @@ export function SourceDetailsPanel({
 
                             {details.status === "connected" ? (
                                 <BadgeSuccess>{details.statusLabel}</BadgeSuccess>
+                            ) : details.status === "running" ? (
+                                <BadgeRunning>{details.statusLabel}</BadgeRunning>
                             ) : (
                                 <BadgeWarning>{details.statusLabel}</BadgeWarning>
                             )}
@@ -320,39 +334,6 @@ export function SourceDetailsPanel({
                                 </div>
                             </div>
                         )}
-
-                        <div>
-                            <SectionTitle>
-                                Ingestion Status
-                            </SectionTitle>
-
-                            <div className="space-y-3">
-                                {details.hasNeverSynced ? (
-                                    <StatusCard
-                                        isHealthy={false}
-                                        icon={Clock3}
-                                        title="Not synced yet"
-                                        description="No ingestion run has been reported for this source yet. Connect or sync the source first, then refresh the details."
-                                    />
-                                ) : details.hasErrors ? (
-                                    <StatusCard
-                                        isHealthy={false}
-                                        icon={AlertTriangle}
-                                        title={`${formatNumber(details.failedCount)} failed item${
-                                            details.failedCount === 1 ? "" : "s"
-                                        }`}
-                                        description="The latest ingestion status contains failed items. Review the failed items below."
-                                    />
-                                ) : (
-                                    <StatusCard
-                                        isHealthy
-                                        icon={CheckCircle2}
-                                        title="Source is synced"
-                                        description="The latest ingestion status was loaded successfully and does not report failed items."
-                                    />
-                                )}
-                            </div>
-                        </div>
 
                         <div>
                             <SectionTitle>
@@ -485,49 +466,6 @@ function InfoCard({
     );
 }
 
-function StatusCard({
-                        isHealthy,
-                        icon: Icon,
-                        title,
-                        description,
-                    }: {
-    isHealthy: boolean;
-    icon: LucideIcon;
-    title: string;
-    description: string;
-}) {
-    return (
-        <div
-            className={`flex items-start gap-4 rounded-xl border p-4 ${
-                isHealthy
-                    ? "border-app-border bg-app-surface-muted"
-                    : "border-app-warning-border bg-app-warning-bg"
-            }`}
-        >
-            <Icon
-                size={18}
-                className={`mt-0.5 shrink-0 ${
-                    isHealthy ? "text-app-success-text" : "text-app-warning-solid"
-                }`}
-            />
-
-            <div>
-                <p
-                    className={`text-sm font-semibold ${
-                        isHealthy ? "text-app-text" : "text-app-warning-text"
-                    }`}
-                >
-                    {title}
-                </p>
-
-                <p className="mt-1 text-sm text-app-text-muted">
-                    {description}
-                </p>
-            </div>
-        </div>
-    );
-}
-
 function RunCard({ run }: { run: IngestionRun }) {
     return (
         <div className="rounded-xl border border-app-border bg-app-surface-muted p-4">
@@ -575,32 +513,35 @@ function RunCard({ run }: { run: IngestionRun }) {
             </div>
 
             <p className="mt-3 text-xs text-app-text-subtle">
-                Finished: {formatDateTime(run.finishedAt)}
+                Finished: {formatRunFinishedAt(run.finishedAt, run.status)}
             </p>
         </div>
     );
 }
 
 function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
-    if (status === "SUCCESS") {
+    const label = getRunStatusLabel(status);
+    const tone = getRunStatusTone(status);
+
+    if (tone === "success") {
         return (
             <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-                Success
+                {label}
             </span>
         );
     }
 
-    if (status === "RUNNING") {
+    if (tone === "running") {
         return (
             <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                Running
+                {label}
             </span>
         );
     }
 
     return (
         <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-            Failed
+            {label}
         </span>
     );
 }
@@ -632,6 +573,18 @@ function BadgeSuccess({
 }) {
     return (
         <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
+            {children}
+        </span>
+    );
+}
+
+function BadgeRunning({
+                          children,
+                      }: {
+    children: ReactNode;
+}) {
+    return (
+        <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
             {children}
         </span>
     );

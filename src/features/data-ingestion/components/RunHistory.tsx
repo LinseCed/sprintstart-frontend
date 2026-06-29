@@ -1,6 +1,9 @@
 import {
     formatDateTime,
     formatNumber,
+    formatRunFinishedAt,
+    getRunStatusLabel,
+    getRunStatusTone,
     getSourceLabel,
 } from "../data.ts";
 import type { IngestionRun } from "../types.ts";
@@ -70,7 +73,10 @@ export function RunHistory({ runs }: RunHistoryProps) {
                             </p>
 
                             <p className="mt-1 text-sm text-app-text">
-                                {formatDateTime(run.finishedAt)}
+                                {formatRunFinishedAt(
+                                    run.finishedAt,
+                                    run.status,
+                                )}
                             </p>
                         </div>
 
@@ -107,25 +113,28 @@ export function RunHistory({ runs }: RunHistoryProps) {
 }
 
 function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
-    if (status === "SUCCESS") {
+    const label = getRunStatusLabel(status);
+    const tone = getRunStatusTone(status);
+
+    if (tone === "success") {
         return (
             <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-                Success
+                {label}
             </span>
         );
     }
 
-    if (status === "RUNNING") {
+    if (tone === "running") {
         return (
             <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                Running
+                {label}
             </span>
         );
     }
 
     return (
         <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-            Failed
+            {label}
         </span>
     );
 }

@@ -1,8 +1,10 @@
 import { Database, FileText, GitBranch } from "lucide-react";
 import type {
     DataSource,
+    IngestionRunStatus,
     SourceIngestionStatus,
     SourceMeta,
+    SourceStatus,
     SourceSystem,
 } from "./types.ts";
 
@@ -47,14 +49,23 @@ export function createDataSource(
 
     const hasNeverSynced = lastRunAt === null;
     const hasErrors = failedCount > 0;
+    const sourceStatus = getSourceStatus(
+        hasNeverSynced,
+        hasErrors,
+        status?.status,
+    );
 
     return {
         sourceSystem,
         name: meta.name,
         type: meta.type,
         icon: meta.icon,
-        status: hasNeverSynced || hasErrors ? "warning" : "connected",
-        statusLabel: getSourceStatusLabel(hasNeverSynced, hasErrors),
+        status: sourceStatus,
+        statusLabel: getSourceStatusLabel(
+            hasNeverSynced,
+            hasErrors,
+            status?.status,
+        ),
         artifacts: latestIngestedCount,
         lastSync: formatDateTime(lastRunAt),
         nextSync: "Not available",
@@ -67,13 +78,54 @@ export function createDataSource(
     };
 }
 
+export function getSourceStatus(
+    hasNeverSynced: boolean,
+    hasErrors: boolean,
+    runStatus?: IngestionRunStatus | null,
+): SourceStatus {
+    if (hasNeverSynced) return "warning";
+    if (isRunInProgress(runStatus)) return "running";
+    if (runStatus === "FAILED" || runStatus === "PARTIAL") return "warning";
+    if (hasErrors) return "warning";
+    return "connected";
+}
+
 export function getSourceStatusLabel(
     hasNeverSynced: boolean,
     hasErrors: boolean,
+    runStatus?: IngestionRunStatus | null,
 ) {
     if (hasNeverSynced) return "Not synced";
+    if (isRunInProgress(runStatus)) return "Running";
+    if (runStatus === "FAILED") return "Failed";
+    if (runStatus === "PARTIAL") return "Partial";
     if (hasErrors) return "Warning";
+    if (runStatus === "COMPLETED") return "Synced";
     return "Connected";
+}
+
+export function getRunStatusLabel(status: IngestionRunStatus) {
+    switch (status) {
+        case "CONNECTED":
+        case "RUNNING":
+            return "Running";
+        case "COMPLETED":
+            return "Success";
+        case "PARTIAL":
+            return "Partial";
+        case "FAILED":
+            return "Failed";
+    }
+}
+
+export function getRunStatusTone(status: IngestionRunStatus) {
+    if (status === "COMPLETED") return "success";
+    if (isRunInProgress(status)) return "running";
+    return "warning";
+}
+
+export function isRunInProgress(status?: IngestionRunStatus | null) {
+    return status === "CONNECTED" || status === "RUNNING";
 }
 
 export function getSourceLabel(sourceSystem: SourceSystem) {
@@ -93,6 +145,15 @@ export function formatDateTime(value: string | null) {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(date);
+}
+
+export function formatRunFinishedAt(
+    value: string | null,
+    status: IngestionRunStatus,
+) {
+    if (value) return formatDateTime(value);
+    if (isRunInProgress(status)) return "In progress";
+    return "Not reported";
 }
 
 export function formatNumber(value: number) {
