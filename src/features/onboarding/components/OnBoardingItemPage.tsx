@@ -70,6 +70,13 @@ export function OnBoardingItemPage() {
   const [skipReason, setSkipReason] = useState<string>("");
   const [skipLoading, setSkipLoading] = useState<boolean>(false);
 
+  // Ticks every 60s so the "time on step" display stays current while a step is open.
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const [feedbackHelpful, setFeedbackHelpful] = useState<boolean | null>(null);
   const [feedbackComment, setFeedbackComment] = useState<string>("");
   const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
@@ -488,6 +495,27 @@ export function OnBoardingItemPage() {
                   {new Date(stepDetail.completedAt).toLocaleDateString(
                     "en-US",
                     { year: "numeric", month: "short", day: "numeric" },
+                  )}
+                </p>
+              )}
+              {stepDetail.startedAt && (
+                <p className="flex items-center gap-1.5 text-xs text-app-text-muted mt-3">
+                  <Clock3 className="w-3.5 h-3.5" />
+                  {stepDetail.status === "FINISHED" ||
+                  stepDetail.status === "SKIPPED"
+                    ? "Time spent: "
+                    : "Time on step: "}
+                  {formatMinutes(
+                    Math.max(
+                      0,
+                      Math.floor(
+                        ((stepDetail.completedAt
+                          ? new Date(stepDetail.completedAt).getTime()
+                          : now) -
+                          new Date(stepDetail.startedAt).getTime()) /
+                          60000,
+                      ),
+                    ),
                   )}
                 </p>
               )}

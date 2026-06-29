@@ -28,6 +28,17 @@ export const onboardingService = {
         }
     },
 
+    /**
+     * Marks a step as in progress on the backend and records its start timestamp.
+     * Safe to call again on an already started step (the backend keeps the original
+     * startedAt).
+     */
+    async startStep(stepId: string): Promise<void> {
+        await apiClient.fetch(`/api/v1/onboarding/me/steps/${stepId}/start`, {
+            method: 'PUT',
+        });
+    },
+
     async updateStepStatus(step: OnboardingStepDetail, newStatus: StepStatus): Promise<void> {
         if (newStatus === 'FINISHED') {
             await apiClient.fetch(`/api/v1/onboarding/me/steps/${step.id}/complete`, {
