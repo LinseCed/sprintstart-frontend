@@ -11,10 +11,12 @@ import { SkillWizardPage } from '../pages/SkillWizardPage';
 import { TeamManagementPage } from '../pages/TeamManagementPage.tsx';
 import { TeamMemberDetailPage } from '../pages/TeamMemberDetailPage.tsx';
 import { PmDashboardPage } from '../pages/PmDashboardPage.tsx';
+import { AdminPage } from '../pages/AdminPage.tsx';
 import { FaqPage } from '../features/faq/components/FaqPage.tsx';
 import { FaqDetailPage } from '../features/faq/components/faqDetailView.tsx';
 import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/KnowledgeGapsPage.tsx';
 import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/knowledgeGapsDetailPage.tsx';
+import { ProfilePage } from '../pages/ProfilePage.tsx';
 
 export function AppRouter() {
     return (
@@ -32,10 +34,12 @@ export function AppRouter() {
                 <Route path="/team-management" element={<TeamManagementPage />} />
                 <Route path="/team/:userId" element={<TeamMemberDetailPage />} />
                 <Route path="/pm-dashboard" element={<PmDashboardPage />} />
+                <Route path="/admin" element={<AdminPage />} />
                 <Route path="/insights/faq" element={<FaqPage />} />
                 <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
                 <Route path="/insights/knowledge-gaps" element={<KnowledgeGapsPage />} />
                 <Route path="/insights/knowledge-gaps/:gapId" element={<KnowledgeGapsDetailPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
             </Routes>
         </AuthGuard>
     );

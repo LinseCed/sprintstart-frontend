@@ -1,10 +1,10 @@
-export const Role = {
-    NO_ROLE: 'NO_ROLE',
-    EXISTING_MEMBER: 'EXISTING_MEMBER',
-    NEW_MEMBER: 'NEW_MEMBER',
+export const PermissionGroup = {
+    USER: 'USER',
+    PM: 'PM',
+    HR: 'HR',
     ADMIN: 'ADMIN',
 } as const;
-export type Role = (typeof Role)[keyof typeof Role];
+export type PermissionGroup = (typeof PermissionGroup)[keyof typeof PermissionGroup];
 
 export const WorkingArea = {
     NO_WORKING_AREA: 'NO_WORKING_AREA',
@@ -40,12 +40,17 @@ export type UploadResult = {
     error?: string;
 };
 
+
 export interface UserProfile {
     id: string;
+    authId: string;
     username: string;
-    firstname: string;
-    lastname: string;
-    primaryRole: Role;
-    secondaryRole: Role;
+    email: string | null;
+    firstName: string;
+    lastName: string;
     workingArea: WorkingArea;
+    permissionGroup: PermissionGroup;
+    enabled: boolean;
+    profileIcon: string | null;
+    hasCompletedOnboarding: boolean;
 }

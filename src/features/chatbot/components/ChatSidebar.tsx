@@ -38,7 +38,7 @@ export function ChatSidebar({ chats, setSidebarOpen }: ChatSidebarProps) {
                         `}
                     >
                         <div className="truncate flex-1">
-                            {chat.title || "Untitled Chat"}
+                            {chat.title || "Thinking..."}
                         </div>
                     </NavLink>
                 ))}
