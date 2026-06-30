@@ -107,6 +107,10 @@ function StepIndicator({ step }: { step: 1 | 2 }) {
   );
 }
 
+/**
+ * Role selection wizard shown to new users to initialize their onboarding path.
+ * Captures their working area and experience level.
+ */
 export function SelectionWizardPage({ open = true }: { open?: boolean } = {}) {
   const { refetchProfile } = useAuth();
 
