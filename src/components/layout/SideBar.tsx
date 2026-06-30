@@ -12,7 +12,6 @@ import {
     Rocket,
     Settings,
     Terminal,
-    User,
     X,
 } from 'lucide-react';
 import Avatar from 'boring-avatars';
@@ -63,11 +62,6 @@ const projectManagerNavItems: SidebarNavItem[] = [
         label: 'Data Ingestion',
         path: '/data-ingestion',
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
-    },
-     {
-        label: 'Team Management',
-        path: '/team-management',
-        icon: <User className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 
