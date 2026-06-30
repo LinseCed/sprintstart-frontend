@@ -10,15 +10,18 @@ import {
     MessageSquare,
     Rocket,
     Settings,
+    Terminal,
+    User,
     X,
 } from 'lucide-react';
 import Avatar from 'boring-avatars';
 import { useAuth } from '../../context/useAuth';
+import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
 
 type SidebarNavItem = {
     label: string;
-    path: string;
+    path: AppRoute;
     icon: ReactNode;
 };
 
@@ -57,6 +60,15 @@ const projectManagerNavItems: SidebarNavItem[] = [
     },
 ];
 
+const adminNavItems: SidebarNavItem[] = [
+    {
+        label: 'Access Management',
+        path: '/admin',
+        icon: <Terminal className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+];
+
+
 function getNavLinkClass(isActive: boolean): string {
     return [
         'group flex h-[40px] items-center gap-[12px] rounded-[8px] px-[12px] text-[14px] font-medium leading-none transition-all duration-200',
@@ -72,6 +84,13 @@ function getNavLinkClass(isActive: boolean): string {
  */
 function SidebarContent({ onNavigate }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
+    const visibleNavItems = navItems.filter((item) => canAccessRoute(profile, item.path));
+    const visibleProjectManagerNavItems = projectManagerNavItems.filter((item) =>
+        canAccessRoute(profile, item.path),
+    );
+    const visibleAdminNavItems = adminNavItems.filter((item) =>
+        canAccessRoute(profile, item.path),
+    );
 
     return (
         <div className="flex h-full flex-col bg-app-bg text-app-text">
@@ -86,7 +105,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
             </div>
 
             <nav className="flex-1 space-y-[5px] px-[16px] py-[20px]">
-                {navItems.map((item) => (
+                {visibleNavItems.map((item) => (
                     <NavLink
                         key={item.path}
                         to={item.path}
@@ -108,34 +127,67 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                     </NavLink>
                 ))}
 
-                <div className="pt-[20px]">
-                    <p className="px-[8px] pb-[8px] text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text-muted">
-                        Project Manager
-                    </p>
+                {visibleProjectManagerNavItems.length > 0 && (
+                    <div className="pt-[20px]">
+                        <p className="px-[8px] pb-[8px] text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text-muted">
+                            Project Manager
+                        </p>
 
-                    <div className="space-y-[5px]">
-                        {projectManagerNavItems.map((item) => (
-                            <NavLink
-                                key={item.path}
-                                to={item.path}
-                                onClick={onNavigate}
-                                className={({ isActive }) => getNavLinkClass(isActive)}
-                            >
-                                {({ isActive }) => (
-                                    <>
-                                        {item.icon}
+                        <div className="space-y-[5px]">
+                            {visibleProjectManagerNavItems.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    onClick={onNavigate}
+                                    className={({ isActive }) => getNavLinkClass(isActive)}
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            {item.icon}
 
-                                        <span>{item.label}</span>
+                                            <span>{item.label}</span>
 
-                                        {isActive ? (
-                                            <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
-                                        ) : null}
-                                    </>
-                                )}
-                            </NavLink>
-                        ))}
+                                            {isActive ? (
+                                                <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
+                                            ) : null}
+                                        </>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {visibleAdminNavItems.length > 0 && (
+                    <div className="pt-[20px]">
+                        <p className="px-[8px] pb-[8px] text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text-muted">
+                            Admin
+                        </p>
+
+                        <div className="space-y-[5px]">
+                            {visibleAdminNavItems.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    onClick={onNavigate}
+                                    className={({ isActive }) => getNavLinkClass(isActive)}
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            {item.icon}
+
+                                            <span>{item.label}</span>
+
+                                            {isActive ? (
+                                                <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
+                                            ) : null}
+                                        </>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </nav>
 
             <div className="space-y-[12px] border-t border-app-border bg-app-surface p-[16px]">
@@ -157,7 +209,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                                 </span>
 
                                 <span className="truncate text-[10px] font-medium uppercase tracking-wider text-app-text-muted">
-                                    {profile.workingArea.replace('_', ' ')}
+                                    {profile.permissionGroup.replace('_', ' ')}
                                 </span>
                             </div>
                         </div>

@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { Role, type UserProfile } from './types';
+import { WorkingArea, type UserProfile } from './types';
 import userMock from '../mocks/userMock.json';
 
 const LOCAL_MOCK_KEY = 'sprintstart_mock_profile';
@@ -56,8 +56,8 @@ export const userService = {
         const frontendOnlyFields: Partial<UserProfile> = {};
         if (profile.profileIcon !== undefined) frontendOnlyFields.profileIcon = profile.profileIcon;
         if (profile.email !== undefined) frontendOnlyFields.email = profile.email;
-        if (profile.firstname !== undefined) frontendOnlyFields.firstname = profile.firstname;
-        if (profile.lastname !== undefined) frontendOnlyFields.lastname = profile.lastname;
+        if (profile.firstName !== undefined) frontendOnlyFields.firstName = profile.firstName;
+        if (profile.lastName !== undefined) frontendOnlyFields.lastName = profile.lastName;
         
         setLocalMockProfile(frontendOnlyFields);
 
@@ -82,8 +82,7 @@ export const userService = {
      */
     async resetProfile(): Promise<void> {
         await this.updateProfile({
-            primaryRole: Role.NO_ROLE,
-            secondaryRole: Role.NO_ROLE
+            workingArea: WorkingArea.NO_WORKING_AREA,
         });
     },
 

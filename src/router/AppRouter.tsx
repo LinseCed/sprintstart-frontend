@@ -4,6 +4,7 @@ import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { OnBoardingPage } from '../pages/OnBoardingPage';
+import { AdminPage } from '../pages/AdminPage.tsx';
 import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
@@ -24,6 +25,7 @@ export function AppRouter() {
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/admin" element={<AdminPage />} />
             </Routes>
         </AuthGuard>
     );
