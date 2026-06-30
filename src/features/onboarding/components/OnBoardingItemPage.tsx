@@ -24,6 +24,9 @@ import {
   AlertCircle,
   Trophy,
   CircleArrowRight,
+  Lightbulb,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
@@ -66,6 +69,18 @@ export function OnBoardingItemPage() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [skipReason, setSkipReason] = useState<string>("");
   const [skipLoading, setSkipLoading] = useState<boolean>(false);
+
+  // Ticks every 60s so the "time on step" display stays current while a step is open.
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [feedbackHelpful, setFeedbackHelpful] = useState<boolean | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState<string>("");
+  const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
 
   const [localFinished, setLocalFinished] = useState<Set<string>>(new Set());
 
@@ -115,7 +130,12 @@ export function OnBoardingItemPage() {
       try {
         const step = await onboardingService.fetchStep(stepId);
         setStepDetail(step);
-        setSkipReason(step.skipReason ?? "");
+        if (step.feedback) {
+          setFeedbackHelpful(step.feedback.helpful);
+          setFeedbackComment(step.feedback.comment ?? "");
+          setFeedbackSubmitted(true);
+        }
+        setSkipReason(step.skip?.reason ?? "");
 
         const fetchedTasks = await onboardingService.fetchTasks(stepId);
         setTasks(fetchedTasks);
@@ -138,7 +158,7 @@ export function OnBoardingItemPage() {
     void load();
   }, [stepId]);
 
-  // ── TOGGLE TASK ───────────────────────────────────────────
+  // ── SKIP ──────────────────────────────────────────────────
   const skipCurrentStep = async (): Promise<void> => {
     if (!stepDetail) return;
     const reason = skipReason.trim();
@@ -146,14 +166,41 @@ export function OnBoardingItemPage() {
 
     setSkipLoading(true);
     try {
-      await onboardingService.skipStep(stepDetail, reason);
+      const created = await onboardingService.skipStep(stepDetail, reason);
+      // The create-skip response is status-based; the step-detail skip block is
+      // accepted-based (null = still pending), so map it into that shape.
       setStepDetail((prev) =>
-        prev ? { ...prev, status: "SKIPPED", skipReason: reason } : prev,
+        prev
+          ? {
+              ...prev,
+              skip: {
+                id: created.id,
+                stepId: created.stepId,
+                reason: created.reason,
+                accepted: null,
+                reviewComment: created.reviewComment,
+                reviewedAt: null,
+              },
+            }
+          : prev,
       );
     } catch (err) {
       console.error("Error skipping step:", err);
     } finally {
       setSkipLoading(false);
+    }
+  };
+
+  const submitFeedback = async (): Promise<void> => {
+    if (!stepDetail || feedbackHelpful === null || !feedbackComment.trim()) return;
+    setFeedbackLoading(true);
+    try {
+      await onboardingService.submitFeedback(stepDetail.id, feedbackHelpful, feedbackComment);
+      setFeedbackSubmitted(true);
+    } catch (err) {
+      console.error("Error submitting feedback:", err);
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -165,6 +212,10 @@ export function OnBoardingItemPage() {
   // ── DERIVED ───────────────────────────────────────────────
   const sortedTasks = [...tasks].sort((a, b) => a.position - b.position);
   const doneTasks = sortedTasks.filter((t) => localFinished.has(t.id)).length;
+  // The step-detail skip block exposes `accepted` (null = pending review).
+  const hasPendingSkipRequest = stepDetail?.skip
+    ? stepDetail.skip.accepted === null
+    : false;
   const allTasksDone =
     sortedTasks.length === 0 || doneTasks === sortedTasks.length;
   const taskPercentage =
@@ -286,6 +337,26 @@ export function OnBoardingItemPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Expected Outcomes */}
+            {stepDetail.expectedOutcomes && stepDetail.expectedOutcomes.length > 0 && (
+              <div className="rounded-2xl border border-app-border bg-app-surface p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lightbulb className="w-5 h-5 text-app-brand" />
+                  <h2 className="font-semibold text-app-text">
+                    Expected Outcomes
+                  </h2>
+                </div>
+                <ul className="space-y-3">
+                  {stepDetail.expectedOutcomes.map((outcome, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-app-success-solid shrink-0 mt-0.5" />
+                      <span className="text-sm text-app-text">{outcome}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* TASKS (Step by Step) */}
             {sortedTasks.length > 0 && (
               <div className="rounded-2xl border border-app-border bg-app-surface p-6">
@@ -357,14 +428,14 @@ export function OnBoardingItemPage() {
               </h3>
               <button
                 onClick={() =>
-                  void updateStepStatus(
-                    stepDetail.status === "FINISHED" ? "WAITING" : "FINISHED",
-                  )
+                  stepDetail.status === "FINISHED"
+                    ? undefined
+                    : void updateStepStatus("FINISHED")
                 }
-                disabled={!allTasksDone && stepDetail.status !== "FINISHED"}
+                disabled={stepDetail.status === "FINISHED" || !allTasksDone}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
                   stepDetail.status === "FINISHED"
-                    ? "border-app-success-border bg-app-success-bg text-app-success-text hover:bg-app-success-bg"
+                    ? "border-app-success-border bg-app-success-bg text-app-success-text cursor-default"
                     : allTasksDone
                       ? "border-dashed border-app-border-strong hover:border-app-brand-border-strong text-app-text-muted hover:text-app-brand"
                       : "border-dashed border-app-border text-app-text-disabled cursor-not-allowed"
@@ -382,15 +453,13 @@ export function OnBoardingItemPage() {
                       ? "Mark as Completed"
                       : `Still ${sortedTasks.length - doneTasks} task${sortedTasks.length - doneTasks === 1 ? "" : "s"} pending`}
                 </span>
-                {stepDetail.status === "FINISHED" && (
-                  <span className="text-xs opacity-60">undo</span>
-                )}
               </button>
             </div>
           </div>
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6">
+
             {/* STATUS */}
             <div className="rounded-2xl border border-app-border bg-app-surface p-5">
               <h3 className="font-semibold text-app-text text-sm mb-3">
@@ -426,6 +495,27 @@ export function OnBoardingItemPage() {
                   {new Date(stepDetail.completedAt).toLocaleDateString(
                     "en-US",
                     { year: "numeric", month: "short", day: "numeric" },
+                  )}
+                </p>
+              )}
+              {stepDetail.startedAt && (
+                <p className="flex items-center gap-1.5 text-xs text-app-text-muted mt-3">
+                  <Clock3 className="w-3.5 h-3.5" />
+                  {stepDetail.status === "FINISHED" ||
+                  stepDetail.status === "SKIPPED"
+                    ? "Time spent: "
+                    : "Time on step: "}
+                  {formatMinutes(
+                    Math.max(
+                      0,
+                      Math.floor(
+                        ((stepDetail.completedAt
+                          ? new Date(stepDetail.completedAt).getTime()
+                          : now) -
+                          new Date(stepDetail.startedAt).getTime()) /
+                          60000,
+                      ),
+                    ),
                   )}
                 </p>
               )}
@@ -471,10 +561,14 @@ export function OnBoardingItemPage() {
               </h3>
               <textarea
                 value={skipReason}
-                onChange={(event) => setSkipReason(event.target.value)}
+                onChange={(e) => setSkipReason(e.target.value)}
                 placeholder="Reason for skipping..."
                 className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
-                disabled={skipLoading || stepDetail.status === "SKIPPED"}
+                disabled={
+                  skipLoading ||
+                  stepDetail.status === "SKIPPED" ||
+                  hasPendingSkipRequest
+                }
               />
               <button
                 className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
@@ -482,11 +576,14 @@ export function OnBoardingItemPage() {
                 disabled={
                   skipLoading ||
                   !skipReason.trim() ||
-                  stepDetail.status === "SKIPPED"
+                  stepDetail.status === "SKIPPED" ||
+                  hasPendingSkipRequest
                 }
               >
                 {skipLoading
                   ? "Skipping..."
+                  : hasPendingSkipRequest
+                    ? "Skip Requested"
                   : stepDetail.status === "SKIPPED"
                     ? "Step Skipped"
                     : "Skip Step"}
@@ -499,13 +596,73 @@ export function OnBoardingItemPage() {
                 <MessageSquareCheck className="w-4 h-4 text-app-brand" />
                 Feedback
               </h3>
-              <textarea
-                placeholder="Your feedback about this step..."
-                className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
-              />
-              <button className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all">
-                Submit feedback
-              </button>
+              {feedbackSubmitted ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm text-app-text-muted">
+                    {feedbackHelpful ? (
+                      <ThumbsUp className="w-4 h-4 text-app-success-solid" />
+                    ) : (
+                      <ThumbsDown className="w-4 h-4 text-app-danger-solid" />
+                    )}
+                    <span>{feedbackHelpful ? "Marked as helpful" : "Marked as not helpful"}</span>
+                  </div>
+                  {feedbackComment && (
+                    <p className="text-sm text-app-text bg-app-surface-muted rounded-xl p-3">
+                      {feedbackComment}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setFeedbackSubmitted(false)}
+                    className="text-xs text-app-text-muted hover:text-app-text transition-all text-left"
+                  >
+                    Edit feedback
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setFeedbackHelpful(true)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                        feedbackHelpful === true
+                          ? "border-app-success-border bg-app-success-bg text-app-success-text"
+                          : "border-app-border text-app-text-muted hover:border-app-brand-border-strong"
+                      }`}
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      Helpful
+                    </button>
+                    <button
+                      onClick={() => setFeedbackHelpful(false)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                        feedbackHelpful === false
+                          ? "border-app-danger-border bg-app-danger-bg text-app-danger-text"
+                          : "border-app-border text-app-text-muted hover:border-app-brand-border-strong"
+                      }`}
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                      Not helpful
+                    </button>
+                  </div>
+                  <textarea
+                    value={feedbackComment}
+                    onChange={(e) => setFeedbackComment(e.target.value)}
+                    placeholder="Tell us what worked or what was missing..."
+                    className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
+                  />
+                  <button
+                    onClick={() => void submitFeedback()}
+                    disabled={
+                      feedbackHelpful === null ||
+                      !feedbackComment.trim() ||
+                      feedbackLoading
+                    }
+                    className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
+                  >
+                    {feedbackLoading ? "Submitting..." : "Submit feedback"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
