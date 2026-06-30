@@ -142,6 +142,7 @@ export function TeamMemberDetailPage() {
     } | null>(null);
     const [customStepTitle, setCustomStepTitle] = useState('');
     const [customStepDescription, setCustomStepDescription] = useState('');
+    const [customStepExpectedOutcome, setCustomStepExpectedOutcome] = useState('');
     const [customStepMinutes, setCustomStepMinutes] = useState('30');
     const [customStepTasks, setCustomStepTasks] = useState<
         Array<{ title: string; description: string }>
@@ -494,6 +495,7 @@ export function TeamMemberDetailPage() {
                 description: customStepDescription.trim(),
                 type: 'TASK',
                 estimatedMinutes: Number(customStepMinutes) || 30,
+                expectedOutcome: customStepExpectedOutcome.trim(),
             });
             const tasksToCreate = customStepTasks
                 .map((task) => ({
@@ -515,6 +517,7 @@ export function TeamMemberDetailPage() {
 
             setCustomStepTitle('');
             setCustomStepDescription('');
+            setCustomStepExpectedOutcome('');
             setCustomStepMinutes('30');
             setCustomStepTasks([{ title: '', description: '' }]);
             setStepInsertTarget(null);
@@ -1607,6 +1610,16 @@ export function TeamMemberDetailPage() {
                                 }
                                 placeholder="Describe what the member should do."
                                 rows={3}
+                                className="w-full resize-none rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                            />
+
+                            <textarea
+                                value={customStepExpectedOutcome}
+                                onChange={(event) =>
+                                    setCustomStepExpectedOutcome(event.target.value)
+                                }
+                                placeholder="Describe the expected outcome."
+                                rows={2}
                                 className="w-full resize-none rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
                             />
 
