@@ -189,7 +189,7 @@ export function KnowledgeGapsPage() {
   }
 
   // Filter by severity
-  let filtered = overview.gaps.filter((gap) =>
+  const filtered = overview.gaps.filter((gap) =>
     severityFilter.includes(gap.severity),
   );
 

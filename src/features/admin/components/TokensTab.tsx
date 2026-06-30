@@ -173,10 +173,11 @@ export function TokensTab({ tokenNames, onRefresh }: TokensTabProps) {
 
                     <div className="space-y-3">
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-app-text-muted">
+                            <label htmlFor="add-token-name" className="mb-1.5 block text-xs font-medium text-app-text-muted">
                                 Token name
                             </label>
                             <input
+                                id="add-token-name"
                                 value={addName}
                                 onChange={(e) => setAddName(e.target.value)}
                                 placeholder="e.g. default"
@@ -187,10 +188,11 @@ export function TokensTab({ tokenNames, onRefresh }: TokensTabProps) {
                         </div>
 
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-app-text-muted">
+                            <label htmlFor="add-token-value" className="mb-1.5 block text-xs font-medium text-app-text-muted">
                                 Token (ghp_...)
                             </label>
                             <input
+                                id="add-token-value"
                                 type="password"
                                 value={addToken}
                                 onChange={(e) => setAddToken(e.target.value)}

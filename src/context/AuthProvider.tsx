@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { userService } from '../services/userService';
+import type { UserProfile } from '../services/types';
 import { AuthContext, type AuthStatus } from './AuthContext';
 import keycloak from '../config/keycloak';
 /**
