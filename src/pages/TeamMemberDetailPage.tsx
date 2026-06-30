@@ -504,16 +504,17 @@ export function TeamMemberDetailPage() {
                 }))
                 .filter((task) => task.title.length > 0);
 
-            await Promise.all(
-                tasksToCreate.map((task, index) =>
-                    createOnboardingTaskForStep(createdStep.id, {
-                        position: index,
-                        title: task.title,
-                        description: task.description,
-                        finished: false,
-                    }),
-                ),
-            );
+            // Create tasks sequentially: the backend validates each task's position
+            // against the current task count, so creating them in parallel makes every
+            // task after the first fail ("Position must be between 0 and 0").
+            for (const [index, task] of tasksToCreate.entries()) {
+                await createOnboardingTaskForStep(createdStep.id, {
+                    position: index,
+                    title: task.title,
+                    description: task.description,
+                    finished: false,
+                });
+            }
 
             setCustomStepTitle('');
             setCustomStepDescription('');
