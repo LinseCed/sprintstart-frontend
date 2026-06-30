@@ -18,6 +18,10 @@ import {
 
 type LoadingState = "idle" | "loading" | "success" | "error";
 
+/**
+ * Unified UI for connecting GitHub repositories and monitoring ingestion health.
+ * Allows project managers to manually trigger ingestion processes.
+ */
 export function DataIngestionPage() {
     // State for Connect Repository
     const [connectOwner, setConnectOwner] = useState("");

@@ -17,6 +17,7 @@
   "dependencies": {
     "@keycloakify/login-ui": "~250004.7.2",
     "@tailwindcss/vite": "^4.3.0",
+    "boring-avatars": "^2.0.4",
     "framer-motion": "^12.40.0",
     "katex": "^0.17.0",
     "keycloak-js": "^26.2.4",

@@ -2,6 +2,10 @@ import { useAuth } from '../context/useAuth';
 import { Rocket, LogIn } from 'lucide-react';
 import { ThemeToggle } from '../components/common/ThemeToggle';
 
+/**
+ * The authentication entry point.
+ * Redirects users to the SSO identity provider and initiates the role selection upon first login.
+ */
 export function LoginPage() {
     const { login, status } = useAuth();
 

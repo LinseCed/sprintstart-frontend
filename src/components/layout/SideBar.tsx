@@ -9,10 +9,13 @@ import {
     LogOut,
     Menu,
     MessageSquare,
-    Rocket, Terminal,
+    Rocket,
+    Settings,
+    Terminal,
     User,
     X,
 } from 'lucide-react';
+import Avatar from 'boring-avatars';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
@@ -87,6 +90,9 @@ function getNavLinkClass(isActive: boolean): string {
     ].join(' ');
 }
 
+/**
+ * Renders the navigation links and user profile section within the sidebar.
+ */
 function SidebarContent({ onNavigate }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
     const visibleNavItems = navItems.filter((item) => canAccessRoute(profile, item.path));
@@ -197,20 +203,42 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
 
             <div className="space-y-[12px] border-t border-app-border bg-app-surface p-[16px]">
                 {profile && (
-                    <div className="mb-4 flex items-center gap-3 px-3 py-2">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface-muted text-app-text-muted">
-                            <User className="h-4 w-4" />
-                        </div>
+                    <div className="mb-4 flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface-muted">
+                                <Avatar 
+                                    size={32}
+                                    name={profile.profileIcon || profile.username || 'User'}
+                                    variant="beam"
+                                    colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
+                                />
+                            </div>
 
-                        <div className="flex flex-col overflow-hidden">
-                            <span className="truncate text-sm font-semibold text-app-text">
-                                {profile.username}
-                            </span>
+                            <div className="flex flex-col overflow-hidden">
+                                <span className="truncate text-sm font-semibold text-app-text">
+                                    {profile.username}
+                                </span>
 
-                            <span className="truncate text-[10px] font-medium uppercase tracking-wider text-app-text-muted">
-                                {profile.permissionGroup.replace('_', ' ')}
-                            </span>
+                                <span className="truncate text-[10px] font-medium uppercase tracking-wider text-app-text-muted">
+                                    {profile.permissionGroup.replace('_', ' ')}
+                                </span>
+                            </div>
                         </div>
+                        <NavLink
+                            to="/profile"
+                            onClick={onNavigate}
+                            className={({ isActive }) => 
+                                `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                                    isActive 
+                                        ? 'bg-app-surface-hover text-app-brand' 
+                                        : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-text'
+                                }`
+                            }
+                            title="Profile Settings"
+                            aria-label="Profile Settings"
+                        >
+                            <Settings className="h-4 w-4" />
+                        </NavLink>
                     </div>
                 )}
 
@@ -232,6 +260,10 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
     );
 }
 
+/**
+ * Main application sidebar for navigation.
+ * Handles both the desktop sticky sidebar and the mobile slide-out menu.
+ */
 export function SideBar() {
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 

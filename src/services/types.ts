@@ -40,6 +40,7 @@ export type UploadResult = {
     error?: string;
 };
 
+
 export interface UserProfile {
     id: string;
     authId: string;
