@@ -184,6 +184,10 @@ function hasSourceSystem(sources: DataSource[], sourceSystem: SourceSystem) {
     return sources.some((source) => source.sourceSystem === sourceSystem);
 }
 
+/**
+ * Unified UI for connecting GitHub repositories and monitoring ingestion health.
+ * Allows project managers to manually trigger ingestion processes.
+ */
 export function DataIngestionPage() {
     const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
     const [selectedSourceSystem, setSelectedSourceSystem] =

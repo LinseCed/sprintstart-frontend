@@ -55,6 +55,10 @@ function ProgressBar({ value, max }: ProgressBarProps) {
 // MAIN COMPONENT: OnBoardingPage
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Displays the user's personalized onboarding path hierarchy.
+ * Fetches and tracks progress through phases and tasks.
+ */
 export function OnBoardingPage() {
   // Selected phase index
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState<number>(0);

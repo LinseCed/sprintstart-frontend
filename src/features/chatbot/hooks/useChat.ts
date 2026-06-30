@@ -85,10 +85,10 @@ export function useChat() {
         });
     }, [chatId, messages]);
 
-    const refreshChats = async () => {
+    const refreshChats = useCallback(async () => {
         const data = await getChats();
         setChats(data.chats.filter(chat => chat.userId === userId));
-    };
+    }, [userId]);
 
     useEffect(() => {
         /**
@@ -232,7 +232,7 @@ export function useChat() {
             setIsStreaming(false);
             setIsThinking(false);
         }
-    }, [chatId, navigate, chats]);
+    }, [chatId, navigate, chats, refreshChats, userId]);
 
     /**
      * Adds the newly created messages to the chat.

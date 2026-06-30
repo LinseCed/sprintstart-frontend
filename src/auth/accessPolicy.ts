@@ -6,7 +6,11 @@ export type AppRoute =
     | '/knowledge-base'
     | '/onboarding'
     | '/data-ingestion'
-    | '/admin';
+    | '/admin'
+    | '/pm-dashboard'
+    | '/team-management'
+    | '/insights/faq'
+    | '/insights/knowledge-gaps';
 
 const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     '/': [PermissionGroup.USER, PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
@@ -25,11 +29,18 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     ],
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/admin': [PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/pm-dashboard': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/team-management': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/insights/faq': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/insights/knowledge-gaps': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
 };
 
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/chat': ['/chat/'],
     '/onboarding': ['/onboarding/'],
+    '/team-management': ['/team/'],
+    '/insights/faq': ['/insights/faq/'],
+    '/insights/knowledge-gaps': ['/insights/knowledge-gaps/'],
 };
 
 export function canAccessRoute(profile: UserProfile | null, route: AppRoute): boolean {

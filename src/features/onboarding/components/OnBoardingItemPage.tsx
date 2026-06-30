@@ -115,7 +115,7 @@ export function OnBoardingItemPage() {
       try {
         const step = await onboardingService.fetchStep(stepId);
         setStepDetail(step);
-        setSkipReason(step.skipReason ?? "");
+        setSkipReason(step.skip?.reason ?? step.skipReason ?? "");
 
         const fetchedTasks = await onboardingService.fetchTasks(stepId);
         setTasks(fetchedTasks);
@@ -146,9 +146,9 @@ export function OnBoardingItemPage() {
 
     setSkipLoading(true);
     try {
-      await onboardingService.skipStep(stepDetail, reason);
+      const skip = await onboardingService.skipStep(stepDetail, reason);
       setStepDetail((prev) =>
-        prev ? { ...prev, status: "SKIPPED", skipReason: reason } : prev,
+        prev ? { ...prev, skip } : prev,
       );
     } catch (err) {
       console.error("Error skipping step:", err);
@@ -165,6 +165,7 @@ export function OnBoardingItemPage() {
   // ── DERIVED ───────────────────────────────────────────────
   const sortedTasks = [...tasks].sort((a, b) => a.position - b.position);
   const doneTasks = sortedTasks.filter((t) => localFinished.has(t.id)).length;
+  const hasPendingSkipRequest = stepDetail?.skip?.status === "PENDING";
   const allTasksDone =
     sortedTasks.length === 0 || doneTasks === sortedTasks.length;
   const taskPercentage =
@@ -357,14 +358,14 @@ export function OnBoardingItemPage() {
               </h3>
               <button
                 onClick={() =>
-                  void updateStepStatus(
-                    stepDetail.status === "FINISHED" ? "WAITING" : "FINISHED",
-                  )
+                  stepDetail.status === "FINISHED"
+                    ? undefined
+                    : void updateStepStatus("FINISHED")
                 }
-                disabled={!allTasksDone && stepDetail.status !== "FINISHED"}
+                disabled={stepDetail.status === "FINISHED" || !allTasksDone}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
                   stepDetail.status === "FINISHED"
-                    ? "border-app-success-border bg-app-success-bg text-app-success-text hover:bg-app-success-bg"
+                    ? "border-app-success-border bg-app-success-bg text-app-success-text cursor-default"
                     : allTasksDone
                       ? "border-dashed border-app-border-strong hover:border-app-brand-border-strong text-app-text-muted hover:text-app-brand"
                       : "border-dashed border-app-border text-app-text-disabled cursor-not-allowed"
@@ -382,9 +383,6 @@ export function OnBoardingItemPage() {
                       ? "Mark as Completed"
                       : `Still ${sortedTasks.length - doneTasks} task${sortedTasks.length - doneTasks === 1 ? "" : "s"} pending`}
                 </span>
-                {stepDetail.status === "FINISHED" && (
-                  <span className="text-xs opacity-60">undo</span>
-                )}
               </button>
             </div>
           </div>
@@ -474,7 +472,11 @@ export function OnBoardingItemPage() {
                 onChange={(event) => setSkipReason(event.target.value)}
                 placeholder="Reason for skipping..."
                 className="w-full h-24 p-3 rounded-xl border border-app-border bg-app-surface text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-focus transition-all resize-none"
-                disabled={skipLoading || stepDetail.status === "SKIPPED"}
+                disabled={
+                  skipLoading ||
+                  stepDetail.status === "SKIPPED" ||
+                  hasPendingSkipRequest
+                }
               />
               <button
                 className="mt-3 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:cursor-not-allowed disabled:bg-app-border"
@@ -482,11 +484,14 @@ export function OnBoardingItemPage() {
                 disabled={
                   skipLoading ||
                   !skipReason.trim() ||
-                  stepDetail.status === "SKIPPED"
+                  stepDetail.status === "SKIPPED" ||
+                  hasPendingSkipRequest
                 }
               >
                 {skipLoading
                   ? "Skipping..."
+                  : hasPendingSkipRequest
+                    ? "Skip Requested"
                   : stepDetail.status === "SKIPPED"
                     ? "Step Skipped"
                     : "Skip Step"}

@@ -13,6 +13,10 @@ import {
     X,
 } from 'lucide-react';
 
+/**
+ * Multi-file and multi-format management view for uploaded project resources.
+ * Handles document uploading, deletion, and status monitoring.
+ */
 export function KnowledgeBasePage() {
     const { profile } = useAuth();
 
