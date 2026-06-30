@@ -11,7 +11,6 @@ import {
     Rocket,
     Settings,
     Terminal,
-    User,
     X,
 } from 'lucide-react';
 import Avatar from 'boring-avatars';

@@ -11,8 +11,8 @@ type AccountFormProps = {
  * Form component for updating user account information, including name, email, and avatar.
  */
 export function AccountForm({ profile, onUpdate }: AccountFormProps) {
-    const [firstname, setFirstname] = useState(profile.firstname || '');
-    const [lastname, setLastname] = useState(profile.lastname || '');
+    const [firstName, setFirstName] = useState(profile.firstName || '');
+    const [lastName, setLastName] = useState(profile.lastName || '');
     const [email, setEmail] = useState(profile.email || '');
     const [profileIcon, setProfileIcon] = useState(profile.profileIcon || profile.username || 'User');
     const [isSaving, setIsSaving] = useState(false);
@@ -40,7 +40,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
         e.preventDefault();
         setIsSaving(true);
         try {
-            await onUpdate({ firstname, lastname, email, profileIcon });
+            await onUpdate({ firstName, lastName, email, profileIcon });
         } finally {
             setIsSaving(false);
         }
@@ -98,23 +98,23 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
             <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-1">
-                        <label htmlFor="firstname" className="text-sm font-medium text-app-text">First Name</label>
+                        <label htmlFor="firstName" className="text-sm font-medium text-app-text">First Name</label>
                         <input
-                            id="firstname"
+                            id="firstName"
                             type="text"
-                            value={firstname}
-                            onChange={(e) => setFirstname(e.target.value)}
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
                             className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
                             required
                         />
                     </div>
                     <div className="space-y-1">
-                        <label htmlFor="lastname" className="text-sm font-medium text-app-text">Last Name</label>
+                        <label htmlFor="lastName" className="text-sm font-medium text-app-text">Last Name</label>
                         <input
-                            id="lastname"
+                            id="lastName"
                             type="text"
-                            value={lastname}
-                            onChange={(e) => setLastname(e.target.value)}
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
                             className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
                             required
                         />
