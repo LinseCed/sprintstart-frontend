@@ -71,6 +71,9 @@ export function SkillWizardPage() {
         if (user?.userId) {
             markSkillAssessmentPromptCompleted(user.userId);
         }
+        if (profile?.id && profile.id !== user?.userId) {
+            markSkillAssessmentPromptCompleted(profile.id);
+        }
 
         void navigate('/onboarding');
     }

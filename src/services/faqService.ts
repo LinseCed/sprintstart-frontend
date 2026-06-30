@@ -16,7 +16,7 @@ export const insightsService = {
             return await apiClient.fetch<FAQOverview>(
                 '/api/v1/insights/faq'
             );
-        } catch (error) {
+        } catch (_error) {
             return faqMock;
         }
     },

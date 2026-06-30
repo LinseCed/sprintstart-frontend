@@ -1,15 +1,15 @@
 import { Plus, Users, ArrowLeft } from 'lucide-react';
-import { ProjectRolesModal } from '../../features/team-management/components/ProjectRolesModal';
+import { ProjectRolesModal } from '../features/team-management/components/ProjectRolesModal';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TeamMemberFilters } from '../../features/team-management/components/TeamMemberFilters';
-import { TeamMemberCard } from '../../features/team-management/components/TeamMemberCard';
+import { TeamMemberFilters } from '../features/team-management/components/TeamMemberFilters';
+import { TeamMemberCard } from '../features/team-management/components/TeamMemberCard';
 import type {
     TeamOverviewFilters,
     TeamOverviewUser,
     ProjectRole,
-} from '../../features/team-management/types';
-import { getTeamOverview, getProjectRoles } from '../../services/teamManagementService';
+} from '../features/team-management/types';
+import { getTeamOverview, getProjectRoles } from '../services/teamManagementService';
 
 export function TeamManagementPage() {
     const navigate = useNavigate();
