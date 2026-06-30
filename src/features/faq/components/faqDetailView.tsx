@@ -9,7 +9,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import type {
   FAQDetail,
   FAQQuestion,
-  FAQAskedBy,
   FAQDocument,
 } from "../../../features/faq/types";
 import { insightsService } from "../../../services/faqService";
@@ -19,7 +18,6 @@ import {
   ShieldAlert,
   FileText,
   ExternalLink,
-  User,
   Loader2,
   AlertCircle,
   MessageSquareMore,
@@ -32,13 +30,6 @@ import {
 // HELPER
 // ─────────────────────────────────────────────────────────────
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 // ─────────────────────────────────────────────────────────────
 // COMPONENT: FaqDetailPage
@@ -121,7 +112,7 @@ export function FaqDetailPage() {
 
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-xl font-bold text-app-text leading-snug">
-              FAQ group detail
+              {detail.questions[0].text}
             </h1>
             <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1.5 rounded-full shrink-0">
               <ArrowUp className="w-3 h-3" />
@@ -155,16 +146,9 @@ export function FaqDetailPage() {
                 <p className="text-sm text-app-text leading-snug mb-3">
                   {q.text}
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {q.askedBy.map((a: FAQAskedBy) => (
-                    <span
-                      key={a.userId}
-                      className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface border border-app-border rounded-full px-2 py-0.5"
-                    >
-                      <User className="w-3 h-3" />
-                      {a.name} · {formatDate(a.askedAt)}
-                    </span>
-                  ))}
+
+                <div className="flex items-center justify-between text-xs text-app-text-muted">
+                  <span>Question ID: {q.id}</span>
                 </div>
               </div>
             ))}

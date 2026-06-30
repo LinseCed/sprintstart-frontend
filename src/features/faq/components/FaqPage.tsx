@@ -10,6 +10,8 @@ import {
   Loader2,
   AlertCircle,
   ArrowLeft,
+  Users,
+  MessageSquareMore,
 } from "lucide-react";
 
 export function FaqPage() {
@@ -101,38 +103,58 @@ export function FaqPage() {
           {/* Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
-              <div className="text-2xl font-semibold text-app-text">
-                {totalGroups}
-              </div>
-              <div className="text-xs text-app-text-muted">
-                Question groups
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-app-border bg-app-surface p-3">
-              <div className="text-2xl font-semibold text-app-text">
-                {totalQuestions}
-              </div>
-              <div className="text-xs text-app-text-muted">
-                Total questions
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-sky-700" />
+                <div>
+                  <div className="text-2xl font-semibold text-sky-700">
+                    {totalGroups}
+                  </div>
+                  <div className="text-xs text-app-text-muted">
+                    Question groups
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
-              <div className="text-2xl font-semibold text-app-text">
-                {mostAskedCount}
-              </div>
-              <div className="text-xs text-app-text-muted">
-                Top frequency
+              <div className="flex items-center gap-3">
+                <MessageSquareMore className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <div className="text-2xl font-semibold text-emerald-600">
+                    {totalQuestions}
+                  </div>
+                  <div className="text-xs text-app-text-muted">
+                    Total questions
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
-              <div className="text-2xl font-semibold text-app-text">
-                {totalDocuments}
+              <div className="flex items-center gap-3">
+                <TrendingUp className="w-5 h-5 text-rose-600" />
+                <div>
+                  <div className="text-2xl font-semibold text-rose-600">
+                    {mostAskedCount}
+                  </div>
+                  <div className="text-xs text-app-text-muted">
+                    Top frequency
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-app-text-muted">
-                Linked documents
+            </div>
+
+            <div className="rounded-xl border border-app-border bg-app-surface p-3">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-amber-600" />
+                <div>
+                  <div className="text-2xl font-semibold text-amber-600">
+                    {totalDocuments}
+                  </div>
+                  <div className="text-xs text-app-text-muted">
+                    Linked documents
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -142,35 +164,34 @@ export function FaqPage() {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-6 py-8">
         {/* Hero Card */}
-        <button
-          onClick={() => goToDetail(hero)}
-          className="w-full text-left rounded-2xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-5 mb-6 relative overflow-hidden"
-        >
-          <span className="absolute top-5 right-5 text-4xl font-semibold text-app-border-strong">
-            {hero.count}
-          </span>
+        <div className="mb-4">
+          <button
+            onClick={() => goToDetail(hero)}
+            className="w-full text-left rounded-2xl border border-app-border bg-app-surface transition-colors p-5 mb-2 relative overflow-hidden"
+          >
+            <div className="absolute top-4 right-4 flex items-center gap-2 text-app-text-muted">
+              <TrendingUp className="w-5 h-5 text-app-brand" />
+              <span className="text-2xl font-semibold text-app-brand">{hero.count}</span>
+            </div>
 
-          <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-1 rounded-full mb-3">
-            <TrendingUp className="w-3 h-3" />
-            Most asked
-          </div>
+            <p className="text-lg font-semibold text-app-text leading-snug mb-4 pr-16">
+              {hero.question}
+            </p>
 
-          <p className="text-lg font-semibold text-app-text leading-snug mb-4 pr-16">
-            {hero.question}
-          </p>
+            <div className="flex flex-wrap gap-2">
+              {hero.topDocuments.map((doc) => (
+                <span
+                  key={doc.id}
+                  className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface-muted border border-app-border rounded-full px-2 py-1"
+                >
+                  <FileText className="w-3 h-3" />
+                  {doc.title}
+                </span>
+              ))}
+            </div>
+          </button>
 
-          <div className="flex flex-wrap gap-2">
-            {hero.topDocuments.map((doc) => (
-              <span
-                key={doc.id}
-                className="flex items-center gap-1 text-xs text-app-text-muted bg-app-surface-muted border border-app-border rounded-full px-2 py-1"
-              >
-                <FileText className="w-3 h-3" />
-                {doc.title}
-              </span>
-            ))}
-          </div>
-        </button>
+        </div>
 
         {/* FAQ List */}
         <div className="space-y-3">

@@ -4,58 +4,23 @@
   "questions": [
     {
       "id": "q_001",
-      "text": "How do I get VPN access?",
-      "askedBy": [
-        {
-          "userId": "user_123",
-          "name": "Anna Müller",
-          "askedAt": "2025-06-01T09:00:00Z"
-        }
-      ]
+      "text": "How do I get VPN access?"
     },
     {
       "id": "q_002",
-      "text": "Can someone enable VPN access for me?",
-      "askedBy": [
-        {
-          "userId": "user_456",
-          "name": "Tom Becker",
-          "askedAt": "2025-06-03T11:20:00Z"
-        }
-      ]
+      "text": "Can someone enable VPN access for me?"
     },
     {
       "id": "q_003",
-      "text": "I cannot connect to the company VPN. What should I do?",
-      "askedBy": [
-        {
-          "userId": "user_789",
-          "name": "Sarah Klein",
-          "askedAt": "2025-06-05T14:45:00Z"
-        }
-      ]
+      "text": "I cannot connect to the company VPN. What should I do?"
     },
     {
       "id": "q_004",
-      "text": "Where can I find the VPN setup instructions?",
-      "askedBy": [
-        {
-          "userId": "user_321",
-          "name": "Max Weber",
-          "askedAt": "2025-06-08T08:15:00Z"
-        }
-      ]
+      "text": "Where can I find the VPN setup instructions?"
     },
     {
       "id": "q_005",
-      "text": "Do contractors also get VPN access?",
-      "askedBy": [
-        {
-          "userId": "user_654",
-          "name": "Lisa Schmidt",
-          "askedAt": "2025-06-10T16:05:00Z"
-        }
-      ]
+      "text": "Do contractors also get VPN access?"
     }
   ],
   "answeringDocuments": [

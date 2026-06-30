@@ -23,14 +23,14 @@ export interface FAQOverview {
 export interface FAQQuestion {
     id: string;
     text: string;
-    askedBy: FAQAskedBy[];
+    // askedBy: FAQAskedBy[];
 }
 
-export interface FAQAskedBy {
-    userId: string;
-    name: string;
-    askedAt: string;
-}
+// export interface FAQAskedBy {
+//     userId: string;
+//     name: string;
+//     askedAt: string;
+// }
 
 export interface FAQDocument {
     id: string;

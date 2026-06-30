@@ -15,6 +15,11 @@ import {
   AlertCircle,
   Clock,
   ArrowLeft,
+  Filter,
+  ArrowUpDown,
+  X,
+  ChevronDown,
+  SlidersHorizontal,
 } from "lucide-react";
 
 // ------------------------------------------------------------------
@@ -137,6 +142,15 @@ export function KnowledgeGapsPage() {
   const [overview, setOverview] = useState<KnowledgeGapOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<KnowledgeGapSeverity[]>([
+    "high",
+    "medium",
+    "low",
+  ]);
+  const [sortBy, setSortBy] = useState<
+    "severity" | "date" | "questions" | "component"
+  >("severity");
+  const [expandFilters, setExpandFilters] = useState(false);
 
   const navigate = useNavigate();
 
@@ -174,9 +188,37 @@ export function KnowledgeGapsPage() {
     );
   }
 
-  const sorted = [...overview.gaps].sort(
-    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
+  // Filter by severity
+  let filtered = overview.gaps.filter((gap) =>
+    severityFilter.includes(gap.severity),
   );
+
+  // Sort based on selected sort option
+  filtered.sort((a, b) => {
+    switch (sortBy) {
+      case "severity":
+        return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+      case "date":
+        return (
+          new Date(b.lastUpdated).getTime() -
+          new Date(a.lastUpdated).getTime()
+        );
+      case "questions":
+        return b.relatedQuestions - a.relatedQuestions;
+      case "component":
+        return a.component.localeCompare(b.component);
+      default:
+        return 0;
+    }
+  });
+
+  const toggleSeverityFilter = (severity: KnowledgeGapSeverity) => {
+    setSeverityFilter((prev) =>
+      prev.includes(severity)
+        ? prev.filter((s) => s !== severity)
+        : [...prev, severity],
+    );
+  };
 
   return (
     <div className="min-h-screen bg-app-bg">
@@ -198,16 +240,131 @@ export function KnowledgeGapsPage() {
               <p className="text-sm text-app-text-muted">
                 Documentation gaps identified across the organization.
               </p>
-            </div>
+            </div>  
           </div>
-          <SeveritySummaryBar gaps={sorted} />
+          <SeveritySummaryBar gaps={overview.gaps} />
         </div>
       </div>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
+        {/* Filter & Sort Controls */}
+        <div className="mb-6 rounded-lg border border-app-border bg-app-surface">
+          {/* Header / Compact View */}
+          <button
+            onClick={() => setExpandFilters(!expandFilters)}
+            className="w-full flex items-center justify-between p-4 hover:bg-app-surface-muted transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-app-text-muted" />
+              <span className="text-sm font-medium text-app-text">
+                Filters & Sort
+              </span>
+              <span className="text-xs text-app-text-muted ml-2">
+                ({filtered.length} of {overview.gaps.length})
+              </span>
+            </div>
+            <ChevronDown
+              className={`w-4 h-4 text-app-text-muted transition-transform ${
+                expandFilters ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {/* Expanded Content */}
+          {expandFilters && (
+            <>
+              <div className="border-t border-app-border px-4 py-4 space-y-4">
+                {/* Filters */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Filter className="w-4 h-4 text-app-text-muted" />
+                    <span className="text-sm font-medium text-app-text">
+                      Severity Filter
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(["high", "medium", "low"] as KnowledgeGapSeverity[]).map(
+                      (severity) => {
+                        const isSelected = severityFilter.includes(severity);
+                        const { badge, label } = SEVERITY_STYLES[severity];
+
+                        return (
+                          <button
+                            key={severity}
+                            onClick={() => toggleSeverityFilter(severity)}
+                            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                              isSelected
+                                ? badge
+                                : "bg-app-bg text-app-text-muted border border-app-border"
+                            }`}
+                          >
+                            {label}
+                            {isSelected && (
+                              <span className="ml-1">✓</span>
+                            )}
+                          </button>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+
+                {/* Sort Options */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <ArrowUpDown className="w-4 h-4 text-app-text-muted" />
+                    <span className="text-sm font-medium text-app-text">
+                      Sort By
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        { value: "severity", label: "Severity" },
+                        { value: "date", label: "Last Updated" },
+                        { value: "questions", label: "Related Questions" },
+                        { value: "component", label: "Component Name" },
+                      ] as Array<{ value: typeof sortBy; label: string }>
+                    ).map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setSortBy(value)}
+                        className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                          sortBy === value
+                            ? "bg-app-brand text-white"
+                            : "bg-app-bg text-app-text-muted border border-app-border hover:border-app-border-strong"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reset Button */}
+                {(severityFilter.length < 3 || sortBy !== "severity") && (
+                  <div className="flex justify-end pt-2 border-t border-app-border">
+                    <button
+                      onClick={() => {
+                        setSeverityFilter(["high", "medium", "low"]);
+                        setSortBy("severity");
+                      }}
+                      className="text-xs text-app-brand hover:text-app-brand/80 transition-colors flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      Reset filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="space-y-3">
-          {sorted.map((gap) => {
+          {filtered.map((gap) => {
             const { badge, label } = SEVERITY_STYLES[gap.severity];
 
             return (
