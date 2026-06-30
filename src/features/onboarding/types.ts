@@ -114,3 +114,20 @@ export interface OnboardingStepDetail extends OnboardingStepEndpoint {
     tasks: OnboardingTaskEndpoint[];
     resources: OnboardingResourceEndpoint[];
 }
+
+// ─── AI Path Generation (POST /onboarding/me/path/personalize, SSE) ──────────
+
+export interface OnboardingPersonalizeEvent {
+  type: "stage" | "path" | "done" | "error";
+  name?: string;
+  detail?: string;
+  path?: OnboardingPathEndpoint;
+  message?: string;
+}
+
+export interface OnboardingPersonalizeHandlers {
+  onStage?: (name: string, detail?: string) => void;
+  onPath: (path: OnboardingPathEndpoint) => void;
+  onDone: () => void;
+  onError?: (message: string) => void;
+}

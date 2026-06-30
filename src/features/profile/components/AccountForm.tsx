@@ -62,7 +62,9 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
                 <div>
                     <h3 className="text-lg font-medium text-app-text">{profile.username}</h3>
                     <p className="mb-2 text-sm font-medium uppercase tracking-wider text-app-text-muted">
-                        {profile.workingArea?.replace('_', ' ') || 'NO WORKING AREA'}
+                        {profile.projectRoles.length > 0
+                            ? profile.projectRoles.map((role) => role.name).join(', ')
+                            : 'NO ROLE ASSIGNED'}
                     </p>
                     <button
                         type="button"

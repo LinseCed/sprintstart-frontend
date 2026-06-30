@@ -2,6 +2,11 @@ import { apiClient } from "./apiClient";
 
 type BackendPermissionGroup = "ADMIN" | "HR" | "PM" | "USER";
 
+type BackendProjectRole = {
+    id: string;
+    name: string;
+};
+
 type BackendUserResponse = {
     id: string;
     authId: string;
@@ -9,7 +14,7 @@ type BackendUserResponse = {
     email: string | null;
     firstName: string;
     lastName: string;
-    workingArea: string;
+    projectRoles: BackendProjectRole[];
     permissionGroup: BackendPermissionGroup;
     enabled: boolean;
     profileIcon: string | null;
@@ -143,24 +148,13 @@ function toBackendPermissionGroup(permissionGroup: string): BackendPermissionGro
     }
 }
 
-function toUserRoleFromWorkingArea(workingArea: string): UserRole[] {
-    if (workingArea === "NO_WORKING_AREA") {
-        return [];
-    }
-
-    const name = workingArea
-        .split("_")
-        .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-        .join(" ");
-
-    return [
-        {
-            id: `working-area-${workingArea.toLowerCase().replaceAll("_", "-")}`,
-            name,
-            description: "Assigned working area",
-            type: "primary",
-        },
-    ];
+function toUserRolesFromProjectRoles(projectRoles: BackendProjectRole[]): UserRole[] {
+    return projectRoles.map((role) => ({
+        id: role.id,
+        name: role.name,
+        description: "",
+        type: "primary",
+    }));
 }
 
 function toAdminUser(user: BackendUserResponse): AdminUser {
@@ -171,7 +165,7 @@ function toAdminUser(user: BackendUserResponse): AdminUser {
         email: user.email ?? "",
         firstName: user.firstName,
         lastName: user.lastName,
-        roles: toUserRoleFromWorkingArea(user.workingArea),
+        roles: toUserRolesFromProjectRoles(user.projectRoles),
         permissionGroup: toPermissionGroupLabel(user.permissionGroup),
         projects: [],
         enabled: user.enabled,

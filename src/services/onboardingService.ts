@@ -1,10 +1,13 @@
 import { apiClient } from './apiClient';
+import keycloak from '../config/keycloak';
 import type {
     OnboardingPathEndpoint,
     OnboardingStepDetail,
     OnboardingSkipEndpoint,
     OnboardingTaskEndpoint,
     OnboardingResourceEndpoint,
+    OnboardingPersonalizeEvent,
+    OnboardingPersonalizeHandlers,
     StepStatus,
 } from '../features/onboarding/types';
 import onboardingStepMock from '../mocks/onboardingStepMock.json';
@@ -15,6 +18,76 @@ export const onboardingService = {
 
     async fetchPath(): Promise<OnboardingPathEndpoint> {
         return await apiClient.fetch<OnboardingPathEndpoint>(`/api/v1/onboarding/me/path`);
+    },
+
+    /**
+     * Triggers AI generation of the current user's onboarding path and streams
+     * progress over SSE. Replaces any existing path once the `path` event arrives.
+     */
+    async personalizePath(handlers: OnboardingPersonalizeHandlers): Promise<void> {
+        try {
+            if (keycloak.authenticated) {
+                await keycloak.updateToken(30);
+            }
+        } catch (error) {
+            console.error('Failed to refresh Keycloak token for onboarding personalize', error);
+            void keycloak.login();
+            return;
+        }
+
+        const res = await fetch(`/api/v1/onboarding/me/path/personalize`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${keycloak.token}`,
+            },
+        });
+
+        if (!res.ok) {
+            handlers.onError?.(`HTTP error! status: ${res.status}`);
+            return;
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) {
+            throw new Error('No response stream');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+                if (!line.startsWith('data:')) continue;
+
+                const event = JSON.parse(line.replace('data:', '').trim()) as OnboardingPersonalizeEvent;
+
+                switch (event.type) {
+                    case 'stage':
+                        handlers.onStage?.(event.name ?? '', event.detail);
+                        break;
+                    case 'path':
+                        if (event.path) {
+                            handlers.onPath(event.path);
+                        }
+                        break;
+                    case 'done':
+                        handlers.onDone();
+                        return;
+                    case 'error':
+                        handlers.onError?.(event.message ?? 'Unknown error');
+                        return;
+                }
+            }
+        }
+
+        handlers.onDone();
     },
 
     // ── STEP ─────────────────────────────────────────────────
