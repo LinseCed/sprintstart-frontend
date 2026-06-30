@@ -61,7 +61,7 @@ To test the full login experience:
 1.  **Access Keycloak Admin**: Go to [http://localhost:8081/admin](http://localhost:8081/admin).
     *   **Username**: `admin`
     *   **Password**: `admin` (or as set in your `.env`)
-2.  **Create User**: 
+2.  **Create User**:
     *   Switch to the `sprintstart` realm.
     *   Go to **Users** -> **Add user**.
     *   After creating, go to the **Credentials** tab and set a password (turn off "Temporary").
@@ -78,12 +78,11 @@ If you don't want to deal with Keycloak redirects:
    ```
 4. Refresh the page. The app will bypass the login and act as the verified user.
 
-### 📤 Data Ingestion Control Panel (Blind Fire Mode)
-The **Data Ingestion** section currently operates in a "Blind Fire" mode. 
+### Data Ingestion
+The **Data Ingestion** section shows source status, recent ingestion runs, and source details from the canonical backend endpoints.
 
-*   **What works**: You can successfully connect new GitHub repositories and trigger manual updates. These actions are processed by the backend and persisted to the database.
-*   **Limitation**: The UI currently **does not display** a list of your connected repositories or their sync status. This is because the backend currently lacks a `GET` endpoint to retrieve this data.
-*   **How to verify**: You can verify that a repository was successfully connected by checking the backend logs or querying the database directly:
+*   **What works**: You can connect new GitHub repositories and see ingestion status once the backend reports runs through `/api/v1/ingestion-status` and `/api/v1/ingestion-runs`.
+*   **Manual verification**: You can also verify repository connections through backend logs or the database:
     ```bash
     docker exec sprintstart-db psql -U sprintstart -d sprintstart -c "SELECT * FROM gh_repository_connections;"
     ```

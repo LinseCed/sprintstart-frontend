@@ -57,7 +57,7 @@ export function LoginPage() {
                         )}
                         Sign in with SSO
                     </button>
-                    
+
                     <p className="text-xs text-app-text-disabled">
                         Securely managed by Keycloak OpenID Connect
                     </p>

@@ -1,288 +1,590 @@
 import {
-    Database,
-    RefreshCw,
-    Plus,
-    Activity,
-    AlertCircle,
-} from "lucide-react";
-import {
     useCallback,
+    useEffect,
+    useMemo,
     useState,
     type FormEvent,
 } from "react";
+import { ArtifactTable } from "../features/data-ingestion/components/ArtifactTable.tsx";
+import { DataIngestionHeader } from "../features/data-ingestion/components/DataIngestionHeader.tsx";
+import { DataIngestionLoadingState } from "../features/data-ingestion/components/DataIngestionLoadingState.tsx";
+import { DataIngestionTabs } from "../features/data-ingestion/components/DataIngestionTabs.tsx";
+import { IngestionMetrics } from "../features/data-ingestion/components/IngestionMetrics.tsx";
+import { RunHistory } from "../features/data-ingestion/components/RunHistory.tsx";
+import { SourceConnectModal } from "../features/data-ingestion/components/SourceConnectModal.tsx";
+import { SourceDetailsPanel } from "../features/data-ingestion/components/SourceDetailsPanel.tsx";
+import { SourceList } from "../features/data-ingestion/components/SourceList.tsx";
+import {
+    createDataSource,
+    formatDateTime,
+    getSourceStatus,
+    getSourceStatusLabel,
+    INGESTION_RUN_LIMIT,
+    isRunInProgress,
+    SOURCE_META,
+    SOURCE_SYSTEMS,
+} from "../features/data-ingestion/data.ts";
+import type {
+    ActiveTab,
+    ConnectState,
+    DataSource,
+    GithubRepositoryReference,
+    IngestionRun,
+    LoadingState,
+    SourceIngestionStatus,
+    SourceSystem,
+} from "../features/data-ingestion/types.ts";
+import {
+    getIngestionRuns,
+    getIngestionStatus,
+} from "../services/ingestionService.ts";
 import {
     connectGithubRepository,
-    updateGithubRepository,
+    getGithubPatNames,
     updateAllGithubRepositories,
+    updateGithubRepository,
 } from "../services/sources/githubService.ts";
 
-type LoadingState = "idle" | "loading" | "success" | "error";
+const GITHUB_REPOSITORY_STORAGE_KEY =
+    "sprintstart:data-ingestion:last-github-repository";
+
+async function fetchIngestionData() {
+    const [statusData, runData] = await Promise.all([
+        getIngestionStatus(),
+        getIngestionRuns(INGESTION_RUN_LIMIT),
+    ]);
+
+    return { statusData, runData };
+}
+
+function parseGithubRepositoryInput(
+    ownerInput: string,
+    repositoryInput: string,
+) {
+    const trimmedOwnerInput = ownerInput.trim();
+    const trimmedRepositoryInput = repositoryInput.trim();
+    const parsedOwnerInput = parseGithubRepositoryReference(trimmedOwnerInput);
+
+    if (parsedOwnerInput) {
+        return parsedOwnerInput;
+    }
+
+    if (trimmedOwnerInput && trimmedRepositoryInput) {
+        return {
+            owner: trimmedOwnerInput,
+            name: trimmedRepositoryInput,
+        };
+    }
+
+    return null;
+}
+
+function parseGithubRepositoryReference(value: string) {
+    const normalizedInput = value
+        .replace(/^https?:\/\/github\.com\//i, "")
+        .replace(/^github\.com\//i, "")
+        .replace(/^git@github\.com:/i, "")
+        .replace(/\.git$/i, "")
+        .replace(/^\/+|\/+$/g, "");
+
+    const [owner, name] = normalizedInput
+        .split("/")
+        .filter((segment) => segment.length > 0);
+
+    if (owner && name) {
+        return { owner, name };
+    }
+
+    return null;
+}
+
+function readStoredGithubRepository(): GithubRepositoryReference | null {
+    try {
+        const value = window.localStorage.getItem(GITHUB_REPOSITORY_STORAGE_KEY);
+
+        if (!value) return null;
+
+        const repository = JSON.parse(value) as Partial<GithubRepositoryReference>;
+
+        if (repository.owner && repository.name) {
+            return {
+                owner: repository.owner,
+                name: repository.name,
+            };
+        }
+    } catch {
+        window.localStorage.removeItem(GITHUB_REPOSITORY_STORAGE_KEY);
+    }
+
+    return null;
+}
+
+function storeGithubRepository(repository: GithubRepositoryReference) {
+    window.localStorage.setItem(
+        GITHUB_REPOSITORY_STORAGE_KEY,
+        JSON.stringify(repository),
+    );
+}
+
+function buildDataSources(
+    sourceStatuses: SourceIngestionStatus[],
+    runs: IngestionRun[],
+): DataSource[] {
+    const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
+    const latestRunBySource = new Map<SourceSystem, IngestionRun>();
+
+    sourceStatuses.forEach((status) => {
+        statusBySource.set(status.sourceSystem, status);
+    });
+
+    runs.forEach((run) => {
+        if (!latestRunBySource.has(run.sourceSystem)) {
+            latestRunBySource.set(run.sourceSystem, run);
+        }
+    });
+
+    return SOURCE_SYSTEMS.filter((sourceSystem) => {
+        const status = statusBySource.get(sourceSystem);
+        return (
+            status?.lastRunTime !== null &&
+            status?.lastRunTime !== undefined
+        ) || latestRunBySource.has(sourceSystem);
+    }).map((sourceSystem) => {
+        const source = createDataSource(
+            sourceSystem,
+            statusBySource.get(sourceSystem),
+        );
+        const latestRun = latestRunBySource.get(sourceSystem);
+
+        if (!latestRun) return source;
+
+        const hasErrors = latestRun.failedCount > 0;
+        const status = getSourceStatus(false, hasErrors, latestRun.status);
+
+        return {
+            ...source,
+            status,
+            statusLabel: getSourceStatusLabel(
+                false,
+                hasErrors,
+                latestRun.status,
+            ),
+            artifacts: latestRun.ingestedCount,
+            lastSync: formatDateTime(latestRun.startedAt),
+            errors: latestRun.failedCount,
+            lastRunAt: latestRun.startedAt,
+            latestIngestedCount: latestRun.ingestedCount,
+            latestUpdatedCount: latestRun.updatedCount,
+            failedItems: latestRun.failedItems,
+        };
+    });
+}
+
+function hasSourceSystem(sources: DataSource[], sourceSystem: SourceSystem) {
+    return sources.some((source) => source.sourceSystem === sourceSystem);
+}
 
 /**
  * Unified UI for connecting GitHub repositories and monitoring ingestion health.
  * Allows project managers to manually trigger ingestion processes.
  */
 export function DataIngestionPage() {
-    // State for Connect Repository
-    const [connectOwner, setConnectOwner] = useState("");
-    const [connectRepo, setConnectRepo] = useState("");
-    const [connectState, setConnectState] = useState<LoadingState>("idle");
-    const [connectError, setConnectError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
+    const [selectedSourceSystem, setSelectedSourceSystem] =
+        useState<SourceSystem | null>(null);
 
-    // State for Update Specific Repository
-    const [updateOwner, setUpdateOwner] = useState("");
-    const [updateRepo, setUpdateRepo] = useState("");
-    const [updateState, setUpdateState] = useState<LoadingState>("idle");
-    const [updateError, setUpdateError] = useState<string | null>(null);
+    const [sourceStatuses, setSourceStatuses] = useState<
+        SourceIngestionStatus[]
+    >([]);
+    const [runs, setRuns] = useState<IngestionRun[]>([]);
+    const [loadingState, setLoadingState] = useState<LoadingState>("loading");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // State for Update All
-    const [updateAllState, setUpdateAllState] = useState<LoadingState>("idle");
-    const [updateAllError, setUpdateAllError] = useState<string | null>(null);
+    const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+    const [selectedConnectSourceSystem, setSelectedConnectSourceSystem] =
+        useState<SourceSystem>("GITHUB");
 
-    const handleConnect = useCallback(async (e: FormEvent) => {
-        e.preventDefault();
-        setConnectState("loading");
-        setConnectError(null);
-        try {
-            await connectGithubRepository({
-                owner: connectOwner.trim(),
-                name: connectRepo.trim(),
+    const [githubOwner, setGithubOwner] = useState("");
+    const [githubRepositoryName, setGithubRepositoryName] = useState("");
+    const [githubTokenName, setGithubTokenName] = useState("");
+    const [githubTokenNames, setGithubTokenNames] = useState<string[]>([]);
+    const [lastGithubRepository, setLastGithubRepository] =
+        useState<GithubRepositoryReference | null>(() =>
+            readStoredGithubRepository(),
+        );
+
+    const [connectState, setConnectState] = useState<ConnectState>("idle");
+    const [connectErrorMessage, setConnectErrorMessage] = useState<
+        string | null
+    >(null);
+    const [connectSuccessMessage, setConnectSuccessMessage] = useState<
+        string | null
+    >(null);
+    const [pollingUntil, setPollingUntil] = useState<number | null>(null);
+
+    const commitIngestionData = useCallback(
+        (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
+            const nextSources = buildDataSources(statusData, runData);
+
+            setSourceStatuses(statusData);
+            setRuns(runData);
+            setSelectedSourceSystem((currentSourceSystem) =>
+                currentSourceSystem &&
+                !hasSourceSystem(nextSources, currentSourceSystem)
+                    ? null
+                    : currentSourceSystem,
+            );
+        },
+        [],
+    );
+
+    const loadData = useCallback(
+        async (showLoading = true) => {
+            if (showLoading) {
+                setLoadingState("loading");
+            }
+            setErrorMessage(null);
+
+            try {
+                const { statusData, runData } = await fetchIngestionData();
+
+                commitIngestionData(statusData, runData);
+                setLoadingState("success");
+            } catch (error) {
+                if (showLoading) {
+                    setLoadingState("error");
+                }
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to load ingestion data",
+                );
+            }
+        },
+        [commitIngestionData],
+    );
+
+    useEffect(() => {
+        let isMounted = true;
+
+        void fetchIngestionData()
+            .then(({ statusData, runData }) => {
+                if (!isMounted) return;
+
+                commitIngestionData(statusData, runData);
+                setLoadingState("success");
+            })
+            .catch((error: unknown) => {
+                if (!isMounted) return;
+
+                setLoadingState("error");
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to load ingestion data",
+                );
             });
-            setConnectState("success");
-            setConnectOwner("");
-            setConnectRepo("");
-        } catch (err) {
-            setConnectState("error");
-            setConnectError(err instanceof Error ? err.message : "Failed to connect repository");
-        }
-    }, [connectOwner, connectRepo]);
 
-    const handleUpdateRepo = useCallback(async (e: FormEvent) => {
-        e.preventDefault();
-        setUpdateState("loading");
-        setUpdateError(null);
-        try {
-            await updateGithubRepository({
-                owner: updateOwner.trim(),
-                name: updateRepo.trim(),
+        return () => {
+            isMounted = false;
+        };
+    }, [commitIngestionData]);
+
+    useEffect(() => {
+        const hasRunningRun = runs.some((run) => isRunInProgress(run.status));
+        const isPollingWindowActive =
+            pollingUntil !== null && Date.now() < pollingUntil;
+
+        if (!hasRunningRun && !isPollingWindowActive) {
+            return undefined;
+        }
+
+        const intervalId = window.setInterval(() => {
+            const shouldStopPolling =
+                pollingUntil !== null &&
+                Date.now() >= pollingUntil &&
+                !runs.some((run) => isRunInProgress(run.status));
+
+            if (shouldStopPolling) {
+                setPollingUntil(null);
+                return;
+            }
+
+            void loadData(false);
+        }, 3000);
+
+        return () => window.clearInterval(intervalId);
+    }, [loadData, pollingUntil, runs]);
+
+    const handleOpenSourceModal = () => {
+        setConnectState("idle");
+        setConnectErrorMessage(null);
+        setSelectedConnectSourceSystem("GITHUB");
+        setIsSourceModalOpen(true);
+
+        void getGithubPatNames()
+            .then((tokenNames) => {
+                setGithubTokenNames(tokenNames);
+                setGithubTokenName((currentTokenName) =>
+                    currentTokenName.trim()
+                        ? currentTokenName
+                        : tokenNames[0] ?? "",
+                );
+            })
+            .catch(() => {
+                setGithubTokenNames([]);
             });
-            setUpdateState("success");
-            setUpdateOwner("");
-            setUpdateRepo("");
-        } catch (err) {
-            setUpdateState("error");
-            setUpdateError(err instanceof Error ? err.message : "Failed to update repository");
-        }
-    }, [updateOwner, updateRepo]);
+    };
 
-    const handleUpdateAll = useCallback(async () => {
-        setUpdateAllState("loading");
-        setUpdateAllError(null);
-        try {
-            await updateAllGithubRepositories();
-            setUpdateAllState("success");
-        } catch (err) {
-            setUpdateAllState("error");
-            setUpdateAllError(err instanceof Error ? err.message : "Failed to update all repositories");
-        }
-    }, []);
+    const handleCloseSourceModal = () => {
+        if (connectState === "loading") return;
+
+        setIsSourceModalOpen(false);
+        setConnectState("idle");
+        setConnectErrorMessage(null);
+    };
+
+    const handleConnectSource = useCallback(
+        async (event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+
+            setConnectState("loading");
+            setConnectErrorMessage(null);
+            setConnectSuccessMessage(null);
+
+            try {
+                if (selectedConnectSourceSystem !== "GITHUB") {
+                    throw new Error(
+                        `${SOURCE_META[selectedConnectSourceSystem].type} connection is not available yet.`,
+                    );
+                }
+
+                const parsedRepository = parseGithubRepositoryInput(
+                    githubOwner,
+                    githubRepositoryName,
+                );
+
+                if (!parsedRepository) {
+                    throw new Error(
+                        "Please enter a GitHub repository as owner/name, a GitHub URL, or owner and repository name.",
+                    );
+                }
+
+                const trimmedTokenName = githubTokenName.trim();
+
+                if (!trimmedTokenName) {
+                    throw new Error(
+                        "Please choose a saved GitHub access token.",
+                    );
+                }
+
+                await connectGithubRepository({
+                    ...parsedRepository,
+                    tokenName: trimmedTokenName,
+                });
+                storeGithubRepository(parsedRepository);
+                setLastGithubRepository(parsedRepository);
+
+                setConnectState("success");
+                setConnectSuccessMessage(
+                    `GitHub repository "${parsedRepository.owner}/${parsedRepository.name}" connected. Initial ingestion is running in the background.`,
+                );
+                setPollingUntil(Date.now() + 60000);
+
+                setGithubOwner("");
+                setGithubRepositoryName("");
+                setIsSourceModalOpen(false);
+                setActiveTab("sources");
+
+                await loadData();
+
+                window.setTimeout(() => {
+                    void loadData();
+                }, 1500);
+            } catch (error) {
+                setConnectState("error");
+                setConnectErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to connect source",
+                );
+            }
+        },
+        [
+            githubOwner,
+            githubRepositoryName,
+            githubTokenName,
+            loadData,
+            selectedConnectSourceSystem,
+        ],
+    );
+
+    const handleUpdateSource = useCallback(
+        async (sourceSystem: SourceSystem) => {
+            if (sourceSystem !== "GITHUB") {
+                throw new Error(
+                    `${SOURCE_META[sourceSystem].type} updates are not available yet.`,
+                );
+            }
+
+            const response = lastGithubRepository
+                ? await updateGithubRepository(lastGithubRepository)
+                : await updateAllGithubRepositories();
+
+            const repositoryLabel = lastGithubRepository
+                ? `${lastGithubRepository.owner}/${lastGithubRepository.name}`
+                : "all connected GitHub repositories";
+
+            setPollingUntil(Date.now() + 60000);
+            setConnectSuccessMessage(
+                `Update for ${repositoryLabel} started. Transaction ${response.transactionId}.`,
+            );
+
+            await loadData(false);
+
+            window.setTimeout(() => {
+                void loadData(false);
+            }, 1500);
+        },
+        [lastGithubRepository, loadData],
+    );
+
+    const sources = useMemo<DataSource[]>(
+        () => buildDataSources(sourceStatuses, runs),
+        [runs, sourceStatuses],
+    );
+
+    const selectedSource = useMemo(() => {
+        if (!selectedSourceSystem) return null;
+
+        return (
+            sources.find(
+                (source) => source.sourceSystem === selectedSourceSystem,
+            ) ?? null
+        );
+    }, [selectedSourceSystem, sources]);
+
+    const isDetailsOpen = selectedSource !== null;
+    const isLoading = loadingState === "loading";
+    const shouldShowInitialLoading =
+        isLoading && sources.every((source) => source.lastRunAt === null);
 
     return (
-        <div className="min-h-screen bg-app-bg p-6 lg:p-8">
-            <header className="mb-10">
-                <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-app-brand-soft p-2">
-                        <Database className="h-5 w-5 text-app-brand-text" />
-                    </div>
-                    <h1 className="font-heading text-2xl font-bold text-app-text">
-                        Data Ingestion Control Panel
-                    </h1>
-                </div>
-                <p className="mt-2 text-sm text-app-text-muted">
-                    Directly trigger GitHub ingestion actions. This panel reflects the current backend capabilities.
-                </p>
-            </header>
+        <div className="min-h-screen bg-app-bg">
+            <div
+                className={`transition-[padding] duration-300 ease-out ${
+                    isDetailsOpen ? "xl:pr-[440px]" : ""
+                }`}
+            >
+                <DataIngestionHeader
+                    isLoading={isLoading}
+                    onRefresh={() => {
+                        void loadData();
+                    }}
+                />
 
-            <div className="grid gap-8 lg:grid-cols-2">
-                {/* Connect Repository Section */}
-                <section className="rounded-3xl border border-app-border bg-app-surface p-6 shadow-sm">
-                    <div className="mb-6 flex items-center gap-3">
-                        <div className="rounded-full bg-app-success-bg p-2 text-app-success-text">
-                            <Plus size={20} />
-                        </div>
-                        <h2 className="text-lg font-semibold text-app-text">Connect New Repository</h2>
-                    </div>
-                    
-                    <form 
-                        onSubmit={(e) => { void handleConnect(e); }} 
-                        className="space-y-4"
-                    >
-                        <div>
-                            <label 
-                                htmlFor="connect-owner"
-                                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-app-text-subtle"
-                            >
-                                GitHub Owner
-                            </label>
-                            <input
-                                id="connect-owner"
-                                type="text"
-                                value={connectOwner}
-                                onChange={(e) => setConnectOwner(e.target.value)}
-                                placeholder="e.g. google"
-                                className="w-full rounded-xl border border-app-border bg-app-bg px-4 py-3 text-sm text-app-text outline-none focus:ring-2 focus:ring-app-brand"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label 
-                                htmlFor="connect-repo"
-                                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-app-text-subtle"
-                            >
-                                Repository Name
-                            </label>
-                            <input
-                                id="connect-repo"
-                                type="text"
-                                value={connectRepo}
-                                onChange={(e) => setConnectRepo(e.target.value)}
-                                placeholder="e.g. gemini-cli"
-                                className="w-full rounded-xl border border-app-border bg-app-bg px-4 py-3 text-sm text-app-text outline-none focus:ring-2 focus:ring-app-brand"
-                                required
-                            />
-                        </div>
-                        
-                        {connectError && (
-                            <div className="flex items-center gap-2 rounded-xl bg-app-danger-bg p-3 text-sm text-app-danger-text">
-                                <AlertCircle size={16} />
-                                {connectError}
-                            </div>
-                        )}
-                        
-                        {connectState === "success" && (
-                            <div className="rounded-xl bg-app-success-bg p-3 text-sm text-app-success-text">
-                                Connection request accepted. Ingestion started in background.
+                <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+                    <div className="space-y-8">
+                        {errorMessage && (
+                            <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-5 py-4 text-sm text-app-warning-text">
+                                {errorMessage}
                             </div>
                         )}
 
-                        <button
-                            type="submit"
-                            disabled={connectState === "loading"}
-                            className="w-full rounded-xl bg-app-brand py-3 text-sm font-bold text-app-text-inverse transition hover:bg-app-brand-hover disabled:opacity-50"
-                        >
-                            {connectState === "loading" ? "Processing..." : "Connect Repository"}
-                        </button>
-                    </form>
-                </section>
+                        {connectSuccessMessage && (
+                            <div className="flex flex-col gap-3 rounded-2xl border border-app-success-border bg-app-success-bg px-5 py-4 text-sm text-app-success-text sm:flex-row sm:items-center sm:justify-between">
+                                <p>{connectSuccessMessage}</p>
 
-                {/* Update Specific Repository Section */}
-                <section className="rounded-3xl border border-app-border bg-app-surface p-6 shadow-sm">
-                    <div className="mb-6 flex items-center gap-3">
-                        <div className="rounded-full bg-app-brand-soft p-2 text-app-brand-text">
-                            <RefreshCw size={20} />
-                        </div>
-                        <h2 className="text-lg font-semibold text-app-text">Update Specific Repository</h2>
-                    </div>
-
-                    <form 
-                        onSubmit={(e) => { void handleUpdateRepo(e); }} 
-                        className="space-y-4"
-                    >
-                        <div>
-                            <label 
-                                htmlFor="update-owner"
-                                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-app-text-subtle"
-                            >
-                                GitHub Owner
-                            </label>
-                            <input
-                                id="update-owner"
-                                type="text"
-                                value={updateOwner}
-                                onChange={(e) => setUpdateOwner(e.target.value)}
-                                placeholder="e.g. google"
-                                className="w-full rounded-xl border border-app-border bg-app-bg px-4 py-3 text-sm text-app-text outline-none focus:ring-2 focus:ring-app-brand"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label 
-                                htmlFor="update-repo"
-                                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-app-text-subtle"
-                            >
-                                Repository Name
-                            </label>
-                            <input
-                                id="update-repo"
-                                type="text"
-                                value={updateRepo}
-                                onChange={(e) => setUpdateRepo(e.target.value)}
-                                placeholder="e.g. gemini-cli"
-                                className="w-full rounded-xl border border-app-border bg-app-bg px-4 py-3 text-sm text-app-text outline-none focus:ring-2 focus:ring-app-brand"
-                                required
-                            />
-                        </div>
-
-                        {updateError && (
-                            <div className="flex items-center gap-2 rounded-xl bg-app-danger-bg p-3 text-sm text-app-danger-text">
-                                <AlertCircle size={16} />
-                                {updateError}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setConnectSuccessMessage(null)
+                                    }
+                                    className="self-start rounded-lg px-2 py-1 text-xs font-semibold transition hover:bg-app-surface sm:self-auto"
+                                >
+                                    Dismiss
+                                </button>
                             </div>
                         )}
 
-                        {updateState === "success" && (
-                            <div className="rounded-xl bg-app-success-bg p-3 text-sm text-app-success-text">
-                                Update request accepted.
+                        <IngestionMetrics sources={sources} />
+
+                        <section className="overflow-hidden rounded-3xl border border-app-border bg-app-surface">
+                            <DataIngestionTabs
+                                activeTab={activeTab}
+                                onTabChange={setActiveTab}
+                                onAddSource={handleOpenSourceModal}
+                            />
+
+                            <div className="space-y-4 p-5 sm:p-6">
+                                {shouldShowInitialLoading ? (
+                                    <DataIngestionLoadingState />
+                                ) : null}
+
+                                {!isLoading && activeTab === "sources" ? (
+                                    <SourceList
+                                        sources={sources}
+                                        selectedSourceSystem={
+                                            selectedSourceSystem
+                                        }
+                                        onSelectSource={setSelectedSourceSystem}
+                                    />
+                                ) : null}
+
+                                {!isLoading && activeTab === "artifacts" ? (
+                                    <ArtifactTable
+                                        sources={sources}
+                                        runs={runs}
+                                    />
+                                ) : null}
+
+                                {!isLoading && activeTab === "runs" ? (
+                                    <RunHistory runs={runs} />
+                                ) : null}
                             </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={updateState === "loading"}
-                            className="w-full rounded-xl border border-app-border bg-app-surface py-3 text-sm font-bold text-app-text transition hover:bg-app-surface-hover disabled:opacity-50"
-                        >
-                            {updateState === "loading" ? "Processing..." : "Trigger Repository Update"}
-                        </button>
-                    </form>
-                </section>
-
-                {/* Global Actions Section */}
-                <section className="col-span-full rounded-3xl border border-app-border bg-app-surface p-6 shadow-sm">
-                    <div className="mb-6 flex items-center gap-3">
-                        <div className="rounded-full bg-app-brand p-2 text-app-text-inverse">
-                            <Activity size={20} />
-                        </div>
-                        <h2 className="text-lg font-semibold text-app-text">Global Maintenance</h2>
+                        </section>
                     </div>
-
-                    <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-                        <div className="max-w-md">
-                            <h3 className="font-semibold text-app-text">Update All Repositories</h3>
-                            <p className="mt-1 text-sm text-app-text-muted">
-                                This will trigger an update for every repository currently connected to the GitHub connector. 
-                                Useful for periodic manual syncs.
-                            </p>
-                        </div>
-
-                        <div className="w-full sm:w-auto">
-                            {updateAllError && (
-                                <p className="mb-2 text-xs text-app-danger-text">{updateAllError}</p>
-                            )}
-                            {updateAllState === "success" && (
-                                <p className="mb-2 text-xs text-app-success-text">Global update triggered.</p>
-                            )}
-                            <button
-                                onClick={() => { void handleUpdateAll(); }}
-                                disabled={updateAllState === "loading"}
-                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-app-brand px-8 py-4 font-bold text-app-text-inverse transition hover:bg-app-brand-hover disabled:opacity-50 sm:w-auto"
-                            >
-                                <RefreshCw size={18} className={updateAllState === "loading" ? "animate-spin" : ""} />
-                                {updateAllState === "loading" ? "Triggering..." : "Update All Repositories"}
-                            </button>
-                        </div>
-                    </div>
-                </section>
+                </main>
             </div>
+
+            {selectedSource && (
+                <SourceDetailsPanel
+                    source={selectedSource}
+                    githubRepository={
+                        selectedSource.sourceSystem === "GITHUB"
+                            ? lastGithubRepository
+                            : null
+                    }
+                    onUpdateSource={handleUpdateSource}
+                    onClose={() => setSelectedSourceSystem(null)}
+                />
+            )}
+
+            {isSourceModalOpen && (
+                <SourceConnectModal
+                    selectedSourceSystem={selectedConnectSourceSystem}
+                    sourceSystems={SOURCE_SYSTEMS}
+                    sourceMeta={SOURCE_META}
+                    owner={githubOwner}
+                    repositoryName={githubRepositoryName}
+                    tokenName={githubTokenName}
+                    tokenNames={githubTokenNames}
+                    connectState={connectState}
+                    errorMessage={connectErrorMessage}
+                    onSourceSystemChange={(sourceSystem) => {
+                        setSelectedConnectSourceSystem(sourceSystem);
+                        setConnectState("idle");
+                        setConnectErrorMessage(null);
+                    }}
+                    onOwnerChange={setGithubOwner}
+                    onRepositoryNameChange={setGithubRepositoryName}
+                    onTokenNameChange={setGithubTokenName}
+                    onClose={handleCloseSourceModal}
+                    onSubmit={(event) => {
+                        void handleConnectSource(event);
+                    }}
+                />
+            )}
         </div>
     );
 }
