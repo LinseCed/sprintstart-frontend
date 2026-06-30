@@ -1,0 +1,75 @@
+{
+  "groupId": "vpn-access",
+  "count": 14,
+  "questions": [
+    {
+      "id": "q_001",
+      "text": "How do I get VPN access?",
+      "askedBy": [
+        {
+          "userId": "user_123",
+          "name": "Anna Müller",
+          "askedAt": "2025-06-01T09:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "q_002",
+      "text": "Can someone enable VPN access for me?",
+      "askedBy": [
+        {
+          "userId": "user_456",
+          "name": "Tom Becker",
+          "askedAt": "2025-06-03T11:20:00Z"
+        }
+      ]
+    },
+    {
+      "id": "q_003",
+      "text": "I cannot connect to the company VPN. What should I do?",
+      "askedBy": [
+        {
+          "userId": "user_789",
+          "name": "Sarah Klein",
+          "askedAt": "2025-06-05T14:45:00Z"
+        }
+      ]
+    },
+    {
+      "id": "q_004",
+      "text": "Where can I find the VPN setup instructions?",
+      "askedBy": [
+        {
+          "userId": "user_321",
+          "name": "Max Weber",
+          "askedAt": "2025-06-08T08:15:00Z"
+        }
+      ]
+    },
+    {
+      "id": "q_005",
+      "text": "Do contractors also get VPN access?",
+      "askedBy": [
+        {
+          "userId": "user_654",
+          "name": "Lisa Schmidt",
+          "askedAt": "2025-06-10T16:05:00Z"
+        }
+      ]
+    }
+  ],
+  "answeringDocuments": [
+    {
+      "id": "doc_001",
+      "title": "VPN Setup Guide",
+      "source": "confluence",
+      "url": "https://company.atlassian.net/wiki/spaces/IT/pages/vpn-setup"
+    },
+    {
+      "id": "doc_014",
+      "title": "Remote Work Handbook",
+      "source": "sharepoint",
+      "url": "https://company.sharepoint.com/remote-work"
+    }
+  ]
+}

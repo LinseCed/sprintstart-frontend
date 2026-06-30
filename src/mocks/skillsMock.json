@@ -1,0 +1,29 @@
+{
+  "skills": [
+    {
+      "id": "skill-1",
+      "name": "React",
+      "roleId": "r1"
+    },
+    {
+      "id": "skill-2",
+      "name": "TypeScript",
+      "roleId": "r1"
+    },
+    {
+      "id": "skill-3",
+      "name": "Tailwind CSS",
+      "roleId": "r1"
+    },
+    {
+      "id": "skill-4",
+      "name": "Java",
+      "roleId": "r2"
+    },
+    {
+      "id": "skill-5",
+      "name": "Spring Boot",
+      "roleId": "r2"
+    }
+  ]
+}
