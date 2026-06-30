@@ -598,7 +598,7 @@ export function TeamMemberDetailPage() {
     const finishedSteps = allSteps.filter((step) => step.status === 'FINISHED').length;
     const skippedSteps = allSteps.filter((step) => step.status === 'SKIPPED').length;
     const pathPendingSkips = allSteps.filter(
-        (step) => step.skip?.status === 'PENDING' || step.skipReason,
+        (step) => step.skip?.status === 'PENDING',
     ).length;
     const estimatedMinutes = allSteps.reduce(
         (sum, step) => sum + (step.estimatedMinutes || 0),
@@ -623,8 +623,7 @@ export function TeamMemberDetailPage() {
     const detailStepFeedback = detailStep
         ? feedbackItems.filter((feedback) => feedback.stepId === detailStep.id)
         : [];
-    const detailStepSkipReason =
-        detailStep?.skip?.reason || detailStep?.skipReason || '';
+    const detailStepSkipReason = detailStep?.skip?.reason || '';
     const skillGaps = skillLevels.filter(
         (skill) => skill.level === 'BEGINNER' || skill.level === 'INTERMEDIATE',
     );
@@ -888,8 +887,7 @@ export function TeamMemberDetailPage() {
                                                 </div>
                                             ) : (
                                                 selectedPhaseSteps.map((step, index) => {
-                                                    const skipReason =
-                                                        step.skip?.reason || step.skipReason;
+                                                    const skipReason = step.skip?.reason;
                                                     const isSelected = step.id === selectedStep?.id;
                                                     const isNextStep = step.id === nextStep?.id;
                                                     const actualMinutes = getActualMinutes(step);
