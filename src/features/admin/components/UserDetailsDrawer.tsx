@@ -28,6 +28,7 @@ import { EditableDetailRow } from "./EditableDetailRow";
 import { EditableSelectDetailRow } from "./EditableSelectDetailRow";
 import { ProjectAccessPanel } from "./ProjectAccessPanel";
 import { Section } from "./Section";
+import { UserRolesPanel } from "./UserRolesPanel";
 import { UserStatusSection } from "./UserStatusSection";
 
 type UserDetailsDrawerProps = {
@@ -329,11 +330,32 @@ export function UserDetailsDrawer({
                             <DetailRow label="Username" value={user.username} />
                             <DetailRow label="First name" value={user.firstName} />
                             <DetailRow label="Last name" value={user.lastName} />
+                            <DetailRow
+                                label="Project roles"
+                                value={
+                                    user.roles.length > 0
+                                        ? user.roles.map((role) => role.name).join(", ")
+                                        : "No role assigned"
+                                }
+                            />
                             <DetailRow label="Role" value={user.permissionGroup} />
                             <DetailRow label="User ID" value={user.id} mono />
                         </>
                     )}
                 </dl>
+            </Section>
+
+            <Section>
+                <UserRolesPanel
+                    userId={user.id}
+                    assignedRoles={user.roles}
+                    onRolesChanged={(roles) =>
+                        onUserUpdated({
+                            ...user,
+                            roles: roles.map((role) => ({ ...role, type: "primary" as const })),
+                        })
+                    }
+                />
             </Section>
 
             <Section>

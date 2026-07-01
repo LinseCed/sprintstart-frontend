@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { adminUserService } from "../services/adminUserService";
 import { projectService } from "../services/projectService";
+import { getGithubPatNames } from "../services/sources/githubService";
 import { AlertDialog } from "../components/ui/AlertDialog";
 import {
     DRAWER_CLOSE_DELAY_MS,
@@ -27,6 +28,7 @@ import {
 import { ProjectDetailsDrawer } from "../features/admin/components/ProjectDetailsDrawer";
 import { ProjectsTab } from "../features/admin/components/ProjectsTab";
 import { TabSwitcher } from "../features/admin/components/TabSwitcher";
+import { TokensTab } from "../features/admin/components/TokensTab";
 import { UserDetailsDrawer } from "../features/admin/components/UserDetailsDrawer";
 import { UsersTab } from "../features/admin/components/UsersTab";
 import type {
@@ -65,6 +67,9 @@ export function AdminPage() {
     const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
     const [isBulkDeletingUsers, setIsBulkDeletingUsers] = useState(false);
     const [bulkDeleteErrorMessage, setBulkDeleteErrorMessage] = useState("");
+
+    const [tokenNames, setTokenNames] = useState<string[]>([]);
+    const [tokensLoaded, setTokensLoaded] = useState(false);
 
     const loadAdminData = useCallback(async () => {
         try {
@@ -434,10 +439,23 @@ export function AdminPage() {
         }, DRAWER_CLOSE_DELAY_MS);
     };
 
+    const loadTokenNames = useCallback(async () => {
+        try {
+            const names = await getGithubPatNames();
+            setTokenNames(names);
+            setTokensLoaded(true);
+        } catch {
+            setTokensLoaded(true);
+        }
+    }, []);
+
     const handleTabChange = (tab: AdminTab) => {
         setOpenUserMenuId(null);
         closeDetails();
         setActiveTab(tab);
+        if (tab === "tokens" && !tokensLoaded) {
+            void loadTokenNames();
+        }
     };
 
     const handleRefresh = async () => {
@@ -467,7 +485,7 @@ export function AdminPage() {
                                     Admin Console
                                 </h1>
                                 <p className="text-sm text-app-text-muted">
-                                    Manage users & projects
+                                    Manage users, projects & tokens
                                 </p>
                             </div>
                         </div>
@@ -673,7 +691,7 @@ export function AdminPage() {
                                     </div>
                                 )}
                             </>
-                        ) : (
+                        ) : activeTab === "projects" ? (
                             <>
                                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <span className="text-sm font-semibold text-app-text">
@@ -706,6 +724,11 @@ export function AdminPage() {
                                     onOpenProjectDetails={openProjectDetails}
                                 />
                             </>
+                        ) : (
+                            <TokensTab
+                                tokenNames={tokenNames}
+                                onRefresh={() => void loadTokenNames()}
+                            />
                         )}
                     </div>
                 </div>

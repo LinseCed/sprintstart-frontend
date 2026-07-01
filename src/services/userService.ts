@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { WorkingArea, type UserProfile } from './types';
+import type { UserProfile } from './types';
 import userMock from '../mocks/userMock.json';
 
 const LOCAL_MOCK_KEY = 'sprintstart_mock_profile';
@@ -73,17 +73,6 @@ export const userService = {
             if (!currentProfile) throw e;
             return { ...currentProfile, ...getLocalMockProfile() };
         }
-    },
-
-    /**
-     * Resets the user's roles to their default 'NO_ROLE' state.
-     * 
-     * @returns Promise that resolves when the reset is complete.
-     */
-    async resetProfile(): Promise<void> {
-        await this.updateProfile({
-            workingArea: WorkingArea.NO_WORKING_AREA,
-        });
     },
 
     /**

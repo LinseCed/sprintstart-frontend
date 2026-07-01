@@ -1,4 +1,4 @@
-import { Layers, Users } from "lucide-react";
+import { Key, Layers, Users } from "lucide-react";
 import type { AdminTab } from "../types";
 
 type TabSwitcherProps = {
@@ -33,6 +33,19 @@ export function TabSwitcher({ activeTab, onChange }: TabSwitcherProps) {
             >
                 <Layers className="h-4 w-4" />
                 Projects
+            </button>
+
+            <button
+                type="button"
+                onClick={() => onChange("tokens")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                    activeTab === "tokens"
+                        ? "bg-app-surface text-app-text shadow-sm"
+                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                }`}
+            >
+                <Key className="h-4 w-4" />
+                Tokens
             </button>
         </div>
     );

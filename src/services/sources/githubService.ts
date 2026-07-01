@@ -46,23 +46,24 @@ export async function getGithubPatNames(): Promise<string[]> {
     return apiClient.fetch<string[]>("/api/v1/github/pat");
 }
 
-export async function ensureDefaultGithubPatFromEnv(): Promise<void> {
-    const githubPat = String(import.meta.env.VITE_GITHUB_PAT || "").trim();
-    if (!githubPat) {
-        return;
-    }
-
-    const tokenNames = await getGithubPatNames();
-    if (tokenNames.includes("default")) {
-        return;
-    }
-
+export async function addGithubPat(name: string, token: string): Promise<void> {
     await apiClient.fetch<void>("/api/v1/github/pat", {
         method: "POST",
-        body: JSON.stringify({
-            name: "default",
-            token: githubPat,
-        }),
+        body: JSON.stringify({ name, token }),
+    });
+}
+
+export async function updateGithubPat(name: string, newToken: string): Promise<void> {
+    await apiClient.fetch<void>("/api/v1/github/pat/update", {
+        method: "PUT",
+        body: JSON.stringify({ name, newToken }),
+    });
+}
+
+export async function deleteGithubPat(name: string): Promise<void> {
+    await apiClient.fetch<void>("/api/v1/github/pat/delete", {
+        method: "PUT",
+        body: JSON.stringify({ name }),
     });
 }
 

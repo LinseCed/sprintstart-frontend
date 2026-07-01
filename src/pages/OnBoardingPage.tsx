@@ -11,6 +11,7 @@ import type {
 import { useNavigate } from "react-router-dom";
 import { onboardingService } from "../services/onboardingService";
 import { userService } from "../services/userService";
+import { ApiError } from "../services/apiClient";
 
 import {
   CheckCircle2,
@@ -24,10 +25,11 @@ import {
   CircleArrowRight,
   Lock,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 //import type {UserProfile} from "../services/types.ts";
 
-type LoadingState = "idle" | "loading" | "success" | "error";
+type LoadingState = "idle" | "loading" | "generating" | "success" | "error";
 
 //const { profile, status } = useAuth();
 //const userLoading = status === 'loading';
@@ -77,7 +79,25 @@ export function OnBoardingPage() {
   // Error message for error state
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  // Current AI generation stage, shown while loadingState === "generating"
+  const [generationStage, setGenerationStage] = useState<{ name: string; detail?: string } | null>(null);
+
   const navigate = useNavigate();
+
+  // Triggers AI path generation and streams progress until a path is produced.
+  const generatePath = async () => {
+    setLoadingState("generating");
+    setGenerationStage(null);
+    await onboardingService.personalizePath({
+      onStage: (name, detail) => setGenerationStage({ name, detail }),
+      onPath: (path) => setOnBoardingPath(path),
+      onDone: () => setLoadingState("success"),
+      onError: (message) => {
+        setLoadingState("error");
+        setErrorMessage(message);
+      },
+    });
+  };
 
   // ── DATA FETCHING using useEffect ─────────────────────────────
 
@@ -92,6 +112,11 @@ export function OnBoardingPage() {
         setOnBoardingPath(path);
         setLoadingState("success");
       } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          // No path generated yet — kick off AI personalization instead of erroring out.
+          void generatePath();
+          return;
+        }
         setLoadingState("error");
         setErrorMessage(err instanceof Error ? err.message : "Unknown error");
       }
@@ -184,6 +209,27 @@ export function OnBoardingPage() {
     );
   }
 
+  // ── RENDER: GENERATING STATE ───────────────────────────────
+  if (loadingState === "generating") {
+    return (
+      <div className="min-h-screen bg-app-bg flex items-center justify-center p-8">
+        <div className="max-w-md text-center">
+          <Sparkles className="w-10 h-10 text-app-brand mx-auto mb-4 animate-pulse" />
+          <h2 className="text-xl font-semibold text-app-text mb-2">
+            Generating your personalized onboarding path...
+          </h2>
+          <p className="text-sm text-app-text-muted mb-2">
+            {generationStage?.name ?? "Starting up"}
+          </p>
+          {generationStage?.detail && (
+            <p className="text-xs text-app-text-subtle mb-6">{generationStage.detail}</p>
+          )}
+          <Loader2 className="w-6 h-6 animate-spin text-app-brand mx-auto mt-4" />
+        </div>
+      </div>
+    );
+  }
+
   // ── RENDER: ERROR STATE ────────────────────────────────────
   if (loadingState === "error") {
     return (
@@ -232,6 +278,13 @@ export function OnBoardingPage() {
                 <h1 className="text-2xl font-bold text-app-text">
                   Your onboarding journey
                 </h1>
+                <button
+                  onClick={() => void generatePath()}
+                  title="Regenerate path with AI"
+                  className="ml-1 p-1.5 rounded-lg text-app-text-muted hover:text-app-brand hover:bg-app-brand-soft transition-all"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
             </div>
 

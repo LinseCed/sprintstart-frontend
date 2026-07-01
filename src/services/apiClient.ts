@@ -63,11 +63,10 @@ export const apiClient = {
             throw new ApiError(response.status, errorBody || response.statusText);
         }
 
-        // Handle 204 No Content
-        if (response.status === 204) {
+        const text = await response.text();
+        if (!text.trim()) {
             return {} as T;
         }
-
-        return response.json() as Promise<T>;
+        return JSON.parse(text) as T;
     }
 };

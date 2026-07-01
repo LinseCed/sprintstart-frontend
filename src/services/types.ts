@@ -6,16 +6,6 @@ export const PermissionGroup = {
 } as const;
 export type PermissionGroup = (typeof PermissionGroup)[keyof typeof PermissionGroup];
 
-export const WorkingArea = {
-    NO_WORKING_AREA: 'NO_WORKING_AREA',
-    FRONTEND_DEV: 'FRONTEND_DEV',
-    BACKEND_DEV: 'BACKEND_DEV',
-    DEV_OPS: 'DEV_OPS',
-    QA: 'QA',
-    HR: 'HR',
-} as const;
-export type WorkingArea = (typeof WorkingArea)[keyof typeof WorkingArea];
-
 export const DocumentStatus = {
     PENDING: 'PENDING',
     PROCESSING: 'PROCESSING',
@@ -41,6 +31,11 @@ export type UploadResult = {
 };
 
 
+export interface ProjectRoleSummary {
+    id: string;
+    name: string;
+}
+
 export interface UserProfile {
     id: string;
     authId: string;
@@ -48,7 +43,7 @@ export interface UserProfile {
     email: string | null;
     firstName: string;
     lastName: string;
-    workingArea: WorkingArea;
+    projectRoles: ProjectRoleSummary[];
     permissionGroup: PermissionGroup;
     enabled: boolean;
     profileIcon: string | null;

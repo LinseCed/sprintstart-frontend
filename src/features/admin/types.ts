@@ -13,7 +13,7 @@ import type {
 
 export type LoadingState = "idle" | "loading" | "success" | "error";
 export type UserFilter = "all" | "enabled" | "disabled" | "onboarded" | "not-onboarded";
-export type AdminTab = "users" | "projects";
+export type AdminTab = "users" | "projects" | "tokens";
 
 export type UserEditFormState = {
     email: string;
