@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 import keycloak from "../config/keycloak";
-import type { Chat, ChatMessage, StreamHandlers } from "../types/chatTypes";
+import type { Chat, ChatMessage, StreamHandlers } from "../features/chatbot/types";
 
 /**
  * Retrieves all created chats.

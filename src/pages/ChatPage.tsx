@@ -1,7 +1,12 @@
 import { Bot, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
-import { useChat } from "../hooks/useChat.ts";
+import { useChat } from "../features/chatbot/hooks/useChat.ts";
 import ReactMarkdown from "react-markdown";
-import { ChatSidebar } from "../components/chat/ChatSidebar.tsx";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
+
+import "katex/dist/katex.min.css";
 
 /**
  * Displays the interface for communication with the chat.
@@ -13,12 +18,17 @@ export function ChatPage() {
         chats,
         handleSubmit,
         isThinking,
+        isStreaming,
         newRequest,
         setNewRequest,
         selectedCitation,
         setSelectedCitation,
         sidebarOpen,
         setSidebarOpen,
+        textareaRef,
+        bottomRef,
+        showBrainrot,
+        timestamp
     } = useChat();
 
     return (
@@ -101,6 +111,14 @@ export function ChatPage() {
                         {messages.map((message, index) => {
                             const isRequest = message.role === "USER";
 
+                            if (
+                                message.role === "ASSISTANT" &&
+                                message.content === "" &&
+                                isThinking
+                            ) {
+                                return null;
+                            }
+
                             return (
                                 <div
                                     key={index}
@@ -132,7 +150,64 @@ export function ChatPage() {
                                                     : "bg-app-surface-muted text-app-text rounded-tl-none"
                                             }`}
                                         >
-                                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm, remarkMath]}
+                                                rehypePlugins={[rehypeKatex]}
+                                                components={{
+                                                    table: ({ children }) => (
+                                                        <div className="overflow-x-auto">
+                                                            <table className={`w-full border-collapse border-2 my-3 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
+                                                                {children}
+                                                            </table>
+                                                        </div>
+                                                    ),
+                                                    th: ({ children }) => (
+                                                        <th className={`border-2 px-3 py-2 text-left ${isRequest ? "border-app-brand-border bg-app-brand-soft" : "border-app-border-muted bg-app-surface"}`}>
+                                                            {children}
+                                                        </th>
+                                                    ),
+                                                    td: ({ children }) => (
+                                                        <td className={`border-2 px-3 py-2 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
+                                                            {children}
+                                                        </td>
+                                                    ),
+                                                    code({ children, className }: { children?: React.ReactNode; className?: string }) {
+
+                                                        const isBlock = className?.startsWith("language-");
+
+                                                        if (!isBlock) {
+                                                            return (
+                                                                <code className={`px-1 py-0.5 mx-0.5 rounded border ${isRequest ? "bg-app-brand-soft border-app-brand-border" : "bg-app-surface border-app-border-muted"}`}>
+                                                                    {children}
+                                                                </code>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <code className={className}>
+                                                                {children}
+                                                            </code>
+                                                        );
+                                                    },
+                                                    pre(props) {
+                                                        return (
+                                                            <pre
+                                                                className={`
+                                                                    p-3 
+                                                                    my-3
+                                                                    rounded-xl
+                                                                    overflow-x-auto
+                                                                    border
+                                                                    ${isRequest ? "bg-app-brand-soft border-app-brand-border" : "bg-app-surface border-app-border-muted"}
+                                                                `}
+                                                            >
+                                                                {props.children}
+                                                            </pre>
+                                                        );
+                                                    }
+                                                }}>
+                                                {message.content}
+                                            </ReactMarkdown>
 
                                             {message.citations && message.citations.length > 0 && (
                                                 <div className="mt-3 pt-3 border-t border-app-border-muted flex flex-wrap gap-1.5">
@@ -154,6 +229,36 @@ export function ChatPage() {
                                 </div>
                             );
                         })}
+
+                        {isThinking &&  (
+                            <div className="flex w-full gap-4">
+                                <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-app-surface-muted">
+                                    <Bot size={16} className="text-app-brand-text" />
+                                </div>
+
+                                <div className="flex flex-col items-start max-w-[85%]">
+                                    <div className="px-4 py-2.5 rounded-2xl rounded-tl-none bg-app-surface-muted text-app-text">
+                                        <div className="flex gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce" />
+                                            <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:150ms]" />
+                                            <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:300ms]" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {showBrainrot && (
+                            <iframe
+                                title="Subway Surfers Gameplay 2h"
+                                src={`https://www.youtube.com/embed/vTfD20dbxho?start=${timestamp}&autoplay=1&mute=1`}
+                                className="w-full h-100 rounded-xl"
+                                allowFullScreen
+                                allow="autoplay"
+                            />
+                        )}
+
+                        <div ref={bottomRef} />
                     </div>
                 </div>
 
@@ -179,19 +284,31 @@ export function ChatPage() {
                 )}
 
                 <footer className="p-4 bg-app-bg border-t border-app-border">
-                    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3">
-                        <input
-                            type="text"
+                    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
+                        <textarea
+                            ref={textareaRef}
                             placeholder="Ask anything about the project..."
-                            className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all"
+                            className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
                             value={newRequest}
-                            onChange={(e) => setNewRequest(e.currentTarget.value)}
+                            rows={1}
+                            onChange={(e) => {
+                                setNewRequest(e.currentTarget.value);
+
+                                e.currentTarget.style.height = "auto";
+                                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    e.currentTarget.form?.requestSubmit();
+                                }
+                            }}
                         />
 
                         <button
                             type="submit"
-                            disabled={isThinking || !newRequest.trim()}
-                            className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            disabled={isThinking || isStreaming || !newRequest.trim()}
+                            className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
                         >
                             <Send size={20} />
                         </button>

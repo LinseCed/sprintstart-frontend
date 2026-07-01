@@ -6,24 +6,30 @@ import { useState, useEffect } from "react";
 import type {
   OnboardingPathEndpoint,
   OnboardingPhaseEndpoint,
-} from "../types/onboarding";
+  OnboardingStepEndpoint,
+} from "../features/onboarding/types";
 import { useNavigate } from "react-router-dom";
 import { onboardingService } from "../services/onboardingService";
 import { userService } from "../services/userService";
+import { ApiError } from "../services/apiClient";
 
 import {
   CheckCircle2,
   Circle,
+  CircleDot,
   ChevronRight,
   Sparkles,
   PlayCircle,
   Loader2,
   AlertCircle,
   CircleArrowRight,
+  Lock,
+  Eye,
+  RefreshCw,
 } from "lucide-react";
 //import type {UserProfile} from "../services/types.ts";
 
-type LoadingState = "idle" | "loading" | "success" | "error";
+type LoadingState = "idle" | "loading" | "generating" | "success" | "error";
 
 //const { profile, status } = useAuth();
 //const userLoading = status === 'loading';
@@ -55,6 +61,10 @@ function ProgressBar({ value, max }: ProgressBarProps) {
 // MAIN COMPONENT: OnBoardingPage
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Displays the user's personalized onboarding path hierarchy.
+ * Fetches and tracks progress through phases and tasks.
+ */
 export function OnBoardingPage() {
   // Selected phase index
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState<number>(0);
@@ -69,7 +79,25 @@ export function OnBoardingPage() {
   // Error message for error state
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  // Current AI generation stage, shown while loadingState === "generating"
+  const [generationStage, setGenerationStage] = useState<{ name: string; detail?: string } | null>(null);
+
   const navigate = useNavigate();
+
+  // Triggers AI path generation and streams progress until a path is produced.
+  const generatePath = async () => {
+    setLoadingState("generating");
+    setGenerationStage(null);
+    await onboardingService.personalizePath({
+      onStage: (name, detail) => setGenerationStage({ name, detail }),
+      onPath: (path) => setOnBoardingPath(path),
+      onDone: () => setLoadingState("success"),
+      onError: (message) => {
+        setLoadingState("error");
+        setErrorMessage(message);
+      },
+    });
+  };
 
   // ── DATA FETCHING using useEffect ─────────────────────────────
 
@@ -84,6 +112,11 @@ export function OnBoardingPage() {
         setOnBoardingPath(path);
         setLoadingState("success");
       } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          // No path generated yet — kick off AI personalization instead of erroring out.
+          void generatePath();
+          return;
+        }
         setLoadingState("error");
         setErrorMessage(err instanceof Error ? err.message : "Unknown error");
       }
@@ -109,10 +142,6 @@ export function OnBoardingPage() {
     };
   };
 
-  const getStepButtonLabel = (stepStatus: string) => {
-    return stepStatus === "WAITING" ? "Start now" : "Configure";
-  };
-
   // Total progress across all phases
   const totalProgress = OnBoardingPathEndpoint?.phases.reduce(
     (acc, phase) => {
@@ -130,11 +159,43 @@ export function OnBoardingPage() {
       ? Math.round((totalProgress.completed / totalProgress.total) * 100)
       : 0;
 
-  // Next pending task (across all phases)
-  const nextTask =
+  // Recommended next step (first not-yet-finished/skipped step across all phases).
+  // This is the only step the user is allowed to start; everything after it is locked.
+  const recommendedStep =
     OnBoardingPathEndpoint?.phases
       .flatMap((phase) => phase.steps)
-      .find((step) => step.status !== "FINISHED") ?? null;
+      .find((step) => step.status !== "FINISHED" && step.status !== "SKIPPED") ?? null;
+
+  // How a single step in the list should behave:
+  //  - "completed": FINISHED or SKIPPED  -> read-only, can be reopened to look at it
+  //  - "active":    the recommended next step -> can be started / continued
+  //  - "locked":    a later, not-yet-reachable step -> status only, no action
+  type StepMode = "completed" | "active" | "locked";
+  const getStepMode = (step: OnboardingStepEndpoint): StepMode => {
+    if (step.status === "FINISHED" || step.status === "SKIPPED") return "completed";
+    if (recommendedStep && step.id === recommendedStep.id) return "active";
+    return "locked";
+  };
+
+  // Open a step's detail page (read-only for completed steps, continue for started ones).
+  const openStep = (stepId: string) => void navigate(`/onboarding/${stepId}`);
+
+  // Start the step (records startedAt + sets IN_PROGRESS the first time) and open it.
+  const startStep = async (stepId: string) => {
+    try {
+      await onboardingService.startStep(stepId);
+    } catch (err) {
+      console.error("Failed to start onboarding step:", err);
+    }
+    openStep(stepId);
+  };
+
+  // Action for the recommended step's primary button: "Continue" if already started,
+  // otherwise "Start now" (which triggers the start call).
+  const handleActiveStep = (step: OnboardingStepEndpoint) => {
+    if (step.status === "IN_PROGRESS") openStep(step.id);
+    else void startStep(step.id);
+  };
 
   // ── RENDER: LOADING STATE ──────────────────────────────────
   if (loadingState === "loading" || loadingState === "idle") {
@@ -143,6 +204,27 @@ export function OnBoardingPage() {
         <div className="flex flex-col items-center gap-4 text-app-text-muted">
           <Loader2 className="w-8 h-8 animate-spin text-app-brand" />
           <p className="text-sm">Loading onboarding path...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDER: GENERATING STATE ───────────────────────────────
+  if (loadingState === "generating") {
+    return (
+      <div className="min-h-screen bg-app-bg flex items-center justify-center p-8">
+        <div className="max-w-md text-center">
+          <Sparkles className="w-10 h-10 text-app-brand mx-auto mb-4 animate-pulse" />
+          <h2 className="text-xl font-semibold text-app-text mb-2">
+            Generating your personalized onboarding path...
+          </h2>
+          <p className="text-sm text-app-text-muted mb-2">
+            {generationStage?.name ?? "Starting up"}
+          </p>
+          {generationStage?.detail && (
+            <p className="text-xs text-app-text-subtle mb-6">{generationStage.detail}</p>
+          )}
+          <Loader2 className="w-6 h-6 animate-spin text-app-brand mx-auto mt-4" />
         </div>
       </div>
     );
@@ -196,6 +278,13 @@ export function OnBoardingPage() {
                 <h1 className="text-2xl font-bold text-app-text">
                   Your onboarding journey
                 </h1>
+                <button
+                  onClick={() => void generatePath()}
+                  title="Regenerate path with AI"
+                  className="ml-1 p-1.5 rounded-lg text-app-text-muted hover:text-app-brand hover:bg-app-brand-soft transition-all"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
@@ -261,27 +350,27 @@ export function OnBoardingPage() {
 
       {/* ── MAIN CONTENT ─────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
-        {/* "Up Next" Banner — nur wenn es einen nächsten Task gibt */}
-        {nextTask && (
+        {/* "Up Next" Banner — nur wenn es einen empfohlenen Step gibt */}
+        {recommendedStep && (
           <div className="rounded-3xl border border-app-brand-border bg-app-surface p-6 sm:p-8 mb-6 overflow-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-app-brand-soft blur-3xl rounded-full pointer-events-none" />
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-app-brand-soft text-app-brand-text text-xs font-medium mb-4">
                 <PlayCircle className="w-3.5 h-3.5" />
-                Up Next
+                {recommendedStep.status === "IN_PROGRESS" ? "In progress" : "Up Next"}
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-app-text">
-                {nextTask.title}
+                {recommendedStep.title}
               </h2>
               <p className="text-app-text-muted mt-2 max-w-2xl">
-                {nextTask.description}
+                {recommendedStep.description}
               </p>
               <div className="flex flex-wrap items-center gap-4 mt-6">
                 <button
-                  onClick={() => void navigate(`/onboarding/${nextTask.id}`)}
+                  onClick={() => handleActiveStep(recommendedStep)}
                   className="px-6 py-3 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all flex items-center gap-2"
                 >
-                  Start now
+                  {recommendedStep.status === "IN_PROGRESS" ? "Continue" : "Start now"}
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -301,61 +390,99 @@ export function OnBoardingPage() {
 
         {/* Task list */}
         <div className="space-y-4">
-          {currentPhase.steps.map((step) => (
-            <div
-              key={step.id}
-              className={`group rounded-2xl border transition-all bg-app-surface ${
-                step.status === "FINISHED" || step.status === "SKIPPED"
-                  ? "border-app-border opacity-60"
-                  : "border-app-border hover:border-app-border-strong hover:shadow-lg"
-              }`}
-            >
-              <div className="p-5">
-                <div className="flex gap-4">
-                  <div className="pt-0.5 shrink-0">
-                    {step.status === "FINISHED" ? (
-                      <CheckCircle2 className="w-5 h-5 text-app-success-solid" />
-                    ) : step.status === "SKIPPED" ? (
-                      <CircleArrowRight className="w-5 h-5 text-app-danger-solid" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-app-text-disabled" />
-                    )}
-                  </div>
+          {currentPhase.steps.map((step) => {
+            const mode = getStepMode(step);
+            return (
+              <div
+                key={step.id}
+                className={`group rounded-2xl border transition-all bg-app-surface ${
+                  mode === "completed"
+                    ? "border-app-border opacity-60"
+                    : mode === "locked"
+                      ? "border-app-border opacity-75"
+                      : "border-app-border hover:border-app-border-strong hover:shadow-lg"
+                }`}
+              >
+                <div className="p-5">
+                  <div className="flex gap-4">
+                    <div className="pt-0.5 shrink-0">
+                      {step.status === "FINISHED" ? (
+                        <CheckCircle2 className="w-5 h-5 text-app-success-solid" />
+                      ) : step.status === "SKIPPED" ? (
+                        <CircleArrowRight className="w-5 h-5 text-app-danger-solid" />
+                      ) : step.status === "IN_PROGRESS" ? (
+                        <CircleDot className="w-5 h-5 text-app-brand" />
+                      ) : mode === "locked" ? (
+                        <Lock className="w-5 h-5 text-app-text-disabled" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-app-text-disabled" />
+                      )}
+                    </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                      {/* Text */}
-                      <div>
-                        <h3
-                          className={`font-semibold text-base ${
-                            step.status === "FINISHED" ||
-                            step.status === "SKIPPED"
-                              ? "line-through text-app-text-subtle"
-                              : "text-app-text"
-                          }`}
-                        >
-                          {step.title}
-                        </h3>
-                        <p className="text-sm text-app-text-muted mt-1 leading-relaxed">
-                          {step.description}
-                        </p>
-                        {/* Meta info */}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        {/* Text */}
+                        <div>
+                          <h3
+                            className={`font-semibold text-base ${
+                              mode === "completed"
+                                ? "line-through text-app-text-subtle"
+                                : "text-app-text"
+                            }`}
+                          >
+                            {step.title}
+                          </h3>
+                          <p className="text-sm text-app-text-muted mt-1 leading-relaxed">
+                            {step.description}
+                          </p>
+                        </div>
+
+                        {/* Action depends on the step's mode:
+                            active -> start/continue, completed -> status + read-only view,
+                            locked -> status chip only (cannot be started yet) */}
+                        <div className="shrink-0 self-start sm:self-center">
+                          {mode === "active" ? (
+                            <button
+                              onClick={() => handleActiveStep(step)}
+                              className="px-6 py-3 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all flex items-center gap-2"
+                            >
+                              {step.status === "IN_PROGRESS" ? "Continue" : "Start now"}
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          ) : mode === "completed" ? (
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`text-xs px-3 py-1 rounded-full font-medium ${
+                                  step.status === "FINISHED"
+                                    ? "bg-app-success-bg text-app-success-text"
+                                    : "bg-app-surface-muted text-app-text-muted"
+                                }`}
+                              >
+                                {step.status === "FINISHED" ? "Completed" : "Skipped"}
+                              </span>
+                              <button
+                                onClick={() => openStep(step.id)}
+                                className="px-4 py-2 rounded-xl border border-app-border hover:border-app-border-strong text-app-text-muted hover:text-app-text text-sm font-medium transition-all flex items-center gap-2"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium bg-app-surface-muted text-app-text-muted">
+                              <Lock className="w-3.5 h-3.5" />
+                              Locked
+                            </span>
+                          )}
+                        </div>
                       </div>
-
-                      <button
-                        onClick={() => void navigate(`/onboarding/${step.id}`)}
-                        className="px-6 py-3 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all flex items-center gap-2"
-                      >
-                        {getStepButtonLabel(step.status)}
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </div>

@@ -19,7 +19,7 @@ export class ApiError extends Error {
 export const apiClient = {
     /**
      * Performs an authenticated fetch request.
-     * 
+     *
      * @param endpoint - The API endpoint (e.g., '/api/v1/users/me').
      * @param options - Standard fetch options.
      * @returns The parsed JSON response.
@@ -37,7 +37,7 @@ export const apiClient = {
         }
 
         const headers = new Headers(options.headers);
-        
+
         if (keycloak.token) {
             headers.set('Authorization', `Bearer ${keycloak.token}`);
         }
@@ -63,11 +63,10 @@ export const apiClient = {
             throw new ApiError(response.status, errorBody || response.statusText);
         }
 
-        // Handle 204 No Content
-        if (response.status === 204) {
+        const text = await response.text();
+        if (!text.trim()) {
             return {} as T;
         }
-
-        return response.json() as Promise<T>;
+        return JSON.parse(text) as T;
     }
 };

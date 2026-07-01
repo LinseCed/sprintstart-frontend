@@ -1,20 +1,10 @@
-export const Role = {
-    NO_ROLE: 'NO_ROLE',
-    EXISTING_MEMBER: 'EXISTING_MEMBER',
-    NEW_MEMBER: 'NEW_MEMBER',
+export const PermissionGroup = {
+    USER: 'USER',
+    PM: 'PM',
+    HR: 'HR',
     ADMIN: 'ADMIN',
 } as const;
-export type Role = (typeof Role)[keyof typeof Role];
-
-export const WorkingArea = {
-    NO_WORKING_AREA: 'NO_WORKING_AREA',
-    FRONTEND_DEV: 'FRONTEND_DEV',
-    BACKEND_DEV: 'BACKEND_DEV',
-    DEV_OPS: 'DEV_OPS',
-    QA: 'QA',
-    HR: 'HR',
-} as const;
-export type WorkingArea = (typeof WorkingArea)[keyof typeof WorkingArea];
+export type PermissionGroup = (typeof PermissionGroup)[keyof typeof PermissionGroup];
 
 export const DocumentStatus = {
     PENDING: 'PENDING',
@@ -40,12 +30,22 @@ export type UploadResult = {
     error?: string;
 };
 
+
+export interface ProjectRoleSummary {
+    id: string;
+    name: string;
+}
+
 export interface UserProfile {
     id: string;
+    authId: string;
     username: string;
-    firstname: string;
-    lastname: string;
-    primaryRole: Role;
-    secondaryRole: Role;
-    workingArea: WorkingArea;
+    email: string | null;
+    firstName: string;
+    lastName: string;
+    projectRoles: ProjectRoleSummary[];
+    permissionGroup: PermissionGroup;
+    enabled: boolean;
+    profileIcon: string | null;
+    hasCompletedOnboarding: boolean;
 }
