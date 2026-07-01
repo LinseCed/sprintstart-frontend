@@ -11,11 +11,11 @@ import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer"
 import {
     getDisplayName,
     getDraftDisplayName,
-    getInitials,
     getPermissionGroupVariant,
     getUserEditFormState,
     PERMISSION_GROUP_OPTIONS,
 } from "../data";
+import { UserAvatar } from "../../../components/common/UserAvatar";
 import type {
     AdminUser,
     ProjectSummary,
@@ -211,8 +211,8 @@ export function UserDetailsDrawer({
             onClose={closeDrawer}
             title={visibleTitle}
             leading={
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-lg font-semibold text-app-brand-text shadow-sm">
-                    {getInitials(user)}
+                <div className="flex shrink-0 items-center justify-center">
+                    <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstName} size={64} />
                 </div>
             }
             badge={
