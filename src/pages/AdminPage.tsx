@@ -18,6 +18,7 @@ import {
 import { adminUserService } from "../services/adminUserService";
 import { projectService } from "../services/projectService";
 import { getGithubPatNames } from "../services/sources/githubService";
+import { PageHeader } from "../components/layout/PageHeader";
 import { AlertDialog } from "../components/ui/AlertDialog";
 import {
     DRAWER_CLOSE_DELAY_MS,
@@ -474,23 +475,12 @@ export function AdminPage() {
         <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg py-6">
             <div className="app-page-frame">
                 <header className="mb-8">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-app-border bg-app-surface text-app-brand shadow-sm">
-                                <Terminal className="h-5 w-5" />
-                            </div>
-
-                            <div>
-                                <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
-                                    Admin Console
-                                </h1>
-                                <p className="text-sm text-app-text-muted">
-                                    Manage users, projects & tokens
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
+                    <PageHeader
+                        icon={Terminal}
+                        title="Admin Console"
+                        subtitle="Manage users, projects and access tokens from one operational view."
+                        actions={
+                            <>
                             <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
                                 <Users className="h-4 w-4 text-app-text-muted" />
                                 <span className="text-sm font-semibold text-app-text">
@@ -506,8 +496,9 @@ export function AdminPage() {
                                 </span>
                                 <span className="text-sm text-app-text-muted">projects</span>
                             </div>
-                        </div>
-                    </div>
+                            </>
+                        }
+                    />
                 </header>
 
                 <div className="overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-sm">

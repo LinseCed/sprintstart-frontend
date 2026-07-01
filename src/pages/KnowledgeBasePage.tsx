@@ -12,6 +12,7 @@ import {
     CheckCircle2,
     X,
 } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
 
 /**
  * Multi-file and multi-format management view for uploaded project resources.
@@ -148,30 +149,16 @@ export function KnowledgeBasePage() {
     return (
         <div className="min-h-screen bg-app-bg py-3 text-app-text sm:py-6 lg:py-10">
             <div className="app-page-frame space-y-6 sm:space-y-10">
-                <header className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-app-brand-soft p-1.5 sm:p-2">
-                            <BookOpen className="h-5 w-5 text-app-brand-text sm:h-6 sm:w-6" />
-                        </div>
-
-                        <motion.h1
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="text-xl font-bold tracking-tight text-app-text sm:text-3xl"
-                        >
-                            Knowledge Base
-                        </motion.h1>
-                    </div>
-
-                    <motion.p
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="max-w-2xl text-sm leading-relaxed text-app-text-subtle sm:text-lg"
-                    >
-                        Ingest project documentation. Upload Markdown files to provide context for your workspace.
-                    </motion.p>
-                </header>
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                >
+                    <PageHeader
+                        icon={BookOpen}
+                        title="Knowledge Base"
+                        subtitle="Ingest project documentation and keep workspace context ready for search, chat and onboarding."
+                    />
+                </motion.div>
 
                 <AnimatePresence>
                     {batchResult && (

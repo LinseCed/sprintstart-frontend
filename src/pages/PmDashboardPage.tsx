@@ -1,13 +1,21 @@
 // features/dashboard/DashboardView.tsx
 
+import { BriefcaseBusiness } from "lucide-react";
+import { PageHeader } from "../components/layout/PageHeader";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
 
 export function PmDashboardPage() {
     return (
-        <div className="bg-app-bg py-4">
+        <div className="bg-app-bg py-6 lg:py-8">
             <div className="app-page-frame space-y-5">
+                <PageHeader
+                    icon={BriefcaseBusiness}
+                    title="PM Dashboard"
+                    subtitle="Track team onboarding, spot recurring questions and keep knowledge gaps visible."
+                />
+
                 {/* Team Overview */}
                 <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">
                     <div className="mb-4">

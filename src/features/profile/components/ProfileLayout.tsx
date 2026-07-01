@@ -4,7 +4,8 @@ import { userService } from '../../../services/userService';
 import type { UserProfile } from '../../../services/types';
 import { AccountForm } from './AccountForm';
 import { PasswordForm } from './PasswordForm';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserCircle } from 'lucide-react';
+import { PageHeader } from '../../../components/layout/PageHeader';
 
 /**
  * Wrapper layout for the profile settings view.
@@ -61,12 +62,11 @@ export function ProfileLayout() {
     return (
         <div className="app-page-content py-6 md:py-8">
             <div className="max-w-4xl space-y-8">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-app-text">User Profile</h1>
-                    <p className="text-app-text-muted">
-                        Manage your account settings and password.
-                    </p>
-                </div>
+                <PageHeader
+                    icon={UserCircle}
+                    title="User Profile"
+                    subtitle="Manage your account details, profile appearance and password."
+                />
 
                 <AccountForm profile={profile} onUpdate={handleUpdateProfile} />
                 <PasswordForm />

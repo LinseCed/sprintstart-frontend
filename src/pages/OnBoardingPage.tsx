@@ -27,6 +27,7 @@ import {
   Eye,
   RefreshCw,
 } from "lucide-react";
+import { PageHeader } from "../components/layout/PageHeader";
 //import type {UserProfile} from "../services/types.ts";
 
 type LoadingState = "idle" | "loading" | "generating" | "success" | "error";
@@ -270,33 +271,32 @@ export function OnBoardingPage() {
       {/* ── HEADER ───────────────────────────────────────── */}
       <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
         <div className="app-page-content py-4">
-          {/* Title + overall percent */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-app-brand" />
-                <h1 className="text-2xl font-bold text-app-text">
-                  Your onboarding journey
-                </h1>
+          <PageHeader
+            icon={Sparkles}
+            title="Your onboarding journey"
+            subtitle="Follow your personalized path, continue the next task and review completed steps."
+            className="mb-4"
+            actions={
+              <>
                 <button
                   onClick={() => void generatePath()}
                   title="Regenerate path with AI"
-                  className="ml-1 p-1.5 rounded-lg text-app-text-muted hover:text-app-brand hover:bg-app-brand-soft transition-all"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-all hover:bg-app-brand-soft hover:text-app-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
-              </div>
-            </div>
 
-            <div className="text-right">
-              <div className="text-4xl font-bold text-app-brand">
-                {totalPercentage}%
-              </div>
-              <div className="text-xs text-app-text-muted">
-                overall
-              </div>
-            </div>
-          </div>
+                <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft px-4 py-2 text-right">
+                  <div className="text-3xl font-bold text-app-brand">
+                    {totalPercentage}%
+                  </div>
+                  <div className="text-xs font-medium text-app-brand-text">
+                    overall
+                  </div>
+                </div>
+              </>
+            }
+          />
 
           {/* Total progress bar */}
           <ProgressBar

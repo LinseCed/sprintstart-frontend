@@ -21,6 +21,7 @@ import {
   ChevronDown,
   SlidersHorizontal,
 } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
 
 // ------------------------------------------------------------------
 // Helpers (gleich wie im Widget)
@@ -231,17 +232,12 @@ export function KnowledgeGapsPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to PM-Dashboard
           </button>
-          <div className="flex items-center gap-3 mb-6">
-            <ShieldAlert className="w-6 h-6 text-app-brand" />
-            <div>
-              <h1 className="text-2xl font-semibold text-app-text">
-                Knowledge Gaps
-              </h1>
-              <p className="text-sm text-app-text-muted">
-                Documentation gaps identified across the organization.
-              </p>
-            </div>  
-          </div>
+          <PageHeader
+            icon={ShieldAlert}
+            title="Knowledge Gaps"
+            subtitle="Documentation gaps identified across the organization and prioritized by impact."
+            className="mb-6"
+          />
           <SeveritySummaryBar gaps={overview.gaps} />
         </div>
       </div>
