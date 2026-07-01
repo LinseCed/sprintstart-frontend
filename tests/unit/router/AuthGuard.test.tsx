@@ -4,9 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthGuard } from '../../../src/router/AuthGuard';
 import { useAuth } from '../../../src/context/useAuth';
-import type { AuthContextType } from '../../../src/context/useAuth';
 import * as teamService from '../../../src/services/teamManagementService';
-import type { TeamOverviewUser, Skill } from '../../../src/services/teamManagementService';
 
 vi.unmock('react-router-dom');
 vi.unmock('react-router');
@@ -39,7 +37,7 @@ describe('AuthGuard', () => {
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
-        } as unknown as AuthContextType);
+        } as any);
 
         const { container } = render(
             <MemoryRouter initialEntries={['/protected']}>
@@ -60,7 +58,7 @@ describe('AuthGuard', () => {
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
-        } as unknown as AuthContextType);
+        } as any);
 
         render(
             <MemoryRouter initialEntries={['/protected']}>
@@ -87,13 +85,13 @@ describe('AuthGuard', () => {
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
-        } as unknown as AuthContextType);
+        } as any);
 
         vi.mocked(teamService.getMyTeamOverview).mockResolvedValue({
             id: 'teamMember1',
             userId: 'user1',
             roles: [],
-        } as unknown as TeamOverviewUser);
+        } as any);
         vi.mocked(teamService.getSkills).mockResolvedValue([]);
         vi.mocked(teamService.hasCompletedSkillAssessment).mockResolvedValue(true);
 
@@ -122,13 +120,13 @@ describe('AuthGuard', () => {
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
-        } as unknown as AuthContextType);
+        } as any);
 
         vi.mocked(teamService.getMyTeamOverview).mockResolvedValue({
             id: 'teamMember1',
             userId: 'user1',
             roles: [],
-        } as unknown as TeamOverviewUser);
+        } as any);
         vi.mocked(teamService.getSkills).mockResolvedValue([]);
         vi.mocked(teamService.hasCompletedSkillAssessment).mockResolvedValue(true);
         
@@ -156,16 +154,16 @@ describe('AuthGuard', () => {
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
-        } as unknown as AuthContextType);
+        } as any);
 
         vi.mocked(teamService.getMyTeamOverview).mockResolvedValue({
             id: 'teamMember1',
             userId: 'user1',
             roles: [{ id: 'role1' }],
-        } as unknown as TeamOverviewUser);
+        } as any);
         vi.mocked(teamService.getSkills).mockResolvedValue([
             { id: 'skill1', roleId: 'role1', name: 'Skill 1', description: '' }
-        ] as unknown as Skill[]);
+        ] as any);
         vi.mocked(teamService.hasCompletedSkillAssessment).mockResolvedValue(false);
         vi.mocked(teamService.getSkillAssessmentPromptState).mockReturnValue(null);
         
