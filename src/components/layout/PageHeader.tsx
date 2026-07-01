@@ -18,18 +18,18 @@ export function PageHeader({
 }: PageHeaderProps) {
     return (
         <div className={className}>
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-app-brand-border bg-app-brand-soft text-app-brand-text shadow-sm">
-                        <Icon className="h-6 w-6" />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-app-brand text-white shadow-sm">
+                        <Icon className="h-4 w-4" />
                     </div>
 
-                    <div className="min-w-0 pt-0.5">
-                        <h1 className="text-xl font-bold tracking-tight text-app-text sm:text-2xl">
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-semibold text-app-text sm:text-2xl">
                             {title}
                         </h1>
 
-                        <p className="mt-1 max-w-3xl text-sm leading-6 text-app-text-muted">
+                        <p className="mt-1 max-w-2xl text-sm leading-6 text-app-text-subtle">
                             {subtitle}
                         </p>
                     </div>
