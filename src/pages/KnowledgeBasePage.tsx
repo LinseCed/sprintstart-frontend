@@ -146,8 +146,8 @@ export function KnowledgeBasePage() {
     };
 
     return (
-        <div className="min-h-screen bg-app-bg py-3 text-app-text sm:py-6 lg:py-10">
-            <div className="app-page-frame space-y-6 sm:space-y-10">
+        <div className="min-h-screen bg-app-bg text-app-text">
+            <div className="app-page-shell space-y-6 sm:space-y-10">
                 <header className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
                         <div className="rounded-lg bg-app-brand-soft p-1.5 sm:p-2">

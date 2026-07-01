@@ -6,6 +6,7 @@
 
 :root {
   --app-page-gutter: 1.25rem;
+  --app-page-block-gutter: 1.25rem;
   --app-page-max-width: 80rem;
 
   /* Backgrounds */
@@ -211,12 +212,14 @@
 @media (min-width: 640px) {
   :root {
     --app-page-gutter: 2rem;
+    --app-page-block-gutter: 2rem;
   }
 }
 
 @media (min-width: 1024px) {
   :root {
-    --app-page-gutter: 12rem;
+    --app-page-gutter: 10rem;
+    --app-page-block-gutter: 2.5rem;
   }
 }
 
@@ -224,6 +227,14 @@
   width: 100%;
   padding-left: var(--app-page-gutter);
   padding-right: var(--app-page-gutter);
+}
+
+.app-page-shell {
+  width: 100%;
+  padding-top: var(--app-page-block-gutter);
+  padding-left: var(--app-page-gutter);
+  padding-right: var(--app-page-gutter);
+  padding-bottom: var(--app-page-block-gutter);
 }
 
 .app-page-content {
