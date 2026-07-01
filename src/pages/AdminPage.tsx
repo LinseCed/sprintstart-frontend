@@ -471,8 +471,8 @@ export function AdminPage() {
     const showInitialLoading = loadingState === "idle" || loadingState === "loading";
 
     return (
-        <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-7xl">
+        <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg py-6">
+            <div className="app-page-frame">
                 <header className="mb-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">

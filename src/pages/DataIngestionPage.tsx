@@ -483,7 +483,7 @@ export function DataIngestionPage() {
                     }}
                 />
 
-                <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+                <main className="app-page-frame py-6 lg:py-8">
                     <div className="space-y-8">
                         {errorMessage && (
                             <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-5 py-4 text-sm text-app-warning-text">

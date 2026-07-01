@@ -269,7 +269,7 @@ export function OnBoardingPage() {
     <div className="min-h-screen bg-app-bg">
       {/* ── HEADER ───────────────────────────────────────── */}
       <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="app-page-content py-4">
           {/* Title + overall percent */}
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -349,7 +349,7 @@ export function OnBoardingPage() {
       </div>
 
       {/* ── MAIN CONTENT ─────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
+      <main className="app-page-content py-6 pb-24 pt-8">
         {/* "Up Next" Banner — nur wenn es einen empfohlenen Step gibt */}
         {recommendedStep && (
           <div className="rounded-3xl border border-app-brand-border bg-app-surface p-6 sm:p-8 mb-6 overflow-hidden relative">

@@ -5,6 +5,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --app-page-gutter: 1.25rem;
+  --app-page-max-width: 80rem;
+
   /* Backgrounds */
   --bg: #f9fafb;
   --bg-soft: #f3f4f6;
@@ -203,6 +206,33 @@
   :root {
     font-size: 16px;
   }
+}
+
+@media (min-width: 640px) {
+  :root {
+    --app-page-gutter: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-page-gutter: 12rem;
+  }
+}
+
+.app-page-frame {
+  width: 100%;
+  padding-left: var(--app-page-gutter);
+  padding-right: var(--app-page-gutter);
+}
+
+.app-page-content {
+  width: 100%;
+  max-width: var(--app-page-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--app-page-gutter);
+  padding-right: var(--app-page-gutter);
 }
 
 html,

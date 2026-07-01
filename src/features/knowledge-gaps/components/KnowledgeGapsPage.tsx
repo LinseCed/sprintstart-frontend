@@ -223,7 +223,7 @@ export function KnowledgeGapsPage() {
   return (
     <div className="min-h-screen bg-app-bg">
       <div className="border-b border-app-border bg-app-bg/90">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="app-page-content py-8">
           <button
             onClick={() => void navigate("/pm-dashboard")}
             className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
@@ -246,7 +246,7 @@ export function KnowledgeGapsPage() {
         </div>
       </div>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="app-page-content py-8">
         {/* Filter & Sort Controls */}
         <div className="mb-6 rounded-lg border border-app-border bg-app-surface">
           {/* Header / Compact View */}

@@ -11,7 +11,7 @@ export function DataIngestionHeader({
 }: DataIngestionHeaderProps) {
     return (
         <header className="border-b border-app-border bg-app-bg">
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <div className="app-page-frame py-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <div className="flex items-center gap-3">

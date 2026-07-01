@@ -81,7 +81,7 @@ export function FaqPage() {
     <div className="min-h-screen bg-app-bg">
       {/* Header */}
       <div className="border-b border-app-border bg-app-bg/90">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="app-page-content py-8">
           <button
             onClick={() => void navigate("/pm-dashboard")}
             className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
@@ -162,7 +162,7 @@ export function FaqPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="app-page-content py-8">
         {/* Hero Card */}
         <div className="mb-4">
           <button

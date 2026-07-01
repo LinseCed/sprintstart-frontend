@@ -32,7 +32,7 @@ export function ChatPage() {
     } = useChat();
 
     return (
-        <div className="h-screen flex overflow-hidden bg-app-bg text-app-text">
+        <div className="app-page-frame flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
             {chats?.length !== 0 && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
@@ -63,7 +63,7 @@ export function ChatPage() {
                 className="
                     fixed
                     top-4
-                    right-4
+                    right-[var(--app-page-gutter)]
                     z-50
                     md:hidden
                     p-3

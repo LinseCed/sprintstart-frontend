@@ -59,16 +59,18 @@ export function ProfileLayout() {
     }
 
     return (
-        <div className="mx-auto max-w-4xl space-y-8 p-6 md:p-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-app-text">User Profile</h1>
-                <p className="text-app-text-muted">
-                    Manage your account settings and password.
-                </p>
-            </div>
+        <div className="app-page-content py-6 md:py-8">
+            <div className="max-w-4xl space-y-8">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-app-text">User Profile</h1>
+                    <p className="text-app-text-muted">
+                        Manage your account settings and password.
+                    </p>
+                </div>
 
-            <AccountForm profile={profile} onUpdate={handleUpdateProfile} />
-            <PasswordForm />
+                <AccountForm profile={profile} onUpdate={handleUpdateProfile} />
+                <PasswordForm />
+            </div>
         </div>
     );
 }

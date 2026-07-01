@@ -6,8 +6,8 @@ import { TeamManagementWidget } from "../features/team-management/components/Tea
 
 export function PmDashboardPage() {
     return (
-        <div className="bg-app-bg px-4 py-4">
-            <div className="mx-auto max-w-4xl space-y-5">
+        <div className="bg-app-bg py-4">
+            <div className="app-page-frame space-y-5">
                 {/* Team Overview */}
                 <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">
                     <div className="mb-4">
