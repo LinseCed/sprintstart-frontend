@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unnecessary-type-assertion */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useChat } from '../../../../src/features/chatbot/hooks/useChat';
@@ -76,6 +76,7 @@ describe('useChat', () => {
         vi.mocked(chatService.createChat).mockResolvedValue({ id: 'newChatId' } as any);
 
         vi.mocked(chatService.streamMessage).mockImplementation(async (_chatId, _text, handlers) => {
+            await Promise.resolve();
             // Simulate stream tokens asynchronously
             setTimeout(() => {
                 handlers.onToken('Hello ');

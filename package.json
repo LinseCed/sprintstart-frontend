@@ -8,6 +8,7 @@
     "dev": "vite",
     "test": "vitest run",
     "unit": "vitest run",
+    "try": "npm install && npm run build && npm run lint && npm run unit",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
