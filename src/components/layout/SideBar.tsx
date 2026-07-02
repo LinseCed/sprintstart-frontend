@@ -14,7 +14,7 @@ import {
     Terminal,
     X,
 } from 'lucide-react';
-import Avatar from 'boring-avatars';
+import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
@@ -218,11 +218,10 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                     <div className="mb-4 flex items-center justify-between px-3 py-2">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface-muted">
-                                <Avatar 
+                                <UserAvatar
                                     size={32}
-                                    name={profile.profileIcon || profile.username || 'User'}
-                                    variant="beam"
-                                    colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
+                                    profileIcon={profile.profileIcon}
+                                    fallbackName={profile.username}
                                 />
                             </div>
 

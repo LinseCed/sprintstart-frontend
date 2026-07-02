@@ -17,6 +17,7 @@ export type TeamOverviewUser = {
     userId: string;
     firstname: string;
     lastname: string;
+    profileIcon?: string;
     project: {
         id: string;
         name: string;

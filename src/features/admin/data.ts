@@ -18,14 +18,7 @@ export function getDisplayName(user: AdminUser) {
     return fullName || user.username || user.email;
 }
 
-export function getInitials(user: AdminUser) {
-    return getDisplayName(user)
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
-}
+
 
 export function getPermissionGroupVariant(permissionGroup: string): BadgeVariant {
     const normalized = permissionGroup.toUpperCase();

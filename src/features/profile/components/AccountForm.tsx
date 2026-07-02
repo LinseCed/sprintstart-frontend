@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Avatar from 'boring-avatars';
+import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { UserProfile } from '../../../services/types';
 
 type AccountFormProps = {
@@ -52,11 +52,10 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
             
             <div className="mb-6 flex items-center gap-6">
                 <div className="relative group">
-                    <Avatar 
+                    <UserAvatar 
                         size={80}
-                        name={profileIcon}
-                        variant="beam"
-                        colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
+                        profileIcon={profileIcon}
+                        fallbackName={profile.username}
                     />
                 </div>
                 <div>
@@ -90,7 +89,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
                                 onClick={() => handleSelectIcon(seed)}
                                 className="shrink-0 rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
                             >
-                                <Avatar size={48} name={seed} variant="beam" colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]} />
+                                <UserAvatar size={48} profileIcon={seed} />
                             </button>
                         ))}
                     </div>

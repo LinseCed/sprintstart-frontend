@@ -37,6 +37,7 @@ export type ProjectUserSummary = {
     id: string;
     username: string;
     email: string;
+    profileIcon?: string;
 
     /**
      * Project-specific roles are only valid in a project context.
@@ -50,6 +51,7 @@ export type ProjectUser = {
     email: string;
     firstName: string;
     lastName: string;
+    profileIcon?: string;
 
     /**
      * Global application roles, for example ADMIN or USER.
