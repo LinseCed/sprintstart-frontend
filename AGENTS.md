@@ -105,24 +105,26 @@ Don't document obvious assignments, trivial state updates, plain JSX, or restate
 
 ---
 
-## 7. Design system: colors & color-blind accessibility
+## 7. Design system: shared palette, consistency & color-blind accessibility
 
-Colors are **semantic CSS tokens**, exposed as Tailwind `app-*` classes (defined in [src/styles/index.css](./src/styles/index.css)).
+We have **one shared palette** — a set of semantic design tokens (CSS variables → Tailwind `app-*` classes) defined in [src/styles/index.css](./src/styles/index.css). **Always use it** so the whole app stays visually consistent.
 
-- **Never hardcode hex values or raw Tailwind palette colors** (`text-blue-500`, `#2563eb`, …). Use the semantic tokens: `bg-app-bg`, `bg-app-surface`, `text-app-text` / `text-app-text-muted`, `border-app-border`, `bg-app-brand`, and the status roles `success` / `warning` / `danger` / `neutral` (e.g. `bg-app-success-bg text-app-success-text`).
-- **Light/Dark:** controlled via the `.dark` class (`@custom-variant dark`), managed by `ThemeProvider`. Every color must work in both themes — use tokens, not fixed colors.
-- **Color-blind safety:** never rely on color **alone** to convey meaning. Always pair color with an **icon, text label, or shape** (e.g. status shown as chip text + icon, not just red/green). This is why finished/skipped/locked steps use distinct icons *and* labels.
-- **Contrast:** target **WCAG 2.1 AA** contrast for text and interactive elements.
-- **Focus:** keep visible focus using the `--app-focus` token (`focus-visible:ring-app-focus`); don't remove focus outlines.
+- **Always use the palette tokens; never hardcode colors** (no `#2563eb`, no raw Tailwind colors like `text-blue-500`). Use the semantic roles: surfaces (`bg-app-bg`, `bg-app-surface`, `bg-app-surface-muted`), text (`text-app-text`, `text-app-text-muted`, `text-app-text-subtle`), borders (`border-app-border`, …), brand (`bg-app-brand`, `text-app-brand`, …), and status (`success` / `warning` / `danger` / `neutral`, e.g. `bg-app-success-bg text-app-success-text`).
+- **Stay consistent beyond color, too:** use the shared Tailwind scale for spacing, radius and sizing instead of arbitrary one-off pixel values, so padding/margins/gaps match the rest of the app.
+- **Light/Dark:** controlled via the `.dark` class (`@custom-variant dark`), managed by `ThemeProvider`. Every color must work in both themes — which is automatic when you use tokens.
+- **Color-blind friendly (required):** never rely on color **alone** to convey meaning. Always back it with an **icon, text label, or shape** (e.g. status = chip text + icon, not just red/green) — this is why finished/skipped/locked steps use distinct icons *and* labels. Keep color pairs distinguishable for common color-vision deficiencies.
+- **Contrast:** meet **WCAG 2.1 AA** for text and interactive elements.
+- **Focus:** keep visible focus via the `--app-focus` token (`focus-visible:ring-app-focus`) — don't remove outlines.
 
 ---
 
 ## 8. Responsive design
 
-- **Mobile-first**, using Tailwind breakpoints (`sm:`, `md:`, `lg:`). Design for small screens, then layer up.
-- The app shell adapts at `lg`: sticky sidebar on desktop, slide-out drawer + top bar on smaller screens (see `components/layout/SideBar.tsx`). Global token adjustments happen at `@media (max-width: 1024px)`.
-- Use fluid layouts (fl`ex`/`grid`, `max-w-*`, `min-w-0` to allow truncation) rather than fixed pixel widths.
-- **Test at mobile / tablet / desktop** before finishing UI work; check that dialogs, drawers, and tables don't overflow.
+- **Primary target is desktop** — that's where the app is mainly used, so design for the desktop layout first. (This is *not* mobile-first.)
+- But every page must still be **responsive**: it has to react to the viewport and look good down to phone size — widgets get narrower / stack vertically, the sidebar collapses, and tables/dialogs must not overflow.
+- Use Tailwind breakpoints (`sm:`, `md:`, `lg:`) to scale the desktop layout *down*. The app shell already does this: sticky sidebar on desktop → slide-out drawer + top bar below `lg` (see `components/layout/SideBar.tsx`; global token adjustments at `@media (max-width: 1024px)`).
+- Prefer fluid layouts (`flex`/`grid`, `max-w-*`, `min-w-0` to allow truncation) over fixed pixel widths.
+- **Test desktop (primary), then tablet and mobile** before finishing UI work — check that widgets reflow, the sidebar collapses, and nothing overflows.
 
 ---
 
