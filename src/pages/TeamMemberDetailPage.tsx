@@ -1090,12 +1090,20 @@ export function TeamMemberDetailPage() {
                     stepToDelete={stepToDelete}
                     taskToDelete={taskToDelete}
                     onClose={() => setDetailStepId('')}
-                    onRequestDeleteStep={setStepToDelete}
+                    onRequestDeleteStep={(step: DetailOnboardingStep) =>
+                        setStepToDelete(step)
+                    }
                     onCancelDeleteStep={() => setStepToDelete(null)}
-                    onConfirmDeleteStep={(step) => void handleDeleteStep(step)}
-                    onRequestDeleteTask={setTaskToDelete}
+                    onConfirmDeleteStep={(step: DetailOnboardingStep) =>
+                        void handleDeleteStep(step)
+                    }
+                    onRequestDeleteTask={(task: OnboardingTaskEndpoint) =>
+                        setTaskToDelete(task)
+                    }
                     onCancelDeleteTask={() => setTaskToDelete(null)}
-                    onConfirmDeleteTask={(task) => void handleDeleteTask(task)}
+                    onConfirmDeleteTask={(task: OnboardingTaskEndpoint) =>
+                        void handleDeleteTask(task)
+                    }
                     onTaskInsertTargetChange={setTaskInsertTarget}
                     onNewTaskTitleChange={setNewTaskTitle}
                     onNewTaskDescriptionChange={setNewTaskDescription}
