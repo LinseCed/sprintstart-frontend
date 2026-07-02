@@ -66,6 +66,9 @@ function getElapsedDays(startedAt: string): number {
 }
 
 import { UserAvatar } from '../components/common/UserAvatar';
+import { AlertDialog } from '../components/ui/AlertDialog';
+import { Modal } from '../components/ui/Modal';
+import { SidePanel } from '../components/ui/SidePanel';
 
 function formatMinutes(minutes?: number | null): string {
     if (!minutes || minutes <= 0) return 'No estimate';
@@ -1435,31 +1438,14 @@ export function TeamMemberDetailPage() {
                 </div>
             </main>
 
-            {rolesModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <h2 className="text-lg font-semibold text-app-text">
-                                    Manage Roles
-                                </h2>
-
-                                <p className="mt-1 text-sm text-app-text-muted">
-                                    Add or remove roles for {user.firstname}.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setRolesModalOpen(false)}
-                                className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover"
-                                aria-label="Close roles modal"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="mt-6 space-y-2">
+            <Modal
+                isOpen={rolesModalOpen}
+                title="Manage Roles"
+                description={`Add or remove roles for ${user.firstname}.`}
+                closeLabel="Close roles modal"
+                onClose={() => setRolesModalOpen(false)}
+            >
+                        <div className="space-y-2">
                             {user.roles.length > 0 ? (
                                 user.roles.map((role) => (
                                     <div
@@ -1523,74 +1509,70 @@ export function TeamMemberDetailPage() {
                                 All available roles are already assigned.
                             </p>
                         )}
-                    </div>
-                </div>
-            )}
-            {roleToRemove && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-sm rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Remove Role
-                        </h2>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
+            </Modal>
+            <AlertDialog
+                isOpen={Boolean(roleToRemove)}
+                title="Remove Role"
+                description={
+                    roleToRemove ? (
+                        <>
                             Are you sure you want to remove the role{' '}
                             <span className="font-medium text-app-text">
                                 {roleToRemove.name}
                             </span>{' '}
                             from {user.firstname}?
-                        </p>
+                        </>
+                    ) : undefined
+                }
+                confirmLabel="Remove"
+                variant="danger"
+                isLoading={Boolean(roleToRemove && savingRoleId === roleToRemove.id)}
+                loadingLabel="Removing..."
+                onClose={() => setRoleToRemove(null)}
+                onConfirm={() => {
+                    if (!roleToRemove) return;
 
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setRoleToRemove(null)}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover"
-                            >
-                                Cancel
-                            </button>
+                    void handleRemoveRole(roleToRemove.id);
+                    setRoleToRemove(null);
+                }}
+            />
+            <Modal
+                isOpen={Boolean(stepInsertTarget)}
+                title="Add Custom Step"
+                description="Add the project-specific step for the selected slot."
+                size="lg"
+                zIndexClassName="z-[60]"
+                bodyClassName="max-h-[min(68vh,720px)] overflow-y-auto px-7 py-6"
+                closeLabel="Close add step modal"
+                isDismissDisabled={addingStep}
+                onClose={() => setStepInsertTarget(null)}
+                footer={
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setStepInsertTarget(null)}
+                            disabled={addingStep}
+                            className="rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
 
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    void handleRemoveRole(roleToRemove.id);
-                                    setRoleToRemove(null);
-                                }}
-                                disabled={savingRoleId === roleToRemove.id}
-                                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {stepInsertTarget && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-lg rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h2 className="text-lg font-semibold text-app-text">
-                                    Add Custom Step
-                                </h2>
-
-                                <p className="mt-1 text-sm text-app-text-muted">
-                                    Add the project-specific step for the selected slot.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setStepInsertTarget(null)}
-                                disabled={addingStep}
-                                className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                aria-label="Close add step modal"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="mt-5 space-y-3">
+                        <button
+                            type="button"
+                            onClick={() => void handleCreateCustomStep()}
+                            disabled={
+                                addingStep ||
+                                customStepTitle.trim().length === 0
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {addingStep ? 'Adding...' : 'Add step'}
+                        </button>
+                    </>
+                }
+            >
+                        <div className="space-y-3">
                             <input
                                 value={customStepTitle}
                                 onChange={(event) =>
@@ -1726,70 +1708,35 @@ export function TeamMemberDetailPage() {
                             )}
                         </div>
 
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setStepInsertTarget(null)}
-                                disabled={addingStep}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void handleCreateCustomStep()}
-                                disabled={
-                                    addingStep ||
-                                    customStepTitle.trim().length === 0
-                                }
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <Plus className="h-4 w-4" />
-                                {addingStep ? 'Adding...' : 'Add step'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            </Modal>
             {detailStep && (
-                <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-                    <button
-                        type="button"
-                        aria-label="Close step details"
-                        className="hidden flex-1 cursor-default md:block"
-                        onClick={() => setDetailStepId('')}
-                    />
-
-                    <aside className="h-full w-full max-w-xl overflow-y-auto border-l border-app-border bg-app-surface p-6 shadow-2xl">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStepStatusStyles(detailStep.status)}`}>
-                                    {detailStep.status.replace('_', ' ')}
-                                </span>
-
-                                <h2 className="mt-3 text-xl font-semibold text-app-text">
-                                    {detailStep.title}
-                                </h2>
-
-                                {detailStep.description && (
-                                    <p className="mt-2 text-sm text-app-text-muted">
-                                        {detailStep.description}
-                                    </p>
-                                )}
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setDetailStepId('')}
-                                className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover"
-                                aria-label="Close step details"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
+                <SidePanel
+                    isOpen
+                    onClose={() => setDetailStepId('')}
+                    title={detailStep.title}
+                    description={detailStep.description}
+                    badge={
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStepStatusStyles(detailStep.status)}`}>
+                            {detailStep.status.replace('_', ' ')}
+                        </span>
+                    }
+                    panelBackgroundClassName="bg-app-surface"
+                    headerDividerClassName=""
+                    footerClassName="border-t border-app-border bg-app-surface px-6 py-5"
+                    closeAriaLabel="Close step details"
+                    footer={
+                        <button
+                            type="button"
+                            onClick={() => setStepToDelete(detailStep)}
+                            disabled={stepActionId !== null}
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-app-danger-border bg-app-danger-bg px-4 py-2 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            Delete step
+                        </button>
+                    }
+                >
+                        <div className="grid grid-cols-3 gap-2 text-xs">
                             <div className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2">
                                 <p className="text-app-text-muted">Estimate</p>
                                 <p className="mt-1 font-semibold text-app-text">
@@ -2103,98 +2050,58 @@ export function TeamMemberDetailPage() {
                             )}
                         </section>
 
-                        <div className="mt-6 border-t border-app-border pt-4">
-                            <button
-                                type="button"
-                                onClick={() => setStepToDelete(detailStep)}
-                                disabled={stepActionId !== null}
-                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-app-danger-border bg-app-danger-bg px-4 py-2 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete step
-                            </button>
-                        </div>
-                    </aside>
-                </div>
+                </SidePanel>
             )}
-            {stepToDelete && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-sm rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Delete Step
-                        </h2>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
+            <AlertDialog
+                isOpen={Boolean(stepToDelete)}
+                title="Delete Step"
+                description={
+                    stepToDelete ? (
+                        <>
                             Are you sure you want to delete{' '}
                             <span className="font-medium text-app-text">
                                 {stepToDelete.title}
                             </span>{' '}
                             from this onboarding path?
-                        </p>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setStepToDelete(null)}
-                                disabled={stepActionId === stepToDelete.id}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void handleDeleteStep(stepToDelete)}
-                                disabled={stepActionId === stepToDelete.id}
-                                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {stepActionId === stepToDelete.id
-                                    ? 'Deleting...'
-                                    : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {taskToDelete && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-sm rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Delete Task
-                        </h2>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
+                        </>
+                    ) : undefined
+                }
+                confirmLabel="Delete"
+                variant="danger"
+                isLoading={Boolean(stepToDelete && stepActionId === stepToDelete.id)}
+                loadingLabel="Deleting..."
+                onClose={() => setStepToDelete(null)}
+                onConfirm={() => {
+                    if (stepToDelete) {
+                        void handleDeleteStep(stepToDelete);
+                    }
+                }}
+            />
+            <AlertDialog
+                isOpen={Boolean(taskToDelete)}
+                title="Delete Task"
+                description={
+                    taskToDelete ? (
+                        <>
                             Are you sure you want to delete{' '}
                             <span className="font-medium text-app-text">
                                 {taskToDelete.title}
                             </span>
                             ?
-                        </p>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setTaskToDelete(null)}
-                                disabled={stepActionId === taskToDelete.stepId}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void handleDeleteTask(taskToDelete)}
-                                disabled={stepActionId === taskToDelete.stepId}
-                                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {stepActionId === taskToDelete.stepId
-                                    ? 'Deleting...'
-                                    : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                        </>
+                    ) : undefined
+                }
+                confirmLabel="Delete"
+                variant="danger"
+                isLoading={Boolean(taskToDelete && stepActionId === taskToDelete.stepId)}
+                loadingLabel="Deleting..."
+                onClose={() => setTaskToDelete(null)}
+                onConfirm={() => {
+                    if (taskToDelete) {
+                        void handleDeleteTask(taskToDelete);
+                    }
+                }}
+            />
         </div>
 
     );
