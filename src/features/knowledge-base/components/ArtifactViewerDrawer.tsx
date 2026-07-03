@@ -1,0 +1,193 @@
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import type { Artifact, ArtifactContent } from '../types';
+import { knowledgeService } from '../../../services/knowledgeService';
+
+interface ArtifactViewerDrawerProps {
+    artifact: Artifact | null;
+    onClose: () => void;
+    projectId?: string;
+}
+
+export function ArtifactViewerDrawer({ artifact, onClose, projectId = 'default' }: ArtifactViewerDrawerProps) {
+    const [viewMode, setViewMode] = useState<'raw' | 'summary'>('raw');
+    const [content, setContent] = useState<ArtifactContent | null>(null);
+    const [summary, setSummary] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!artifact) return;
+        
+        let isMounted = true;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setViewMode('raw');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setContent(null);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSummary('');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setError(null);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIsLoading(true);
+
+        knowledgeService.getArtifactContent(projectId, artifact.id)
+            .then(data => {
+                if (isMounted) setContent(data);
+            })
+            .catch(err => {
+                if (isMounted) setError(err instanceof Error ? err.message : String(err));
+            })
+            .finally(() => {
+                if (isMounted) setIsLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [artifact, projectId]);
+
+    const handleSummarize = async () => {
+        if (!artifact) return;
+        
+        setViewMode('summary');
+        setSummary('');
+        setIsStreaming(true);
+        setError(null);
+
+        try {
+            await knowledgeService.summarizeArtifact(projectId, artifact.id, {
+                onToken: (token) => {
+                    setSummary(prev => prev + token);
+                },
+                onDone: () => {
+                    setIsStreaming(false);
+                },
+                onError: (err) => {
+                    setError(err.message);
+                    setIsStreaming(false);
+                }
+            });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to summarize');
+            setIsStreaming(false);
+        }
+    };
+
+    return (
+        <AnimatePresence>
+            {artifact && (
+                <>
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:z-20"
+                    />
+                    
+                    {/* Drawer */}
+                    <motion.aside
+                        data-testid="artifact-drawer"
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed top-0 right-0 bottom-0 w-full md:w-[60%] lg:w-[70%] max-w-[720px] bg-app-surface border-l border-app-border shadow-2xl z-50 md:z-30 flex flex-col"
+                    >
+                        <div className="p-4 border-b border-app-border flex items-center justify-between bg-app-background/50">
+                            <div className="flex items-center gap-3">
+                                {viewMode === 'summary' ? (
+                                    <button 
+                                        onClick={() => setViewMode('raw')}
+                                        className="p-1.5 hover:bg-app-surface border border-transparent hover:border-app-border rounded-md transition-colors flex items-center gap-1 text-sm font-medium text-app-text-muted"
+                                        data-testid="back-to-file-btn"
+                                    >
+                                        <ArrowLeft className="w-4 h-4" />
+                                        Back to File
+                                    </button>
+                                ) : (
+                                    <h2 className="font-semibold text-lg text-app-text line-clamp-1">{artifact.title}</h2>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {viewMode === 'raw' && (
+                                    <button
+                                        onClick={() => void handleSummarize()}
+                                        data-testid="summarise-btn"
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-app-brand text-white rounded-md text-sm font-medium hover:bg-app-brand/90 transition-colors shadow-sm"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                        Summarise
+                                    </button>
+                                )}
+                                <button
+                                    onClick={onClose}
+                                    aria-label="Close artifact viewer"
+                                    data-testid="close-viewer"
+                                    className="p-1.5 text-app-text-muted hover:bg-app-background rounded-md transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 bg-app-surface relative">
+                            {error ? (
+                                <div className="p-4 bg-app-danger-500/10 text-app-danger-500 rounded-lg border border-app-danger-500/20">
+                                    <p className="font-medium">Error loading content</p>
+                                    <p className="text-sm mt-1">{error}</p>
+                                </div>
+                            ) : viewMode === 'raw' ? (
+                                <div data-testid="raw-content" className="h-full">
+                                    {isLoading ? (
+                                        <div className="animate-pulse space-y-4">
+                                            <div className="h-4 bg-app-border rounded w-3/4"></div>
+                                            <div className="h-4 bg-app-border rounded w-1/2"></div>
+                                            <div className="h-4 bg-app-border rounded w-5/6"></div>
+                                            <div className="h-4 bg-app-border rounded w-2/3"></div>
+                                        </div>
+                                    ) : (
+                                        <pre className="font-mono text-sm text-app-text bg-app-background p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
+                                            {content?.content}
+                                        </pre>
+                                    )}
+                                </div>
+                            ) : (
+                                <div data-testid="summary-content" className="prose prose-sm dark:prose-invert max-w-none">
+                                    <div className="flex items-center gap-2 mb-6 text-app-brand font-medium border-b border-app-border pb-4">
+                                        <Sparkles className="w-5 h-5" />
+                                        <span className="text-lg">AI Summary</span>
+                                    </div>
+                                    
+                                    {!summary && isStreaming ? (
+                                        <div className="flex items-center gap-3 text-app-text-muted py-8 justify-center">
+                                            <Loader2 className="w-5 h-5 animate-spin text-app-brand" />
+                                            <span className="text-base font-medium">Generating summary...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="text-app-text">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm, remarkMath]}
+                                                rehypePlugins={[rehypeKatex]}
+                                            >
+                                                {summary}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </motion.aside>
+                </>
+            )}
+        </AnimatePresence>
+    );
+}
