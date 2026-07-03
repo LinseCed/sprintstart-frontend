@@ -7,11 +7,11 @@ import type { UserProfile } from '../../../src/services/types';
 describe('userService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        sessionStorage.clear();
+        window.sessionStorage.clear();
     });
 
     afterEach(() => {
-        sessionStorage.clear();
+        window.sessionStorage.clear();
     });
 
     it('getProfile returns merged backend and local mock data', async () => {
@@ -33,7 +33,7 @@ describe('userService', () => {
             ),
         );
 
-        sessionStorage.setItem(
+        window.sessionStorage.setItem(
             'sprintstart_mock_profile',
             JSON.stringify({ firstName: 'Local' }),
         );
@@ -82,7 +82,7 @@ describe('userService', () => {
         expect(updated.profileIcon).toBe('icon1');
 
         const stored = JSON.parse(
-            sessionStorage.getItem('sprintstart_mock_profile') || '{}',
+            window.sessionStorage.getItem('sprintstart_mock_profile') || '{}',
         ) as Partial<UserProfile>;
         expect(stored.firstName).toBe('NewName');
         expect(stored.profileIcon).toBe('icon1');
@@ -97,7 +97,7 @@ describe('userService', () => {
         expect(updated.firstName).toBe('FallbackName');
 
         const stored = JSON.parse(
-            sessionStorage.getItem('sprintstart_mock_profile') || '{}',
+            window.sessionStorage.getItem('sprintstart_mock_profile') || '{}',
         ) as Partial<UserProfile>;
         expect(stored.firstName).toBe('FallbackName');
     });
