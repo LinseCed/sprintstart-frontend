@@ -44,10 +44,13 @@ import type {
 export function AdminPage() {
     const [activeTab, setActiveTab] = useState<AdminTab>("users");
     const [users, setUsers] = useState<AdminUser[]>([]);
-    const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+    const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
+        new Set(),
+    );
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [projects, setProjects] = useState<ProjectOverview[]>([]);
-    const [selectedProject, setSelectedProject] = useState<ProjectOverview | null>(null);
+    const [selectedProject, setSelectedProject] =
+        useState<ProjectOverview | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     const [loadingState, setLoadingState] = useState<LoadingState>("loading");
@@ -61,7 +64,8 @@ export function AdminPage() {
     const [page, setPage] = useState(1);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
-    const [userPendingDelete, setUserPendingDelete] = useState<AdminUser | null>(null);
+    const [userPendingDelete, setUserPendingDelete] =
+        useState<AdminUser | null>(null);
     const [isDeletingUser, setIsDeletingUser] = useState(false);
     const [deleteUserErrorMessage, setDeleteUserErrorMessage] = useState("");
 
@@ -87,8 +91,9 @@ export function AdminPage() {
                 if (!currentSelectedUser) return null;
 
                 return (
-                    nextUsers.find((user) => user.id === currentSelectedUser.id) ??
-                    currentSelectedUser
+                    nextUsers.find(
+                        (user) => user.id === currentSelectedUser.id,
+                    ) ?? currentSelectedUser
                 );
             });
 
@@ -144,7 +149,10 @@ export function AdminPage() {
                     role.description,
                     role.type,
                 ]),
-                ...user.projects.flatMap((project) => [project.id, project.name]),
+                ...user.projects.flatMap((project) => [
+                    project.id,
+                    project.name,
+                ]),
             ];
 
             const matchesSearch =
@@ -158,7 +166,8 @@ export function AdminPage() {
                 (userFilter === "enabled" && user.enabled) ||
                 (userFilter === "disabled" && !user.enabled) ||
                 (userFilter === "onboarded" && user.hasCompletedOnboarding) ||
-                (userFilter === "not-onboarded" && !user.hasCompletedOnboarding);
+                (userFilter === "not-onboarded" &&
+                    !user.hasCompletedOnboarding);
 
             return matchesSearch && matchesFilter;
         });
@@ -321,7 +330,9 @@ export function AdminPage() {
             setUserPendingDelete(null);
         } catch (error) {
             setDeleteUserErrorMessage(
-                error instanceof Error ? error.message : "User could not be deleted.",
+                error instanceof Error
+                    ? error.message
+                    : "User could not be deleted.",
             );
         } finally {
             setIsDeletingUser(false);
@@ -358,11 +369,15 @@ export function AdminPage() {
 
         try {
             await Promise.all(
-                userIdsToDelete.map((userId) => adminUserService.deleteUser(userId)),
+                userIdsToDelete.map((userId) =>
+                    adminUserService.deleteUser(userId),
+                ),
             );
 
             setUsers((currentUsers) =>
-                currentUsers.filter((currentUser) => !userIdsToDeleteSet.has(currentUser.id)),
+                currentUsers.filter(
+                    (currentUser) => !userIdsToDeleteSet.has(currentUser.id),
+                ),
             );
 
             setProjects((currentProjects) =>
@@ -375,7 +390,8 @@ export function AdminPage() {
             );
 
             setSelectedUser((currentSelectedUser) =>
-                currentSelectedUser && userIdsToDeleteSet.has(currentSelectedUser.id)
+                currentSelectedUser &&
+                userIdsToDeleteSet.has(currentSelectedUser.id)
                     ? null
                     : currentSelectedUser,
             );
@@ -405,7 +421,9 @@ export function AdminPage() {
     };
 
     const openProjectDetailsFromUserDrawer = (projectId: string) => {
-        const project = projects.find((currentProject) => currentProject.id === projectId);
+        const project = projects.find(
+            (currentProject) => currentProject.id === projectId,
+        );
 
         if (!project) return;
 
@@ -469,41 +487,51 @@ export function AdminPage() {
         }
     };
 
-    const showInitialLoading = loadingState === "idle" || loadingState === "loading";
+    const showInitialLoading =
+        loadingState === "idle" || loadingState === "loading";
 
     return (
-        <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg py-6">
-            <div className="app-page-frame">
-                <header className="mb-8">
+        <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg">
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-frame py-6">
                     <PageHeader
                         icon={Terminal}
                         title="Admin Console"
                         subtitle="Manage users, projects and access tokens from one operational view."
                         actions={
                             <>
-                            <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
-                                <Users className="h-4 w-4 text-app-text-muted" />
-                                <span className="text-sm font-semibold text-app-text">
-                                    {users.length}
-                                </span>
-                                <span className="text-sm text-app-text-muted">users</span>
-                            </div>
+                                <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
+                                    <Users className="h-4 w-4 text-app-text-muted" />
+                                    <span className="text-sm font-semibold text-app-text">
+                                        {users.length}
+                                    </span>
+                                    <span className="text-sm text-app-text-muted">
+                                        users
+                                    </span>
+                                </div>
 
-                            <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
-                                <Layers className="h-4 w-4 text-app-text-muted" />
-                                <span className="text-sm font-semibold text-app-text">
-                                    {projects.length}
-                                </span>
-                                <span className="text-sm text-app-text-muted">projects</span>
-                            </div>
+                                <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
+                                    <Layers className="h-4 w-4 text-app-text-muted" />
+                                    <span className="text-sm font-semibold text-app-text">
+                                        {projects.length}
+                                    </span>
+                                    <span className="text-sm text-app-text-muted">
+                                        projects
+                                    </span>
+                                </div>
                             </>
                         }
                     />
-                </header>
+                </div>
+            </header>
 
+            <main className="app-page-frame py-6">
                 <div className="overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-sm">
                     <div className="flex flex-col gap-4 border-b border-app-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                        <TabSwitcher activeTab={activeTab} onChange={handleTabChange} />
+                        <TabSwitcher
+                            activeTab={activeTab}
+                            onChange={handleTabChange}
+                        />
 
                         <button
                             type="button"
@@ -523,7 +551,9 @@ export function AdminPage() {
                             <div className="flex min-h-96 items-center justify-center">
                                 <div className="flex flex-col items-center gap-3 text-app-text-muted">
                                     <Loader2 className="h-8 w-8 animate-spin text-app-brand" />
-                                    <p className="text-sm">Loading admin data...</p>
+                                    <p className="text-sm">
+                                        Loading admin data...
+                                    </p>
                                 </div>
                             </div>
                         ) : loadingState === "error" ? (
@@ -577,7 +607,9 @@ export function AdminPage() {
                                             <input
                                                 value={searchValue}
                                                 onChange={(event) => {
-                                                    setSearchValue(event.target.value);
+                                                    setSearchValue(
+                                                        event.target.value,
+                                                    );
                                                     setPage(1);
                                                 }}
                                                 placeholder="Search users..."
@@ -588,7 +620,11 @@ export function AdminPage() {
                                         <div className="relative">
                                             <button
                                                 type="button"
-                                                onClick={() => setShowFilters((current) => !current)}
+                                                onClick={() =>
+                                                    setShowFilters(
+                                                        (current) => !current,
+                                                    )
+                                                }
                                                 className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors ${
                                                     userFilter !== "all"
                                                         ? "border-app-brand-border bg-app-brand-soft text-app-brand-text"
@@ -601,27 +637,35 @@ export function AdminPage() {
 
                                             {showFilters && (
                                                 <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl">
-                                                    {USER_FILTER_OPTIONS.map(({ value, label }) => (
-                                                        <button
-                                                            key={value}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setUserFilter(value);
-                                                                setShowFilters(false);
-                                                                setPage(1);
-                                                            }}
-                                                            className={`flex min-h-11 w-full items-center justify-between px-4 py-3 text-sm transition-colors ${
-                                                                userFilter === value
-                                                                    ? "bg-app-brand-soft text-app-brand-text"
-                                                                    : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
-                                                            }`}
-                                                        >
-                                                            {label}
-                                                            {userFilter === value && (
-                                                                <Check className="h-3.5 w-3.5" />
-                                                            )}
-                                                        </button>
-                                                    ))}
+                                                    {USER_FILTER_OPTIONS.map(
+                                                        ({ value, label }) => (
+                                                            <button
+                                                                key={value}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setUserFilter(
+                                                                        value,
+                                                                    );
+                                                                    setShowFilters(
+                                                                        false,
+                                                                    );
+                                                                    setPage(1);
+                                                                }}
+                                                                className={`flex min-h-11 w-full items-center justify-between px-4 py-3 text-sm transition-colors ${
+                                                                    userFilter ===
+                                                                    value
+                                                                        ? "bg-app-brand-soft text-app-brand-text"
+                                                                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                                                                }`}
+                                                            >
+                                                                {label}
+                                                                {userFilter ===
+                                                                    value && (
+                                                                    <Check className="h-3.5 w-3.5" />
+                                                                )}
+                                                            </button>
+                                                        ),
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -631,21 +675,35 @@ export function AdminPage() {
                                 <UsersTab
                                     paginatedUsers={paginatedUsers}
                                     selectedUserIds={selectedUserIds}
-                                    allVisibleUsersSelected={allVisibleUsersSelected}
+                                    allVisibleUsersSelected={
+                                        allVisibleUsersSelected
+                                    }
                                     openUserMenuId={openUserMenuId}
-                                    onToggleAllVisibleUsers={toggleAllVisibleUsers}
+                                    onToggleAllVisibleUsers={
+                                        toggleAllVisibleUsers
+                                    }
                                     onToggleUserSelection={toggleUserSelection}
                                     onOpenUserDetails={openUserDetails}
-                                    onToggleUserContextMenu={toggleUserContextMenu}
-                                    onOpenUserDetailsFromMenu={openUserDetailsFromMenu}
-                                    onRequestUserDeleteFromMenu={requestUserDeleteFromMenu}
+                                    onToggleUserContextMenu={
+                                        toggleUserContextMenu
+                                    }
+                                    onOpenUserDetailsFromMenu={
+                                        openUserDetailsFromMenu
+                                    }
+                                    onRequestUserDeleteFromMenu={
+                                        requestUserDeleteFromMenu
+                                    }
                                 />
 
                                 {totalPages > 1 && (
                                     <div className="mt-4 flex items-center justify-center gap-1">
                                         <button
                                             type="button"
-                                            onClick={() => setPage(Math.max(1, safePage - 1))}
+                                            onClick={() =>
+                                                setPage(
+                                                    Math.max(1, safePage - 1),
+                                                )
+                                            }
                                             disabled={safePage === 1}
                                             className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
                                             aria-label="Previous page"
@@ -653,26 +711,36 @@ export function AdminPage() {
                                             <ChevronLeft className="h-4 w-4" />
                                         </button>
 
-                                        {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                                            (pageNumber) => (
-                                                <button
-                                                    key={pageNumber}
-                                                    type="button"
-                                                    onClick={() => setPage(pageNumber)}
-                                                    className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-colors ${
-                                                        safePage === pageNumber
-                                                            ? "bg-app-surface-muted text-app-text"
-                                                            : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
-                                                    }`}
-                                                >
-                                                    {pageNumber}
-                                                </button>
-                                            ),
-                                        )}
+                                        {Array.from(
+                                            { length: totalPages },
+                                            (_, index) => index + 1,
+                                        ).map((pageNumber) => (
+                                            <button
+                                                key={pageNumber}
+                                                type="button"
+                                                onClick={() =>
+                                                    setPage(pageNumber)
+                                                }
+                                                className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-colors ${
+                                                    safePage === pageNumber
+                                                        ? "bg-app-surface-muted text-app-text"
+                                                        : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                                                }`}
+                                            >
+                                                {pageNumber}
+                                            </button>
+                                        ))}
 
                                         <button
                                             type="button"
-                                            onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                                            onClick={() =>
+                                                setPage(
+                                                    Math.min(
+                                                        totalPages,
+                                                        safePage + 1,
+                                                    ),
+                                                )
+                                            }
                                             disabled={safePage === totalPages}
                                             className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
                                             aria-label="Next page"
@@ -694,7 +762,11 @@ export function AdminPage() {
                                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-disabled" />
                                             <input
                                                 value={projectSearchValue}
-                                                onChange={(event) => setProjectSearchValue(event.target.value)}
+                                                onChange={(event) =>
+                                                    setProjectSearchValue(
+                                                        event.target.value,
+                                                    )
+                                                }
                                                 placeholder="Search projects..."
                                                 className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
                                             />
@@ -723,7 +795,7 @@ export function AdminPage() {
                         )}
                     </div>
                 </div>
-            </div>
+            </main>
 
             {(selectedUser || selectedProject) && (
                 <button
@@ -763,8 +835,8 @@ export function AdminPage() {
                     userPendingDelete ? (
                         <>
                             Are you sure you want to delete{" "}
-                            <strong>{getDisplayName(userPendingDelete)}</strong>? This action
-                            cannot be undone.
+                            <strong>{getDisplayName(userPendingDelete)}</strong>?
+                            This action cannot be undone.
                         </>
                     ) : undefined
                 }
@@ -785,8 +857,10 @@ export function AdminPage() {
                     <>
                         Are you sure you want to delete{" "}
                         <strong>{selectedUserIds.size}</strong>{" "}
-                        {selectedUserIds.size === 1 ? "selected user" : "selected users"}? This
-                        action cannot be undone.
+                        {selectedUserIds.size === 1
+                            ? "selected user"
+                            : "selected users"}?
+                        This action cannot be undone.
                     </>
                 }
                 confirmLabel="Delete All"

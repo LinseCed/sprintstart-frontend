@@ -18,18 +18,21 @@ export function ProfileLayout() {
 
     useEffect(() => {
         let mounted = true;
-        userService.getProfile()
-            .then(data => {
+        userService
+            .getProfile()
+            .then((data) => {
                 if (mounted && data) {
                     setProfile(data);
                 }
                 if (mounted) setIsLoading(false);
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error('Failed to load profile', err);
                 if (mounted) setIsLoading(false);
             });
-        return () => { mounted = false; };
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
@@ -60,17 +63,28 @@ export function ProfileLayout() {
     }
 
     return (
-        <div className="app-page-content py-6 md:py-8">
-            <div className="max-w-4xl space-y-8">
-                <PageHeader
-                    icon={UserCircle}
-                    title="User Profile"
-                    subtitle="Manage your account details, profile appearance and password."
-                />
+        <>
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-content py-6">
+                    <div className="max-w-4xl">
+                        <PageHeader
+                            icon={UserCircle}
+                            title="User Profile"
+                            subtitle="Manage your account details, profile appearance and password."
+                        />
+                    </div>
+                </div>
+            </header>
 
-                <AccountForm profile={profile} onUpdate={handleUpdateProfile} />
-                <PasswordForm />
-            </div>
-        </div>
+            <main className="app-page-content py-6 md:py-8">
+                <div className="max-w-4xl space-y-8">
+                    <AccountForm
+                        profile={profile}
+                        onUpdate={handleUpdateProfile}
+                    />
+                    <PasswordForm />
+                </div>
+            </main>
+        </>
     );
 }
