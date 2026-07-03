@@ -1,7 +1,5 @@
-import { Bot, ExternalLink, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
+import { Bot, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
-import { useAuth } from "../context/useAuth";
-import { UserAvatar } from "../components/common/UserAvatar.tsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -15,7 +13,6 @@ import "katex/dist/katex.min.css";
  * Displays the interface for communication with the chat.
  */
 export function ChatPage() {
-    const { profile } = useAuth();
     const {
         messages,
         chatId,
@@ -34,26 +31,16 @@ export function ChatPage() {
         showBrainrot,
         timestamp
     } = useChat();
-    const hasChatHistory = chats?.length !== 0;
 
     return (
-        <div
-            className={[
-                "flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen",
-                hasChatHistory ? "" : "app-page-frame",
-            ].filter(Boolean).join(" ")}
-        >
-            {hasChatHistory && (
+        <div className="app-page-frame flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
+            {chats?.length !== 0 && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
                 </aside>
             )}
 
             <aside
-                id="chat-mobile-sidebar"
-                aria-label="Mobile chat navigation"
-                aria-hidden={!sidebarOpen}
-                inert={!sidebarOpen}
                 className={`
                     fixed top-0 left-0 h-full w-64 bg-app-bg
                     border-r border-app-border z-50
@@ -65,7 +52,7 @@ export function ChatPage() {
                 <div className="p-4 flex justify-between items-center">
                     <h2 className="font-bold">Chats</h2>
 
-                    <button aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
+                    <button onClick={() => setSidebarOpen(false)}>
                         <X size={24} />
                     </button>
                 </div>
@@ -74,9 +61,6 @@ export function ChatPage() {
             </aside>
 
             <button
-                aria-label="Toggle sidebar"
-                aria-controls="chat-mobile-sidebar"
-                aria-expanded={sidebarOpen}
                 className="
                     fixed
                     top-4
@@ -145,16 +129,11 @@ export function ChatPage() {
                                 >
                                     <div
                                         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                            isRequest ? "" : "bg-app-surface-muted"
+                                            isRequest ? "bg-app-brand" : "bg-app-surface-muted"
                                         }`}
                                     >
                                         {isRequest ? (
-                                            <UserAvatar
-                                                profileIcon={profile?.profileIcon}
-                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
-                                                seed={profile?.id}
-                                                size={32}
-                                            />
+                                            <User size={16} className="text-white" />
                                         ) : (
                                             <Bot size={16} className="text-app-brand-text" />
                                         )}
@@ -192,6 +171,34 @@ export function ChatPage() {
                                                         <td className={`border-2 px-3 py-2 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
                                                             {children}
                                                         </td>
+                                                    ),
+                                                    h1: ({ children }) => (
+                                                        <h1 className={`text-2xl font-semibold my-4 pb-1 border-b ${isRequest ? "border-app-brand-border" : "border-app-border"}`}>
+                                                            {children}
+                                                        </h1>
+                                                    ),
+
+                                                    h2: ({ children }) => (
+                                                        <h2 className={`text-xl font-semibold my-3 pb-1 border-b ${isRequest ? "border-app-brand-border" : "border-app-border"}`}>
+                                                            {children}
+                                                        </h2>
+                                                    ),
+
+                                                    h3: ({ children }) => (
+                                                        <h3 className="text-lg font-semibold my-2">
+                                                            {children}
+                                                        </h3>
+                                                    ),
+
+                                                    h4: ({ children }) => (
+                                                        <h4 className="text-md font-semibold my-1">
+                                                            {children}
+                                                        </h4>
+                                                    ),
+                                                    hr: () => (
+                                                        <hr
+                                                            className={`my-5 border-t border-3 ${isRequest ? "border-app-brand-border" : "border-app-border"}`}
+                                                        />
                                                     ),
                                                     code({ children, className }: { children?: React.ReactNode; className?: string }) {
 
@@ -288,23 +295,10 @@ export function ChatPage() {
                     <div className="absolute right-6 bottom-24 w-80 rounded-xl bg-app-surface border border-app-border p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-4">
                         <div className="flex justify-between items-start mb-2">
                             <h3 className="text-sm font-bold text-app-text truncate pr-4">
-                                {selectedCitation.sourceUrl ? (
-                                    <a
-                                        href={selectedCitation.sourceUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 hover:underline"
-                                    >
-                                        {selectedCitation.filename}
-                                        <ExternalLink size={12} />
-                                    </a>
-                                ) : (
-                                    selectedCitation.filename
-                                )}
+                                {selectedCitation.filename}
                             </h3>
 
                             <button
-                                aria-label="Close citation"
                                 onClick={() => setSelectedCitation(null)}
                                 className="text-app-text-muted hover:text-app-text transition-colors"
                             >
@@ -312,9 +306,8 @@ export function ChatPage() {
                             </button>
                         </div>
 
-                        <div className="text-xs text-app-text-muted leading-relaxed">
-                            {selectedCitation.startLine !== undefined && `Line ${selectedCitation.startLine}`}
-                            {selectedCitation.startPage !== undefined && `Page ${selectedCitation.startPage}`}
+                        <div className="text-xs text-app-text line-clamp-4 leading-relaxed">
+                            {selectedCitation.section_path}
                         </div>
                     </div>
                 )}
@@ -323,7 +316,6 @@ export function ChatPage() {
                     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
                         <textarea
                             ref={textareaRef}
-                            aria-label="Message"
                             placeholder="Ask anything about the project..."
                             className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
                             value={newRequest}
@@ -344,7 +336,6 @@ export function ChatPage() {
 
                         <button
                             type="submit"
-                            aria-label="Send message"
                             disabled={isThinking || isStreaming || !newRequest.trim()}
                             className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
                         >
