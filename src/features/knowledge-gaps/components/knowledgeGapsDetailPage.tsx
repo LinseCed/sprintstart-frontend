@@ -130,7 +130,7 @@ export function KnowledgeGapsDetailPage() {
     <div className="min-h-screen bg-app-bg">
       {/* ── HEADER ──────────────────────────────────────── */}
       <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="app-page-content py-4">
           <button
             onClick={() => void navigate(-1)}
             className="flex items-center gap-1.5 text-sm text-app-text-muted hover:text-app-text transition-colors mb-4"
@@ -157,7 +157,7 @@ export function KnowledgeGapsDetailPage() {
       </div>
 
       {/* ── CONTENT ─────────────────────────────────────── */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 space-y-4">
+      <main className="app-page-content py-8 pb-24 space-y-4">
 
         {/* Severity + stats hero */}
         <div className={`rounded-2xl border bg-app-surface p-5 ${ring}`}>

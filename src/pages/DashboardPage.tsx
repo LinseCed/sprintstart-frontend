@@ -1,5 +1,7 @@
-import { useAuth } from '../context/useAuth';
-import { UserAvatar } from '../components/common/UserAvatar';
+import { ChartColumn } from "lucide-react";
+import { PageHeader } from "../components/layout/PageHeader";
+import { useAuth } from "../context/useAuth";
+import { UserAvatar } from "../components/common/UserAvatar";
 
 /**
  * Central hub displayed after login.
@@ -7,27 +9,36 @@ import { UserAvatar } from '../components/common/UserAvatar';
  */
 export function DashboardPage() {
     const { profile } = useAuth();
-    
-    // Safely fallback to 'User' if profile isn't loaded yet
-    const displayName = profile?.firstName || profile?.username || 'User';
+
+    const displayName = profile?.firstName || profile?.username || "User";
 
     return (
-        <div className="flex h-full min-h-[80vh] flex-col p-8">
-            {/* Centered Greeting */}
-            <div className="flex flex-1 items-center justify-center">
-                <h1 className="text-5xl font-bold tracking-tight text-app-text">
-                    Hello, {displayName}
-                </h1>
-            </div>
+        <div className="min-h-screen bg-app-bg">
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-frame py-6">
+                    <PageHeader
+                        icon={ChartColumn}
+                        title="Dashboard"
+                        subtitle="Your central workspace for project status, onboarding progress and next actions."
+                    />
+                </div>
+            </header>
 
-            {/* Avatar at the bottom */}
-            <div className="flex justify-center pb-12">
-                <UserAvatar 
-                    size={100} 
-                    profileIcon={profile?.profileIcon} 
-                    fallbackName={displayName} 
-                />
-            </div>
+            <main className="app-page-frame flex min-h-[70vh] flex-col p-8">
+                <div className="flex flex-1 items-center justify-center">
+                    <h1 className="text-5xl font-bold tracking-tight text-app-text">
+                        Hello, {displayName}
+                    </h1>
+                </div>
+
+                <div className="flex justify-center pb-12">
+                    <UserAvatar
+                        size={100}
+                        profileIcon={profile?.profileIcon}
+                        fallbackName={displayName}
+                    />
+                </div>
+            </main>
         </div>
     );
 }

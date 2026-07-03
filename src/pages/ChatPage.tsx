@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
+import { PageHeader } from "../components/layout/PageHeader.tsx";
 
 import "katex/dist/katex.min.css";
 
@@ -32,7 +33,7 @@ export function ChatPage() {
     } = useChat();
 
     return (
-        <div className="h-screen flex overflow-hidden bg-app-bg text-app-text">
+        <div className="app-page-frame flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
             {chats?.length !== 0 && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
@@ -63,7 +64,7 @@ export function ChatPage() {
                 className="
                     fixed
                     top-4
-                    right-4
+                    right-[var(--app-page-gutter)]
                     z-50
                     md:hidden
                     p-3
@@ -82,12 +83,12 @@ export function ChatPage() {
             </button>
 
             <div className="flex flex-col flex-1 min-w-0">
-                <header className="h-16 border-b border-app-border flex items-center px-6 shrink-0 bg-app-bg/80 backdrop-blur-md">
-                    <div className="flex items-center gap-3">
-                        <Sparkles className="text-app-brand-text" size={20} />
-                        <h1 className="font-bold text-app-text text-lg">AI Assistant</h1>
-                    </div>
-                </header>
+                <PageHeader
+                    icon={Sparkles}
+                    title="AI Assistant"
+                    subtitle="Ask questions about project knowledge, code, documentation and onboarding."
+                    className="shrink-0 border-b border-app-border bg-app-bg/80 px-6 py-4 backdrop-blur-md"
+                />
 
                 <div className="flex-1 overflow-y-auto flex flex-col">
                     {!chatId && (

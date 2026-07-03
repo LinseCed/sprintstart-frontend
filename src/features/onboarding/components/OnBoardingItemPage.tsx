@@ -282,7 +282,7 @@ export function OnBoardingItemPage() {
     <div className="min-h-screen bg-app-bg">
       {/* HEADER */}
       <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="app-page-content py-4">
           <button
             onClick={() => void navigate("/onboarding")}
             className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
@@ -333,7 +333,7 @@ export function OnBoardingItemPage() {
       </div>
 
       {/* MAIN CONTENT */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+      <main className="app-page-content py-6 pb-24">
         <div className="grid lg:grid-cols-3 gap-6">
           {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-6">
