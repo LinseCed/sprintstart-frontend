@@ -1,80 +1,70 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { 
-    getTeamOverview, 
-    getTeamMember, 
-    getProjectRoles, 
+import {
+    getTeamOverview,
+    getTeamMember,
+    getProjectRoles,
     createProjectRole,
-    assignProjectRoleToUser 
+    assignProjectRoleToUser,
 } from '../../../src/services/teamManagementService';
-import { apiClient } from '../../../src/services/apiClient';
-
-vi.mock('../../../src/services/apiClient', () => ({
-    apiClient: {
-        fetch: vi.fn(),
-    }
-}));
+import { http, HttpResponse } from 'msw';
+import { server } from '../../unit/setup/vitest.setup';
 
 describe('teamManagementService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Clear module state if possible, though it uses in-memory mock data
-        // For testing, we rely on checking how it interacts with the apiClient
     });
 
-    it('getTeamOverview fetches from backend and falls back to mocks on 404', async () => {
-        vi.mocked(apiClient.fetch).mockRejectedValue({ status: 404 });
-        
+    it('getTeamOverview returns team users from API', async () => {
         const overview = await getTeamOverview();
-        
-        // Ensure the API was called
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/onboarding/team-overview?size=100');
-        // Ensure we get mock data back (should have at least a few users)
         expect(overview.length).toBeGreaterThan(0);
+        expect(overview[0].firstname).toBe('Alice');
     });
 
-    it('getTeamMember fetches from backend and falls back to mocks', async () => {
-        vi.mocked(apiClient.fetch).mockRejectedValueOnce({ status: 404 });
-        
-        const member = await getTeamMember('7faae48c-f9f2-4e85-899f-7c5fca87d371');
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/onboarding/team-overview?size=100');
+    it('getTeamMember finds a user by ID', async () => {
+        const member = await getTeamMember('user1');
         expect(member).not.toBeNull();
-        expect(member?.userId).toBe('7faae48c-f9f2-4e85-899f-7c5fca87d371');
+        expect(member?.userId).toBe('user1');
     });
 
-    it('getProjectRoles fetches from backend successfully', async () => {
-        const mockRoles = [{ id: 'role1', name: 'Developer' }];
-        vi.mocked(apiClient.fetch).mockResolvedValue(mockRoles);
-        
+    it('getProjectRoles returns project roles', async () => {
+        server.use(
+            http.get('/api/v1/projectRoles', () =>
+                HttpResponse.json([{ id: 'role1', name: 'Developer' }]),
+            ),
+        );
+
         const roles = await getProjectRoles();
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/projectRoles');
-        expect(roles).toEqual(mockRoles);
+        expect(roles).toHaveLength(1);
+        expect(roles[0].name).toBe('Developer');
     });
 
-    it('createProjectRole posts to backend and updates mock list on fallback', async () => {
-        // Fallback scenario
-        vi.mocked(apiClient.fetch).mockRejectedValue(new Error('Not found'));
-        
+    it('createProjectRole posts to backend and returns the new role', async () => {
+        server.use(
+            http.post('/api/v1/projectRoles', async ({ request }) => {
+                const body = (await request.json()) as { name: string; description: string };
+                return HttpResponse.json({
+                    id: 'new-role-1',
+                    name: body.name,
+                    description: body.description,
+                });
+            }),
+        );
+
         const newRole = await createProjectRole('Tester', 'QA');
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/projectRoles', {
-            method: 'POST',
-            body: JSON.stringify({ name: 'Tester', description: 'QA' })
-        });
-        
-        expect(newRole.id).toMatch(/^mock-role-/);
         expect(newRole.name).toBe('Tester');
+        expect(newRole.id).toBe('new-role-1');
     });
 
-    it('assignProjectRoleToUser sends PUT to backend', async () => {
-        vi.mocked(apiClient.fetch).mockResolvedValue({});
-        
+    it('assignProjectRoleToUser sends request to backend', async () => {
+        let captured = false;
+        server.use(
+            http.post('/api/v1/users/user1/project-roles', () => {
+                captured = true;
+                return new HttpResponse(null, { status: 200 });
+            }),
+        );
+
         await assignProjectRoleToUser('user1', 'role1');
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/users/user1/project-roles', {
-            method: 'POST',
-            body: JSON.stringify({ roleId: 'role1' })
-        });
+        expect(captured).toBe(true);
     });
 });

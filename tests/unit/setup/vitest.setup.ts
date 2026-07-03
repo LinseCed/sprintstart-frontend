@@ -1,7 +1,34 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { vi } from 'vitest';
+import { vi, beforeAll, afterAll, afterEach } from 'vitest';
 import type { ReactNode } from 'react';
+import { setupServer } from 'msw/node';
+import { handlers } from './msw-handlers';
+
+// ── MSW Server ──────────────────────────────────────────────
+export const server = setupServer(...handlers);
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+// ── Keycloak JS mock (external IAM SDK) ─────────────────────
+// Prevents `new Keycloak(...)` in src/config/keycloak.ts from
+// crashing and gives us a controllable singleton.
+const mockKeycloakInstance = {
+    init: vi.fn().mockResolvedValue(true),
+    login: vi.fn().mockResolvedValue(undefined),
+    logout: vi.fn().mockResolvedValue(undefined),
+    updateToken: vi.fn().mockResolvedValue(true),
+    authenticated: true,
+    token: 'test-token',
+};
+vi.mock('keycloak-js', () => ({
+    default: function () { return mockKeycloakInstance; },
+}));
+
+// Re-export so tests can configure the mock per-scenario
+export { mockKeycloakInstance };
 
 // 1. Mock Keycloak Context (Isolates IAM Layer)
 vi.mock('@keycloakify/react', () => {
@@ -23,9 +50,6 @@ vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
   return {
     ...actual,
-    useNavigate: () => vi.fn(),
-    useLocation: () => ({ pathname: '/' }),
-    useParams: () => ({}),
   };
 });
 
@@ -33,9 +57,6 @@ vi.mock('react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router')>();
   return {
     ...actual,
-    useNavigate: () => vi.fn(),
-    useLocation: () => ({ pathname: '/' }),
-    useParams: () => ({}),
   };
 });
 

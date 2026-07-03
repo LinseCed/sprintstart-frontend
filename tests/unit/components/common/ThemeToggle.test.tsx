@@ -1,36 +1,43 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { ThemeToggle } from '../../../../src/components/common/ThemeToggle';
-import * as useThemeHook from '../../../../src/context/useTheme';
+import { ThemeProvider } from '../../../../src/context/ThemeProvider';
 
 describe('ThemeToggle', () => {
-    it('renders Light Mode correctly', () => {
-        vi.spyOn(useThemeHook, 'useTheme').mockReturnValue({
-            theme: 'light',
-            isDarkMode: false,
-            toggleTheme: vi.fn(),
+    beforeEach(() => {
+        window.localStorage.clear();
+        document.documentElement.className = '';
+        Object.defineProperty(window, 'matchMedia', {
+            writable: true,
+            value: vi.fn().mockImplementation((query: string) => ({
+                matches: false,
+                media: query,
+            })),
         });
+    });
 
-        render(<ThemeToggle />);
+    it('renders Light Mode in light theme', () => {
+        render(
+            <ThemeProvider>
+                <ThemeToggle />
+            </ThemeProvider>,
+        );
         expect(screen.getByText('Light Mode')).toBeInTheDocument();
         expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('renders Dark Mode correctly and handles toggling', () => {
-        const toggleMock = vi.fn();
-        vi.spyOn(useThemeHook, 'useTheme').mockReturnValue({
-            theme: 'dark',
-            isDarkMode: true,
-            toggleTheme: toggleMock,
-        });
+    it('toggles theme on click', async () => {
+        const user = userEvent.setup();
+        render(
+            <ThemeProvider>
+                <ThemeToggle />
+            </ThemeProvider>,
+        );
 
-        render(<ThemeToggle />);
+        expect(screen.getByText('Light Mode')).toBeInTheDocument();
+        await user.click(screen.getByRole('button'));
         expect(screen.getByText('Dark Mode')).toBeInTheDocument();
-        
-        const button = screen.getByRole('button');
-        expect(button).toHaveAttribute('aria-pressed', 'true');
-        
-        fireEvent.click(button);
-        expect(toggleMock).toHaveBeenCalledOnce();
+        expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
     });
 });

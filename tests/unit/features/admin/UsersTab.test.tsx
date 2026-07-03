@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { UsersTab } from '../../../../src/features/admin/components/UsersTab';
 
@@ -30,14 +30,14 @@ describe('UsersTab', () => {
             enabled: false,
             profileIcon: '',
             hasCompletedOnboarding: true,
-        }
+        },
     ];
 
     const defaultProps = {
         paginatedUsers: mockUsers as any,
         selectedUserIds: new Set<string>(),
         allVisibleUsersSelected: false,
-        openUserMenuId: null,
+        openUserMenuId: null as string | null,
         onToggleAllVisibleUsers: vi.fn(),
         onToggleUserSelection: vi.fn(),
         onOpenUserDetails: vi.fn(),
@@ -46,50 +46,46 @@ describe('UsersTab', () => {
         onRequestUserDeleteFromMenu: vi.fn(),
     };
 
-    it('renders empty state if no users provided', () => {
+    it('shows empty state when no users', () => {
         render(<UsersTab {...defaultProps} paginatedUsers={[]} />);
         expect(screen.getByText('No users found')).toBeInTheDocument();
     });
 
     it('renders user list', () => {
         render(<UsersTab {...defaultProps} />);
-        
+
         expect(screen.getAllByText('John Doe').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0);
         expect(screen.getAllByText('user1@example.com').length).toBeGreaterThan(0);
     });
 
-    it('calls onToggleUserSelection when checkbox is clicked', () => {
+    it('calls onToggleUserSelection when checkbox is clicked', async () => {
+        const user = userEvent.setup();
         render(<UsersTab {...defaultProps} />);
-        
-        // The SelectionCheckbox might not be directly queryable by role="checkbox" depending on its implementation,
-        // but it has ariaLabel="Select John Doe".
-        const checkbox = screen.getAllByLabelText('Select John Doe')[0];
-        fireEvent.click(checkbox);
-        
+
+        const checkboxes = screen.getAllByLabelText('Select John Doe');
+        await user.click(checkboxes[0]);
         expect(defaultProps.onToggleUserSelection).toHaveBeenCalledWith('1');
     });
 
-    it('calls onOpenUserDetails when row is clicked', () => {
+    it('calls onOpenUserDetails when row is clicked', async () => {
+        const user = userEvent.setup();
         render(<UsersTab {...defaultProps} />);
-        
-        // Find the row for user1, which has a role="button"
-        const rows = screen.getAllByRole('button').filter(el => el.textContent?.includes('John Doe'));
-        
-        // Click the first one (desktop view)
-        fireEvent.click(rows[0]);
-        
+
+        const rows = screen
+            .getAllByRole('button')
+            .filter((el) => el.textContent?.includes('John Doe'));
+
+        await user.click(rows[0]);
         expect(defaultProps.onOpenUserDetails).toHaveBeenCalledWith(mockUsers[0]);
     });
 
-    it('renders and interacts with the context menu correctly', () => {
+    it('renders context menu and triggers delete', async () => {
+        const user = userEvent.setup();
         render(<UsersTab {...defaultProps} openUserMenuId="1" />);
-        expect(screen.getAllByText('Open details').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Delete').length).toBeGreaterThan(0);
 
-        const deleteBtn = screen.getAllByText('Delete')[0];
-        fireEvent.click(deleteBtn);
-        
+        const deleteButtons = screen.getAllByText('Delete');
+        await user.click(deleteButtons[0]);
         expect(defaultProps.onRequestUserDeleteFromMenu).toHaveBeenCalled();
     });
 });

@@ -1,18 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-type-assertion */
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ThemeProvider } from '../../../src/context/ThemeProvider';
 import { ThemeContext } from '../../../src/context/ThemeContext';
 import { useContext } from 'react';
 
-// A test component to consume the theme context
 function TestComponent() {
     const { theme, toggleTheme, isDarkMode } = useContext(ThemeContext)!;
     return (
         <div>
             <span data-testid="theme">{theme}</span>
             <span data-testid="isDarkMode">{isDarkMode.toString()}</span>
-            <button onClick={toggleTheme} data-testid="toggle-btn">Toggle</button>
+            <button onClick={toggleTheme} data-testid="toggle-btn">
+                Toggle
+            </button>
         </div>
     );
 }
@@ -28,19 +29,18 @@ describe('ThemeProvider', () => {
     });
 
     it('initializes with light theme if nothing in localStorage or system prefs', () => {
-        // Mock matchMedia for light theme
         Object.defineProperty(window, 'matchMedia', {
             writable: true,
             value: vi.fn().mockImplementation((query: string) => ({
                 matches: false,
                 media: query,
-            } as unknown as MediaQueryList)),
+            })),
         });
 
         render(
             <ThemeProvider>
                 <TestComponent />
-            </ThemeProvider>
+            </ThemeProvider>,
         );
 
         expect(screen.getByTestId('theme')).toHaveTextContent('light');
@@ -54,13 +54,13 @@ describe('ThemeProvider', () => {
             value: vi.fn().mockImplementation((query: string) => ({
                 matches: true,
                 media: query,
-            } as unknown as MediaQueryList)),
+            })),
         });
 
         render(
             <ThemeProvider>
                 <TestComponent />
-            </ThemeProvider>
+            </ThemeProvider>,
         );
 
         expect(screen.getByTestId('theme')).toHaveTextContent('dark');
@@ -71,8 +71,8 @@ describe('ThemeProvider', () => {
         window.localStorage.setItem('theme', 'dark');
         Object.defineProperty(window, 'matchMedia', {
             writable: true,
-            value: vi.fn().mockImplementation(query => ({
-                matches: false, // system is light
+            value: vi.fn().mockImplementation((query: string) => ({
+                matches: false,
                 media: query,
             })),
         });
@@ -80,32 +80,33 @@ describe('ThemeProvider', () => {
         render(
             <ThemeProvider>
                 <TestComponent />
-            </ThemeProvider>
+            </ThemeProvider>,
         );
 
         expect(screen.getByTestId('theme')).toHaveTextContent('dark');
         expect(document.documentElement).toHaveClass('dark');
     });
 
-    it('toggles theme and updates document class and localStorage', () => {
+    it('toggles theme via user click', async () => {
+        const user = userEvent.setup();
         Object.defineProperty(window, 'matchMedia', {
             writable: true,
             value: vi.fn().mockImplementation((query: string) => ({
                 matches: false,
                 media: query,
-            } as unknown as MediaQueryList)),
+            })),
         });
 
         render(
             <ThemeProvider>
                 <TestComponent />
-            </ThemeProvider>
+            </ThemeProvider>,
         );
 
         expect(screen.getByTestId('theme')).toHaveTextContent('light');
         expect(document.documentElement).toHaveClass('light');
 
-        fireEvent.click(screen.getByTestId('toggle-btn'));
+        await user.click(screen.getByTestId('toggle-btn'));
 
         expect(screen.getByTestId('theme')).toHaveTextContent('dark');
         expect(document.documentElement).toHaveClass('dark');

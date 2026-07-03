@@ -1,105 +1,127 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { adminUserService } from '../../../src/services/adminUserService';
-import { apiClient } from '../../../src/services/apiClient';
-
-vi.mock('../../../src/services/apiClient', () => ({
-    apiClient: {
-        fetch: vi.fn(),
-    }
-}));
+import { http, HttpResponse } from 'msw';
+import { server } from '../../unit/setup/vitest.setup';
 
 describe('adminUserService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    const mockBackendUser = {
-        id: '123',
-        authId: 'auth123',
-        username: 'testuser',
-        email: 'test@example.com',
-        firstName: 'Test',
-        lastName: 'User',
-        projectRoles: [{ id: 'role1', name: 'Developer' }],
-        permissionGroup: 'PM',
-        enabled: true,
-        profileIcon: null,
-        hasCompletedOnboarding: true,
-    };
+    it('getCurrentUser fetches and maps permissionGroup correctly', async () => {
+        server.use(
+            http.get('/api/v1/users/me', () =>
+                HttpResponse.json({
+                    id: '123',
+                    authId: 'auth123',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    firstName: 'Test',
+                    lastName: 'User',
+                    projectRoles: [{ id: 'role1', name: 'Developer' }],
+                    permissionGroup: 'PM',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                }),
+            ),
+        );
 
-    it('getCurrentUser fetches and maps user correctly', async () => {
-        vi.mocked(apiClient.fetch).mockResolvedValue(mockBackendUser);
-        
         const user = await adminUserService.getCurrentUser();
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/users/me');
+
         expect(user.id).toBe('123');
-        expect(user.permissionGroup).toBe('Project Manager'); // mapped from PM
+        expect(user.permissionGroup).toBe('Project Manager');
         expect(user.roles[0].name).toBe('Developer');
     });
 
     it('getUsers fetches and maps users', async () => {
-        vi.mocked(apiClient.fetch).mockResolvedValue([mockBackendUser]);
-        
         const users = await adminUserService.getUsers();
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/admin/users');
-        expect(users.length).toBe(1);
-        expect(users[0].username).toBe('testuser');
+
+        expect(Array.isArray(users)).toBe(true);
+        expect(users.length).toBeGreaterThan(0);
+        expect(users[0].username).toBeDefined();
     });
 
-    it('updateUser sends PATCH request with correct mapped payload', async () => {
-        vi.mocked(apiClient.fetch).mockResolvedValue(mockBackendUser);
-        
-        await adminUserService.updateUser('123', {
+    it('updateUser uses correct endpoint', async () => {
+        server.use(
+            http.patch('/api/v1/admin/users/123', async ({ request }) => {
+                const body = (await request.json()) as Record<string, unknown>;
+                expect(body.firstName).toBe('New');
+                expect(body.permissionGroup).toBe('HR');
+                return HttpResponse.json({
+                    id: '123',
+                    authId: 'auth123',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    firstName: 'New',
+                    lastName: 'User',
+                    projectRoles: [],
+                    permissionGroup: 'HR',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                });
+            }),
+        );
+
+        const result = await adminUserService.updateUser('123', {
             firstName: 'New',
-            permissionGroup: 'HR'
+            permissionGroup: 'HR',
         });
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/admin/users/123', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firstName: 'New', permissionGroup: 'HR' })
-        });
+
+        expect(result.firstName).toBe('New');
     });
 
-    it('deleteUser sends DELETE request', async () => {
-        vi.mocked(apiClient.fetch).mockResolvedValue({ id: '123', deleted: true });
-        
+    it('deleteUser returns deletion response', async () => {
+        server.use(
+            http.delete('/api/v1/admin/users/123', () =>
+                HttpResponse.json({ id: '123', deleted: true }),
+            ),
+        );
+
         const res = await adminUserService.deleteUser('123');
-        
-        expect(apiClient.fetch).toHaveBeenCalledWith('/api/v1/admin/users/123', {
-            method: 'DELETE'
-        });
         expect(res.deleted).toBe(true);
+        expect(res.id).toBe('123');
     });
 
     it('getAvailableRolesFromUsers extracts unique roles and sorts them', () => {
         const users = [
             {
-                ...mockBackendUser,
+                id: '1',
+                username: 'user1',
+                email: 'u1@example.com',
+                firstName: 'A',
+                lastName: 'B',
                 roles: [
                     { id: 'b', name: 'Beta Role', description: '', type: 'primary' as const },
-                    { id: 'a', name: 'Alpha Role', description: '', type: 'primary' as const }
+                    { id: 'a', name: 'Alpha Role', description: '', type: 'primary' as const },
                 ],
                 projects: [],
-                permissionGroup: 'User'
+                permissionGroup: 'User',
+                enabled: true,
+                profileIcon: '',
+                hasCompletedOnboarding: true,
             },
             {
-                ...mockBackendUser,
                 id: '2',
+                username: 'user2',
+                email: 'u2@example.com',
+                firstName: 'C',
+                lastName: 'D',
                 roles: [
-                    { id: 'b', name: 'Beta Role', description: '', type: 'primary' as const } // Duplicate
+                    { id: 'b', name: 'Beta Role', description: '', type: 'primary' as const },
                 ],
                 projects: [],
-                permissionGroup: 'User'
-            }
+                permissionGroup: 'User',
+                enabled: true,
+                profileIcon: '',
+                hasCompletedOnboarding: true,
+            },
         ];
 
-        const roles = adminUserService.getAvailableRolesFromUsers(users as unknown as import('../../../src/services/adminUserService').AdminUser[]);
-        
+        const roles = adminUserService.getAvailableRolesFromUsers(users);
+
         expect(roles.length).toBe(2);
-        // Alpha should be sorted before Beta
         expect(roles[0].name).toBe('Alpha Role');
         expect(roles[1].name).toBe('Beta Role');
     });

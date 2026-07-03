@@ -1,96 +1,94 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { SideBar } from '../../../../src/components/layout/SideBar';
 import * as useAuthHook from '../../../../src/context/useAuth';
-import * as useThemeHook from '../../../../src/context/useTheme';
+import { ThemeProvider } from '../../../../src/context/ThemeProvider';
 import { PermissionGroup } from '../../../../src/services/types';
 
+vi.mock('../../../../src/context/useAuth', () => ({
+    useAuth: vi.fn(),
+}));
+
+const mockProfile = {
+    id: '1',
+    authId: 'auth',
+    username: 'TestUser',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    projectRoles: [],
+    permissionGroup: PermissionGroup.USER,
+    enabled: true,
+    profileIcon: null,
+    hasCompletedOnboarding: true,
+};
+
+function renderWithProviders(ui: React.ReactElement) {
+    return render(
+        <MemoryRouter>
+            <ThemeProvider>{ui}</ThemeProvider>
+        </MemoryRouter>,
+    );
+}
+
 describe('SideBar', () => {
-    const mockProfile = {
-        id: '1',
-        authId: 'auth',
-        username: 'TestUser',
-        email: 'test@example.com',
-        firstName: 'Test',
-        lastName: 'User',
-        projectRoles: [],
-        permissionGroup: PermissionGroup.USER, // regular user
-        enabled: true,
-        profileIcon: null,
-        hasCompletedOnboarding: true,
-    };
+    beforeEach(() => {
+        vi.clearAllMocks();
+        window.localStorage.clear();
+        document.documentElement.className = '';
+        Object.defineProperty(window, 'matchMedia', {
+            writable: true,
+            value: vi.fn().mockImplementation((query: string) => ({
+                matches: false,
+                media: query,
+            })),
+        });
+    });
 
     it('renders basic nav items for regular user', () => {
-        vi.spyOn(useAuthHook, 'useAuth').mockReturnValue({
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
             status: 'authenticated',
             profile: mockProfile,
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
         });
-        vi.spyOn(useThemeHook, 'useTheme').mockReturnValue({
-            theme: 'light',
-            isDarkMode: false,
-            toggleTheme: vi.fn(),
-        });
 
-        render(
-            <MemoryRouter>
-                <SideBar />
-            </MemoryRouter>
-        );
+        renderWithProviders(<SideBar />);
 
-        const dashboardLinks = screen.getAllByText('Dashboard');
-        expect(dashboardLinks.length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0);
         expect(screen.queryByText('Access Management')).not.toBeInTheDocument();
     });
 
     it('renders admin nav items for admin user', () => {
-        vi.spyOn(useAuthHook, 'useAuth').mockReturnValue({
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
             status: 'authenticated',
             profile: { ...mockProfile, permissionGroup: PermissionGroup.ADMIN },
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
         });
-        vi.spyOn(useThemeHook, 'useTheme').mockReturnValue({
-            theme: 'light',
-            isDarkMode: false,
-            toggleTheme: vi.fn(),
-        });
 
-        render(
-            <MemoryRouter>
-                <SideBar />
-            </MemoryRouter>
-        );
+        renderWithProviders(<SideBar />);
 
         expect(screen.getAllByText('Access Management').length).toBeGreaterThan(0);
     });
 
-    it('handles mobile sidebar toggling', () => {
-        vi.spyOn(useAuthHook, 'useAuth').mockReturnValue({
+    it('handles mobile sidebar toggling', async () => {
+        const user = userEvent.setup();
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
             status: 'authenticated',
             profile: mockProfile,
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
         });
-        vi.spyOn(useThemeHook, 'useTheme').mockReturnValue({
-            theme: 'light',
-            isDarkMode: false,
-            toggleTheme: vi.fn(),
-        });
 
-        render(
-            <MemoryRouter>
-                <SideBar />
-            </MemoryRouter>
-        );
+        renderWithProviders(<SideBar />);
 
-        const openButton = screen.getByLabelText('Open sidebar');
-        fireEvent.click(openButton);
+        await user.click(screen.getByLabelText('Open sidebar'));
 
         expect(screen.getByLabelText('Close sidebar')).toBeInTheDocument();
         expect(screen.getByLabelText('Close sidebar overlay')).toBeInTheDocument();

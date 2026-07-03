@@ -3,7 +3,6 @@ import { canAccessRoute, getDefaultRoute, getMatchingProtectedRoute } from '../.
 import { PermissionGroup } from '../../../src/services/types';
 import type { UserProfile } from '../../../src/services/types';
 
-// Mock profile generator
 const createMockProfile = (permissionGroup: PermissionGroup): UserProfile => ({
     id: '123',
     authId: 'auth-123',
@@ -26,29 +25,29 @@ describe('accessPolicy', () => {
             expect(canAccessRoute(userProfile, '/knowledge-base')).toBe(true);
         });
 
-        it('permits ADMIN to access protected bounds like /data-ingestion and /team-management', () => {
+        it('permits ADMIN to access protected routes like /data-ingestion and /team-management', () => {
             const adminProfile = createMockProfile(PermissionGroup.ADMIN);
             expect(canAccessRoute(adminProfile, '/data-ingestion')).toBe(true);
             expect(canAccessRoute(adminProfile, '/team-management')).toBe(true);
             expect(canAccessRoute(adminProfile, '/admin')).toBe(true);
         });
-        
+
         it('returns false when profile is null', () => {
             expect(canAccessRoute(null, '/chat')).toBe(false);
         });
     });
 
     describe('getDefaultRoute', () => {
-        it('cascades gracefully to / when unauthenticated', () => {
+        it('returns / when unauthenticated', () => {
             expect(getDefaultRoute(null)).toBe('/');
         });
 
-        it('routes authenticated USER to /', () => {
+        it('returns / for authenticated USER', () => {
             const userProfile = createMockProfile(PermissionGroup.USER);
             expect(getDefaultRoute(userProfile)).toBe('/');
         });
-        
-        it('routes ADMIN to / because / is technically accessible by ADMIN', () => {
+
+        it('returns / for ADMIN (since / is accessible to all)', () => {
             const adminProfile = createMockProfile(PermissionGroup.ADMIN);
             expect(getDefaultRoute(adminProfile)).toBe('/');
         });
@@ -59,11 +58,11 @@ describe('accessPolicy', () => {
             expect(getMatchingProtectedRoute('/chat')).toBe('/chat');
         });
 
-        it('maps wildcard route patterns to the base route configuration', () => {
+        it('maps wildcard route patterns to the base route', () => {
             expect(getMatchingProtectedRoute('/insights/faq/123')).toBe('/insights/faq');
             expect(getMatchingProtectedRoute('/onboarding/step-2')).toBe('/onboarding');
         });
-        
+
         it('returns null for unknown routes', () => {
             expect(getMatchingProtectedRoute('/unknown-route')).toBeNull();
         });

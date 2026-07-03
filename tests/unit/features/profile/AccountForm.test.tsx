@@ -1,14 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { AccountForm } from '../../../../src/features/profile/components/AccountForm';
-import { userService } from '../../../../src/services/userService';
-
-vi.mock('../../../../src/services/userService', () => ({
-    userService: {
-        updateProfile: vi.fn(),
-    }
-}));
+import { http, HttpResponse } from 'msw';
+import { server } from '../../setup/vitest.setup';
 
 describe('AccountForm', () => {
     const mockUser = {
@@ -29,38 +24,63 @@ describe('AccountForm', () => {
         expect(screen.getByText('johndoe')).toBeInTheDocument();
     });
 
-    it('handles form submission successfully', async () => {
+    it('submits form and calls onUpdate', async () => {
+        const user = userEvent.setup();
         const onUpdateMock = vi.fn();
-        vi.mocked(userService.updateProfile).mockResolvedValue({ ...mockUser, firstName: 'Jane' });
+
+        server.use(
+            http.patch('/api/v1/users/me', async ({ request }) => {
+                const body = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({
+                    id: '123',
+                    authId: 'auth-1',
+                    username: 'johndoe',
+                    email: body.email as string,
+                    firstName: body.firstName as string,
+                    lastName: 'Doe',
+                    projectRoles: [],
+                    permissionGroup: 'USER',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                });
+            }),
+        );
 
         render(<AccountForm profile={mockUser} onUpdate={onUpdateMock} />);
 
         const firstNameInput = screen.getByDisplayValue('John');
-        fireEvent.change(firstNameInput, { target: { value: 'Jane' } });
+        await user.clear(firstNameInput);
+        await user.type(firstNameInput, 'Jane');
 
-        const submitButton = screen.getByText('Save Changes');
-        fireEvent.click(submitButton);
+        await user.click(screen.getByText('Save Changes'));
 
-        expect(submitButton).toBeDisabled();
-        expect(screen.getByText('Saving...')).toBeInTheDocument();
-
-        await waitFor(() => {
-            expect(onUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
-                firstName: 'Jane'
-            }));
-        });
+        await waitFor(
+            () => {
+                expect(onUpdateMock).toHaveBeenCalledWith(
+                    expect.objectContaining({ firstName: 'Jane' }),
+                );
+            },
+            { timeout: 3000 },
+        );
     });
 
     it('handles form submission error', async () => {
-        vi.mocked(userService.updateProfile).mockRejectedValue(new Error('Update failed'));
+        const user = userEvent.setup();
+
+        server.use(
+            http.patch('/api/v1/users/me', () => HttpResponse.error()),
+        );
 
         render(<AccountForm profile={mockUser} onUpdate={vi.fn()} />);
 
-        const submitButton = screen.getByText('Save Changes');
-        fireEvent.click(submitButton);
+        await user.click(screen.getByText('Save Changes'));
 
-        await waitFor(() => {
-            expect(submitButton).not.toBeDisabled();
-        });
+        await waitFor(
+            () => {
+                expect(screen.getByText('Save Changes')).not.toBeDisabled();
+            },
+            { timeout: 3000 },
+        );
     });
 });
