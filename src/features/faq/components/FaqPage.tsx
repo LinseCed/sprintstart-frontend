@@ -13,6 +13,7 @@ import {
   Users,
   MessageSquareMore,
 } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
 
 export function FaqPage() {
   const [overview, setOverview] = useState<FAQOverview | null>(null);
@@ -90,15 +91,12 @@ export function FaqPage() {
             Back to PM-Dashboard
           </button>
 
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-app-text">
-              Recurring Questions
-            </h1>
-            <p className="text-sm text-app-text-muted">
-              Frequently asked questions grouped by topic and ranked by
-              frequency.
-            </p>
-          </div>
+          <PageHeader
+            icon={MessageSquareMore}
+            title="Recurring Questions"
+            subtitle="Frequently asked questions grouped by topic and ranked by frequency."
+            className="mb-6"
+          />
 
           {/* Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
