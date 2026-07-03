@@ -4,6 +4,7 @@ import { BookOpen } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
 import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer } from '../features/knowledge-base/components';
 import type { Artifact, ArtifactType, Freshness } from '../features/knowledge-base/types';
+import { PageHeader } from '../components/layout/PageHeader';
 
 /**
  * Unified Knowledge Base view for project resources.
@@ -11,7 +12,6 @@ import type { Artifact, ArtifactType, Freshness } from '../features/knowledge-ba
  * with a side drawer for viewing raw content and AI summaries.
  */
 export function KnowledgeBasePage() {
-    
     // Hardcoded project ID per plan
     const projectId = "default";
     
@@ -78,78 +78,74 @@ export function KnowledgeBasePage() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-app-background p-4 md:p-8 overflow-y-auto">
-            <div className="max-w-7xl mx-auto w-full">
-                {/* Header */}
-                <motion.div 
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                    className="mb-8"
-                >
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-app-brand/10 rounded-lg text-app-brand">
-                            <BookOpen className="w-6 h-6" />
-                        </div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-app-text tracking-tight">
-                            Knowledge Base
-                        </h1>
-                    </div>
-                    <p className="text-app-text-muted">
-                        Explore unified project documentation, code runbooks, and artifacts.
-                    </p>
-                </motion.div>
-
-                {/* Filters */}
+        <div className="min-h-screen bg-app-bg text-app-text flex flex-col">
+            <header className="border-b border-app-border bg-app-bg">
                 <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1, type: 'spring', damping: 25, stiffness: 200 }}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="app-page-frame py-6"
                 >
-                    <ArtifactFilters 
-                        searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        selectedType={selectedType}
-                        onTypeChange={setSelectedType}
-                        selectedFreshness={selectedFreshness}
-                        onFreshnessChange={setSelectedFreshness}
+                    <PageHeader
+                        icon={BookOpen}
+                        title="Knowledge Base"
+                        subtitle="Explore unified project documentation, code runbooks, and artifacts."
                     />
                 </motion.div>
+            </header>
 
-                {/* Results Count & Clear */}
-                <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm font-medium text-app-text-muted">
-                        {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
-                    </p>
-                    {(searchQuery || selectedType !== 'all' || selectedFreshness !== 'all') && (
-                        <button 
-                            onClick={handleClearFilters}
-                            className="text-sm font-medium text-app-brand hover:underline"
-                        >
-                            Clear filters
-                        </button>
+            <main className="flex-1 flex flex-col app-page-frame py-6 sm:space-y-10 lg:py-8 overflow-y-auto">
+                <div className="max-w-7xl mx-auto w-full">
+                    {/* Filters */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1, type: 'spring', damping: 25, stiffness: 200 }}
+                    >
+                        <ArtifactFilters 
+                            searchQuery={searchQuery}
+                            onSearchChange={setSearchQuery}
+                            selectedType={selectedType}
+                            onTypeChange={setSelectedType}
+                            selectedFreshness={selectedFreshness}
+                            onFreshnessChange={setSelectedFreshness}
+                        />
+                    </motion.div>
+
+                    {/* Results Count & Clear */}
+                    <div className="flex items-center justify-between mt-8 mb-4">
+                        <p className="text-sm font-medium text-app-text-muted">
+                            {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
+                        </p>
+                        {(searchQuery || selectedType !== 'all' || selectedFreshness !== 'all') && (
+                            <button 
+                                onClick={handleClearFilters}
+                                className="text-sm font-medium text-app-brand hover:underline"
+                            >
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Main List */}
+                    {isLoading ? (
+                        <div className="flex justify-center p-12">
+                            <div className="w-8 h-8 border-4 border-app-brand border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : (
+                        <ArtifactList 
+                            artifacts={filteredArtifacts} 
+                            onSelect={setSelectedArtifactId} 
+                        />
                     )}
                 </div>
 
-                {/* Main List */}
-                {isLoading ? (
-                    <div className="flex justify-center p-12">
-                        <div className="w-8 h-8 border-4 border-app-brand border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                ) : (
-                    <ArtifactList 
-                        artifacts={filteredArtifacts} 
-                        onSelect={setSelectedArtifactId} 
-                    />
-                )}
-            </div>
-
-            {/* Viewer Drawer */}
-            <ArtifactViewerDrawer 
-                artifact={selectedArtifact} 
-                onClose={() => setSelectedArtifactId(null)}
-                projectId={projectId}
-            />
+                {/* Viewer Drawer */}
+                <ArtifactViewerDrawer 
+                    artifact={selectedArtifact} 
+                    onClose={() => setSelectedArtifactId(null)}
+                    projectId={projectId}
+                />
+            </main>
         </div>
     );
 }

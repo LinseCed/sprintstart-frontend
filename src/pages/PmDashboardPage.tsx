@@ -1,13 +1,25 @@
 // features/dashboard/DashboardView.tsx
 
+import { BriefcaseBusiness } from "lucide-react";
+import { PageHeader } from "../components/layout/PageHeader";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
 
 export function PmDashboardPage() {
     return (
-        <div className="bg-app-bg px-4 py-4">
-            <div className="mx-auto max-w-4xl space-y-5">
+        <div className="min-h-screen bg-app-bg">
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-frame py-6">
+                    <PageHeader
+                        icon={BriefcaseBusiness}
+                        title="PM Dashboard"
+                        subtitle="Track team onboarding, spot recurring questions and keep knowledge gaps visible."
+                    />
+                </div>
+            </header>
+
+            <main className="app-page-frame space-y-5 py-6 lg:py-8">
                 {/* Team Overview */}
                 <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">
                     <div className="mb-4">
@@ -15,7 +27,8 @@ export function PmDashboardPage() {
                             Team overview
                         </h2>
                         <p className="text-sm text-app-text-muted">
-                            Track the current status of your team and onboarding progress.
+                            Track the current status of your team and onboarding
+                            progress.
                         </p>
                     </div>
 
@@ -29,7 +42,8 @@ export function PmDashboardPage() {
                             Insights
                         </h2>
                         <p className="text-sm text-app-text-muted">
-                            Frequently asked questions and onboarding knowledge gaps.
+                            Frequently asked questions and onboarding knowledge
+                            gaps.
                         </p>
                     </div>
 
@@ -38,7 +52,7 @@ export function PmDashboardPage() {
                         <KnowledgeGapWidget />
                     </div>
                 </section>
-            </div>
+            </main>
         </div>
     );
 }

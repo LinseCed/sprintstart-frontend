@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { Link } from 'react-router-dom';
-import { Bot, BookOpen, Sparkles } from 'lucide-react';
+import { Bot, BookOpen, Sparkles, ChartColumn } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
 
 /**
  * Central hub displayed after login.
@@ -42,46 +43,58 @@ export function DashboardPage() {
     else if (hour < 17) greeting = 'Good afternoon';
 
     return (
-        <div className="flex h-full min-h-[80vh] flex-col p-8">
-            {/* Centered Greeting and Date/Time */}
-            <div className="flex flex-1 flex-col items-center justify-center space-y-6">
-                <div className="text-center space-y-2">
-                    <h2 className="text-xl font-medium text-app-text/70">{formattedDate}</h2>
-                    <h3 className="text-3xl font-light text-app-text/90">{formattedTime}</h3>
-                </div>
-                
-                <div className="flex items-center gap-4 pb-6">
-                    <h1 className="text-5xl font-bold tracking-tight text-app-text">
-                        {greeting}, {displayName}
-                    </h1>
-                    <UserAvatar 
-                        size={48} 
-                        profileIcon={profile?.profileIcon} 
-                        fallbackName={displayName} 
+        <div className="min-h-screen bg-app-bg">
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-frame py-6">
+                    <PageHeader
+                        icon={ChartColumn}
+                        title="Dashboard"
+                        subtitle="Your central workspace for project status, onboarding progress and next actions."
                     />
                 </div>
+            </header>
 
-                {/* Quick Links */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mt-8">
-                    <Link to="/chat" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-                        <Bot className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
-                        <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Chat</h3>
-                        <p className="text-app-text/60 text-center mt-2">Talk to the AI assistant</p>
-                    </Link>
+            <main className="app-page-frame flex min-h-[70vh] flex-col p-8">
+                {/* Centered Greeting and Date/Time */}
+                <div className="flex flex-1 flex-col items-center justify-center space-y-6">
+                    <div className="text-center space-y-2">
+                        <h2 className="text-xl font-medium text-app-text/70">{formattedDate}</h2>
+                        <h3 className="text-3xl font-light text-app-text/90">{formattedTime}</h3>
+                    </div>
                     
-                    <Link to="/knowledge-base" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-                        <BookOpen className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
-                        <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Knowledge Base</h3>
-                        <p className="text-app-text/60 text-center mt-2">Explore company resources</p>
-                    </Link>
+                    <div className="flex items-center gap-4 pb-6">
+                        <h1 className="text-5xl font-bold tracking-tight text-app-text">
+                            {greeting}, {displayName}
+                        </h1>
+                        <UserAvatar 
+                            size={48} 
+                            profileIcon={profile?.profileIcon} 
+                            fallbackName={displayName} 
+                        />
+                    </div>
 
-                    <Link to="/onboarding" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-                        <Sparkles className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
-                        <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Onboarding</h3>
-                        <p className="text-app-text/60 text-center mt-2">Continue your setup</p>
-                    </Link>
+                    {/* Quick Links */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mt-8">
+                        <Link to="/chat" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+                            <Bot className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
+                            <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Chat</h3>
+                            <p className="text-app-text/60 text-center mt-2">Talk to the AI assistant</p>
+                        </Link>
+                        
+                        <Link to="/knowledge-base" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+                            <BookOpen className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
+                            <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Knowledge Base</h3>
+                            <p className="text-app-text/60 text-center mt-2">Explore company resources</p>
+                        </Link>
+
+                        <Link to="/onboarding" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+                            <Sparkles className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
+                            <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Onboarding</h3>
+                            <p className="text-app-text/60 text-center mt-2">Continue your setup</p>
+                        </Link>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

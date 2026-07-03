@@ -21,6 +21,7 @@ import {
   ChevronDown,
   SlidersHorizontal,
 } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
 
 // ------------------------------------------------------------------
 // Helpers (gleich wie im Widget)
@@ -223,7 +224,7 @@ export function KnowledgeGapsPage() {
   return (
     <div className="min-h-screen bg-app-bg">
       <div className="border-b border-app-border bg-app-bg/90">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="app-page-content py-8">
           <button
             onClick={() => void navigate("/pm-dashboard")}
             className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
@@ -231,22 +232,17 @@ export function KnowledgeGapsPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to PM-Dashboard
           </button>
-          <div className="flex items-center gap-3 mb-6">
-            <ShieldAlert className="w-6 h-6 text-app-brand" />
-            <div>
-              <h1 className="text-2xl font-semibold text-app-text">
-                Knowledge Gaps
-              </h1>
-              <p className="text-sm text-app-text-muted">
-                Documentation gaps identified across the organization.
-              </p>
-            </div>  
-          </div>
+          <PageHeader
+            icon={ShieldAlert}
+            title="Knowledge Gaps"
+            subtitle="Documentation gaps identified across the organization and prioritized by impact."
+            className="mb-6"
+          />
           <SeveritySummaryBar gaps={overview.gaps} />
         </div>
       </div>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="app-page-content py-8">
         {/* Filter & Sort Controls */}
         <div className="mb-6 rounded-lg border border-app-border bg-app-surface">
           {/* Header / Compact View */}

@@ -10,6 +10,7 @@ import type {
     ProjectRole,
 } from '../features/team-management/types';
 import { getTeamOverview, getProjectRoles } from '../services/teamManagementService';
+import { PageHeader } from '../components/layout/PageHeader';
 
 export function TeamManagementPage() {
     const navigate = useNavigate();
@@ -94,29 +95,21 @@ export function TeamManagementPage() {
                         Back to PM-Dashboard
                     </button>
 
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <Users className="w-5 h-5 text-app-brand" />
-                                <h1 className="text-2xl font-bold text-app-text">
-                                    Team Management
-                                </h1>
+                    <PageHeader
+                        icon={Users}
+                        title="Team Management"
+                        subtitle="Monitor onboarding progress across team members and manage project roles."
+                        actions={
+                            <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft px-4 py-2 text-right">
+                                <div className="text-3xl font-bold text-app-brand">
+                                    {filteredUsers.length}
+                                </div>
+                                <div className="text-xs font-medium text-app-brand-text">
+                                    members
+                                </div>
                             </div>
-
-                            <p className="text-sm text-app-text-muted">
-                                Monitor onboarding progress across team members.
-                            </p>
-                        </div>
-
-                        <div className="hidden sm:block text-right">
-                            <div className="text-4xl font-bold text-app-brand">
-                                {filteredUsers.length}
-                            </div>
-                            <div className="text-xs text-app-text-muted">
-                                members
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
                 </div>
             </div>
 

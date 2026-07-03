@@ -13,6 +13,7 @@ import {
   Users,
   MessageSquareMore,
 } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
 
 export function FaqPage() {
   const [overview, setOverview] = useState<FAQOverview | null>(null);
@@ -81,7 +82,7 @@ export function FaqPage() {
     <div className="min-h-screen bg-app-bg">
       {/* Header */}
       <div className="border-b border-app-border bg-app-bg/90">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="app-page-content py-8">
           <button
             onClick={() => void navigate("/pm-dashboard")}
             className="inline-flex items-center gap-2 text-sm text-app-text-muted hover:text-app-text transition-all mb-4"
@@ -90,15 +91,12 @@ export function FaqPage() {
             Back to PM-Dashboard
           </button>
 
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-app-text">
-              Recurring Questions
-            </h1>
-            <p className="text-sm text-app-text-muted">
-              Frequently asked questions grouped by topic and ranked by
-              frequency.
-            </p>
-          </div>
+          <PageHeader
+            icon={MessageSquareMore}
+            title="Recurring Questions"
+            subtitle="Frequently asked questions grouped by topic and ranked by frequency."
+            className="mb-6"
+          />
 
           {/* Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -162,7 +160,7 @@ export function FaqPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="app-page-content py-8">
         {/* Hero Card */}
         <div className="mb-4">
           <button
