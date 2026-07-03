@@ -1,5 +1,7 @@
-import { Trash2, X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { AlertDialog } from '../../../components/ui/AlertDialog';
+import { Modal } from '../../../components/ui/Modal';
 import type { ProjectRole, Skill } from '../types';
 import {
     createProjectRole,
@@ -98,10 +100,6 @@ export function ProjectRolesModal({
         setDeleteSkillId(null);
     }
 
-    if (!open) {
-        return null;
-    }
-
     const selectedRoleSkills = selectedRole
         ? skills.filter((skill) => skill.roleId === selectedRole.id)
         : [];
@@ -110,23 +108,33 @@ export function ProjectRolesModal({
     const skillToDelete = skills.find((skill) => skill.id === deleteSkillId);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-2xl rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-app-text">
-                        Project Roles
-                    </h2>
-
+        <>
+            <Modal
+                isOpen={open}
+                title="Project Roles"
+                size="lg"
+                onClose={onClose}
+                footer={
+                    <>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover"
+                        className="rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
                     >
-                        <X className="h-4 w-4" />
+                        Cancel
                     </button>
-                </div>
 
-                <div className="mt-8 border-t border-app-border pt-6">
+                    <button
+                        type="button"
+                        onClick={() => void handleCreateRole()}
+                        className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse transition-colors hover:bg-app-brand-hover"
+                    >
+                        Create Role
+                    </button>
+                    </>
+                }
+            >
+                <div className="border-t border-app-border pt-6">
                     <h3 className="mb-3 text-sm font-medium text-app-text">
                         Create New Role
                     </h3>
@@ -261,7 +269,7 @@ export function ProjectRolesModal({
                                         onClick={() =>
                                             void handleCreateSkill()
                                         }
-                                        className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-white hover:bg-app-brand-hover"
+                                    className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse hover:bg-app-brand-hover"
                                     >
                                         Add
                                     </button>
@@ -271,73 +279,36 @@ export function ProjectRolesModal({
                     </div>
                 </div>
 
-                <div className="mt-4 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-xl border border-app-border px-4 py-2 text-sm text-app-text-muted hover:bg-app-surface-hover"
-                    >
-                        Cancel
-                    </button>
+            </Modal>
 
-                    <button
-                        type="button"
-                        onClick={() => void handleCreateRole()}
-                        className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-white hover:bg-app-brand-hover"
-                    >
-                        Create Role
-                    </button>
-                </div>
-            </div>
+            <AlertDialog
+                isOpen={Boolean(deleteRoleId || deleteSkillId)}
+                title="Confirm deletion"
+                description={
+                    <>
+                        Are you sure you want to delete{' '}
+                        <span className="font-medium text-app-text">
+                            {roleToDelete?.name ?? skillToDelete?.name ?? 'this item'}
+                        </span>
+                        ? This action cannot be undone.
+                    </>
+                }
+                confirmLabel="Delete"
+                variant="danger"
+                onClose={() => {
+                    setDeleteRoleId(null);
+                    setDeleteSkillId(null);
+                }}
+                onConfirm={() => {
+                    if (deleteRoleId) {
+                        void confirmDeleteRole();
+                    }
 
-            {(deleteRoleId || deleteSkillId) && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-md rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h3 className="text-lg font-semibold text-app-text">
-                            Confirm deletion
-                        </h3>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
-                            Are you sure you want to delete{' '}
-                            <span className="font-medium text-app-text">
-                                {roleToDelete?.name ??
-                                    skillToDelete?.name ??
-                                    'this item'}
-                            </span>
-                            ? This action cannot be undone.
-                        </p>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setDeleteRoleId(null);
-                                    setDeleteSkillId(null);
-                                }}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm text-app-text"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (deleteRoleId) {
-                                        void confirmDeleteRole();
-                                    }
-
-                                    if (deleteSkillId) {
-                                        void confirmDeleteSkill();
-                                    }
-                                }}
-                                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                    if (deleteSkillId) {
+                        void confirmDeleteSkill();
+                    }
+                }}
+            />
+        </>
     );
 }
