@@ -1,8 +1,5 @@
-// ============================================================
-// AlertDialog.tsx
-// ============================================================
-
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Modal } from "./Modal";
 
 export type AlertDialogVariant = "danger" | "default";
 
@@ -21,83 +18,36 @@ type AlertDialogProps = {
 };
 
 export function AlertDialog({
-                                isOpen,
-                                title,
-                                description,
-                                confirmLabel = "Confirm",
-                                cancelLabel = "Cancel",
-                                variant = "default",
-                                isLoading = false,
-                                loadingLabel = "Working...",
-                                errorMessage,
-                                onClose,
-                                onConfirm,
-                            }: AlertDialogProps) {
-    useEffect(() => {
-        if (!isOpen) return;
-
-        function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === "Escape" && !isLoading) {
-                onClose();
-            }
-        }
-
-        document.addEventListener("keydown", handleKeyDown);
-
-        return () => {
-            document.removeEventListener("keydown", handleKeyDown);
-        };
-    }, [isOpen, isLoading, onClose]);
-
-    if (!isOpen) return null;
-
+    isOpen,
+    title,
+    description,
+    confirmLabel = "Confirm",
+    cancelLabel = "Cancel",
+    variant = "default",
+    isLoading = false,
+    loadingLabel = "Working...",
+    errorMessage,
+    onClose,
+    onConfirm,
+}: AlertDialogProps) {
     const confirmButtonClassName =
         variant === "danger"
             ? "border-app-danger-border bg-app-danger-solid text-white hover:opacity-90"
-            : "border-app-brand bg-app-brand text-white hover:border-app-brand-hover hover:bg-app-brand-hover";
+            : "border-app-brand bg-app-brand text-app-text-inverse hover:border-app-brand-hover hover:bg-app-brand-hover";
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <button
-                type="button"
-                aria-label="Close dialog"
-                disabled={isLoading}
-                onClick={onClose}
-                className="absolute inset-0 bg-app-overlay disabled:cursor-default"
-            />
-
-            <div
-                role="alertdialog"
-                aria-modal="true"
-                aria-labelledby="alert-dialog-title"
-                aria-describedby={description ? "alert-dialog-description" : undefined}
-                className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-2xl"
-            >
-                <div className="p-6">
-                    <h2
-                        id="alert-dialog-title"
-                        className="text-lg font-semibold text-app-text"
-                    >
-                        {title}
-                    </h2>
-
-                    {description && (
-                        <div
-                            id="alert-dialog-description"
-                            className="mt-2 text-sm leading-relaxed text-app-text-muted"
-                        >
-                            {description}
-                        </div>
-                    )}
-
-                    {errorMessage && (
-                        <div className="mt-4 rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3 text-sm text-app-danger-text">
-                            {errorMessage}
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col-reverse gap-3 border-t border-app-border bg-app-surface-muted px-6 py-4 sm:flex-row sm:justify-end">
+        <Modal
+            isOpen={isOpen}
+            title={title}
+            description={description}
+            size="md"
+            role="alertdialog"
+            titleId="alert-dialog-title"
+            descriptionId="alert-dialog-description"
+            isDismissDisabled={isLoading}
+            onClose={onClose}
+            footer={
+                <>
                     <button
                         type="button"
                         onClick={onClose}
@@ -115,8 +65,14 @@ export function AlertDialog({
                     >
                         {isLoading ? loadingLabel : confirmLabel}
                     </button>
+                </>
+            }
+        >
+            {errorMessage && (
+                <div className="rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3 text-sm text-app-danger-text">
+                    {errorMessage}
                 </div>
-            </div>
-        </div>
+            )}
+        </Modal>
     );
 }
