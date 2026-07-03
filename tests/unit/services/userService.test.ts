@@ -1,20 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { userService } from '../../../src/services/userService';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../unit/setup/vitest.setup';
-import type { UserProfile } from '../../../src/services/types';
 
 describe('userService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        window.sessionStorage.clear();
     });
 
-    afterEach(() => {
-        window.sessionStorage.clear();
-    });
-
-    it('getProfile returns merged backend and local mock data', async () => {
+    it('getProfile returns backend profile data', async () => {
         server.use(
             http.get('/api/v1/users/me', () =>
                 HttpResponse.json({
@@ -33,15 +27,10 @@ describe('userService', () => {
             ),
         );
 
-        window.sessionStorage.setItem(
-            'sprintstart_mock_profile',
-            JSON.stringify({ firstName: 'Local' }),
-        );
-
         const profile = await userService.getProfile();
         expect(profile?.id).toBe('123');
         expect(profile?.email).toBe('backend@example.com');
-        expect(profile?.firstName).toBe('Local');
+        expect(profile?.firstName).toBe('Backend');
     });
 
     it('getProfile returns null on error', async () => {
@@ -53,7 +42,7 @@ describe('userService', () => {
         expect(profile).toBeNull();
     });
 
-    it('updateProfile patches backend and stores local fields', async () => {
+    it('updateProfile patches backend and returns updated profile', async () => {
         server.use(
             http.patch('/api/v1/users/me', async ({ request }) => {
                 const body = (await request.json()) as Record<string, unknown>;
@@ -80,25 +69,15 @@ describe('userService', () => {
 
         expect(updated.firstName).toBe('NewName');
         expect(updated.profileIcon).toBe('icon1');
-
-        const stored = JSON.parse(
-            window.sessionStorage.getItem('sprintstart_mock_profile') || '{}',
-        ) as Partial<UserProfile>;
-        expect(stored.firstName).toBe('NewName');
-        expect(stored.profileIcon).toBe('icon1');
     });
 
-    it('updateProfile falls back to local storage if backend fails', async () => {
+    it('updateProfile rejects if backend fails', async () => {
         server.use(
             http.patch('/api/v1/users/me', () => HttpResponse.error()),
         );
 
-        const updated = await userService.updateProfile({ firstName: 'FallbackName' });
-        expect(updated.firstName).toBe('FallbackName');
-
-        const stored = JSON.parse(
-            window.sessionStorage.getItem('sprintstart_mock_profile') || '{}',
-        ) as Partial<UserProfile>;
-        expect(stored.firstName).toBe('FallbackName');
+        await expect(
+            userService.updateProfile({ firstName: 'FallbackName' }),
+        ).rejects.toThrow();
     });
 });
