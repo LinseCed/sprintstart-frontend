@@ -65,9 +65,7 @@ function getElapsedDays(startedAt: string): number {
     );
 }
 
-function getInitials(firstname: string, lastname: string): string {
-    return `${firstname.charAt(0)}${lastname.charAt(0)}`.toUpperCase();
-}
+import { UserAvatar } from '../components/common/UserAvatar';
 
 function formatMinutes(minutes?: number | null): string {
     if (!minutes || minutes <= 0) return 'No estimate';
@@ -658,8 +656,8 @@ export function TeamMemberDetailPage() {
 
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-app-brand-soft text-lg font-semibold text-app-brand-text">
-                                {getInitials(user.firstname, user.lastname)}
+                            <div className="flex shrink-0 items-center justify-center">
+                                <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={56} />
                             </div>
 
                             <div>

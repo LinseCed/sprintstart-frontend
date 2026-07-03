@@ -26,11 +26,7 @@ function getElapsedDays(startedAt: string): number {
     );
 }
 
-function getInitials(firstname: string, lastname: string): string {
-    return `${firstname.charAt(0)}${lastname.charAt(0)}`.toUpperCase();
-}
-
-// ─────────────────────────────────────────────────────────────
+import { UserAvatar } from '../../../components/common/UserAvatar';
 // SUB-COMPONENT: badge pill used in the widget header
 // ─────────────────────────────────────────────────────────────
 
@@ -80,8 +76,8 @@ function MemberRow({ user, onClick }: MemberRowProps) {
             className="w-full text-left flex items-center gap-3 rounded-xl border border-app-border bg-app-surface hover:border-app-brand-border-strong hover:bg-app-surface-hover transition-colors p-3"
         >
             {/* Avatar */}
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-brand-soft text-xs font-semibold text-app-brand-text">
-                {getInitials(user.firstname, user.lastname)}
+            <div className="flex shrink-0 items-center justify-center">
+                <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={32} />
             </div>
 
             {/* Name + step */}

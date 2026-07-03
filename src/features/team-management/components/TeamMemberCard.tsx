@@ -17,10 +17,7 @@ function getElapsedDays(startedAt: string): number {
     );
 }
 
-function getInitials(firstname: string, lastname: string): string {
-    return `${firstname.charAt(0)}${lastname.charAt(0)}`.toUpperCase();
-}
-
+import { UserAvatar } from '../../../components/common/UserAvatar';
 export function TeamMemberCard({ user }: TeamMemberCardProps) {
     const elapsedDays = user.currentStep?.startedAt
         ? getElapsedDays(user.currentStep.startedAt)
@@ -58,8 +55,8 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
             </div>
 
             <div className="flex items-center gap-3 pr-14">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-app-brand-soft text-xs font-semibold text-app-brand-text">
-                    {getInitials(user.firstname, user.lastname)}
+                <div className="flex shrink-0 items-center justify-center">
+                    <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={40} />
                 </div>
 
                 <div className="min-w-0">

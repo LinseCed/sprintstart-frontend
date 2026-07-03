@@ -1,18 +1,5 @@
 import { apiClient } from './apiClient';
 import type { UserProfile } from './types';
-import userMock from '../mocks/userMock.json';
-
-const LOCAL_MOCK_KEY = 'sprintstart_mock_profile';
-
-function getLocalMockProfile(): Partial<UserProfile> {
-    const data = window.sessionStorage.getItem(LOCAL_MOCK_KEY);
-    return data ? (JSON.parse(data) as Partial<UserProfile>) : userMock;
-}
-
-function setLocalMockProfile(updates: Partial<UserProfile>) {
-    const current = getLocalMockProfile();
-    window.sessionStorage.setItem(LOCAL_MOCK_KEY, JSON.stringify({ ...current, ...updates }));
-}
 
 /**
  * Service managing user authentication, profile retrieval, and updates.
@@ -36,9 +23,7 @@ export const userService = {
      */
     async getProfile(): Promise<UserProfile | null> {
         try {
-            const backendProfile = await apiClient.fetch<UserProfile>('/api/v1/users/me');
-            const localMocks = getLocalMockProfile();
-            return { ...backendProfile, ...localMocks };
+            return await apiClient.fetch<UserProfile>('/api/v1/users/me');
         } catch (error) {
             console.error('Failed to retrieve profile', error);
             return null;
@@ -52,27 +37,10 @@ export const userService = {
      * @returns Promise resolving to the updated UserProfile.
      */
     async updateProfile(profile: Partial<UserProfile>): Promise<UserProfile> {
-        // Save frontend-only fields to sessionStorage so they persist during frontend-only development
-        const frontendOnlyFields: Partial<UserProfile> = {};
-        if (profile.profileIcon !== undefined) frontendOnlyFields.profileIcon = profile.profileIcon;
-        if (profile.email !== undefined) frontendOnlyFields.email = profile.email;
-        if (profile.firstName !== undefined) frontendOnlyFields.firstName = profile.firstName;
-        if (profile.lastName !== undefined) frontendOnlyFields.lastName = profile.lastName;
-        
-        setLocalMockProfile(frontendOnlyFields);
-
-        try {
-            const backendProfile = await apiClient.fetch<UserProfile>('/api/v1/users/me', {
-                method: 'PATCH',
-                body: JSON.stringify(profile),
-            });
-            return { ...backendProfile, ...getLocalMockProfile() };
-        } catch (e) {
-            console.warn("Backend PATCH failed, using local mock merged with current local profile.");
-            const currentProfile = await this.getProfile();
-            if (!currentProfile) throw e;
-            return { ...currentProfile, ...getLocalMockProfile() };
-        }
+        return await apiClient.fetch<UserProfile>('/api/v1/users/me', {
+            method: 'PATCH',
+            body: JSON.stringify(profile),
+        });
     },
 
     /**
