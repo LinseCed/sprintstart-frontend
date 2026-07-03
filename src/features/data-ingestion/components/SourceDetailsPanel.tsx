@@ -234,7 +234,7 @@ export function SourceDetailsPanel({
             title={source.name}
             description={`Latest ingestion data for ${source.sourceSystem}`}
             widthClassName="w-full max-w-[440px] sm:w-[440px]"
-            overlayClassName="bg-app-overlay xl:hidden"
+            overlayClassName="bg-app-overlay"
             panelBackgroundClassName="bg-app-surface"
             headerDividerClassName=""
             footerClassName="border-t border-app-border bg-app-surface px-6 py-5"
