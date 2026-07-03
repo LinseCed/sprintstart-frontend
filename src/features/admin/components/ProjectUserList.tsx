@@ -1,6 +1,7 @@
-import { UserRound, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import type { ProjectUser, ProjectUserSummary } from "../types";
 import { RoleBadgeList } from "./RoleBadgeList";
+import { UserAvatar } from "../../../components/common/UserAvatar";
 
 type ProjectUserListProps = {
     users: Array<ProjectUser | ProjectUserSummary>;
@@ -36,8 +37,12 @@ export function ProjectUserList({ users }: ProjectUserListProps) {
                         className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2.5 transition hover:border-app-border-strong hover:bg-app-surface-hover"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface">
-                                <UserRound className="h-4 w-4 text-app-text-muted" />
+                            <div className="flex shrink-0 items-center justify-center">
+                                <UserAvatar
+                                    profileIcon={user.profileIcon}
+                                    fallbackName={"firstName" in user ? user.firstName : user.username}
+                                    size={36}
+                                />
                             </div>
 
                             <div className="min-w-0 flex-1">

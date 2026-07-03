@@ -1,6 +1,5 @@
 import {
     RefreshCw,
-    X,
 } from "lucide-react";
 import {
     useCallback,
@@ -9,6 +8,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
+import { SidePanel } from "../../../components/ui/SidePanel";
 import {
     getIngestionRuns,
     getIngestionStatus,
@@ -228,37 +228,59 @@ export function SourceDetailsPanel({
     }, [source, visibleRecentRuns, visibleSourceStatus]);
 
     return (
-        <>
-            <button
-                type="button"
-                aria-label="Close source details overlay"
-                onClick={onClose}
-                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm xl:hidden"
-            />
-
-            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[440px] flex-col border-l border-app-border bg-app-surface shadow-2xl transition-transform sm:w-[440px]">
-                <div className="flex items-start justify-between gap-4 border-b border-app-border px-6 py-5">
-                    <div className="min-w-0">
-                        <h2 className="mt-1 break-words text-xl font-bold text-app-text">
-                            {source.name}
-                        </h2>
-
-                        <p className="mt-1 text-sm text-app-text-muted">
-                            Latest ingestion data for {source.sourceSystem}
-                        </p>
-                    </div>
+        <SidePanel
+            isOpen
+            onClose={onClose}
+            title={source.name}
+            description={`Latest ingestion data for ${source.sourceSystem}`}
+            widthClassName="w-full max-w-[440px] sm:w-[440px]"
+            overlayClassName="bg-app-overlay"
+            panelBackgroundClassName="bg-app-surface"
+            headerDividerClassName=""
+            footerClassName="border-t border-app-border bg-app-surface px-6 py-5"
+            closeAriaLabel="Close source details"
+            footer={
+                <div className="space-y-3">
+                    {onUpdateSource && source.sourceSystem === "GITHUB" && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void handleUpdateSource();
+                            }}
+                            disabled={isLoading || isUpdating}
+                            className="w-full rounded-xl bg-app-brand px-4 py-3 font-medium text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                <RefreshCw
+                                    size={16}
+                                    className={isUpdating ? "animate-spin" : ""}
+                                />
+                                {githubRepository
+                                    ? `Update ${githubRepository.owner}/${githubRepository.name}`
+                                    : "Update GitHub repositories"}
+                            </span>
+                        </button>
+                    )}
 
                     <button
                         type="button"
-                        aria-label="Close source details"
-                        onClick={onClose}
-                        className="shrink-0 rounded-lg p-2 text-app-text-muted transition hover:bg-app-surface-hover hover:text-app-text"
+                        onClick={() => {
+                            void loadSourceDetails();
+                        }}
+                        disabled={isLoading || isUpdating}
+                        className="w-full rounded-xl border border-app-border bg-app-surface-muted px-4 py-3 font-medium text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        <X size={18} />
+                        <span className="flex items-center justify-center gap-2">
+                            <RefreshCw
+                                size={16}
+                                className={isLoading ? "animate-spin" : ""}
+                            />
+                            Refresh Details
+                        </span>
                     </button>
                 </div>
-
-                <div className="flex-1 overflow-y-auto px-6 py-6">
+            }
+        >
                     <div className="space-y-7">
                         {visibleErrorMessage && (
                             <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
@@ -380,51 +402,7 @@ export function SourceDetailsPanel({
                             )}
                         </div>
                     </div>
-                </div>
-
-                <div className="border-t border-app-border bg-app-surface px-6 py-5">
-                    <div className="space-y-3">
-                        {onUpdateSource && source.sourceSystem === "GITHUB" && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    void handleUpdateSource();
-                                }}
-                                disabled={isLoading || isUpdating}
-                                className="w-full rounded-xl bg-app-brand px-4 py-3 font-medium text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    <RefreshCw
-                                        size={16}
-                                        className={isUpdating ? "animate-spin" : ""}
-                                    />
-                                    {githubRepository
-                                        ? `Update ${githubRepository.owner}/${githubRepository.name}`
-                                        : "Update GitHub repositories"}
-                                </span>
-                            </button>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                void loadSourceDetails();
-                            }}
-                            disabled={isLoading || isUpdating}
-                            className="w-full rounded-xl border border-app-border bg-app-surface-muted px-4 py-3 font-medium text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <span className="flex items-center justify-center gap-2">
-                                <RefreshCw
-                                    size={16}
-                                    className={isLoading ? "animate-spin" : ""}
-                                />
-                                Refresh Details
-                            </span>
-                        </button>
-                    </div>
-                </div>
-            </aside>
-        </>
+        </SidePanel>
     );
 }
 

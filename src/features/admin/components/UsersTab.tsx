@@ -1,6 +1,7 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { ExternalLink, MoreVertical, Trash2 } from "lucide-react";
-import { getDisplayName, getInitials } from "../data";
+import { getDisplayName } from "../data";
+import { UserAvatar } from "../../../components/common/UserAvatar";
 import type { AdminUser } from "../types";
 import { PermissionGroupBadge } from "./Badges";
 import { ProjectList } from "./ProjectList";
@@ -111,8 +112,12 @@ export function UsersTab({
 
                         <div className="min-h-11 min-w-0 text-left">
                             <div className="flex items-center gap-2.5">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold text-app-brand-text">
-                                    {getInitials(user)}
+                                <div className="flex shrink-0 items-center justify-center">
+                                    <UserAvatar
+                                        profileIcon={user.profileIcon}
+                                        fallbackName={user.firstName}
+                                        size={40}
+                                    />
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2">

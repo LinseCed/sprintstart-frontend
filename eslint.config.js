@@ -74,6 +74,15 @@ export default defineConfig(
         ],
       },
     },
+    {
+      files: ["**/*.test.{ts,tsx}", "tests/unit/setup/vitest.setup.ts"],
+      rules: {
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/consistent-type-imports": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off"
+      }
+    },
     prettier,
   ]
 );

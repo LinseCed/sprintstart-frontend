@@ -1,0 +1,443 @@
+import { CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
+import { SidePanel } from '../../../../components/ui/SidePanel';
+import type {
+    OnboardingStepEndpoint,
+    OnboardingTaskEndpoint,
+} from '../../../onboarding/types';
+import type { OnboardingFeedback } from '../../../../services/teamManagementService';
+
+type DetailOnboardingStep = OnboardingStepEndpoint & {
+    startedAt?: string | null;
+    durationMinutes?: number | null;
+    skip?: {
+        id?: string;
+        status?: string;
+        reason?: string;
+    } | null;
+};
+
+type TaskInsertTarget = {
+    stepId: string;
+    position: number;
+} | null;
+
+type StepDetailsPanelProps = {
+    step: DetailOnboardingStep;
+    tasks: OnboardingTaskEndpoint[];
+    doneTaskCount: number;
+    actualMinutes: number | null;
+    feedbackItems: OnboardingFeedback[];
+    skipReason: string;
+    taskInsertTarget: TaskInsertTarget;
+    newTaskTitle: string;
+    newTaskDescription: string;
+    addingTask: boolean;
+    stepActionId: string | null;
+    stepToDelete: DetailOnboardingStep | null;
+    taskToDelete: OnboardingTaskEndpoint | null;
+    onClose: () => void;
+    onRequestDeleteStep: (step: DetailOnboardingStep) => void;
+    onCancelDeleteStep: () => void;
+    onConfirmDeleteStep: (step: DetailOnboardingStep) => void;
+    onRequestDeleteTask: (task: OnboardingTaskEndpoint) => void;
+    onCancelDeleteTask: () => void;
+    onConfirmDeleteTask: (task: OnboardingTaskEndpoint) => void;
+    onTaskInsertTargetChange: (target: TaskInsertTarget) => void;
+    onNewTaskTitleChange: (value: string) => void;
+    onNewTaskDescriptionChange: (value: string) => void;
+    onCreateTask: () => void;
+    formatMinutes: (minutes?: number | null) => string;
+    getStepStatusStyles: (status: string) => string;
+};
+
+export function StepDetailsPanel({
+    step,
+    tasks,
+    doneTaskCount,
+    actualMinutes,
+    feedbackItems,
+    skipReason,
+    taskInsertTarget,
+    newTaskTitle,
+    newTaskDescription,
+    addingTask,
+    stepActionId,
+    stepToDelete,
+    taskToDelete,
+    onClose,
+    onRequestDeleteStep,
+    onCancelDeleteStep,
+    onConfirmDeleteStep,
+    onRequestDeleteTask,
+    onCancelDeleteTask,
+    onConfirmDeleteTask,
+    onTaskInsertTargetChange,
+    onNewTaskTitleChange,
+    onNewTaskDescriptionChange,
+    onCreateTask,
+    formatMinutes,
+    getStepStatusStyles,
+}: StepDetailsPanelProps) {
+    return (
+        <SidePanel
+            isOpen
+            onClose={onClose}
+            title={step.title}
+            description={step.description}
+            badge={
+                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStepStatusStyles(step.status)}`}>
+                    {step.status.replace('_', ' ')}
+                </span>
+            }
+            panelBackgroundClassName="bg-app-surface"
+            headerDividerClassName=""
+            footerClassName="border-t border-app-border bg-app-surface px-6 py-5"
+            closeAriaLabel="Close step details"
+            footer={
+                stepToDelete?.id === step.id ? (
+                    <div className="rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3">
+                        <p className="text-sm text-app-danger-text">
+                            Delete{' '}
+                            <span className="font-medium">{step.title}</span>
+                            ? This cannot be undone.
+                        </p>
+
+                        <div className="mt-3 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={onCancelDeleteStep}
+                                disabled={stepActionId === step.id}
+                                className="rounded-xl border border-app-border bg-app-surface px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => onConfirmDeleteStep(step)}
+                                disabled={stepActionId === step.id}
+                                className="rounded-xl bg-app-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {stepActionId === step.id
+                                    ? 'Deleting...'
+                                    : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => onRequestDeleteStep(step)}
+                        disabled={stepActionId !== null}
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-app-danger-border bg-app-danger-bg px-4 py-2 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Delete step
+                    </button>
+                )
+            }
+        >
+            <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2">
+                    <p className="text-app-text-muted">Estimate</p>
+                    <p className="mt-1 font-semibold text-app-text">
+                        {formatMinutes(step.estimatedMinutes)}
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2">
+                    <p className="text-app-text-muted">Actual</p>
+                    <p className="mt-1 font-semibold text-app-text">
+                        {actualMinutes ? formatMinutes(actualMinutes) : 'Open'}
+                    </p>
+                </div>
+            </div>
+
+            <section className="mt-6">
+                <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-app-text">
+                        Tasks
+                    </h3>
+                    <span className="rounded-full bg-app-surface-muted px-2.5 py-1 text-xs text-app-text-muted">
+                        {doneTaskCount}/{tasks.length} done
+                    </span>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                    {tasks.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
+                            <p>No tasks for this step.</p>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    onTaskInsertTargetChange({
+                                        stepId: step.id,
+                                        position: 0,
+                                    })
+                                }
+                                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                Add first task
+                            </button>
+                        </div>
+                    ) : (
+                        tasks.map((task, index) => (
+                            <div key={task.id} className="group/task-insert space-y-1">
+                                {index === 0 && (
+                                    <TaskInsertButton
+                                        label={`Add task before ${task.title}`}
+                                        onClick={() =>
+                                            onTaskInsertTargetChange({
+                                                stepId: step.id,
+                                                position: 0,
+                                            })
+                                        }
+                                    />
+                                )}
+
+                                {index === 0 &&
+                                    taskInsertTarget?.stepId === step.id &&
+                                    taskInsertTarget.position === 0 && (
+                                        <NewTaskForm
+                                            title={newTaskTitle}
+                                            description={newTaskDescription}
+                                            addingTask={addingTask}
+                                            onTitleChange={onNewTaskTitleChange}
+                                            onDescriptionChange={onNewTaskDescriptionChange}
+                                            onCancel={() => {
+                                                onTaskInsertTargetChange(null);
+                                                onNewTaskTitleChange('');
+                                                onNewTaskDescriptionChange('');
+                                            }}
+                                            onSubmit={onCreateTask}
+                                        />
+                                    )}
+
+                                <div className="flex items-start justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3">
+                                    <div className="flex min-w-0 gap-3">
+                                        {task.finished ? (
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-app-success-solid" />
+                                        ) : (
+                                            <Circle className="mt-0.5 h-4 w-4 shrink-0 text-app-text-disabled" />
+                                        )}
+
+                                        <div className="min-w-0">
+                                            <p className={`text-sm font-medium ${
+                                                task.finished
+                                                    ? 'line-through text-app-text-subtle'
+                                                    : 'text-app-text'
+                                            }`}>
+                                                {task.title}
+                                            </p>
+                                            {task.description && (
+                                                <p className="mt-1 text-xs text-app-text-muted">
+                                                    {task.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => onRequestDeleteTask(task)}
+                                        disabled={stepActionId !== null}
+                                        className="rounded-lg p-1.5 text-app-text-muted transition-colors hover:bg-app-danger-bg hover:text-app-danger-text disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label={`Delete ${task.title}`}
+                                        title="Delete task"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+
+                                {taskToDelete?.id === task.id && (
+                                    <div className="rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3">
+                                        <p className="text-sm text-app-danger-text">
+                                            Delete{' '}
+                                            <span className="font-medium">
+                                                {task.title}
+                                            </span>
+                                            ? This cannot be undone.
+                                        </p>
+
+                                        <div className="mt-3 flex justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={onCancelDeleteTask}
+                                                disabled={stepActionId === task.stepId}
+                                                className="rounded-xl border border-app-border bg-app-surface px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                Cancel
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => onConfirmDeleteTask(task)}
+                                                disabled={stepActionId === task.stepId}
+                                                className="rounded-xl bg-app-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {stepActionId === task.stepId
+                                                    ? 'Deleting...'
+                                                    : 'Delete'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <TaskInsertButton
+                                    label={`Add task after ${task.title}`}
+                                    onClick={() =>
+                                        onTaskInsertTargetChange({
+                                            stepId: step.id,
+                                            position: index + 1,
+                                        })
+                                    }
+                                />
+
+                                {taskInsertTarget?.stepId === step.id &&
+                                    taskInsertTarget.position === index + 1 && (
+                                        <NewTaskForm
+                                            title={newTaskTitle}
+                                            description={newTaskDescription}
+                                            addingTask={addingTask}
+                                            onTitleChange={onNewTaskTitleChange}
+                                            onDescriptionChange={onNewTaskDescriptionChange}
+                                            onCancel={() => {
+                                                onTaskInsertTargetChange(null);
+                                                onNewTaskTitleChange('');
+                                                onNewTaskDescriptionChange('');
+                                            }}
+                                            onSubmit={onCreateTask}
+                                        />
+                                    )}
+                            </div>
+                        ))
+                    )}
+
+                    {taskInsertTarget?.stepId === step.id && tasks.length === 0 && (
+                        <NewTaskForm
+                            title={newTaskTitle}
+                            description={newTaskDescription}
+                            addingTask={addingTask}
+                            onTitleChange={onNewTaskTitleChange}
+                            onDescriptionChange={onNewTaskDescriptionChange}
+                            onCancel={() => {
+                                onTaskInsertTargetChange(null);
+                                onNewTaskTitleChange('');
+                                onNewTaskDescriptionChange('');
+                            }}
+                            onSubmit={onCreateTask}
+                        />
+                    )}
+                </div>
+            </section>
+
+            <section className="mt-6 space-y-3">
+                <h3 className="text-sm font-semibold text-app-text">
+                    Requests & feedback
+                </h3>
+
+                {skipReason && (
+                    <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                        step.status === 'SKIPPED'
+                            ? 'border-app-danger-border bg-app-danger-bg text-app-danger-text'
+                            : 'border-app-warning-border bg-app-warning-bg text-app-warning-text'
+                    }`}>
+                        {skipReason}
+                    </div>
+                )}
+
+                {feedbackItems.length > 0 ? (
+                    feedbackItems.map((feedback) => (
+                        <div
+                            key={feedback.id}
+                            className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text"
+                        >
+                            {feedback.message}
+                        </div>
+                    ))
+                ) : (
+                    !skipReason && (
+                        <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
+                            No skip request or feedback for this step.
+                        </p>
+                    )
+                )}
+            </section>
+        </SidePanel>
+    );
+}
+
+function TaskInsertButton({
+    label,
+    onClick,
+}: {
+    label: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
+            aria-label={label}
+            title="Add task here"
+        >
+            <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
+        </button>
+    );
+}
+
+function NewTaskForm({
+    title,
+    description,
+    addingTask,
+    onTitleChange,
+    onDescriptionChange,
+    onCancel,
+    onSubmit,
+}: {
+    title: string;
+    description: string;
+    addingTask: boolean;
+    onTitleChange: (value: string) => void;
+    onDescriptionChange: (value: string) => void;
+    onCancel: () => void;
+    onSubmit: () => void;
+}) {
+    return (
+        <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
+            <input
+                value={title}
+                onChange={(event) => onTitleChange(event.target.value)}
+                placeholder="Task title"
+                className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+            />
+            <input
+                value={description}
+                onChange={(event) => onDescriptionChange(event.target.value)}
+                placeholder="Optional description"
+                className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+            />
+            <div className="mt-3 flex justify-end gap-2">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={addingTask}
+                    className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    onClick={onSubmit}
+                    disabled={addingTask || title.trim().length === 0}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                    {addingTask ? 'Adding...' : 'Add task'}
+                </button>
+            </div>
+        </div>
+    );
+}

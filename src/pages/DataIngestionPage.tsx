@@ -464,18 +464,13 @@ export function DataIngestionPage() {
         );
     }, [selectedSourceSystem, sources]);
 
-    const isDetailsOpen = selectedSource !== null;
     const isLoading = loadingState === "loading";
     const shouldShowInitialLoading =
         isLoading && sources.every((source) => source.lastRunAt === null);
 
     return (
         <div className="min-h-screen bg-app-bg">
-            <div
-                className={`transition-[padding] duration-300 ease-out ${
-                    isDetailsOpen ? "xl:pr-[440px]" : ""
-                }`}
-            >
+            <div>
                 <DataIngestionHeader
                     isLoading={isLoading}
                     onRefresh={() => {
