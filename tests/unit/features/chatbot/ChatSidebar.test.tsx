@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ChatSidebar } from '../../../../src/features/chatbot/components/ChatSidebar';
+import type { Chat } from '../../../../src/features/chatbot/types';
 
 describe('ChatSidebar', () => {
-    const mockChats = [
+    const mockChats: Chat[] = [
         { id: 'chat1', userId: 'user1', createdAt: new Date().toISOString(), title: 'First chat' },
         { id: 'chat2', userId: 'user1', createdAt: new Date(Date.now() - 86400000).toISOString(), title: '' },
     ];
@@ -13,7 +14,7 @@ describe('ChatSidebar', () => {
     it('renders chat list', () => {
         render(
             <MemoryRouter>
-                <ChatSidebar chats={mockChats as any} setSidebarOpen={vi.fn()} />
+                <ChatSidebar chats={mockChats} setSidebarOpen={vi.fn()} />
             </MemoryRouter>,
         );
 
@@ -28,7 +29,7 @@ describe('ChatSidebar', () => {
         const setSidebarOpen = vi.fn();
         render(
             <MemoryRouter>
-                <ChatSidebar chats={mockChats as any} setSidebarOpen={setSidebarOpen} />
+                <ChatSidebar chats={mockChats} setSidebarOpen={setSidebarOpen} />
             </MemoryRouter>,
         );
 

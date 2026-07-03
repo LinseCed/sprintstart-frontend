@@ -61,7 +61,8 @@ describe('chatService', () => {
 
     describe('streamMessage', () => {
         it('receives tokens and done signal', async () => {
-            let capturedRequest: Request | null = null;
+            let capturedAuthHeader: string | null = null;
+            let capturedBody: unknown = null;
             const encoder = new TextEncoder();
             const stream = new ReadableStream({
                 start(controller) {
@@ -73,8 +74,9 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', ({ request }) => {
-                    capturedRequest = request;
+                http.post('/api/v1/chats/prompt', async ({ request }) => {
+                    capturedAuthHeader = request.headers.get('Authorization');
+                    capturedBody = await request.json();
                     return new HttpResponse(stream, {
                         headers: { 'Content-Type': 'text/event-stream' },
                     });
@@ -88,9 +90,8 @@ describe('chatService', () => {
             await streamMessage('chat1', 'hello', { onToken, onCitation: vi.fn(), onDone, onError });
 
             expect(mockKeycloakInstance.updateToken).toHaveBeenCalledWith(30);
-            expect(capturedRequest).not.toBeNull();
-            expect(capturedRequest?.headers.get('Authorization')).toBe('Bearer test-token');
-            await expect(capturedRequest?.json()).resolves.toEqual({
+            expect(capturedAuthHeader).toBe('Bearer test-token');
+            expect(capturedBody).toEqual({
                 chatId: 'chat1',
                 msg: 'hello',
             });

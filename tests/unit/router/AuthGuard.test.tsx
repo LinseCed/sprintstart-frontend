@@ -6,6 +6,7 @@ import { useAuth } from '../../../src/context/useAuth';
 import * as teamManagementService from '../../../src/services/teamManagementService';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../unit/setup/vitest.setup';
+import { PermissionGroup, type UserProfile } from '../../../src/services/types';
 
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: vi.fn(),
@@ -22,6 +23,20 @@ function LocationDisplay() {
     const location = useLocation();
     return <div data-testid="location">{location.pathname}</div>;
 }
+
+const mockProfile: UserProfile = {
+    id: 'user1',
+    authId: 'auth-1',
+    username: 'testuser',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    projectRoles: [],
+    permissionGroup: PermissionGroup.USER,
+    enabled: true,
+    profileIcon: null,
+    hasCompletedOnboarding: true,
+};
 
 describe('AuthGuard', () => {
     beforeEach(() => {
@@ -104,7 +119,7 @@ describe('AuthGuard', () => {
     it('redirects to / if authenticated and on /login', async () => {
         vi.mocked(useAuth).mockReturnValue({
             status: 'authenticated',
-            profile: { id: 'user1' } as any,
+            profile: mockProfile,
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
@@ -153,7 +168,7 @@ describe('AuthGuard', () => {
     it('renders children when authenticated and no skill assessment needed', async () => {
         vi.mocked(useAuth).mockReturnValue({
             status: 'authenticated',
-            profile: { id: 'user1' } as any,
+            profile: mockProfile,
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),
@@ -201,7 +216,7 @@ describe('AuthGuard', () => {
     it('redirects to /skill-wizard if skill assessment is needed', async () => {
         vi.mocked(useAuth).mockReturnValue({
             status: 'authenticated',
-            profile: { id: 'user1' } as any,
+            profile: mockProfile,
             login: vi.fn(),
             logout: vi.fn(),
             refetchProfile: vi.fn(),

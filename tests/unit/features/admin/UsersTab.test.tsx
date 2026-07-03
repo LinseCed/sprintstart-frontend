@@ -2,9 +2,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { UsersTab } from '../../../../src/features/admin/components/UsersTab';
+import type { AdminUser } from '../../../../src/services/adminUserService';
 
 describe('UsersTab', () => {
-    const mockUsers = [
+    const mockUsers: AdminUser[] = [
         {
             id: '1',
             username: 'user1',
@@ -34,7 +35,7 @@ describe('UsersTab', () => {
     ];
 
     const defaultProps = {
-        paginatedUsers: mockUsers as any,
+        paginatedUsers: mockUsers,
         selectedUserIds: new Set<string>(),
         allVisibleUsersSelected: false,
         openUserMenuId: null as string | null,

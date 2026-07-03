@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -8,7 +7,19 @@ import { server } from '../../unit/setup/vitest.setup';
 
 vi.mock('../../../src/services/userService', () => ({
     userService: {
-        getProfile: vi.fn().mockResolvedValue({ id: 'user1' } as any),
+        getProfile: vi.fn().mockResolvedValue({
+            id: 'user1',
+            authId: 'auth-1',
+            username: 'testuser',
+            email: 'test@example.com',
+            firstName: 'Test',
+            lastName: 'User',
+            projectRoles: [],
+            permissionGroup: 'USER',
+            enabled: true,
+            profileIcon: null,
+            hasCompletedOnboarding: true,
+        }),
     },
 }));
 

@@ -4,16 +4,22 @@ import { describe, it, expect, vi } from 'vitest';
 import { AccountForm } from '../../../../src/features/profile/components/AccountForm';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../setup/vitest.setup';
+import { PermissionGroup, type UserProfile } from '../../../../src/services/types';
 
 describe('AccountForm', () => {
-    const mockUser = {
+    const mockUser: UserProfile = {
         id: '123',
+        authId: 'auth-1',
         firstName: 'John',
         lastName: 'Doe',
         email: 'john@example.com',
         username: 'johndoe',
         projectRoles: [],
-    } as any;
+        permissionGroup: PermissionGroup.USER,
+        enabled: true,
+        profileIcon: null,
+        hasCompletedOnboarding: true,
+    };
 
     it('renders user information in inputs', () => {
         render(<AccountForm profile={mockUser} onUpdate={vi.fn()} />);

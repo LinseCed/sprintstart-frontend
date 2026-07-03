@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { userService } from '../../../src/services/userService';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../unit/setup/vitest.setup';
+import type { UserProfile } from '../../../src/services/types';
 
 describe('userService', () => {
     beforeEach(() => {
@@ -82,7 +83,7 @@ describe('userService', () => {
 
         const stored = JSON.parse(
             sessionStorage.getItem('sprintstart_mock_profile') || '{}',
-        );
+        ) as Partial<UserProfile>;
         expect(stored.firstName).toBe('NewName');
         expect(stored.profileIcon).toBe('icon1');
     });
@@ -97,7 +98,7 @@ describe('userService', () => {
 
         const stored = JSON.parse(
             sessionStorage.getItem('sprintstart_mock_profile') || '{}',
-        );
+        ) as Partial<UserProfile>;
         expect(stored.firstName).toBe('FallbackName');
     });
 });

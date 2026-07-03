@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { onboardingService } from '../../../src/services/onboardingService';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../unit/setup/vitest.setup';
+import type {
+    OnboardingStepDetail,
+    OnboardingTaskEndpoint,
+} from '../../../src/features/onboarding/types';
 
 describe('onboardingService', () => {
     beforeEach(() => {
@@ -86,7 +90,25 @@ describe('onboardingService', () => {
             }),
         );
 
-        const res = await onboardingService.skipStep({ id: 'step1' } as any, 'Too hard');
+        const step: OnboardingStepDetail = {
+            id: 'step1',
+            phaseId: 'phase1',
+            position: 1,
+            title: 'Step 1',
+            description: '',
+            type: 'TASK',
+            estimatedMinutes: 10,
+            expectedOutcomes: [],
+            tasks: [],
+            resources: [],
+            status: 'IN_PROGRESS',
+            startedAt: null,
+            completedAt: null,
+            feedback: null,
+            skip: null,
+        };
+
+        const res = await onboardingService.skipStep(step, 'Too hard');
         expect(res.id).toBe('skip1');
     });
 
@@ -99,7 +121,14 @@ describe('onboardingService', () => {
             }),
         );
 
-        const task = { id: 'task1', position: 1, title: 'T1', description: 'D1' } as any;
+        const task: OnboardingTaskEndpoint = {
+            id: 'task1',
+            stepId: 'step1',
+            position: 1,
+            title: 'T1',
+            description: 'D1',
+            finished: false,
+        };
         await onboardingService.updateTask(task, true);
 
         expect(capturedBody).toEqual({
