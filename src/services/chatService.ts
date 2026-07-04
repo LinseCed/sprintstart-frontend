@@ -37,14 +37,13 @@ export async function getMessages(chatId: string) {
  * Generic stream event returned by the backend when sending a prompt.
  */
 interface ChatEvent {
-    type: "token" | "citation" | "done" | "error";
+    type: "tool_use" | "token" | "citation" | "done" | "error";
+    name?: string;
     content?: string;
     message?: string;
-    artifact_id?: string;
+    chunk_id?: string;
     filename?: string;
-    source_url?: string;
-    start_line?: number;
-    start_page?: number;
+    section_path?: string;
 }
 
 /**
@@ -114,6 +113,12 @@ export async function streamMessage(
             ) as ChatEvent;
 
             switch (event.type) {
+                case "tool_use":
+                    if (event.name) {
+                        handlers.onToolUse(event.name);
+                    }
+                    break;
+
                 case "token":
                     if (event.content !== undefined) {
                         handlers.onToken(event.content);
@@ -121,13 +126,11 @@ export async function streamMessage(
                     break;
 
                 case "citation":
-                    if (event.artifact_id && event.filename) {
+                    if (event.chunk_id && event.filename) {
                         handlers.onCitation({
-                            artifactId: event.artifact_id,
+                            chunk_id: event.chunk_id,
                             filename: event.filename,
-                            sourceUrl: event.source_url,
-                            startLine: event.start_line,
-                            startPage: event.start_page
+                            section_path: event.section_path ?? ""
                         });
                     }
                     break;

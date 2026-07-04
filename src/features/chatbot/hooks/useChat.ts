@@ -12,11 +12,6 @@ import type { Chat, ChatMessage, Citation } from "../types";
 
 type MessagesByChat = Record<string, ChatMessage[]>;
 
-/**
- * Manages the state and business logic for the chat interface.
- * Handles fetching chat history, initiating new chats, and streaming responses
- * from the AI assistant via the backend.
- */
 export function useChat() {
     const { id: chatId } = useParams();
     const [userId, setUserId] = useState<string>("");
@@ -28,6 +23,8 @@ export function useChat() {
 
     const [isThinking, setIsThinking] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
+
+    const [thinkingState, setThinkingState] = useState<string | null>(null);
 
     const [showBrainrot, setShowBrainrot] = useState(false);
     const [timestamp, setTimestamp] = useState(0);
@@ -90,10 +87,6 @@ export function useChat() {
         });
     }, [chatId, messages]);
 
-    /**
-     * Refreshes the list of chats for the current user.
-     * Called after a stream finishes to ensure the new chat appears in the sidebar.
-     */
     const refreshChats = useCallback(async () => {
         const data = await getChats();
         setChats(data.chats.filter(chat => chat.userId === userId));
@@ -182,6 +175,10 @@ export function useChat() {
 
         try {
             await streamMessage(currentChatId, text, {
+
+                onToolUse: tool => {
+                    setThinkingState(tool);
+                },
 
                 // if the stream element is a normal text chunk, append it to the response message
                 onToken: token => {
@@ -285,6 +282,8 @@ export function useChat() {
 
         isThinking,
         isStreaming,
+
+        thinkingState,
 
         selectedCitation,
         setSelectedCitation,

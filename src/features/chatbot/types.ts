@@ -38,10 +38,7 @@ export type ChatMessage = {
 };
 
 export type Citation = {
-    /**
-     * Id of the artifact (file) the citation refers to.
-     */
-    artifactId: string,
+    chunk_id: string,
 
     /**
      * Name of the file the citation refers to.
@@ -49,19 +46,9 @@ export type Citation = {
     filename: string,
 
     /**
-     * Where the artifact came from (e.g. a GitHub URL), if known.
+     * The exact path to the file.
      */
-    sourceUrl?: string,
-
-    /**
-     * 1-based source line the citation starts on, for text/code sources.
-     */
-    startLine?: number,
-
-    /**
-     * 1-based page the citation was extracted from, for PDF sources.
-     */
-    startPage?: number
+    section_path: string
 };
 
 export type ChatSidebarProps = {
@@ -77,6 +64,12 @@ export type ChatSidebarProps = {
 };
 
 export type StreamHandlers = {
+
+    /**
+     * The function executed when the stream event describes a tool used for generating the answer.
+     */
+    onToolUse: (tool: string) => void;
+
     /**
      * The function executed when the stream event contains normal text.
      */
