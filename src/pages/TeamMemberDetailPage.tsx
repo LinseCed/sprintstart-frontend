@@ -36,6 +36,7 @@ import {
     deleteOnboardingStep,
     deleteOnboardingTask,
     getOnboardingTasksByStep,
+    updateOnboardingStep,
     type OnboardingFeedback,
     type UserSkillLevel,
 } from '../services/teamManagementService';
@@ -383,6 +384,82 @@ export function TeamMemberDetailPage() {
         }
     }
 
+    async function handleReorderSteps(
+        phaseId: string,
+        activeStepId: string,
+        overStepId: string,
+    ) {
+        if (activeStepId === overStepId) return;
+
+        const phase = onboardingPath?.phases.find((item) => item.id === phaseId);
+        const currentSteps = [...(phase?.steps ?? [])].sort(
+            (a, b) => a.position - b.position,
+        );
+        const activeIndex = currentSteps.findIndex((step) => step.id === activeStepId);
+        const overIndex = currentSteps.findIndex((step) => step.id === overStepId);
+
+        if (!phase || activeIndex < 0 || overIndex < 0) return;
+
+        const reorderedSteps = [...currentSteps];
+        const [movedStep] = reorderedSteps.splice(activeIndex, 1);
+        reorderedSteps.splice(overIndex, 0, movedStep);
+
+        const nextSteps = reorderedSteps.map((step, index) => ({
+            ...step,
+            position: index,
+        }));
+        const changedSteps = nextSteps.filter(
+            (step) =>
+                currentSteps.find((currentStep) => currentStep.id === step.id)
+                    ?.position !== step.position,
+        );
+
+        setStepActionId(activeStepId);
+        setOnboardingError('');
+        setOnboardingPath((currentPath) =>
+            currentPath
+                ? {
+                      ...currentPath,
+                      phases: currentPath.phases.map((currentPhase) =>
+                          currentPhase.id === phaseId
+                              ? {
+                                    ...currentPhase,
+                                    steps: nextSteps,
+                                }
+                              : currentPhase,
+                      ),
+                  }
+                : currentPath,
+        );
+
+        try {
+            for (const step of changedSteps) {
+                await updateOnboardingStep(step.id, {
+                    position: step.position,
+                    custom: step.custom,
+                    title: step.title,
+                    description: step.description,
+                    type: step.type,
+                    estimatedMinutes: step.estimatedMinutes,
+                    expectedOutcome: step.expectedOutcomes?.[0] ?? '',
+                    status: step.status,
+                    skip: step.skip ?? null,
+                });
+            }
+
+            await refreshOnboardingPath();
+        } catch (error) {
+            setOnboardingError(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to reorder onboarding steps.',
+            );
+            await refreshOnboardingPath();
+        } finally {
+            setStepActionId(null);
+        }
+    }
+
     async function refreshStepTasks(stepId: string) {
         const nextTasks = await getOnboardingTasksByStep(stepId);
 
@@ -489,6 +566,7 @@ export function TeamMemberDetailPage() {
             const createdStep = await createOnboardingStepForPhase(targetPhaseId, {
                 position:
                     stepInsertTarget?.position ?? selectedPhase.steps?.length ?? 0,
+                custom: true,
                 title: customStepTitle.trim(),
                 description: customStepDescription.trim(),
                 type: 'TASK',
@@ -752,6 +830,13 @@ export function TeamMemberDetailPage() {
                             setDetailStepId(stepId);
                         }}
                         onAddStep={setStepInsertTarget}
+                        onReorderSteps={(phaseId, activeStepId, overStepId) =>
+                            void handleReorderSteps(
+                                phaseId,
+                                activeStepId,
+                                overStepId,
+                            )
+                        }
                         formatMinutes={formatMinutes}
                         getActualMinutes={getActualMinutes}
                         getStepStatusStyles={getStepStatusStyles}

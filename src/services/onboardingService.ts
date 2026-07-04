@@ -124,6 +124,7 @@ export const onboardingService = {
             method: 'PUT',
             body: JSON.stringify({
                 position: step.position,
+                custom: step.custom,
                 title: step.title,
                 description: step.description,
                 type: step.type ?? 'TASK',

@@ -281,11 +281,17 @@ export async function getUserOnboardingPath(
 
 export type CreateOnboardingStepRequest = {
   position: number;
+  custom?: boolean;
   title: string;
   description: string;
   type: StepType;
   estimatedMinutes: number;
   expectedOutcome?: string;
+};
+
+export type UpdateOnboardingStepRequest = CreateOnboardingStepRequest & {
+  status?: string;
+  skip?: unknown;
 };
 
 export type CreateOnboardingTaskRequest = {
@@ -301,6 +307,16 @@ export async function createOnboardingStepForPhase(
 ): Promise<OnboardingStepEndpoint> {
   return await apiClient.fetch<OnboardingStepEndpoint>(`/api/v1/onboarding/phases/${phaseId}/steps`, {
     method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export async function updateOnboardingStep(
+  stepId: string,
+  request: UpdateOnboardingStepRequest,
+): Promise<OnboardingStepEndpoint> {
+  return await apiClient.fetch<OnboardingStepEndpoint>(`/api/v1/onboarding/steps/${stepId}`, {
+    method: "PUT",
     body: JSON.stringify(request),
   });
 }

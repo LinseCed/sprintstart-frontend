@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
 import { SidePanel } from '../../../../components/ui/SidePanel';
+import { StepOriginBadge } from '../../../onboarding/components/StepOriginBadge';
 import type {
     OnboardingStepEndpoint,
     OnboardingTaskEndpoint,
@@ -85,9 +86,12 @@ export function StepDetailsPanel({
             title={step.title}
             description={step.description}
             badge={
-                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStepStatusStyles(step.status)}`}>
-                    {step.status.replace('_', ' ')}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStepStatusStyles(step.status)}`}>
+                        {step.status.replace('_', ' ')}
+                    </span>
+                    <StepOriginBadge step={step} />
+                </div>
             }
             panelBackgroundClassName="bg-app-surface"
             headerDividerClassName=""
