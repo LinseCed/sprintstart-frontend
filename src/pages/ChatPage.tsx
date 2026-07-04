@@ -52,7 +52,7 @@ export function ChatPage() {
                 <div className="p-4 flex justify-between items-center">
                     <h2 className="font-bold">Chats</h2>
 
-                    <button onClick={() => setSidebarOpen(false)}>
+                    <button aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
                         <X size={24} />
                     </button>
                 </div>
@@ -61,6 +61,7 @@ export function ChatPage() {
             </aside>
 
             <button
+                aria-label="Toggle sidebar"
                 className="
                     fixed
                     top-4
@@ -271,6 +272,7 @@ export function ChatPage() {
                             </h3>
 
                             <button
+                                aria-label="Close citation"
                                 onClick={() => setSelectedCitation(null)}
                                 className="text-app-text-muted hover:text-app-text transition-colors"
                             >
@@ -308,6 +310,7 @@ export function ChatPage() {
 
                         <button
                             type="submit"
+                            aria-label="Send message"
                             disabled={isThinking || isStreaming || !newRequest.trim()}
                             className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
                         >

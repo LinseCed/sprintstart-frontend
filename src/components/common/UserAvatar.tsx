@@ -10,11 +10,15 @@ export function UserAvatar({ profileIcon, fallbackName, size = 40 }: UserAvatarP
     const name = profileIcon || fallbackName || 'User';
     
     return (
-        <Avatar
-            size={size}
-            name={name}
-            variant="beam"
-            colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
-        />
+        <span role="img" aria-label={`Avatar for ${name}`} className="inline-block flex-shrink-0">
+            <span aria-hidden="true" className="inline-flex items-center justify-center">
+                <Avatar
+                    size={size}
+                    name={name}
+                    variant="beam"
+                    colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
+                />
+            </span>
+        </span>
     );
 }

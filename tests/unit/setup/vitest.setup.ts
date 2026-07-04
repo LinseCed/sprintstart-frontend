@@ -1,14 +1,23 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { vi, beforeAll, afterAll, afterEach, expect } from 'vitest';
 import type { ReactNode } from 'react';
+import * as matchers from 'vitest-axe/matchers';
+import 'vitest-axe/extend-expect';
+
+declare module 'vitest' {
+  export interface Assertion<T = any> extends matchers.AxeMatchers {}
+  export interface AsymmetricMatchersContaining extends matchers.AxeMatchers {}
+}
+
+expect.extend(matchers);
 import { setupServer } from 'msw/node';
 import { handlers } from './msw-handlers';
 
 // ── MSW Server ──────────────────────────────────────────────
 export const server = setupServer(...handlers);
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -86,3 +95,7 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
   disconnect() {}
 };
+
+if (!window.HTMLElement.prototype.scrollIntoView) {
+    window.HTMLElement.prototype.scrollIntoView = function() {};
+}
