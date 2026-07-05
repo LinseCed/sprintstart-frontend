@@ -493,8 +493,10 @@ export function OnBoardingItemPage() {
                 </span>
               </button>
 
-              {/* Once this step is done, jump straight to the next pending step. */}
-              {stepDetail.status === "FINISHED" && (
+              {/* Once this step is behind the user (finished or skipped),
+                  jump straight to the next pending step. */}
+              {(stepDetail.status === "FINISHED" ||
+                stepDetail.status === "SKIPPED") && (
                 <button
                   onClick={() => void goToNextStep()}
                   disabled={nextLoading}
