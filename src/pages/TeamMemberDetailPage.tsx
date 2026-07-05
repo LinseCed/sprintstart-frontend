@@ -436,7 +436,6 @@ export function TeamMemberDetailPage() {
             for (const step of changedSteps) {
                 await updateOnboardingStep(step.id, {
                     position: step.position,
-                    isAiAssisted: step.isAiAssisted,
                     title: step.title,
                     description: step.description,
                     type: step.type,
