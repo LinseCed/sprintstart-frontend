@@ -4,13 +4,12 @@
 // zur Detailpage /insights/faq/:groupId
 // ============================================================
 
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { FAQOverview, FAQGroup } from "../types";
+import type { FAQGroup } from "../types";
 import { insightsService } from "../../../services/faqService";
+import { useFetch } from "../../../hooks/useFetch";
 
 import {
-  //Messages,
   TrendingUp,
   FileText,
   ArrowRight,
@@ -23,24 +22,12 @@ import {
 // ─────────────────────────────────────────────────────────────
 
 export function FaqWidget() {
-  const [overview, setOverview] = useState<FAQOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await insightsService.fetchFAQGroups();
-        setOverview(data);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void load();
-  }, []);
+  const {
+    data: overview,
+    loading,
+    error,
+  } = useFetch(() => insightsService.fetchFAQGroups(), []);
 
   // ── LOADING ──────────────────────────────────────────────
 
@@ -106,7 +93,7 @@ export function FaqWidget() {
           {hero.count}
         </span>
 
-        <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-1 rounded-full mb-3">
+        <div className="inline-flex items-center gap-1.5 bg-app-success-bg text-app-success-text text-xs font-medium px-2.5 py-1 rounded-full mb-3">
           <TrendingUp className="w-3 h-3" />
           Most asked
         </div>
