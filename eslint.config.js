@@ -17,6 +17,7 @@ export default defineConfig(
       "src/keycloak-theme/**",
       "public/keycloak-theme/**",
       "public/keycloakify-dev-resources/**",
+      "storybook-static/**",
     ]),
 
     {

@@ -11,10 +11,10 @@ import { SidePanel } from '../../../components/ui/SidePanel';
 interface ArtifactViewerDrawerProps {
     artifact: Artifact | null;
     onClose: () => void;
-    projectId?: string;
+    projectId: string;
 }
 
-export function ArtifactViewerDrawer({ artifact, onClose, projectId = 'default' }: ArtifactViewerDrawerProps) {
+export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactViewerDrawerProps) {
     const [viewMode, setViewMode] = useState<'raw' | 'summary'>('raw');
     const [content, setContent] = useState<ArtifactContent | null>(null);
     const [summary, setSummary] = useState('');
@@ -131,9 +131,20 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId = 'default' 
                             <div className="h-4 bg-app-border rounded w-2/3"></div>
                         </div>
                     ) : (
-                        <pre className="font-mono text-sm text-app-text bg-app-background p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
-                            {content?.content}
-                        </pre>
+                        content && content.mimeType.startsWith('text/markdown') ? (
+                            <div data-testid="raw-content" className="prose prose-sm dark:prose-invert max-w-none">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
+                                >
+                                    {content.content}
+                                </ReactMarkdown>
+                            </div>
+                        ) : (
+                            <pre data-testid="raw-content" className="font-mono text-sm text-app-text bg-app-background p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
+                                {content?.content}
+                            </pre>
+                        )
                     )}
                 </div>
             ) : (

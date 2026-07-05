@@ -1,13 +1,11 @@
 import { Search } from 'lucide-react';
-import type { Freshness, ArtifactType } from '../types';
+import type { ArtifactType } from '../types';
 
 export interface ArtifactFiltersProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
-    selectedType: ArtifactType;
-    onTypeChange: (type: ArtifactType) => void;
-    selectedFreshness: Freshness;
-    onFreshnessChange: (freshness: Freshness) => void;
+    selectedType: ArtifactType | 'all';
+    onTypeChange: (type: ArtifactType | 'all') => void;
 }
 
 export function ArtifactFilters({
@@ -15,8 +13,6 @@ export function ArtifactFilters({
     onSearchChange,
     selectedType,
     onTypeChange,
-    selectedFreshness,
-    onFreshnessChange
 }: ArtifactFiltersProps) {
     return (
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -33,24 +29,14 @@ export function ArtifactFilters({
             <div className="flex gap-2">
                 <select
                     value={selectedType}
-                    onChange={(e) => onTypeChange(e.target.value as ArtifactType)}
+                    onChange={(e) => onTypeChange(e.target.value as ArtifactType | 'all')}
                     className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-brand/20"
                 >
                     <option value="all">All Types</option>
-                    <option value="Documentation">Documentation</option>
-                    <option value="ADR">ADR</option>
-                    <option value="Runbook">Runbook</option>
-                    <option value="Guide">Guide</option>
-                </select>
-                <select
-                    value={selectedFreshness}
-                    onChange={(e) => onFreshnessChange(e.target.value as Freshness)}
-                    className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-brand/20"
-                >
-                    <option value="all">Any Freshness</option>
-                    <option value="current">Current</option>
-                    <option value="stale">Stale</option>
-                    <option value="outdated">Outdated</option>
+                    <option value="COMMIT">Commit</option>
+                    <option value="FILE">File</option>
+                    <option value="ISSUE">Issue</option>
+                    <option value="PULL_REQUEST">Pull Request</option>
                 </select>
             </div>
         </div>

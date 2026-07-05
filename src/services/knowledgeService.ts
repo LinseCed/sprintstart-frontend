@@ -1,36 +1,28 @@
-import { apiClient } from './apiClient';
+import { apiClient, ApiError } from './apiClient';
 import { userService } from './userService';
 import keycloak from '../config/keycloak';
 import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../features/knowledge-base/types';
-import { mockKnowledgeItems } from '../mocks/knowledgeBaseMocks';
-
-// Toggle to false to use the real API contract once the backend is ready
-const USE_MOCKS = false; // import.meta.env.VITE_USE_MOCK_API !== 'false';
 
 /**
  * Service responsible for managing the knowledge base unified artifacts.
  */
 export const knowledgeService = {
     /**
-     * Fetches all unified artifacts for a specific project.
+     * Fetches all unified artifacts for a specific project, merged with the
+     * authenticated user's personal uploads (mapped into the same Artifact shape).
+     *
+     * @param projectId UUID of the project to scope the artifact listing.
+     * @returns Merged list of project-scoped artifacts and the user's uploads.
      */
     async getUnifiedArtifacts(projectId: string): Promise<Artifact[]> {
-        if (USE_MOCKS) {
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            return [...mockKnowledgeItems];
-        }
-        
         let artifacts: Artifact[] = [];
-        
-        // 1. Try to fetch unified project artifacts (may not exist in backend yet)
+
         try {
             artifacts = await apiClient.fetch<Artifact[]>(`/api/v1/projects/${projectId}/artifacts`);
         } catch (e) {
             console.warn("Unified artifacts endpoint failed (expected if missing), continuing...", e);
         }
 
-        // 2. Fetch the personal uploads and map them into the Artifact format
         try {
             const profile = await userService.getProfile();
             if (profile) {
@@ -41,19 +33,23 @@ export const knowledgeService = {
                     uploadedAt: string;
                 }
                 const uploads = await apiClient.fetch<UploadListItemResponse[]>(`/api/v1/uploads?uploaderId=${profile.id}`);
-                
+
                 const uploadArtifacts: Artifact[] = uploads.map(u => ({
                     id: u.id,
                     title: u.filename,
-                    type: 'Documentation',
-                    owner: `${profile.firstName} ${profile.lastName}`.trim() || profile.username,
-                    lastUpdated: new Date(u.uploadedAt).toISOString(),
-                    freshness: 'current',
-                    canonical: false,
-                    tags: ['Uploaded', u.mime.split('/')[1] || 'file'],
-                    excerpt: 'User uploaded artifact.',
+                    artifactType: 'FILE',
+                    sourceSystem: 'UPLOAD',
+                    sourceId: u.id,
+                    sourceUrl: null,
+                    mime: u.mime,
+                    language: null,
+                    ingestedAt: u.uploadedAt,
+                    createdAtSource: null,
+                    updatedAtSource: u.uploadedAt,
+                    contentHash: null,
+                    ingestionRunId: null,
                 }));
-                
+
                 artifacts = [...artifacts, ...uploadArtifacts];
             }
         } catch (e) {
@@ -65,44 +61,53 @@ export const knowledgeService = {
 
     /**
      * Fetches the raw content of a specific artifact.
+     *
+     * Bypasses `apiClient.fetch` (which JSON-parses) because the backend returns
+     * raw bytes with a `Content-Type` header, not a JSON envelope.
+     *
+     * @param projectId UUID of the project that scopes the artifact.
+     * @param artifactId UUID of the artifact whose content should be retrieved.
+     * @returns The raw content text and its effective mime type.
      */
     async getArtifactContent(projectId: string, artifactId: string): Promise<ArtifactContent> {
-        if (USE_MOCKS) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-            const item = mockKnowledgeItems.find(i => i.id === artifactId);
-            if (!item) throw new Error("Artifact not found");
-            return {
-                content: `# ${item.title}\n\nThis is mocked raw content for the file.\n\n\`\`\`typescript\n// Example source code or file content\nexport function example() {\n  console.log("Hello from ${item.title}");\n}\n\`\`\`\n\n**Excerpt:** ${item.excerpt}\n\n*Last updated: ${item.lastUpdated}*`,
-                mimeType: 'text/markdown'
-            };
+        try {
+            if (keycloak.authenticated) {
+                await keycloak.updateToken(30);
+            }
+        } catch (error) {
+            console.error('Failed to refresh Keycloak token for artifact content', error);
+            void keycloak.login();
+            throw new Error('Authentication required');
         }
-        return await apiClient.fetch<ArtifactContent>(`/api/v1/projects/${projectId}/artifacts/${artifactId}/content`);
+
+        const response = await fetch(`/api/v1/projects/${projectId}/artifacts/${artifactId}/content`, {
+            headers: keycloak.token ? { 'Authorization': `Bearer ${keycloak.token}` } : {},
+        });
+
+        if (response.status === 401) {
+            void keycloak.login();
+            throw new ApiError(401, 'Unauthorized');
+        }
+
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'Unknown error');
+            throw new ApiError(response.status, errorBody || response.statusText);
+        }
+
+        const content = await response.text();
+        const mimeType = response.headers.get('Content-Type') ?? 'text/plain';
+
+        return { content, mimeType };
     },
 
     /**
-     * Streams an AI summary of a specific artifact.
+     * Streams an AI summary of a specific artifact via Server-Sent Events.
+     *
+     * @param projectId UUID of the project that scopes the artifact.
+     * @param artifactId UUID of the artifact to summarize.
+     * @param handlers Callbacks for receiving streamed tokens, completion, and errors.
      */
     async summarizeArtifact(projectId: string, artifactId: string, handlers: SummaryStreamHandlers): Promise<void> {
-        if (USE_MOCKS) {
-            const item = mockKnowledgeItems.find(i => i.id === artifactId);
-            const summaryText = item?.aiSummary || "Mock summary generated by local LLM.";
-            
-            let i = 0;
-            const words = summaryText.split(' ');
-            
-            const timer = setInterval(() => {
-                if (i < words.length) {
-                    handlers.onToken(words[i] + ' ');
-                    i++;
-                } else {
-                    clearInterval(timer);
-                    handlers.onToken('\n\n*[Source Citation](#)*');
-                    handlers.onDone();
-                }
-            }, 50); // 50ms per word simulates streaming
-            return;
-        }
-
         try {
             if (keycloak.authenticated) {
                 await keycloak.updateToken(30);
@@ -147,7 +152,7 @@ export const knowledgeService = {
 
                 try {
                     const data = JSON.parse(line.slice(6)) as { type: string, content?: string, message?: string };
-                    
+
                     if (data.type === 'token' && data.content) {
                         handlers.onToken(data.content);
                     } else if (data.type === 'done') {
@@ -162,38 +167,18 @@ export const knowledgeService = {
                 }
             }
         }
-        
-        // Fallback natural end
+
         handlers.onDone();
     },
 
     async uploadDocuments(_projectId: string, files: File[]): Promise<{ filename: string; status: 'success' | 'error'; error?: string }[]> {
-        if (USE_MOCKS) {
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
-            // Mock random success/failure per file
-            return files.map(file => {
-                // 90% success rate for mock
-                const isSuccess = Math.random() > 0.1;
-                return {
-                    filename: file.name,
-                    status: isSuccess ? 'success' : 'error',
-                    error: isSuccess ? undefined : 'Simulated parsing error during ingestion.'
-                };
-            });
-        }
-        
-        // Real API upload logic matching the dev branch backend
         const results: { filename: string; status: 'success' | 'error'; error?: string }[] = [];
-        
-        // Get the internal backend user profile (this also JIT provisions the user in the backend if missing)
+
         const profile = await userService.getProfile();
         if (!profile) {
             throw new Error("Could not retrieve backend user profile for upload.");
         }
-        
-        // The backend UploadController expects the internal user UUID, not the Keycloak subject string
+
         const uploaderId = profile.id;
 
         for (const file of files) {
@@ -211,9 +196,8 @@ export const knowledgeService = {
                     method: 'POST',
                     body: formData,
                 });
-                
-                // Map the dev branch response format back to our result array format
-                const mappedResults = uploadResults.map(res => ({
+
+                const mappedResults = uploadResults.map((res): { filename: string; status: 'success' | 'error'; error?: string } => ({
                     filename: String(res.filename),
                     status: res.status === 'failed' ? 'error' : 'success',
                     error: res.error ? String(res.error) : undefined

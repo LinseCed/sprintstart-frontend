@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, FileCode, FileImage, LayoutTemplate, ChevronRight } from 'lucide-react';
-import type { Artifact, ArtifactType, Freshness } from '../types';
+import { FileText, FileCode, CircleDot, GitPullRequest, ChevronRight } from 'lucide-react';
+import type { Artifact, ArtifactType } from '../types';
 
 interface ArtifactListProps {
     artifacts: Artifact[];
@@ -9,20 +9,19 @@ interface ArtifactListProps {
 
 const getIcon = (type: ArtifactType) => {
     switch (type) {
-        case 'Documentation': return <FileText className="w-5 h-5 text-blue-500" />;
-        case 'ADR': return <LayoutTemplate className="w-5 h-5 text-purple-500" />;
-        case 'Runbook': return <FileCode className="w-5 h-5 text-orange-500" />;
-        case 'Guide': return <FileImage className="w-5 h-5 text-green-500" />;
-        default: return <FileText className="w-5 h-5 text-gray-500" />;
+        case 'COMMIT': return <FileText className="w-5 h-5 text-app-text-muted" />;
+        case 'FILE': return <FileCode className="w-5 h-5 text-app-brand" />;
+        case 'ISSUE': return <CircleDot className="w-5 h-5 text-app-warning-500" />;
+        case 'PULL_REQUEST': return <GitPullRequest className="w-5 h-5 text-app-success-500" />;
+        default: return <FileText className="w-5 h-5 text-app-text-muted" />;
     }
 };
 
-const getFreshnessColor = (freshness: Freshness) => {
-    switch (freshness) {
-        case 'current': return 'text-app-success-500 bg-app-success-500/10 border-app-success-500/20';
-        case 'stale': return 'text-app-warning-500 bg-app-warning-500/10 border-app-warning-500/20';
-        case 'outdated': return 'text-app-danger-500 bg-app-danger-500/10 border-app-danger-500/20';
-        default: return 'text-gray-500 bg-gray-100 border-gray-200';
+const formatDate = (iso: string): string => {
+    try {
+        return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+        return iso;
     }
 };
 
@@ -49,7 +48,7 @@ export function ArtifactList({ artifacts, onSelect }: ArtifactListProps) {
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
                         role="button"
                         tabIndex={0}
-                        aria-label={`View ${artifact.title}`}
+                        aria-label={`View ${artifact.title ?? 'artifact'}`}
                         data-testid="artifact-card"
                         onClick={() => onSelect(artifact.id)}
                         onKeyDown={(e) => {
@@ -61,27 +60,20 @@ export function ArtifactList({ artifacts, onSelect }: ArtifactListProps) {
                         className="p-4 bg-app-surface border border-app-border rounded-xl hover:border-app-brand/50 hover:shadow-md transition-all flex items-start gap-4 cursor-pointer group"
                     >
                         <div className="p-2 bg-app-background rounded-lg shrink-0 border border-app-border">
-                            {getIcon(artifact.type)}
+                            {getIcon(artifact.artifactType)}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-app-text truncate">{artifact.title}</h3>
+                                <h3 className="font-semibold text-app-text truncate">{artifact.title ?? 'Untitled'}</h3>
                                 <span className="px-2 py-0.5 text-[10px] uppercase font-bold rounded-md bg-app-background border border-app-border text-app-text-muted">
-                                    {artifact.type}
+                                    {artifact.artifactType}
                                 </span>
-                                <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-md border ${getFreshnessColor(artifact.freshness)}`}>
-                                    {artifact.freshness}
+                                <span className="px-2 py-0.5 text-[10px] uppercase font-bold rounded-md bg-app-background border border-app-border text-app-text-muted">
+                                    {artifact.sourceSystem}
                                 </span>
                             </div>
-                            <p className="text-sm text-app-text-muted line-clamp-2 mb-2">{artifact.excerpt}</p>
                             <div className="flex items-center gap-4 text-xs font-medium text-app-text-muted">
-                                <span className="flex items-center gap-1">
-                                    <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center text-[8px] text-blue-700">
-                                        {artifact.owner[0]}
-                                    </div>
-                                    {artifact.owner}
-                                </span>
-                                <span>Updated: {artifact.lastUpdated}</span>
+                                <span>Ingested: {formatDate(artifact.ingestedAt)}</span>
                             </div>
                         </div>
                         <div className="shrink-0 pt-2">

@@ -3,36 +3,41 @@ import { motion } from 'framer-motion';
 import { BookOpen, Plus } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
 import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
-import type { Artifact, ArtifactType, Freshness } from '../features/knowledge-base/types';
+import type { Artifact, ArtifactType } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
 
 /**
  * Unified Knowledge Base view for project resources.
- * Displays all artifacts (uploads, github, etc.) in a filtered grid, 
+ * Displays all artifacts (uploads, github, etc.) in a filtered grid,
  * with a side drawer for viewing raw content and AI summaries.
  */
 export function KnowledgeBasePage() {
-    // Hardcoded project ID per plan
-    const projectId = "default";
-    
+    const envProjectId = import.meta.env.VITE_KB_PROJECT_ID
+        ? String(import.meta.env.VITE_KB_PROJECT_ID)
+        : null;
+    const [projectId] = useState<string | null>(envProjectId);
+    const [resolved, setResolved] = useState(envProjectId !== null);
+
     const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    
+    const [isLoading, setIsLoading] = useState(envProjectId !== null);
+
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedType, setSelectedType] = useState<ArtifactType>('all');
-    const [selectedFreshness, setSelectedFreshness] = useState<Freshness>('all');
-    
+    const [selectedType, setSelectedType] = useState<ArtifactType | 'all'>('all');
+
     // Viewer State
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
 
     // Upload State
     const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
 
-    // Initial Load
+    // Load artifacts once projectId is resolved
     useEffect(() => {
+        if (!projectId) return;
+
         let isMounted = true;
         // eslint-disable-next-line react-hooks/set-state-in-effect
+        setResolved(true);
         setIsLoading(true);
 
         knowledgeService.getUnifiedArtifacts(projectId)
@@ -54,30 +59,26 @@ export function KnowledgeBasePage() {
     // Derived Filtered List
     const filteredArtifacts = useMemo(() => {
         return artifacts.filter(artifact => {
-            // Search Match
-            const matchesSearch = !searchQuery || 
-                artifact.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                artifact.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                artifact.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+            const searchableText = [
+                artifact.title ?? '',
+                artifact.sourceId,
+                artifact.sourceUrl ?? '',
+            ].join(' ').toLowerCase();
 
-            // Type Match
-            const matchesType = selectedType === 'all' || artifact.type === selectedType;
+            const matchesSearch = !searchQuery || searchableText.includes(searchQuery.toLowerCase());
+            const matchesType = selectedType === 'all' || artifact.artifactType === selectedType;
 
-            // Freshness Match
-            const matchesFreshness = selectedFreshness === 'all' || artifact.freshness === selectedFreshness;
-
-            return matchesSearch && matchesType && matchesFreshness;
+            return matchesSearch && matchesType;
         });
-    }, [artifacts, searchQuery, selectedType, selectedFreshness]);
+    }, [artifacts, searchQuery, selectedType]);
 
-    const selectedArtifact = useMemo(() => 
+    const selectedArtifact = useMemo(() =>
         artifacts.find(a => a.id === selectedArtifactId) || null,
     [artifacts, selectedArtifactId]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setSelectedType('all');
-        setSelectedFreshness('all');
     };
 
     return (
@@ -98,76 +99,90 @@ export function KnowledgeBasePage() {
 
             <main className="flex-1 flex flex-col app-page-frame py-6 sm:space-y-10 lg:py-8 overflow-y-auto">
                 <div className="max-w-7xl mx-auto w-full">
-                    {/* Filters */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1, type: 'spring', damping: 25, stiffness: 200 }}
-                    >
-                        <ArtifactFilters 
-                            searchQuery={searchQuery}
-                            onSearchChange={setSearchQuery}
-                            selectedType={selectedType}
-                            onTypeChange={setSelectedType}
-                            selectedFreshness={selectedFreshness}
-                            onFreshnessChange={setSelectedFreshness}
-                        />
-                    </motion.div>
-
-                    {/* Results Count & Clear */}
-                    <div className="flex items-center justify-between mt-8 mb-4">
-                        <p className="text-sm font-medium text-app-text-muted">
-                            {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
-                        </p>
-                        {(searchQuery || selectedType !== 'all' || selectedFreshness !== 'all') && (
-                            <button 
-                                onClick={handleClearFilters}
-                                className="text-sm font-medium text-app-brand hover:underline"
-                            >
-                                Clear filters
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Main List */}
-                    {isLoading ? (
-                        <div className="flex justify-center p-12">
-                            <div className="w-8 h-8 border-4 border-app-brand border-t-transparent rounded-full animate-spin"></div>
+                    {resolved && !projectId && !isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-app-text-muted">
+                            <BookOpen className="w-12 h-12 mb-4 opacity-50" />
+                            <p className="font-medium">No project available</p>
+                            <p className="text-sm mt-1">Set VITE_KB_PROJECT_ID in your .env to a valid project UUID.</p>
                         </div>
                     ) : (
-                        <ArtifactList 
-                            artifacts={filteredArtifacts} 
-                            onSelect={setSelectedArtifactId} 
-                        />
+                        <>
+                            {/* Filters */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1, type: 'spring', damping: 25, stiffness: 200 }}
+                            >
+                                <ArtifactFilters
+                                    searchQuery={searchQuery}
+                                    onSearchChange={setSearchQuery}
+                                    selectedType={selectedType}
+                                    onTypeChange={setSelectedType}
+                                />
+                            </motion.div>
+
+                            {/* Results Count & Clear */}
+                            <div className="flex items-center justify-between mt-8 mb-4">
+                                <p className="text-sm font-medium text-app-text-muted">
+                                    {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
+                                </p>
+                                {(searchQuery || selectedType !== 'all') && (
+                                    <button
+                                        onClick={handleClearFilters}
+                                        className="text-sm font-medium text-app-brand hover:underline"
+                                    >
+                                        Clear filters
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Main List */}
+                            {isLoading ? (
+                                <div className="flex justify-center p-12">
+                                    <div className="w-8 h-8 border-4 border-app-brand border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            ) : (
+                                <ArtifactList
+                                    artifacts={filteredArtifacts}
+                                    onSelect={setSelectedArtifactId}
+                                />
+                            )}
+                        </>
                     )}
                 </div>
 
                 {/* Upload Action Button */}
-                <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsUploadScreenOpen(true)}
-                    className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-brand text-white shadow-lg shadow-app-brand/25 transition-colors hover:bg-app-brand-hover focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
-                    aria-label="Upload new artifact"
-                >
-                    <Plus className="h-6 w-6" />
-                </motion.button>
+                {projectId && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setIsUploadScreenOpen(true)}
+                        className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-brand text-white shadow-lg shadow-app-brand/25 transition-colors hover:bg-app-brand-hover focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
+                        aria-label="Upload new artifact"
+                    >
+                        <Plus className="h-6 w-6" />
+                    </motion.button>
+                )}
 
                 {/* Upload Modal */}
-                <UploadArtifactModal
-                    isOpen={isUploadScreenOpen}
-                    onClose={() => setIsUploadScreenOpen(false)}
-                    projectId={projectId}
-                />
+                {projectId && (
+                    <UploadArtifactModal
+                        isOpen={isUploadScreenOpen}
+                        onClose={() => setIsUploadScreenOpen(false)}
+                        projectId={projectId}
+                    />
+                )}
 
                 {/* Viewer Drawer */}
-                <ArtifactViewerDrawer 
-                    artifact={selectedArtifact} 
-                    onClose={() => setSelectedArtifactId(null)}
-                    projectId={projectId}
-                />
+                {projectId && (
+                    <ArtifactViewerDrawer
+                        artifact={selectedArtifact}
+                        onClose={() => setSelectedArtifactId(null)}
+                        projectId={projectId}
+                    />
+                )}
             </main>
         </div>
     );
