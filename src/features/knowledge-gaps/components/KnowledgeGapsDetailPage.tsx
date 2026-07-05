@@ -1,5 +1,5 @@
 // ============================================================
-// KnowledgeGapDetailPage.tsx
+// KnowledgeGapsDetailPage.tsx
 // Route: /insights/knowledge-gaps/:gapId
 // ============================================================
 
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
-// COMPONENT: KnowledgeGapDetailPage
+// COMPONENT: KnowledgeGapsDetailPage
 // ─────────────────────────────────────────────────────────────
 
 export function KnowledgeGapsDetailPage() {
