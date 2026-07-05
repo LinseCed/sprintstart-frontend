@@ -1,10 +1,11 @@
 import { apiClient } from './apiClient';
+import { userService } from './userService';
 import keycloak from '../config/keycloak';
 import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../features/knowledge-base/types';
 import { mockKnowledgeItems } from '../mocks/knowledgeBaseMocks';
 
 // Toggle to false to use the real API contract once the backend is ready
-const USE_MOCKS = import.meta.env.VITE_USE_MOCK_API !== 'false';
+const USE_MOCKS = false; // import.meta.env.VITE_USE_MOCK_API !== 'false';
 
 /**
  * Service responsible for managing the knowledge base unified artifacts.
@@ -19,7 +20,47 @@ export const knowledgeService = {
             await new Promise(resolve => setTimeout(resolve, 300));
             return [...mockKnowledgeItems];
         }
-        return await apiClient.fetch<Artifact[]>(`/api/v1/projects/${projectId}/artifacts`);
+        
+        let artifacts: Artifact[] = [];
+        
+        // 1. Try to fetch unified project artifacts (may not exist in backend yet)
+        try {
+            artifacts = await apiClient.fetch<Artifact[]>(`/api/v1/projects/${projectId}/artifacts`);
+        } catch (e) {
+            console.warn("Unified artifacts endpoint failed (expected if missing), continuing...", e);
+        }
+
+        // 2. Fetch the personal uploads and map them into the Artifact format
+        try {
+            const profile = await userService.getProfile();
+            if (profile) {
+                interface UploadListItemResponse {
+                    id: string;
+                    filename: string;
+                    mime: string;
+                    uploadedAt: string;
+                }
+                const uploads = await apiClient.fetch<UploadListItemResponse[]>(`/api/v1/uploads?uploaderId=${profile.id}`);
+                
+                const uploadArtifacts: Artifact[] = uploads.map(u => ({
+                    id: u.id,
+                    title: u.filename,
+                    type: 'Documentation',
+                    owner: `${profile.firstName} ${profile.lastName}`.trim() || profile.username,
+                    lastUpdated: new Date(u.uploadedAt).toISOString(),
+                    freshness: 'current',
+                    canonical: false,
+                    tags: ['Uploaded', u.mime.split('/')[1] || 'file'],
+                    excerpt: 'User uploaded artifact.',
+                }));
+                
+                artifacts = [...artifacts, ...uploadArtifacts];
+            }
+        } catch (e) {
+            console.warn("Failed to fetch personal uploads", e);
+        }
+
+        return artifacts;
     },
 
     /**
@@ -124,5 +165,70 @@ export const knowledgeService = {
         
         // Fallback natural end
         handlers.onDone();
+    },
+
+    async uploadDocuments(_projectId: string, files: File[]): Promise<{ filename: string; status: 'success' | 'error'; error?: string }[]> {
+        if (USE_MOCKS) {
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Mock random success/failure per file
+            return files.map(file => {
+                // 90% success rate for mock
+                const isSuccess = Math.random() > 0.1;
+                return {
+                    filename: file.name,
+                    status: isSuccess ? 'success' : 'error',
+                    error: isSuccess ? undefined : 'Simulated parsing error during ingestion.'
+                };
+            });
+        }
+        
+        // Real API upload logic matching the dev branch backend
+        const results: { filename: string; status: 'success' | 'error'; error?: string }[] = [];
+        
+        // Get the internal backend user profile (this also JIT provisions the user in the backend if missing)
+        const profile = await userService.getProfile();
+        if (!profile) {
+            throw new Error("Could not retrieve backend user profile for upload.");
+        }
+        
+        // The backend UploadController expects the internal user UUID, not the Keycloak subject string
+        const uploaderId = profile.id;
+
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('files', file);
+
+            try {
+                interface UploadResponseItem {
+                    filename: string;
+                    status: string;
+                    error?: string;
+                }
+
+                const uploadResults = await apiClient.fetch<UploadResponseItem[]>(`/api/v1/uploads?uploaderId=${uploaderId}`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                // Map the dev branch response format back to our result array format
+                const mappedResults = uploadResults.map(res => ({
+                    filename: String(res.filename),
+                    status: res.status === 'failed' ? 'error' : 'success',
+                    error: res.error ? String(res.error) : undefined
+                }));
+                results.push(...mappedResults);
+            } catch (error) {
+                console.error(`Failed to upload file ${file.name}:`, error);
+                results.push({
+                    filename: file.name,
+                    status: 'error',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        }
+
+        return results;
     }
 };

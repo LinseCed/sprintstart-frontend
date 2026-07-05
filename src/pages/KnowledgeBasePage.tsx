@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Plus } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
-import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer } from '../features/knowledge-base/components';
+import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
 import type { Artifact, ArtifactType, Freshness } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
 
@@ -25,6 +25,9 @@ export function KnowledgeBasePage() {
     
     // Viewer State
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
+
+    // Upload State
+    const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
 
     // Initial Load
     useEffect(() => {
@@ -138,6 +141,26 @@ export function KnowledgeBasePage() {
                         />
                     )}
                 </div>
+
+                {/* Upload Action Button */}
+                <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsUploadScreenOpen(true)}
+                    className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-brand text-white shadow-lg shadow-app-brand/25 transition-colors hover:bg-app-brand-hover focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
+                    aria-label="Upload new artifact"
+                >
+                    <Plus className="h-6 w-6" />
+                </motion.button>
+
+                {/* Upload Modal */}
+                <UploadArtifactModal
+                    isOpen={isUploadScreenOpen}
+                    onClose={() => setIsUploadScreenOpen(false)}
+                    projectId={projectId}
+                />
 
                 {/* Viewer Drawer */}
                 <ArtifactViewerDrawer 
