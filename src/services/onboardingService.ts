@@ -124,7 +124,7 @@ export const onboardingService = {
             method: 'PUT',
             body: JSON.stringify({
                 position: step.position,
-                custom: step.custom,
+                isAiAssisted: step.isAiAssisted,
                 title: step.title,
                 description: step.description,
                 type: step.type ?? 'TASK',

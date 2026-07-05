@@ -6,7 +6,7 @@ type StepOriginBadgeProps = {
 };
 
 export function StepOriginBadge({ step }: StepOriginBadgeProps) {
-  if (step.custom !== true) return null;
+  if (step.isAiAssisted !== false) return null;
 
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-app-brand-border bg-app-brand-soft px-2.5 py-1 text-xs font-medium text-app-brand-text">
