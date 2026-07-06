@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { FAQOverview, FAQGroup } from "../types";
+import type { FAQGroup } from "../types";
 import { insightsService } from "../../../services/faqService";
+import { useFetch } from "../../../hooks/useFetch";
 
 import {
   TrendingUp,
@@ -16,26 +16,13 @@ import {
 import { PageHeader } from "../../../components/layout/PageHeader";
 
 export function FaqPage() {
-  const [overview, setOverview] = useState<FAQOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await insightsService.fetchFAQGroups();
-        setOverview(data);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, []);
+  const {
+    data: overview,
+    loading,
+    error,
+  } = useFetch(() => insightsService.fetchFAQGroups(), []);
 
   if (loading) {
     return (
@@ -102,9 +89,9 @@ export function FaqPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
               <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-sky-700" />
+                <Users className="w-5 h-5 text-app-brand" />
                 <div>
-                  <div className="text-2xl font-semibold text-sky-700">
+                  <div className="text-2xl font-semibold text-app-brand">
                     {totalGroups}
                   </div>
                   <div className="text-xs text-app-text-muted">
@@ -116,9 +103,9 @@ export function FaqPage() {
 
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
               <div className="flex items-center gap-3">
-                <MessageSquareMore className="w-5 h-5 text-emerald-600" />
+                <MessageSquareMore className="w-5 h-5 text-app-success-solid" />
                 <div>
-                  <div className="text-2xl font-semibold text-emerald-600">
+                  <div className="text-2xl font-semibold text-app-success-solid">
                     {totalQuestions}
                   </div>
                   <div className="text-xs text-app-text-muted">
@@ -130,9 +117,9 @@ export function FaqPage() {
 
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
               <div className="flex items-center gap-3">
-                <TrendingUp className="w-5 h-5 text-rose-600" />
+                <TrendingUp className="w-5 h-5 text-app-danger-solid" />
                 <div>
-                  <div className="text-2xl font-semibold text-rose-600">
+                  <div className="text-2xl font-semibold text-app-danger-solid">
                     {mostAskedCount}
                   </div>
                   <div className="text-xs text-app-text-muted">
@@ -144,9 +131,9 @@ export function FaqPage() {
 
             <div className="rounded-xl border border-app-border bg-app-surface p-3">
               <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-amber-600" />
+                <FileText className="w-5 h-5 text-app-warning-solid" />
                 <div>
-                  <div className="text-2xl font-semibold text-amber-600">
+                  <div className="text-2xl font-semibold text-app-warning-solid">
                     {totalDocuments}
                   </div>
                   <div className="text-xs text-app-text-muted">

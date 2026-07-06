@@ -1,15 +1,13 @@
 // ============================================================
-// KnowledgeGapDetailPage.tsx
+// KnowledgeGapsDetailPage.tsx
 // Route: /insights/knowledge-gaps/:gapId
 // ============================================================
 
-import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type {
-  KnowledgeGap,
-  KnowledgeGapSeverity,
-} from "../../../features/knowledge-gaps/types";
 import { knowledgeGapService } from "../../../services/knowledgeGapService";
+import { useFetch } from "../../../hooks/useFetch";
+import { formatDate } from "../format";
+import { SEVERITY_STYLES } from "../severity";
 
 import {
   ArrowLeft,
@@ -23,67 +21,21 @@ import {
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────
-
-const SEVERITY_STYLES: Record<
-  KnowledgeGapSeverity,
-  { badge: string; bar: string; label: string; ring: string }
-> = {
-  high: {
-    badge: "bg-red-100 text-red-700",
-    bar: "bg-red-400",
-    label: "High severity",
-    ring: "border-red-200",
-  },
-  medium: {
-    badge: "bg-amber-100 text-amber-700",
-    bar: "bg-amber-400",
-    label: "Medium severity",
-    ring: "border-amber-200",
-  },
-  low: {
-    badge: "bg-emerald-100 text-emerald-700",
-    bar: "bg-emerald-400",
-    label: "Low severity",
-    ring: "border-emerald-200",
-  },
-};
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-// ─────────────────────────────────────────────────────────────
-// COMPONENT: KnowledgeGapDetailPage
+// COMPONENT: KnowledgeGapsDetailPage
 // ─────────────────────────────────────────────────────────────
 
 export function KnowledgeGapsDetailPage() {
   const { gapId } = useParams<{ gapId: string }>();
   const navigate = useNavigate();
 
-  const [gap, setGap] = useState<KnowledgeGap | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (!gapId) return;
-    const load = async () => {
-      try {
-        const data = await knowledgeGapService.fetchKnowledgeGap(gapId);
-        setGap(data);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void load();
-  }, [gapId]);
+  const {
+    data: gap,
+    loading,
+    error,
+  } = useFetch(
+    () => knowledgeGapService.fetchKnowledgeGap(gapId ?? ""),
+    [gapId],
+  );
 
   // ── LOADING ────────────────────────────────────────────
 
@@ -122,7 +74,7 @@ export function KnowledgeGapsDetailPage() {
     );
   }
 
-  const { badge, bar, label, ring } = SEVERITY_STYLES[gap.severity];
+  const { badge, bar, longLabel, ring } = SEVERITY_STYLES[gap.severity];
 
   // ── RENDER ─────────────────────────────────────────────
 
@@ -150,7 +102,7 @@ export function KnowledgeGapsDetailPage() {
               </div>
             </div>
             <span className={`text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 ${badge}`}>
-              {label}
+              {longLabel}
             </span>
           </div>
         </div>
