@@ -65,7 +65,11 @@ export const knowledgeService = {
                     ingestionRunId: null,
                 }));
 
-                artifacts = [...artifacts, ...uploadArtifacts];
+                // Deduplicate to avoid React key collisions if an upload is also in project artifacts
+                const existingIds = new Set(artifacts.map(a => a.id));
+                const uniqueUploads = uploadArtifacts.filter(a => !existingIds.has(a.id));
+
+                artifacts = [...artifacts, ...uniqueUploads];
             }
         } catch (e) {
             console.warn("Failed to fetch personal uploads", e);

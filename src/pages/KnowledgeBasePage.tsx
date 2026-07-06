@@ -5,6 +5,7 @@ import { knowledgeService } from '../services/knowledgeService';
 import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
 import type { Artifact, ArtifactType, SourceSystem } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
+import { useAuth } from '../context/useAuth';
 
 /**
  * Unified Knowledge Base view for project resources.
@@ -12,14 +13,11 @@ import { PageHeader } from '../components/layout/PageHeader';
  * with a side drawer for viewing raw content and AI summaries.
  */
 export function KnowledgeBasePage() {
-    const envProjectId = import.meta.env.VITE_KB_PROJECT_ID
-        ? String(import.meta.env.VITE_KB_PROJECT_ID)
-        : null;
-    const [projectId] = useState<string | null>(envProjectId);
-    const [resolved, setResolved] = useState(envProjectId !== null);
+    const { profile } = useAuth();
+    const projectId = profile?.projectIds?.[0] ?? null;
 
     const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-    const [isLoading, setIsLoading] = useState(envProjectId !== null);
+    const [isLoading, setIsLoading] = useState(projectId !== null);
 
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
@@ -37,9 +35,6 @@ export function KnowledgeBasePage() {
         if (!projectId) return;
 
         let isMounted = true;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setResolved(true);
-        setIsLoading(true);
 
         knowledgeService.getUnifiedArtifacts(projectId)
             .then(data => {
@@ -102,11 +97,11 @@ export function KnowledgeBasePage() {
 
             <main className="flex-1 flex flex-col app-page-frame py-6 sm:space-y-10 lg:py-8 overflow-y-auto">
                 <div className="max-w-7xl mx-auto w-full">
-                    {resolved && !projectId && !isLoading ? (
+                    {!projectId && !isLoading ? (
                         <div className="flex flex-col items-center justify-center py-12 text-app-text-muted">
                             <BookOpen className="w-12 h-12 mb-4 opacity-50" />
                             <p className="font-medium">No project available</p>
-                            <p className="text-sm mt-1">Set VITE_KB_PROJECT_ID in your .env to a valid project UUID.</p>
+                            <p className="text-sm mt-1">No active project found for your user.</p>
                         </div>
                     ) : (
                         <>

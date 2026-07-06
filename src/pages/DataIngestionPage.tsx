@@ -44,6 +44,7 @@ import {
     updateAllGithubRepositories,
     updateGithubRepository,
 } from "../services/sources/githubService.ts";
+import { useAuth } from "../context/useAuth.ts";
 
 const GITHUB_REPOSITORY_STORAGE_KEY =
     "sprintstart:data-ingestion:last-github-repository";
@@ -189,6 +190,7 @@ function hasSourceSystem(sources: DataSource[], sourceSystem: SourceSystem) {
  * Allows project managers to manually trigger ingestion processes.
  */
 export function DataIngestionPage() {
+    const { profile } = useAuth();
     const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
     const [selectedSourceSystem, setSelectedSourceSystem] =
         useState<SourceSystem | null>(null);
@@ -378,10 +380,15 @@ export function DataIngestionPage() {
                     );
                 }
 
+                const activeProjectId = profile?.projectIds?.[0];
+                if (!activeProjectId) {
+                    throw new Error("No active project found for your user.");
+                }
+
                 await connectGithubRepository({
                     ...parsedRepository,
                     tokenName: trimmedTokenName,
-                    projectId: String(import.meta.env.VITE_KB_PROJECT_ID),
+                    projectId: activeProjectId,
                 });
                 storeGithubRepository(parsedRepository);
                 setLastGithubRepository(parsedRepository);
@@ -417,6 +424,7 @@ export function DataIngestionPage() {
             githubTokenName,
             loadData,
             selectedConnectSourceSystem,
+            profile,
         ],
     );
 

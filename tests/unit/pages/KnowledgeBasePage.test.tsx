@@ -4,6 +4,8 @@ import { KnowledgeBasePage } from '../../../src/pages/KnowledgeBasePage';
 import { knowledgeService } from '../../../src/services/knowledgeService';
 import type { Artifact } from '../../../src/features/knowledge-base/types';
 import type { ReactNode } from 'react';
+import * as useAuthHook from '../../../src/context/useAuth';
+import { PermissionGroup } from '../../../src/services/types';
 
 vi.mock('framer-motion', () => ({
     motion: {
@@ -28,6 +30,10 @@ vi.mock('../../../src/services/knowledgeService', () => ({
         summarizeArtifact: vi.fn(),
         uploadDocuments: vi.fn(),
     }
+}));
+
+vi.mock('../../../src/context/useAuth', () => ({
+    useAuth: vi.fn(),
 }));
 
 global.ResizeObserver = class ResizeObserver {
@@ -76,6 +82,26 @@ describe('KnowledgeBasePage', () => {
         (knowledgeService.getArtifactContent as Mock).mockResolvedValue({
             content: '# Test Content',
             mimeType: 'text/markdown'
+        });
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
+            status: 'authenticated',
+            profile: {
+                id: '1',
+                authId: 'auth',
+                username: 'TestUser',
+                email: 'test@example.com',
+                firstName: 'Test',
+                lastName: 'User',
+                projectRoles: [],
+                projectIds: ['proj-1'],
+                permissionGroup: PermissionGroup.USER,
+                enabled: true,
+                profileIcon: null,
+                hasCompletedOnboarding: true,
+            },
+            login: vi.fn(),
+            logout: vi.fn(),
+            refetchProfile: vi.fn(),
         });
     });
 
