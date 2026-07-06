@@ -141,7 +141,7 @@ describe('KnowledgeBasePage', () => {
         fireEvent.click(artifactCard);
 
         await waitFor(() => {
-            expect(knowledgeService.getArtifactContent).toHaveBeenCalledWith('proj-1', '1');
+            expect(knowledgeService.getArtifactContent).toHaveBeenCalledWith('proj-1', '1', 'GITHUB');
             expect(screen.getByTestId('raw-content')).toBeInTheDocument();
         });
     });

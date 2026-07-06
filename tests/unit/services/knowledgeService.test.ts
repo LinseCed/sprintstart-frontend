@@ -84,7 +84,7 @@ describe('knowledgeService', () => {
     describe('getUnifiedArtifacts', () => {
         it('returns project artifacts merged with uploads mapped to the Artifact shape', async () => {
             mockFetch.mockImplementation((endpoint: string) => {
-                if (endpoint.includes('/artifacts')) return Promise.resolve(projectArtifacts);
+                if (endpoint.includes('/artifacts')) return Promise.resolve({ items: projectArtifacts, page: { totalPages: 1 } });
                 if (endpoint.includes('/uploads')) return Promise.resolve(uploadList);
                 return Promise.resolve([]);
             });
@@ -128,7 +128,10 @@ describe('knowledgeService', () => {
         });
 
         it('returns an empty list when no artifacts and no profile', async () => {
-            mockFetch.mockResolvedValue([]);
+            mockFetch.mockImplementation((endpoint: string) => {
+                if (endpoint.includes('/artifacts')) return Promise.resolve({ items: [], page: { totalPages: 1 } });
+                return Promise.resolve([]);
+            });
             mockGetProfile.mockResolvedValue(null);
 
             const { knowledgeService } = await import('../../../src/services/knowledgeService');

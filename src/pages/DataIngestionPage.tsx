@@ -381,7 +381,7 @@ export function DataIngestionPage() {
                 await connectGithubRepository({
                     ...parsedRepository,
                     tokenName: trimmedTokenName,
-                    projectId: import.meta.env.VITE_KB_PROJECT_ID,
+                    projectId: String(import.meta.env.VITE_KB_PROJECT_ID),
                 });
                 storeGithubRepository(parsedRepository);
                 setLastGithubRepository(parsedRepository);
