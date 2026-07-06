@@ -154,6 +154,7 @@ export function UserDetailsDrawer({
             firstName: draftUser.firstName.trim(),
             lastName: draftUser.lastName.trim(),
             permissionGroup: draftUser.permissionGroup.trim(),
+            projectsId: user.projectIds,
         };
 
         if (!request.email) {

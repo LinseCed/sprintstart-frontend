@@ -83,7 +83,17 @@ export function AdminPage() {
                 projectService.getProjects(),
             ]);
 
-            setUsers(nextUsers);
+            const enrichedUsers = nextUsers.map((user) => ({
+                ...user,
+                projects: user.projectIds
+                    .map((id) => {
+                        const project = nextProjects.find((p) => p.id === id);
+                        return project ? { id: project.id, name: project.name } : null;
+                    })
+                    .filter((p) => p !== null),
+            }));
+
+            setUsers(enrichedUsers);
             setProjects(nextProjects);
             setLoadingState("success");
 
@@ -91,7 +101,7 @@ export function AdminPage() {
                 if (!currentSelectedUser) return null;
 
                 return (
-                    nextUsers.find(
+                    enrichedUsers.find(
                         (user) => user.id === currentSelectedUser.id,
                     ) ?? currentSelectedUser
                 );
@@ -437,16 +447,36 @@ export function AdminPage() {
 
     const handleUserUpdated = useCallback((updatedUser: AdminUser) => {
         setUsers((currentUsers) =>
-            currentUsers.map((currentUser) =>
-                currentUser.id === updatedUser.id ? updatedUser : currentUser,
-            ),
+            currentUsers.map((currentUser) => {
+                if (currentUser.id === updatedUser.id) {
+                    return {
+                        ...updatedUser,
+                        projects: updatedUser.projectIds
+                            .map((id) => {
+                                const project = projects.find((p) => p.id === id);
+                                return project ? { id: project.id, name: project.name } : null;
+                            })
+                            .filter((p) => p !== null),
+                    };
+                }
+                return currentUser;
+            }),
         );
-        setSelectedUser((currentSelectedUser) =>
-            currentSelectedUser?.id === updatedUser.id
-                ? updatedUser
-                : currentSelectedUser,
-        );
-    }, []);
+        setSelectedUser((currentSelectedUser) => {
+            if (currentSelectedUser?.id === updatedUser.id) {
+                return {
+                    ...updatedUser,
+                    projects: updatedUser.projectIds
+                        .map((id) => {
+                            const project = projects.find((p) => p.id === id);
+                            return project ? { id: project.id, name: project.name } : null;
+                        })
+                        .filter((p) => p !== null),
+                };
+            }
+            return currentSelectedUser;
+        });
+    }, [projects]);
 
     const closeDetails = () => {
         setOpenUserMenuId(null);

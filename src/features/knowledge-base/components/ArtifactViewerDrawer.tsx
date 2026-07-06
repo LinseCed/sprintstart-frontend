@@ -37,7 +37,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
          
         setIsLoading(true);
 
-        knowledgeService.getArtifactContent(projectId, artifact.id)
+        knowledgeService.getArtifactContent(projectId, artifact.id, artifact.sourceSystem)
             .then(data => {
                 if (isMounted) setContent(data);
             })

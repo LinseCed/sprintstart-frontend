@@ -18,7 +18,22 @@ export const knowledgeService = {
         let artifacts: Artifact[] = [];
 
         try {
-            artifacts = await apiClient.fetch<Artifact[]>(`/api/v1/projects/${projectId}/artifacts`);
+            interface PageResponse {
+                items: Artifact[];
+                page: {
+                    totalPages: number;
+                };
+            }
+            
+            let currentPage = 1;
+            let totalPages = 1;
+            
+            while (currentPage <= totalPages) {
+                const response = await apiClient.fetch<PageResponse>(`/api/v1/projects/${projectId}/artifacts?page=${currentPage}&size=100`);
+                artifacts = [...artifacts, ...(response.items || [])];
+                totalPages = response.page?.totalPages || 1;
+                currentPage++;
+            }
         } catch (e) {
             console.warn("Unified artifacts endpoint failed (expected if missing), continuing...", e);
         }
@@ -69,7 +84,7 @@ export const knowledgeService = {
      * @param artifactId UUID of the artifact whose content should be retrieved.
      * @returns The raw content text and its effective mime type.
      */
-    async getArtifactContent(projectId: string, artifactId: string): Promise<ArtifactContent> {
+    async getArtifactContent(projectId: string, artifactId: string, sourceSystem: string = 'GITHUB'): Promise<ArtifactContent> {
         try {
             if (keycloak.authenticated) {
                 await keycloak.updateToken(30);
@@ -80,7 +95,11 @@ export const knowledgeService = {
             throw new Error('Authentication required');
         }
 
-        const response = await fetch(`/api/v1/projects/${projectId}/artifacts/${artifactId}/content`, {
+        const endpoint = sourceSystem === 'UPLOAD'
+            ? `/api/v1/uploads/${artifactId}/content`
+            : `/api/v1/projects/${projectId}/artifacts/${artifactId}/content`;
+
+        const response = await fetch(endpoint, {
             headers: keycloak.token ? { 'Authorization': `Bearer ${keycloak.token}` } : {},
         });
 

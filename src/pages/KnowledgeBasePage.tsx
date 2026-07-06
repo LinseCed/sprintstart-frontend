@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, Plus } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
 import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
-import type { Artifact, ArtifactType } from '../features/knowledge-base/types';
+import type { Artifact, ArtifactType, SourceSystem } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
 
 /**
@@ -24,6 +24,7 @@ export function KnowledgeBasePage() {
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedType, setSelectedType] = useState<ArtifactType | 'all'>('all');
+    const [selectedSource, setSelectedSource] = useState<SourceSystem | 'all'>('all');
 
     // Viewer State
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
@@ -67,10 +68,11 @@ export function KnowledgeBasePage() {
 
             const matchesSearch = !searchQuery || searchableText.includes(searchQuery.toLowerCase());
             const matchesType = selectedType === 'all' || artifact.artifactType === selectedType;
+            const matchesSource = selectedSource === 'all' || artifact.sourceSystem === selectedSource;
 
-            return matchesSearch && matchesType;
+            return matchesSearch && matchesType && matchesSource;
         });
-    }, [artifacts, searchQuery, selectedType]);
+    }, [artifacts, searchQuery, selectedType, selectedSource]);
 
     const selectedArtifact = useMemo(() =>
         artifacts.find(a => a.id === selectedArtifactId) || null,
@@ -79,6 +81,7 @@ export function KnowledgeBasePage() {
     const handleClearFilters = () => {
         setSearchQuery('');
         setSelectedType('all');
+        setSelectedSource('all');
     };
 
     return (
@@ -118,6 +121,8 @@ export function KnowledgeBasePage() {
                                     onSearchChange={setSearchQuery}
                                     selectedType={selectedType}
                                     onTypeChange={setSelectedType}
+                                    selectedSource={selectedSource}
+                                    onSourceChange={setSelectedSource}
                                 />
                             </motion.div>
 
@@ -126,7 +131,7 @@ export function KnowledgeBasePage() {
                                 <p className="text-sm font-medium text-app-text-muted">
                                     {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
                                 </p>
-                                {(searchQuery || selectedType !== 'all') && (
+                                {(searchQuery || selectedType !== 'all' || selectedSource !== 'all') && (
                                     <button
                                         onClick={handleClearFilters}
                                         className="text-sm font-medium text-app-brand hover:underline"

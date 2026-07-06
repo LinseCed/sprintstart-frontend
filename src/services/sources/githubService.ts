@@ -4,6 +4,7 @@ export type ConnectGithubRepositoryRequest = {
     owner: string;
     name: string;
     tokenName: string;
+    projectId: string;
 };
 
 export type ConnectGithubRepositoryResponse = {
@@ -27,17 +28,22 @@ export type UpdateGithubRepositoryRequest = {
  * @returns The backend transaction identifier for the accepted connection job.
  * @throws Error if the connection request fails.
  */
-export async function connectGithubRepository(
-    request: ConnectGithubRepositoryRequest,
-): Promise<ConnectGithubRepositoryResponse> {
-    const { owner, name, tokenName } = request;
-
+export async function connectGithubRepository({
+    owner,
+    name,
+    tokenName,
+    projectId,
+}: ConnectGithubRepositoryRequest): Promise<ConnectGithubRepositoryResponse> {
     return apiClient.fetch<ConnectGithubRepositoryResponse>("/api/v1/github/connect", {
         method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
         body: JSON.stringify({
             owner,
             name,
             tokenName,
+            projectId,
         }),
     });
 }

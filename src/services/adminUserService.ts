@@ -19,6 +19,7 @@ type BackendUserResponse = {
     enabled: boolean;
     profileIcon: string | null;
     hasCompletedOnboarding: boolean;
+    projectIds: string[];
 };
 
 export type RoleType = "primary" | "secondary";
@@ -50,6 +51,7 @@ export type UserProfile = {
     roles: UserRole[];
     permissionGroup: string;
     projects: ProjectSummary[];
+    projectIds: string[];
     enabled: boolean;
     profileIcon: string;
     hasCompletedOnboarding: boolean;
@@ -65,6 +67,7 @@ export type AdminUser = {
     roles: UserRole[];
     permissionGroup: string;
     projects: ProjectSummary[];
+    projectIds: string[];
     enabled: boolean;
     profileIcon: string;
     hasCompletedOnboarding: boolean;
@@ -75,6 +78,7 @@ export type UpdateAdminUserRequest = {
     firstName?: string;
     lastName?: string;
     permissionGroup?: string;
+    projectsId?: string[];
 };
 
 export type UpdateAdminUserRolesRequest = {
@@ -168,6 +172,7 @@ function toAdminUser(user: BackendUserResponse): AdminUser {
         roles: toUserRolesFromProjectRoles(user.projectRoles),
         permissionGroup: toPermissionGroupLabel(user.permissionGroup),
         projects: [],
+        projectIds: user.projectIds ?? [],
         enabled: user.enabled,
         profileIcon: user.profileIcon ?? "",
         hasCompletedOnboarding: user.hasCompletedOnboarding,
