@@ -466,6 +466,13 @@ export function TeamMemberDetailPage() {
 
         try {
             await markOnboardingFeedbackRead(feedbackId);
+            setFeedbackItems((current) =>
+                current.map((feedback) =>
+                    feedback.id === feedbackId
+                        ? { ...feedback, read: true }
+                        : feedback,
+                ),
+            );
             await Promise.all([refreshFeedback(), refreshMember()]);
         } catch (error) {
             setFeedbackError(
@@ -876,8 +883,8 @@ export function TeamMemberDetailPage() {
                                 <p className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
                                     Loading feedback...
                                 </p>
-                            ) : feedbackItems.length > 0 ? (
-                                feedbackItems.map((feedback) => {
+                            ) : unreadFeedback.length > 0 ? (
+                                unreadFeedback.map((feedback) => {
                                     const isUnread =
                                         feedback.read !== true && !feedback.readAt;
 
@@ -958,7 +965,7 @@ export function TeamMemberDetailPage() {
                                         </div>
                                     );
                                 })
-                            ) : user.hasFeedback ? (
+                            ) : user.hasFeedback && feedbackItems.length === 0 ? (
                                 <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg p-4">
                                     <div className="flex items-start gap-3">
                                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface text-app-warning-text">
