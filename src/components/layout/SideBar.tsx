@@ -326,6 +326,8 @@ export function SideBar() {
 
             <aside
                 aria-label="Mobile Sidebar"
+                aria-hidden={!isMobileSidebarOpen}
+                inert={!isMobileSidebarOpen}
                 className={[
                     'fixed bottom-0 left-0 top-0 z-[60] flex w-[286px] flex-col border-r border-app-border bg-app-bg transition-transform duration-300 ease-out lg:hidden',
                     isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',

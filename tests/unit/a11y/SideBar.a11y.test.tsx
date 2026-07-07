@@ -1,4 +1,5 @@
-import { render } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import { SideBar } from '../../../src/components/layout/SideBar';
@@ -31,14 +32,28 @@ vi.mock('../../../src/context/useTheme', () => ({
 }));
 
 describe('SideBar Accessibility', () => {
-    it('should not have any a11y violations', async () => {
-        const { baseElement } = render(
+    it('has no axe violations and keeps the closed mobile sidebar out of the tab flow', async () => {
+        const user = userEvent.setup();
+        const { baseElement, container } = render(
             <MemoryRouter>
                 <main>
                     <SideBar />
                 </main>
             </MemoryRouter>
         );
+
+        const mobileSidebar = container.querySelector('[aria-label="Mobile Sidebar"]');
+        expect(mobileSidebar).toHaveAttribute('aria-hidden', 'true');
+        expect(mobileSidebar).toHaveAttribute('inert');
+
         expect(await axe(baseElement)).toHaveNoViolations();
+
+        await user.click(screen.getByRole('button', { name: 'Open sidebar' }));
+
+        await waitFor(() => {
+            expect(mobileSidebar).toHaveAttribute('aria-hidden', 'false');
+            expect(mobileSidebar).not.toHaveAttribute('inert');
+        });
+        expect(screen.getByRole('button', { name: 'Close sidebar' })).toHaveAttribute('aria-expanded', 'true');
     });
 });

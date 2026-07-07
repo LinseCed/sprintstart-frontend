@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import { MemoryRouter } from 'react-router-dom';
@@ -15,6 +15,10 @@ describe('ChatPage Accessibility', () => {
         const { baseElement } = render(
             <MemoryRouter><main><ChatPage /></main></MemoryRouter>
         );
+
+        expect(screen.getByRole('textbox', { name: 'Message' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Toggle sidebar' })).toHaveAttribute('aria-expanded', 'false');
+
         expect(await axe(baseElement)).toHaveNoViolations();
     });
 });

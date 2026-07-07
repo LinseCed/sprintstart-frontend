@@ -41,6 +41,10 @@ export function ChatPage() {
             )}
 
             <aside
+                id="chat-mobile-sidebar"
+                aria-label="Mobile chat navigation"
+                aria-hidden={!sidebarOpen}
+                inert={!sidebarOpen}
                 className={`
                     fixed top-0 left-0 h-full w-64 bg-app-bg
                     border-r border-app-border z-50
@@ -62,6 +66,8 @@ export function ChatPage() {
 
             <button
                 aria-label="Toggle sidebar"
+                aria-controls="chat-mobile-sidebar"
+                aria-expanded={sidebarOpen}
                 className="
                     fixed
                     top-4
@@ -290,6 +296,7 @@ export function ChatPage() {
                     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
                         <textarea
                             ref={textareaRef}
+                            aria-label="Message"
                             placeholder="Ask anything about the project..."
                             className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
                             value={newRequest}
