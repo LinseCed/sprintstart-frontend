@@ -39,7 +39,11 @@ export function ArtifactFilters({
             </div>
             
             {/* Segmented Tabs */}
-            <div className="flex p-1 space-x-1 bg-app-surface border border-app-border rounded-xl w-fit overflow-x-auto scrollbar-hide">
+            <div 
+                className="flex p-1 space-x-1 bg-app-surface border border-app-border rounded-xl w-fit overflow-x-auto scrollbar-hide"
+                role="tablist"
+                aria-label="Filter artifacts by type"
+            >
                 {TABS.map((tab) => (
                     <button
                         key={tab.id}
