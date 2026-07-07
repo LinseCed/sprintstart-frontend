@@ -113,8 +113,9 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
             widthClassName="w-full max-w-[720px] md:w-[60%] lg:w-[70%]"
             zIndexClassName="z-50 md:z-30"
             panelClassName="border-l border-app-border shadow-2xl"
-            headerClassName="p-4 bg-app-background/50"
-            contentClassName="p-6 bg-app-surface h-full"
+            panelBackgroundClassName="bg-app-surface"
+            headerClassName="p-4 bg-app-bg"
+            contentClassName="p-6"
         >
             {error ? (
                 <div className="p-4 bg-app-danger-500/10 text-app-danger-500 rounded-lg border border-app-danger-500/20">
@@ -122,7 +123,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                     <p className="text-sm mt-1">{error}</p>
                 </div>
             ) : viewMode === 'raw' ? (
-                <div data-testid="raw-content" className="h-full">
+                <div data-testid="raw-content">
                     {isLoading ? (
                         <div className="animate-pulse space-y-4">
                             <div className="h-4 bg-app-border rounded w-3/4"></div>
@@ -141,7 +142,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                                 </ReactMarkdown>
                             </div>
                         ) : (
-                            <pre data-testid="raw-content" className="font-mono text-sm text-app-text bg-app-background p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
+                            <pre data-testid="raw-content" className="font-mono text-sm text-app-text bg-app-bg p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
                                 {content?.content}
                             </pre>
                         )
