@@ -42,7 +42,7 @@ export async function getTeamOverview(
             url,
         );
 
-        return response.content.map((user) => ({
+        const users = response.content.map((user) => ({
             ...user,
             roles: user.roles.map(
                 (role: ProjectRole & { roleId?: string }) => ({
@@ -51,6 +51,23 @@ export async function getTeamOverview(
                 }),
             ),
         }));
+
+        try {
+            const feedback = await getAllOnboardingFeedback();
+            const usersWithUnreadFeedback = new Set(
+                feedback
+                    .filter((item) => item.read !== true && !item.readAt)
+                    .map((item) => item.userId)
+                    .filter((userId): userId is string => Boolean(userId)),
+            );
+
+            return users.map((user) => ({
+                ...user,
+                hasFeedback: usersWithUnreadFeedback.has(user.userId),
+            }));
+        } catch {
+            return users;
+        }
     } catch {
         return mockUsers;
     }
@@ -208,6 +225,8 @@ export type OnboardingFeedback = {
   stepId?: string | null;
   stepTitle?: string | null;
   message: string;
+  comment?: string;
+  helpful?: boolean | null;
   createdAt?: string;
   read?: boolean;
   readAt?: string | null;
@@ -216,13 +235,25 @@ export type OnboardingFeedback = {
 export async function getUserOnboardingFeedback(
   userId: string,
 ): Promise<OnboardingFeedback[]> {
-  try {
-    return await apiClient.fetch<OnboardingFeedback[]>(
-      `/api/v1/admin/onboarding/users/${userId}/feedback`,
-    );
-  } catch {
-    return [];
-  }
+  const feedback = await apiClient.fetch<OnboardingFeedback[]>(
+    `/api/v1/admin/onboarding/users/${userId}/feedback`,
+  );
+
+  return feedback.map((item) => ({
+    ...item,
+    message: item.message ?? item.comment ?? "",
+  }));
+}
+
+export async function getAllOnboardingFeedback(): Promise<OnboardingFeedback[]> {
+  const feedback = await apiClient.fetch<OnboardingFeedback[]>(
+    "/api/v1/admin/onboarding/feedback",
+  );
+
+  return feedback.map((item) => ({
+    ...item,
+    message: item.message ?? item.comment ?? "",
+  }));
 }
 
 export async function markOnboardingFeedbackRead(

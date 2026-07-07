@@ -185,9 +185,16 @@ export function TeamMemberDetailPage() {
                 getUserOnboardingPath(userId),
                 knowledgeGapService.fetchKnowledgeGaps(),
             ]);
-            const feedback = memberData?.hasFeedback
-                ? await getUserOnboardingFeedback(userId)
-                : [];
+            let feedback: OnboardingFeedback[] = [];
+            try {
+                feedback = await getUserOnboardingFeedback(userId);
+            } catch (error) {
+                setFeedbackError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Unable to load feedback.',
+                );
+            }
 
             setUser(memberData);
             setAvailableRoles(rolesData);
@@ -619,8 +626,30 @@ export function TeamMemberDetailPage() {
     const detailStepActualMinutes = detailStep ? getActualMinutes(detailStep) : null;
 
     const detailStepFeedback = detailStep
-        ? feedbackItems.filter((feedback) => feedback.stepId === detailStep.id)
+        ? feedbackItems
+            .filter((feedback) => feedback.stepId === detailStep.id)
+            .map((feedback) => ({
+                ...feedback,
+                helpful:
+                    feedback.helpful ??
+                    (detailStep.feedback?.id === feedback.id
+                        ? detailStep.feedback.helpful
+                        : undefined),
+            }))
         : [];
+    const displayedDetailStepFeedback =
+        detailStepFeedback.length > 0 || !detailStep?.feedback
+            ? detailStepFeedback
+            : [
+                {
+                    id: detailStep.feedback.id,
+                    stepId: detailStep.id,
+                    stepTitle: detailStep.title,
+                    message: detailStep.feedback.comment,
+                    helpful: detailStep.feedback.helpful,
+                    createdAt: detailStep.feedback.createdAt,
+                },
+            ];
     const detailStepSkipReason = detailStep?.skip?.reason || '';
     const skillGaps = skillLevels.filter(
         (skill) => skill.level === 'BEGINNER' || skill.level === 'INTERMEDIATE',
@@ -1080,7 +1109,7 @@ export function TeamMemberDetailPage() {
                     tasks={sortedDetailStepTasks}
                     doneTaskCount={detailStepDoneTasks}
                     actualMinutes={detailStepActualMinutes}
-                    feedbackItems={detailStepFeedback}
+                    feedbackItems={displayedDetailStepFeedback}
                     skipReason={detailStepSkipReason}
                     taskInsertTarget={taskInsertTarget}
                     newTaskTitle={newTaskTitle}
