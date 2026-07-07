@@ -258,6 +258,53 @@ export const handlers = [
         ]),
     ),
 
+    http.get('/api/v1/skills', () =>
+        HttpResponse.json([
+            {
+                id: 'skill1',
+                name: 'TypeScript',
+                description: 'Typed JavaScript',
+                roleIds: ['role1'],
+                status: 'ACTIVE',
+            },
+        ]),
+    ),
+
+    http.post('/api/v1/admin/skills', async ({ request }) => {
+        const body = (await request.json()) as {
+            name: string;
+            description?: string;
+            roleIds: string[];
+        };
+        return HttpResponse.json({
+            id: 'mock-skill-' + Date.now(),
+            name: body.name,
+            description: body.description ?? null,
+            roleIds: body.roleIds,
+            status: 'ACTIVE',
+        });
+    }),
+
+    http.delete('/api/v1/admin/skills/:skillId', () =>
+        new HttpResponse(null, { status: 204 }),
+    ),
+
+    http.get('/api/v1/me/skills', () => HttpResponse.json([])),
+
+    http.post('/api/v1/me/skill/assess', async ({ request }) => {
+        const body = (await request.json()) as { skillId: string; level: string };
+        return HttpResponse.json({
+            id: 'assessment-' + body.skillId,
+            userId: 'user1',
+            skillId: body.skillId,
+            level: body.level,
+        });
+    }),
+
+    http.get('/api/v1/admin/users/:userId/skill-assessments/completed', () =>
+        HttpResponse.json([]),
+    ),
+
     http.post('/api/v1/projectRoles', async ({ request }) => {
         const body = (await request.json()) as { name: string; description: string };
         return HttpResponse.json({

@@ -6,6 +6,7 @@ import type {
   Skill,
   TeamOverviewUser,
   SkillLevel,
+  SkillStatus,
 } from "../features/team-management/types";
 import type {
   OnboardingPhaseEndpoint,
@@ -23,7 +24,28 @@ let mockProjectRoles: ProjectRole[] = Array.from(
   ).values(),
 );
 
-let mockSkills = skillsMock.skills as Skill[];
+type LegacySkill = {
+    id: string;
+    name: string;
+    description?: string | null;
+    roleId?: string;
+    roleIds?: string[];
+    status?: SkillStatus;
+};
+
+function normalizeSkill(skill: LegacySkill): Skill {
+    const roleIds = skill.roleIds ?? (skill.roleId ? [skill.roleId] : []);
+
+    return {
+        id: skill.id,
+        name: skill.name,
+        description: skill.description ?? null,
+        roleIds,
+        status: skill.status ?? 'ACTIVE',
+    };
+}
+
+let mockSkills = (skillsMock.skills as LegacySkill[]).map(normalizeSkill);
 
 export async function getTeamOverview(
   roleId?: string,
@@ -342,21 +364,43 @@ export async function deleteOnboardingTask(taskId: string): Promise<void> {
 type SkillResponseDto = {
     id: string;
     name: string;
+    description?: string | null;
+    status?: SkillStatus;
     roleId?: string;
+    roleIds?: string[];
     projectRole?: {
         id: string;
     };
 };
 
+type SkillAssessmentResponseDto = {
+    id?: string;
+    userId: string;
+    skillId: string;
+    level: SkillLevel;
+};
+
+function toSkill(skill: SkillResponseDto): Skill {
+    const legacyRoleIds = skill.projectRole?.id
+        ? [skill.projectRole.id]
+        : skill.roleId
+          ? [skill.roleId]
+          : [];
+
+    return {
+        id: skill.id,
+        name: skill.name,
+        description: skill.description ?? null,
+        roleIds: skill.roleIds ?? legacyRoleIds,
+        status: skill.status ?? 'ACTIVE',
+    };
+}
+
 export async function getSkills(): Promise<Skill[]> {
     try {
         const response = await apiClient.fetch<SkillResponseDto[]>('/api/v1/skills');
 
-        return response.map(skill => ({
-            id: skill.id,
-            name: skill.name,
-            roleId: skill.projectRole?.id || skill.roleId || '',
-        }));
+        return response.map(toSkill);
     } catch {
         return mockSkills;
     }
@@ -364,27 +408,27 @@ export async function getSkills(): Promise<Skill[]> {
 
 export async function createSkill(
     name: string,
-    roleId: string
+    roleIds: string[],
+    description = '',
 ): Promise<Skill> {
     try {
-        const response = await apiClient.fetch<SkillResponseDto>('/api/v1/skills', {
+        const response = await apiClient.fetch<SkillResponseDto>('/api/v1/admin/skills', {
             method: 'POST',
             body: JSON.stringify({
                 name,
-                roleId,
+                description,
+                roleIds,
             }),
         });
 
-        return {
-            id: response.id,
-            name: response.name,
-            roleId: response.projectRole?.id || response.roleId || '',
-        };
+        return toSkill(response);
     } catch {
         const newSkill: Skill = {
             id: `mock-skill-${Date.now()}`,
             name,
-            roleId,
+            description,
+            roleIds,
+            status: 'ACTIVE',
         };
 
         mockSkills = [...mockSkills, newSkill];
@@ -403,7 +447,10 @@ export async function deleteProjectRole(roleId: string): Promise<void> {
   } catch {
     mockProjectRoles = mockProjectRoles.filter((role) => role.id !== roleId);
 
-    mockSkills = mockSkills.filter((skill) => skill.roleId !== roleId);
+    mockSkills = mockSkills.map((skill) => ({
+      ...skill,
+      roleIds: skill.roleIds.filter((linkedRoleId) => linkedRoleId !== roleId),
+    }));
 
     mockUsers = mockUsers.map((user) => ({
       ...user,
@@ -414,13 +461,15 @@ export async function deleteProjectRole(roleId: string): Promise<void> {
 
 export async function deleteSkill(skillId: string): Promise<void> {
   try {
-    await apiClient.fetch(`/api/v1/skills/${skillId}`, {
+    await apiClient.fetch(`/api/v1/admin/skills/${skillId}`, {
       method: "DELETE",
     });
 
     return;
   } catch {
-    mockSkills = mockSkills.filter((skill) => skill.id !== skillId);
+    mockSkills = mockSkills.map((skill) =>
+      skill.id === skillId ? { ...skill, status: 'RETIRED' } : skill,
+    );
   }
 }
 
@@ -476,8 +525,8 @@ export async function hasCompletedSkillAssessment(
     userId: string,
 ): Promise<boolean> {
     try {
-        const response = await apiClient.fetch<{ userId: string; skillId: string; level: SkillLevel }[]>(
-            `/api/v1/users/${userId}/skill-assessments/completed`,
+        const response = await apiClient.fetch<SkillAssessmentResponseDto[]>(
+            '/api/v1/me/skills',
         );
 
         return response.length > 0;
@@ -493,7 +542,7 @@ export async function saveUserSkillAssessments(
 ): Promise<void> {
     try {
         for (const assessment of assessments) {
-            await apiClient.fetch('/api/v1/skill-assessments', {
+            await apiClient.fetch('/api/v1/me/skill/assess', {
                 method: 'POST',
                 body: JSON.stringify({
                     skillId: assessment.skillId,
@@ -523,27 +572,35 @@ export type UserSkillLevel = {
     level: SkillLevel;
 };
 
+async function getCompletedSkillAssessments(
+    userId: string,
+): Promise<SkillAssessmentResponseDto[]> {
+    return await apiClient.fetch<SkillAssessmentResponseDto[]>(
+        `/api/v1/admin/users/${userId}/skill-assessments/completed`,
+    );
+}
+
 export async function getUserSkillLevels(
     userId: string,
 ): Promise<UserSkillLevel[]> {
     try {
         const [assessments, skills, roles] = await Promise.all([
-            apiClient.fetch<{ userId: string; skillId: string; level: SkillLevel }[]>(
-                `/api/v1/users/${userId}/skill-assessments/completed`,
-            ),
+            getCompletedSkillAssessments(userId),
             getSkills(),
             getProjectRoles(),
         ]);
 
         return assessments.map((assessment) => {
             const skill = skills.find((s) => s.id === assessment.skillId);
-            const role = roles.find((r) => r.id === skill?.roleId);
+            const roleNames = roles
+                .filter((role) => skill?.roleIds.includes(role.id))
+                .map((role) => role.name);
 
             return {
                 id: `${userId}-${assessment.skillId}`,
                 skillId: assessment.skillId,
                 skillName: skill?.name ?? 'Unknown skill',
-                roleName: role?.name ?? 'Unknown role',
+                roleName: roleNames.length > 0 ? roleNames.join(', ') : 'Unknown role',
                 level: assessment.level,
             };
         });
