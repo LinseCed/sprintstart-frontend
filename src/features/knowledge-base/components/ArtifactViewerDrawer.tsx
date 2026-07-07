@@ -132,7 +132,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                             <div className="h-4 bg-app-border rounded w-2/3"></div>
                         </div>
                     ) : (
-                        content && content.mimeType.startsWith('text/markdown') ? (
+                        content && (content.mimeType.startsWith('text/markdown') || artifact?.artifactType === 'ISSUE' || artifact?.artifactType === 'PULL_REQUEST') ? (
                             <div data-testid="raw-content" className="prose prose-sm dark:prose-invert max-w-none">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
