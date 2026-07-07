@@ -32,6 +32,7 @@ export function ArtifactFilters({
             </div>
             <div className="flex flex-wrap gap-2">
                 <select
+                    aria-label="Filter by source"
                     value={selectedSource}
                     onChange={(e) => onSourceChange(e.target.value as SourceSystem | 'all')}
                     className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-brand/20"
@@ -41,6 +42,7 @@ export function ArtifactFilters({
                     <option value="UPLOAD">Uploads</option>
                 </select>
                 <select
+                    aria-label="Filter by artifact type"
                     value={selectedType}
                     onChange={(e) => onTypeChange(e.target.value as ArtifactType | 'all')}
                     className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-brand/20"
