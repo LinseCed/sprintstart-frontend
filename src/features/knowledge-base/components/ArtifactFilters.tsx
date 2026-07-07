@@ -27,7 +27,7 @@ export function ArtifactFilters({
 }: ArtifactFiltersProps) {
     return (
         <div className="flex flex-col gap-6 mb-6">
-            <div className="relative w-full max-w-2xl">
+            <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-text-muted" />
                 <input
                     type="text"
@@ -40,7 +40,7 @@ export function ArtifactFilters({
             
             {/* Segmented Tabs */}
             <div 
-                className="flex p-1 space-x-1 bg-app-surface border border-app-border rounded-xl w-fit overflow-x-auto scrollbar-hide"
+                className="flex p-1 space-x-1 bg-app-surface border border-app-border rounded-xl w-full overflow-x-auto scrollbar-hide"
                 role="tablist"
                 aria-label="Filter artifacts by type"
             >
@@ -48,7 +48,7 @@ export function ArtifactFilters({
                     <button
                         key={tab.id}
                         onClick={() => onTabChange(tab.id)}
-                        className={`relative px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-app-brand focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${
+                        className={`relative flex-1 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-app-brand focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${
                             activeTab === tab.id ? 'text-app-brand' : 'text-app-text-muted hover:text-app-text hover:bg-app-background'
                         }`}
                         aria-selected={activeTab === tab.id}
