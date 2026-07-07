@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { BookOpen, Plus } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
 import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
-import type { Artifact, ArtifactType, SourceSystem } from '../features/knowledge-base/types';
+import type { KnowledgeTab } from '../features/knowledge-base/components/ArtifactFilters';
+import { Pagination } from '../components/ui/Pagination';
+import type { Artifact } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
 
@@ -21,8 +23,11 @@ export function KnowledgeBasePage() {
 
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedType, setSelectedType] = useState<ArtifactType | 'all'>('all');
-    const [selectedSource, setSelectedSource] = useState<SourceSystem | 'all'>('all');
+    const [activeTab, setActiveTab] = useState<KnowledgeTab>('ALL');
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
 
     // Viewer State
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
@@ -62,12 +67,41 @@ export function KnowledgeBasePage() {
             ].join(' ').toLowerCase();
 
             const matchesSearch = !searchQuery || searchableText.includes(searchQuery.toLowerCase());
-            const matchesType = selectedType === 'all' || artifact.artifactType === selectedType;
-            const matchesSource = selectedSource === 'all' || artifact.sourceSystem === selectedSource;
+            
+            // Tab mapping logic
+            let matchesTab = false;
+            switch (activeTab) {
+                case 'ALL':
+                    matchesTab = true;
+                    break;
+                case 'UPLOADS':
+                    matchesTab = artifact.sourceSystem === 'UPLOAD';
+                    break;
+                case 'PR':
+                    matchesTab = artifact.artifactType === 'PULL_REQUEST';
+                    break;
+                case 'ISSUES':
+                    matchesTab = artifact.artifactType === 'ISSUE';
+                    break;
+                case 'FILES':
+                    matchesTab = artifact.sourceSystem === 'GITHUB' && artifact.artifactType === 'FILE';
+                    break;
+                case 'COMMITS':
+                    matchesTab = artifact.artifactType === 'COMMIT';
+                    break;
+            }
 
-            return matchesSearch && matchesType && matchesSource;
+            return matchesSearch && matchesTab;
         });
-    }, [artifacts, searchQuery, selectedType, selectedSource]);
+    }, [artifacts, searchQuery, activeTab]);
+
+
+    const totalPages = Math.ceil(filteredArtifacts.length / ITEMS_PER_PAGE);
+    
+    const paginatedArtifacts = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredArtifacts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredArtifacts, currentPage]);
 
     const selectedArtifact = useMemo(() =>
         artifacts.find(a => a.id === selectedArtifactId) || null,
@@ -75,8 +109,7 @@ export function KnowledgeBasePage() {
 
     const handleClearFilters = () => {
         setSearchQuery('');
-        setSelectedType('all');
-        setSelectedSource('all');
+        setActiveTab('ALL');
     };
 
     return (
@@ -113,11 +146,15 @@ export function KnowledgeBasePage() {
                             >
                                 <ArtifactFilters
                                     searchQuery={searchQuery}
-                                    onSearchChange={setSearchQuery}
-                                    selectedType={selectedType}
-                                    onTypeChange={setSelectedType}
-                                    selectedSource={selectedSource}
-                                    onSourceChange={setSelectedSource}
+                                    onSearchChange={(query) => {
+                                        setSearchQuery(query);
+                                        setCurrentPage(1);
+                                    }}
+                                    activeTab={activeTab}
+                                    onTabChange={(tab) => {
+                                        setActiveTab(tab);
+                                        setCurrentPage(1);
+                                    }}
                                 />
                             </motion.div>
 
@@ -126,7 +163,7 @@ export function KnowledgeBasePage() {
                                 <p className="text-sm font-medium text-app-text-muted">
                                     {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
                                 </p>
-                                {(searchQuery || selectedType !== 'all' || selectedSource !== 'all') && (
+                                {(searchQuery || activeTab !== 'ALL') && (
                                     <button
                                         onClick={handleClearFilters}
                                         className="text-sm font-medium text-app-brand hover:underline"
@@ -142,10 +179,23 @@ export function KnowledgeBasePage() {
                                     <div className="w-8 h-8 border-4 border-app-brand border-t-transparent rounded-full animate-spin"></div>
                                 </div>
                             ) : (
-                                <ArtifactList
-                                    artifacts={filteredArtifacts}
-                                    onSelect={setSelectedArtifactId}
-                                />
+                                <>
+                                    <ArtifactList
+                                        artifacts={paginatedArtifacts}
+                                        onSelect={setSelectedArtifactId}
+                                    />
+                                    {totalPages > 1 && (
+                                        <Pagination
+                                            currentPage={currentPage}
+                                            totalPages={totalPages}
+                                            onPageChange={(page) => {
+                                                setCurrentPage(page);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                            className="mt-8 mb-12"
+                                        />
+                                    )}
+                                </>
                             )}
                         </>
                     )}

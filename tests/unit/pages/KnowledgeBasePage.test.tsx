@@ -147,8 +147,8 @@ describe('KnowledgeBasePage', () => {
             expect(screen.getByText('API Authentication Guide')).toBeInTheDocument();
         });
 
-        const typeSelect = screen.getByDisplayValue('All Types');
-        fireEvent.change(typeSelect, { target: { value: 'ISSUE' } });
+        const issuesTab = screen.getByText('Issues');
+        fireEvent.click(issuesTab);
 
         await waitFor(() => {
             expect(screen.queryByText('API Authentication Guide')).not.toBeInTheDocument();

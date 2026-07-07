@@ -1,26 +1,33 @@
 import { Search } from 'lucide-react';
-import type { ArtifactType, SourceSystem } from '../types';
+import { motion } from 'framer-motion';
+
+export type KnowledgeTab = 'ALL' | 'UPLOADS' | 'PR' | 'ISSUES' | 'FILES' | 'COMMITS';
 
 export interface ArtifactFiltersProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
-    selectedType: ArtifactType | 'all';
-    onTypeChange: (type: ArtifactType | 'all') => void;
-    selectedSource: SourceSystem | 'all';
-    onSourceChange: (source: SourceSystem | 'all') => void;
+    activeTab: KnowledgeTab;
+    onTabChange: (tab: KnowledgeTab) => void;
 }
+
+const TABS: { id: KnowledgeTab; label: string }[] = [
+    { id: 'ALL', label: 'All' },
+    { id: 'UPLOADS', label: 'Uploads' },
+    { id: 'PR', label: 'PR' },
+    { id: 'ISSUES', label: 'Issues' },
+    { id: 'FILES', label: 'Files' },
+    { id: 'COMMITS', label: 'Commits' },
+];
 
 export function ArtifactFilters({
     searchQuery,
     onSearchChange,
-    selectedType,
-    onTypeChange,
-    selectedSource,
-    onSourceChange,
+    activeTab,
+    onTabChange,
 }: ArtifactFiltersProps) {
     return (
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
+        <div className="flex flex-col gap-6 mb-6">
+            <div className="relative w-full max-w-2xl">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-text-muted" />
                 <input
                     type="text"
@@ -30,29 +37,30 @@ export function ArtifactFilters({
                     className="w-full pl-9 pr-4 py-2 bg-app-surface border border-app-border rounded-lg text-app-text focus:outline-none focus:ring-2 focus:ring-app-brand/20 focus:border-app-brand"
                 />
             </div>
-            <div className="flex flex-wrap gap-2">
-                <select
-                    aria-label="Filter by source"
-                    value={selectedSource}
-                    onChange={(e) => onSourceChange(e.target.value as SourceSystem | 'all')}
-                    className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-brand/20"
-                >
-                    <option value="all">All Sources</option>
-                    <option value="GITHUB">GitHub</option>
-                    <option value="UPLOAD">Uploads</option>
-                </select>
-                <select
-                    aria-label="Filter by artifact type"
-                    value={selectedType}
-                    onChange={(e) => onTypeChange(e.target.value as ArtifactType | 'all')}
-                    className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-brand/20"
-                >
-                    <option value="all">All Types</option>
-                    <option value="COMMIT">Commit</option>
-                    <option value="FILE">File</option>
-                    <option value="ISSUE">Issue</option>
-                    <option value="PULL_REQUEST">Pull Request</option>
-                </select>
+            
+            {/* Segmented Tabs */}
+            <div className="flex p-1 space-x-1 bg-app-surface border border-app-border rounded-xl w-fit overflow-x-auto scrollbar-hide">
+                {TABS.map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => onTabChange(tab.id)}
+                        className={`relative px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-app-brand focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${
+                            activeTab === tab.id ? 'text-app-brand' : 'text-app-text-muted hover:text-app-text hover:bg-app-background'
+                        }`}
+                        aria-selected={activeTab === tab.id}
+                        role="tab"
+                    >
+                        {activeTab === tab.id && (
+                            <motion.div
+                                layoutId="activeTabIndicator"
+                                className="absolute inset-0 bg-app-brand/10 rounded-lg border border-app-brand/20"
+                                initial={false}
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                        )}
+                        <span className="relative z-10">{tab.label}</span>
+                    </button>
+                ))}
             </div>
         </div>
     );
