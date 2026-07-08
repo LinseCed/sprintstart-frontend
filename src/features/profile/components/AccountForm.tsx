@@ -88,6 +88,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
                                 type="button"
                                 onClick={() => handleSelectIcon(seed)}
                                 className="shrink-0 rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
+                                aria-label={`Select avatar ${seed}`}
                             >
                                 <UserAvatar size={48} profileIcon={seed} />
                             </button>
