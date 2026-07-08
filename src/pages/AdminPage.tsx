@@ -493,11 +493,11 @@ export function AdminPage() {
     return (
         <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg">
             <header className="border-b border-app-border bg-app-bg">
-                <div className="app-page-frame py-6">
+                <div className="admin-page-frame py-4 sm:py-6">
                     <PageHeader
                         icon={Terminal}
-                        title="Admin Console"
-                        subtitle="Manage users, projects and access tokens from one operational view."
+                        title="Access Management"
+                        subtitle="Manage users, projects and access tokens."
                         actions={
                             <>
                                 <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
@@ -525,9 +525,9 @@ export function AdminPage() {
                 </div>
             </header>
 
-            <main className="app-page-frame py-6">
-                <div className="overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-sm">
-                    <div className="flex flex-col gap-4 border-b border-app-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <main className="admin-page-frame py-4 sm:py-6">
+                <div className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm sm:rounded-3xl">
+                    <div className="flex flex-col gap-4 border-b border-app-border px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
                         <TabSwitcher
                             activeTab={activeTab}
                             onChange={handleTabChange}
@@ -537,7 +537,7 @@ export function AdminPage() {
                             type="button"
                             onClick={() => void handleRefresh()}
                             disabled={isRefreshing}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60 sm:w-11"
                             aria-label="Refresh admin data"
                         >
                             <RefreshCw
@@ -546,7 +546,7 @@ export function AdminPage() {
                         </button>
                     </div>
 
-                    <div className="p-6">
+                    <div className="p-3 sm:p-6">
                         {showInitialLoading ? (
                             <div className="flex min-h-96 items-center justify-center">
                                 <div className="flex flex-col items-center gap-3 text-app-text-muted">
@@ -625,7 +625,7 @@ export function AdminPage() {
                                                         (current) => !current,
                                                     )
                                                 }
-                                                className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors ${
+                                                className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors sm:w-auto ${
                                                     userFilter !== "all"
                                                         ? "border-app-brand-border bg-app-brand-soft text-app-brand-text"
                                                         : "border-app-border bg-app-surface text-app-text hover:bg-app-surface-hover"
@@ -636,7 +636,7 @@ export function AdminPage() {
                                             </button>
 
                                             {showFilters && (
-                                                <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl">
+                                                    <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl sm:left-auto sm:w-52">
                                                     {USER_FILTER_OPTIONS.map(
                                                         ({ value, label }) => (
                                                             <button
@@ -696,7 +696,7 @@ export function AdminPage() {
                                 />
 
                                 {totalPages > 1 && (
-                                    <div className="mt-4 flex items-center justify-center gap-1">
+                                    <div className="mt-4 flex items-center justify-start gap-1 overflow-x-auto pb-1 sm:justify-center">
                                         <button
                                             type="button"
                                             onClick={() =>
@@ -774,7 +774,7 @@ export function AdminPage() {
 
                                         <button
                                             type="button"
-                                            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover"
+                                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover sm:w-auto"
                                         >
                                             <Plus className="h-4 w-4" />
                                             New Project

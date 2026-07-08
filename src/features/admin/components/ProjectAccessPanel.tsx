@@ -183,24 +183,24 @@ export function ProjectAccessPanel({
     };
 
     return (
-        <div className="rounded-3xl border border-app-border bg-app-surface-muted p-4">
+        <div className="rounded-2xl border border-app-border bg-app-surface-muted p-3 sm:rounded-3xl sm:p-4">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="items-center align-middle">
-                    <p className="text-2xl font-semibold text-app-text">Projects</p>
+                    <p className="text-xl font-semibold text-app-text sm:text-2xl">Projects</p>
                 </div>
 
                 <div className="relative">
                     <button
                         type="button"
                         onClick={toggleProjectPicker}
-                        className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover sm:w-auto"
                     >
                         <Plus className="h-4 w-4" />
                         Add project
                     </button>
 
                     {openProjectPicker && (
-                        <div className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-app-border bg-app-surface p-2 shadow-xl">
+                        <div className="absolute right-0 z-30 mt-2 w-[min(calc(100vw-2rem),20rem)] rounded-2xl border border-app-border bg-app-surface p-2 shadow-xl">
                             <div className="relative mb-2">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-text-disabled" />
                                 <input
@@ -244,9 +244,9 @@ export function ProjectAccessPanel({
                     assignedDraftProjects.map((project) => (
                         <div
                             key={project.id}
-                            className="rounded-2xl border border-app-border bg-app-surface px-4 py-4"
+                            className="rounded-2xl border border-app-border bg-app-surface px-3 py-4 sm:px-4"
                         >
-                            <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start justify-between gap-3 sm:gap-4">
                                 <div className="flex min-w-0 items-start gap-3">
                                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-app-surface-muted text-app-text-muted">
                                         <Folder className="h-4 w-4" />

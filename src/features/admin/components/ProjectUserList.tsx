@@ -36,7 +36,7 @@ export function ProjectUserList({ users }: ProjectUserListProps) {
                         key={user.id}
                         className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2.5 transition hover:border-app-border-strong hover:bg-app-surface-hover"
                     >
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             <div className="flex shrink-0 items-center justify-center">
                                 <UserAvatar
                                     profileIcon={user.profileIcon}
@@ -54,19 +54,19 @@ export function ProjectUserList({ users }: ProjectUserListProps) {
                                 </p>
                             </div>
 
-                            <div className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2">
+                            <div className="flex w-full flex-wrap items-center gap-2 rounded-lg px-0 py-1 sm:w-auto sm:shrink-0 sm:gap-3 sm:px-3 sm:py-2">
                                 {hasGlobalRoles && (
-                                    <div className="flex items-center">
+                                    <div className="flex min-w-0 items-center">
                                         <RoleBadgeList roles={globalRoles} variant="neutral" />
                                     </div>
                                 )}
 
                                 {hasGlobalRoles && hasProjectRoles && (
-                                    <div className="h-6 shrink-0 border-l-3 border-app-surface" />
+                                    <div className="hidden h-6 shrink-0 border-l-3 border-app-surface sm:block" />
                                 )}
 
                                 {hasProjectRoles && (
-                                    <div className="flex items-center">
+                                    <div className="flex min-w-0 items-center">
                                         <RoleBadgeList roles={user.projectRoles} variant="brand" />
                                     </div>
                                 )}

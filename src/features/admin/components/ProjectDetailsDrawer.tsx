@@ -81,7 +81,7 @@ export function ProjectDetailsDrawer({
             onClose={onClose}
             title={visibleProject.name}
             closeAriaLabel="Close project details"
-            widthClassName="w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]"
+            widthClassName="w-full sm:w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]"
             leading={
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-muted text-app-text-muted">
                     <Folder className="h-6 w-6" />

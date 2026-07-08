@@ -220,12 +220,12 @@ export function UserDetailsDrawer({
                 </AccessBadge>
             }
             actions={
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                         type="button"
                         onClick={startEditing}
                         disabled={isEditing || isSaving}
-                        className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <Edit className="h-4 w-4" />
                         Edit User

@@ -24,8 +24,8 @@ export function DetailsSideDrawer({
                                       actions,
                                       children,
                                       footer,
-                                      widthClassName = "w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]",
-                                      contentClassName = "mx-5 px-4 pb-10 pt-5 lg:px-5 lg:pt-6",
+                                      widthClassName = "w-full sm:w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]",
+                                      contentClassName = "mx-3 px-3 pb-8 pt-4 sm:mx-5 sm:px-4 sm:pb-10 sm:pt-5 lg:px-5 lg:pt-6",
                                       closeAriaLabel = "Close details",
                                   }: DetailsSideDrawerProps) {
     return (
@@ -41,7 +41,7 @@ export function DetailsSideDrawer({
             zIndexClassName="z-40"
             showOverlay={false}
             contentClassName={contentClassName}
-            headerClassName="mx-5 px-4 pb-0 pt-5 lg:px-5 lg:pt-6"
+            headerClassName="mx-3 px-3 pb-4 pt-4 sm:mx-5 sm:px-4 sm:pb-5 sm:pt-5 lg:px-5 lg:pt-6"
             closeAriaLabel={closeAriaLabel}
         >
             {children}
