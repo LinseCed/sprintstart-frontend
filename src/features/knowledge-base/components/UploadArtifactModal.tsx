@@ -4,12 +4,21 @@ import { X, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { FileUploadZone } from './FileUploadZone';
 import { knowledgeService } from '../../../services/knowledgeService';
 
+/**
+ * Props for the UploadArtifactModal component.
+ */
 interface Props {
     isOpen: boolean;
     onClose: () => void;
     projectId: string;
 }
 
+/**
+ * UploadArtifactModal
+ * 
+ * Orchestrates the batch upload process of user documents into the knowledge base.
+ * Provides feedback on success or failure for each individual file ingested.
+ */
 export function UploadArtifactModal({ isOpen, onClose, projectId }: Props) {
     const [isUploading, setIsUploading] = useState(false);
     const [batchResult, setBatchResult] = useState<{
@@ -18,6 +27,10 @@ export function UploadArtifactModal({ isOpen, onClose, projectId }: Props) {
         errors: string[];
     } | null>(null);
 
+    /**
+     * Submits the selected files to the backend for ingestion.
+     * Parses the batch results to display per-file success/error states.
+     */
     const handleUpload = async (files: File[]) => {
         setIsUploading(true);
         setBatchResult(null);

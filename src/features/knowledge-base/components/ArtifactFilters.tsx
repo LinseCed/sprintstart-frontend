@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 
 export type KnowledgeTab = 'ALL' | 'UPLOADS' | 'PR' | 'ISSUES' | 'FILES' | 'COMMITS';
 
+/**
+ * Props for the ArtifactFilters component.
+ * Contains callback functions to update the parent component's view state.
+ */
 export interface ArtifactFiltersProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
@@ -19,6 +23,12 @@ const TABS: { id: KnowledgeTab; label: string }[] = [
     { id: 'COMMITS', label: 'Commits' },
 ];
 
+/**
+ * ArtifactFilters
+ * 
+ * Provides a UI for users to refine the unified knowledge base list.
+ * Includes text search and segmented tabs mapping to different artifact types/sources.
+ */
 export function ArtifactFilters({
     searchQuery,
     onSearchChange,

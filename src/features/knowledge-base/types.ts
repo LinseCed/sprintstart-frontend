@@ -1,6 +1,20 @@
+/**
+ * Defines the specific entity type of an artifact.
+ * Used by the UI to determine icon representations and filtering logic.
+ */
 export type ArtifactType = 'COMMIT' | 'FILE' | 'ISSUE' | 'PULL_REQUEST';
+
+/**
+ * Origin source of the artifact data.
+ * Used to route API calls (e.g., Github vs internal Uploads).
+ */
 export type SourceSystem = 'GITHUB' | 'JIRA' | 'UPLOAD';
 
+/**
+ * Core business entity representing any indexed piece of knowledge.
+ * Unifies diverse sources (like Github PRs and direct file uploads) into a single
+ * searchable and summariable format.
+ */
 export interface Artifact {
     id: string;
     title: string | null;
@@ -17,11 +31,18 @@ export interface Artifact {
     ingestionRunId: string | null;
 }
 
+/**
+ * The raw content of an artifact retrieved from the backend, 
+ * along with its MIME type for correct rendering (Markdown vs plain text).
+ */
 export interface ArtifactContent {
     content: string;
     mimeType: string;
 }
 
+/**
+ * Callbacks for handling the Server-Sent Events (SSE) stream during AI summarization.
+ */
 export interface SummaryStreamHandlers {
     onToken: (token: string) => void;
     onDone: () => void;

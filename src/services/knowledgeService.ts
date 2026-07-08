@@ -194,6 +194,13 @@ export const knowledgeService = {
         handlers.onDone();
     },
 
+    /**
+     * Uploads an array of files sequentially to the backend ingestion service.
+     * 
+     * @param _projectId UUID of the project (currently unused, binds to uploaderId on backend).
+     * @param files Array of physical File objects selected by the user.
+     * @returns Array of results indicating success or failure per file.
+     */
     async uploadDocuments(_projectId: string, files: File[]): Promise<{ filename: string; status: 'success' | 'error'; error?: string }[]> {
         const results: { filename: string; status: 'success' | 'error'; error?: string }[] = [];
 

@@ -2,6 +2,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, FileCode, CircleDot, GitPullRequest, ChevronRight } from 'lucide-react';
 import type { Artifact, ArtifactType } from '../types';
 
+/**
+ * Props for the ArtifactList component.
+ * Includes callback triggered when a user selects a specific item to view details.
+ */
 interface ArtifactListProps {
     artifacts: Artifact[];
     onSelect: (id: string) => void;
@@ -25,6 +29,13 @@ const formatDate = (iso: string): string => {
     }
 };
 
+/**
+ * ArtifactList
+ * 
+ * Renders the unified list of knowledge base items (Uploads, PRs, Commits, Issues).
+ * Uses Framer Motion's AnimatePresence to handle layout transitions as filters are applied
+ * and items enter/exit the dashboard list.
+ */
 export function ArtifactList({ artifacts, onSelect }: ArtifactListProps) {
     if (artifacts.length === 0) {
         return (

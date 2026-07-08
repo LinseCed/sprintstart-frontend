@@ -35,7 +35,10 @@ export function KnowledgeBasePage() {
     // Upload State
     const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
 
-    // Load artifacts once projectId is resolved
+    /**
+     * Loads the initial batch of unified artifacts from the backend.
+     * Depends on the authenticated user's projectId to fetch the correct project scope.
+     */
     useEffect(() => {
         if (!projectId) return;
 

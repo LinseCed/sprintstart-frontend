@@ -8,12 +8,22 @@ import type { Artifact, ArtifactContent } from '../types';
 import { knowledgeService } from '../../../services/knowledgeService';
 import { SidePanel } from '../../../components/ui/SidePanel';
 
+/**
+ * Props for the ArtifactViewerDrawer component.
+ */
 interface ArtifactViewerDrawerProps {
     artifact: Artifact | null;
     onClose: () => void;
     projectId: string;
 }
 
+/**
+ * ArtifactViewerDrawer
+ * 
+ * Slide-out panel that displays the raw content of a selected artifact.
+ * Allows users to trigger an AI summarization of the content to quickly extract key information
+ * without reading massive files or issues.
+ */
 export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactViewerDrawerProps) {
     const [viewMode, setViewMode] = useState<'raw' | 'summary'>('raw');
     const [content, setContent] = useState<ArtifactContent | null>(null);
@@ -22,6 +32,10 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
     const [isStreaming, setIsStreaming] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    /**
+     * Loads the raw artifact content from the backend whenever a new artifact is selected.
+     * Required to properly render the markdown or raw text in the drawer.
+     */
     useEffect(() => {
         if (!artifact) return;
         
@@ -53,6 +67,10 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
         };
     }, [artifact, projectId]);
 
+    /**
+     * Triggers the AI summarization process for the currently loaded artifact.
+     * Connects to the backend SSE stream to display the summary progressively.
+     */
     const handleSummarize = async () => {
         if (!artifact) return;
         
