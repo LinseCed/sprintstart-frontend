@@ -8,6 +8,11 @@ import {
     createSkill,
     deleteSkill,
     getSkills,
+    getSkillById,
+    updateSkill,
+    getSkillsByRoleId,
+    updateRoleSkills,
+    reactivateSkill,
     getUserSkillLevels,
     saveUserSkillAssessments,
 } from '../../../src/services/teamManagementService';
@@ -80,7 +85,6 @@ describe('teamManagementService', () => {
                     {
                         id: 'skill1',
                         name: 'TypeScript',
-                        description: 'Typed JavaScript',
                         roleIds: ['role1', 'role2'],
                         status: 'ACTIVE',
                     },
@@ -100,14 +104,12 @@ describe('teamManagementService', () => {
             {
                 id: 'skill1',
                 name: 'TypeScript',
-                description: 'Typed JavaScript',
                 roleIds: ['role1', 'role2'],
                 status: 'ACTIVE',
             },
             {
                 id: 'skill2',
                 name: 'Legacy API',
-                description: null,
                 roleIds: [],
                 status: 'RETIRED',
             },
@@ -122,22 +124,135 @@ describe('teamManagementService', () => {
                 return HttpResponse.json({
                     id: 'skill1',
                     name: 'React',
-                    description: 'UI library',
                     roleIds: ['role1'],
                     status: 'ACTIVE',
                 });
             }),
         );
 
-        const skill = await createSkill('React', ['role1'], 'UI library');
+        const skill = await createSkill('React', ['role1']);
 
         expect(capturedBody).toEqual({
             name: 'React',
-            description: 'UI library',
             roleIds: ['role1'],
         });
         expect(skill.roleIds).toEqual(['role1']);
         expect(skill.status).toBe('ACTIVE');
+    });
+
+    it('reactivateSkill reactivates a retired skill through the admin endpoint', async () => {
+        let capturedBody: unknown;
+        server.use(
+            http.post('/api/v1/admin/skills', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json({
+                    id: 'skill1',
+                    name: 'React',
+                    roleIds: ['role1'],
+                    status: 'ACTIVE',
+                });
+            }),
+        );
+
+        const skill = await reactivateSkill('skill1', 'React', ['role1']);
+
+        expect(capturedBody).toEqual({
+            name: 'React',
+            roleIds: ['role1'],
+        });
+        expect(skill.status).toBe('ACTIVE');
+        expect(skill.id).toBe('skill1');
+    });
+
+    it('getSkillById fetches a single skill', async () => {
+        server.use(
+            http.get('/api/v1/skills/skill1', () =>
+                HttpResponse.json({
+                    id: 'skill1',
+                    name: 'TypeScript',
+                    roleIds: ['role1'],
+                    status: 'ACTIVE',
+                }),
+            ),
+        );
+
+        const skill = await getSkillById('skill1');
+
+        expect(skill.id).toBe('skill1');
+        expect(skill.name).toBe('TypeScript');
+        expect(skill.roleIds).toEqual(['role1']);
+        expect(skill.status).toBe('ACTIVE');
+    });
+
+    it('updateSkill patches a skill through the admin endpoint', async () => {
+        let capturedBody: unknown;
+        server.use(
+            http.patch('/api/v1/admin/skills/skill1', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json({
+                    id: 'skill1',
+                    name: 'React',
+                    roleIds: ['role1', 'role2'],
+                    status: 'ACTIVE',
+                });
+            }),
+        );
+
+        const skill = await updateSkill('skill1', {
+            name: 'React',
+            roleIds: ['role1', 'role2'],
+        });
+
+        expect(capturedBody).toEqual({
+            name: 'React',
+            roleIds: ['role1', 'role2'],
+        });
+        expect(skill.roleIds).toEqual(['role1', 'role2']);
+        expect(skill.name).toBe('React');
+    });
+
+    it('getSkillsByRoleId fetches skills linked to a role', async () => {
+        server.use(
+            http.get('/api/v1/projectRoles/role1/skills', () =>
+                HttpResponse.json([
+                    {
+                        id: 'skill1',
+                        name: 'TypeScript',
+                        roleIds: ['role1'],
+                        status: 'ACTIVE',
+                    },
+                ]),
+            ),
+        );
+
+        const skills = await getSkillsByRoleId('role1');
+
+        expect(skills).toHaveLength(1);
+        expect(skills[0].name).toBe('TypeScript');
+        expect(skills[0].roleIds).toEqual(['role1']);
+    });
+
+    it('updateRoleSkills replaces skills linked to a role', async () => {
+        let capturedBody: unknown;
+        server.use(
+            http.put('/api/v1/projectRoles/role1/skills', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json([
+                    {
+                        id: 'skill1',
+                        name: 'TypeScript',
+                        roleIds: ['role1'],
+                        status: 'ACTIVE',
+                    },
+                ]);
+            }),
+        );
+
+        const skills = await updateRoleSkills('role1', ['skill1']);
+
+        expect(capturedBody).toEqual({ skillIds: ['skill1'] });
+        expect(skills).toHaveLength(1);
+        expect(skills[0].id).toBe('skill1');
     });
 
     it('deleteSkill retires skills through the admin endpoint', async () => {

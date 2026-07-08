@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AlertDialog } from '../../../components/ui/AlertDialog';
 import { Modal } from '../../../components/ui/Modal';
@@ -9,6 +9,7 @@ import {
     deleteSkill,
     getProjectRoles,
     getSkills,
+    reactivateSkill,
 } from '../../../services/teamManagementService';
 import { isSkillLinkedToRole } from '../types';
 import type { ProjectRole, Skill } from '../types';
@@ -28,7 +29,6 @@ export function ProjectRolesModal({
     const [selectedRole, setSelectedRole] = useState<ProjectRole | null>(null);
     const [skills, setSkills] = useState<Skill[]>([]);
     const [skillName, setSkillName] = useState('');
-    const [skillDescription, setSkillDescription] = useState('');
     const [deleteRoleId, setDeleteRoleId] = useState<string | null>(null);
     const [deleteSkillId, setDeleteSkillId] = useState<string | null>(null);
 
@@ -67,12 +67,17 @@ export function ProjectRolesModal({
         const newSkill = await createSkill(
             skillName.trim(),
             [selectedRole.id],
-            skillDescription.trim(),
         );
 
-        setSkills((current) => [...current, newSkill]);
+        setSkills((current) => {
+            const exists = current.some((s) => s.id === newSkill.id);
+
+            return exists
+                ? current.map((s) => (s.id === newSkill.id ? newSkill : s))
+                : [...current, newSkill];
+        });
+
         setSkillName('');
-        setSkillDescription('');
     }
 
     async function confirmDeleteRole() {
@@ -96,6 +101,18 @@ export function ProjectRolesModal({
         }
 
         setDeleteRoleId(null);
+    }
+
+    async function handleReactivateSkill(skill: Skill) {
+        const updated = await reactivateSkill(
+            skill.id,
+            skill.name,
+            skill.roleIds,
+        );
+
+        setSkills((current) =>
+            current.map((s) => (s.id === skill.id ? updated : s)),
+        );
     }
 
     async function confirmDeleteSkill() {
@@ -260,9 +277,24 @@ export function ProjectRolesModal({
                                                 {skill.name}
 
                                                 {skill.status === 'RETIRED' && (
-                                                    <span className="font-medium">
-                                                        Retired
-                                                    </span>
+                                                    <>
+                                                        <span className="font-medium">
+                                                            Retired
+                                                        </span>
+
+                                                        <button
+                                                            type="button"
+                                                            aria-label={`Reactivate ${skill.name}`}
+                                                            onClick={() =>
+                                                                void handleReactivateSkill(
+                                                                    skill,
+                                                                )
+                                                            }
+                                                            className="text-app-text-muted hover:text-app-success-text"
+                                                        >
+                                                            <RotateCcw className="h-3 w-3" />
+                                                        </button>
+                                                    </>
                                                 )}
 
                                                 {skill.status === 'ACTIVE' && (
@@ -291,7 +323,7 @@ export function ProjectRolesModal({
                                 </div>
 
                                 <div className="mt-4 flex gap-2">
-                                    <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="min-w-0 flex-1">
                                         <input
                                             value={skillName}
                                             onChange={(event) =>
@@ -299,18 +331,6 @@ export function ProjectRolesModal({
                                             }
                                             placeholder="Add skill, e.g. React"
                                             className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand-border-strong"
-                                        />
-
-                                        <textarea
-                                            value={skillDescription}
-                                            onChange={(event) =>
-                                                setSkillDescription(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            placeholder="Skill description"
-                                            rows={2}
-                                            className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand-border-strong"
                                         />
                                     </div>
 

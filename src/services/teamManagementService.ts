@@ -27,7 +27,6 @@ let mockProjectRoles: ProjectRole[] = Array.from(
 type LegacySkill = {
     id: string;
     name: string;
-    description?: string | null;
     roleId?: string;
     roleIds?: string[];
     status?: SkillStatus;
@@ -39,7 +38,6 @@ function normalizeSkill(skill: LegacySkill): Skill {
     return {
         id: skill.id,
         name: skill.name,
-        description: skill.description ?? null,
         roleIds,
         status: skill.status ?? 'ACTIVE',
     };
@@ -364,7 +362,6 @@ export async function deleteOnboardingTask(taskId: string): Promise<void> {
 type SkillResponseDto = {
     id: string;
     name: string;
-    description?: string | null;
     status?: SkillStatus;
     roleId?: string;
     roleIds?: string[];
@@ -390,7 +387,6 @@ function toSkill(skill: SkillResponseDto): Skill {
     return {
         id: skill.id,
         name: skill.name,
-        description: skill.description ?? null,
         roleIds: skill.roleIds ?? legacyRoleIds,
         status: skill.status ?? 'ACTIVE',
     };
@@ -406,27 +402,111 @@ export async function getSkills(): Promise<Skill[]> {
     }
 }
 
-export async function createSkill(
+export async function getSkillById(skillId: string): Promise<Skill> {
+    const response = await apiClient.fetch<SkillResponseDto>(
+        `/api/v1/skills/${skillId}`,
+    );
+
+    return toSkill(response);
+}
+
+export async function updateSkill(
+    skillId: string,
+    data: { name?: string; roleIds?: string[] },
+): Promise<Skill> {
+    const response = await apiClient.fetch<SkillResponseDto>(
+        `/api/v1/admin/skills/${skillId}`,
+        {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        },
+    );
+
+    return toSkill(response);
+}
+
+export async function getSkillsByRoleId(roleId: string): Promise<Skill[]> {
+    const response = await apiClient.fetch<SkillResponseDto[]>(
+        `/api/v1/projectRoles/${roleId}/skills`,
+    );
+
+    return response.map(toSkill);
+}
+
+export async function updateRoleSkills(
+    roleId: string,
+    skillIds: string[],
+): Promise<Skill[]> {
+    const response = await apiClient.fetch<SkillResponseDto[]>(
+        `/api/v1/projectRoles/${roleId}/skills`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ skillIds }),
+        },
+    );
+
+    return response.map(toSkill);
+}
+
+export async function reactivateSkill(
+    skillId: string,
     name: string,
     roleIds: string[],
-    description = '',
 ): Promise<Skill> {
     try {
         const response = await apiClient.fetch<SkillResponseDto>('/api/v1/admin/skills', {
             method: 'POST',
             body: JSON.stringify({
                 name,
-                description,
                 roleIds,
             }),
         });
 
         return toSkill(response);
     } catch {
+        mockSkills = mockSkills.map((s) =>
+            s.id === skillId ? { ...s, status: 'ACTIVE' as const } : s,
+        );
+
+        return mockSkills.find((s) => s.id === skillId) ?? {
+            id: skillId,
+            name,
+            roleIds,
+            status: 'ACTIVE',
+        };
+    }
+}
+
+export async function createSkill(
+    name: string,
+    roleIds: string[],
+): Promise<Skill> {
+    try {
+        const response = await apiClient.fetch<SkillResponseDto>('/api/v1/admin/skills', {
+            method: 'POST',
+            body: JSON.stringify({
+                name,
+                roleIds,
+            }),
+        });
+
+        return toSkill(response);
+    } catch {
+        const existing = mockSkills.find(
+            (s) => s.name.toLowerCase() === name.toLowerCase() && s.status === 'RETIRED',
+        );
+
+        if (existing) {
+            const reactivated: Skill = { ...existing, roleIds, status: 'ACTIVE' };
+
+            mockSkills = mockSkills.map((s) => (s.id === existing.id ? reactivated : s));
+
+            return reactivated;
+        }
+
         const newSkill: Skill = {
             id: `mock-skill-${Date.now()}`,
             name,
-            description,
             roleIds,
             status: 'ACTIVE',
         };

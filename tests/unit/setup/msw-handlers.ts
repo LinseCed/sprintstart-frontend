@@ -263,7 +263,6 @@ export const handlers = [
             {
                 id: 'skill1',
                 name: 'TypeScript',
-                description: 'Typed JavaScript',
                 roleIds: ['role1'],
                 status: 'ACTIVE',
             },
@@ -273,16 +272,59 @@ export const handlers = [
     http.post('/api/v1/admin/skills', async ({ request }) => {
         const body = (await request.json()) as {
             name: string;
-            description?: string;
             roleIds: string[];
         };
         return HttpResponse.json({
             id: 'mock-skill-' + Date.now(),
             name: body.name,
-            description: body.description ?? null,
             roleIds: body.roleIds,
             status: 'ACTIVE',
         });
+    }),
+
+    http.get('/api/v1/skills/:skillId', ({ params }) =>
+        HttpResponse.json({
+            id: params.skillId,
+            name: 'TypeScript',
+            roleIds: ['role1'],
+            status: 'ACTIVE',
+        }),
+    ),
+
+    http.patch('/api/v1/admin/skills/:skillId', async ({ request, params }) => {
+        const body = (await request.json()) as {
+            name?: string;
+            roleIds?: string[];
+        };
+        return HttpResponse.json({
+            id: params.skillId,
+            name: body.name ?? 'TypeScript',
+            roleIds: body.roleIds ?? ['role1'],
+            status: 'ACTIVE',
+        });
+    }),
+
+    http.get('/api/v1/projectRoles/:roleId/skills', ({ params }) =>
+        HttpResponse.json([
+            {
+                id: 'skill1',
+                name: 'TypeScript',
+                roleIds: [params.roleId],
+                status: 'ACTIVE',
+            },
+        ]),
+    ),
+
+    http.put('/api/v1/projectRoles/:roleId/skills', async ({ request, params }) => {
+        const body = (await request.json()) as { skillIds: string[] };
+        return HttpResponse.json(
+            body.skillIds.map((skillId) => ({
+                id: skillId,
+                name: 'Skill ' + skillId,
+                roleIds: [params.roleId],
+                status: 'ACTIVE' as const,
+            })),
+        );
     }),
 
     http.delete('/api/v1/admin/skills/:skillId', () =>

@@ -55,7 +55,6 @@ export type SkillStatus = 'ACTIVE' | 'RETIRED';
 export type Skill = {
     id: string;
     name: string;
-    description?: string | null;
     roleIds: string[];
     status: SkillStatus;
     level?: SkillLevel;

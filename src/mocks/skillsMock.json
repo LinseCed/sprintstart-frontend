@@ -3,35 +3,30 @@
     {
       "id": "skill-1",
       "name": "React",
-      "description": "Build component-driven web interfaces.",
       "roleIds": ["r1"],
       "status": "ACTIVE"
     },
     {
       "id": "skill-2",
       "name": "TypeScript",
-      "description": "Use static typing across frontend code.",
       "roleIds": ["r1"],
       "status": "ACTIVE"
     },
     {
       "id": "skill-3",
       "name": "Tailwind CSS",
-      "description": "Compose UI with shared utility classes and design tokens.",
       "roleIds": ["r1"],
       "status": "ACTIVE"
     },
     {
       "id": "skill-4",
       "name": "Java",
-      "description": "Implement backend features with Java.",
       "roleIds": ["r2"],
       "status": "ACTIVE"
     },
     {
       "id": "skill-5",
       "name": "Spring Boot",
-      "description": "Build and maintain Spring Boot services.",
       "roleIds": ["r2"],
       "status": "ACTIVE"
     }

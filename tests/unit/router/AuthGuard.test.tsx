@@ -240,7 +240,6 @@ describe('AuthGuard', () => {
                 id: 'skill1',
                 roleIds: ['role1'],
                 name: 'Typescript',
-                description: null,
                 status: 'ACTIVE',
             },
         ]);
