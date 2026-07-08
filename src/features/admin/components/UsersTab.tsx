@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
-import type { KeyboardEvent, MouseEvent } from "react";
+import { useState } from "react";
+import type { MouseEvent } from "react";
 import { ExternalLink, MoreVertical, Trash2 } from "lucide-react";
 import { getDisplayName } from "../data";
 import { UserAvatar } from "../../../components/common/UserAvatar";
@@ -62,42 +62,6 @@ export function UsersTab({
                              onRequestUserDeleteFromMenu,
                          }: UsersTabProps) {
     const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-
-    useEffect(() => {
-        if (!openUserMenuId) {
-            setMenuPosition(null);
-        }
-    }, [openUserMenuId]);
-
-    const shouldIgnoreUserRowAction = (
-        event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>,
-    ) => {
-        return (
-            event.target instanceof Element &&
-            event.target.closest("[data-user-row-action='true']") !== null
-        );
-    };
-
-    const handleOpenUserByClick = (
-        event: MouseEvent<HTMLDivElement>,
-        user: AdminUser,
-    ) => {
-        if (shouldIgnoreUserRowAction(event)) return;
-
-        onOpenUserDetails(user);
-    };
-
-    const handleOpenUserByKeyboard = (
-        event: KeyboardEvent<HTMLDivElement>,
-        user: AdminUser,
-    ) => {
-        if (shouldIgnoreUserRowAction(event)) return;
-
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onOpenUserDetails(user);
-        }
-    };
 
     const handleToggleUserContextMenu = (
         event: MouseEvent<HTMLButtonElement>,
@@ -185,13 +149,16 @@ export function UsersTab({
                 {paginatedUsers.map((user) => (
                     <div
                         key={user.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={(event) => handleOpenUserByClick(event, user)}
-                        onKeyDown={(event) => handleOpenUserByKeyboard(event, user)}
-                        className="group grid cursor-pointer grid-cols-[36px_minmax(0,1fr)_44px] gap-x-3 gap-y-3 border-b border-app-border px-3 py-4 transition-colors last:border-b-0 hover:bg-app-surface-hover focus:outline-none focus-visible:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-brand-glow sm:grid-cols-[44px_2.5fr_1.8fr_1.8fr_52px] sm:items-center sm:gap-x-0 sm:gap-y-0 sm:px-5"
+                        className="group relative grid cursor-pointer grid-cols-[36px_minmax(0,1fr)_44px] gap-x-3 gap-y-3 border-b border-app-border px-3 py-4 transition-colors last:border-b-0 hover:bg-app-surface-hover sm:grid-cols-[44px_2.5fr_1.8fr_1.8fr_52px] sm:items-center sm:gap-x-0 sm:gap-y-0 sm:px-5"
                     >
-                        <div className="row-span-3 flex items-start pt-1 sm:row-auto sm:items-center sm:pt-0" data-user-row-action="true">
+                        <button
+                            type="button"
+                            onClick={() => onOpenUserDetails(user)}
+                            className="absolute inset-0 z-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-brand-glow"
+                            aria-label={`Open details for ${getDisplayName(user)}`}
+                        />
+
+                        <div className="relative z-10 row-span-3 flex items-start pt-1 sm:row-auto sm:items-center sm:pt-0" data-user-row-action="true">
                             <SelectionCheckbox
                                 checked={selectedUserIds.has(user.id)}
                                 onChange={() => onToggleUserSelection(user.id)}
@@ -199,7 +166,7 @@ export function UsersTab({
                             />
                         </div>
 
-                        <div className="col-start-2 min-h-11 min-w-0 text-left sm:col-auto">
+                        <div className="pointer-events-none relative z-10 col-start-2 min-h-11 min-w-0 text-left sm:col-auto">
                             <div className="flex items-center gap-2.5">
                                 <div className="flex shrink-0 items-center justify-center">
                                     <UserAvatar
@@ -221,16 +188,16 @@ export function UsersTab({
                             </div>
                         </div>
 
-                        <div className="col-start-2 min-w-0 sm:col-auto">
+                        <div className="pointer-events-none relative z-10 col-start-2 min-w-0 sm:col-auto">
                             <PermissionGroupBadge permissionGroup={user.permissionGroup} />
                         </div>
 
-                        <div className="col-span-2 col-start-2 min-w-0 sm:col-auto sm:col-span-1">
+                        <div className="pointer-events-none relative z-10 col-span-2 col-start-2 min-w-0 sm:col-auto sm:col-span-1">
                             <ProjectList projects={user.projects} />
                         </div>
 
                         <div
-                            className="col-start-3 row-start-1 flex items-center justify-end sm:col-auto sm:row-auto"
+                            className="relative z-10 col-start-3 row-start-1 flex items-center justify-end sm:col-auto sm:row-auto"
                             data-user-row-action="true"
                         >
                             <button

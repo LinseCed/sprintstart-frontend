@@ -73,11 +73,9 @@ describe('UsersTab', () => {
         const user = userEvent.setup();
         render(<UsersTab {...defaultProps} />);
 
-        const rows = screen
-            .getAllByRole('button')
-            .filter((el) => el.textContent?.includes('John Doe'));
-
-        await user.click(rows[0]);
+        await user.click(
+            screen.getByRole('button', { name: 'Open details for John Doe' }),
+        );
         expect(defaultProps.onOpenUserDetails).toHaveBeenCalledWith(mockUsers[0]);
     });
 

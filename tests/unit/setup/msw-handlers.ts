@@ -70,6 +70,15 @@ export const handlers = [
         });
     }),
 
+    http.patch('/api/v1/admin/users/:userId/enabled', async ({ request, params }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+            ...backendUser,
+            id: params.userId,
+            ...body,
+        });
+    }),
+
     http.delete('/api/v1/admin/users/:userId', () =>
         HttpResponse.json({ id: '123', deleted: true }),
     ),

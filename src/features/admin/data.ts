@@ -1,4 +1,10 @@
-import type { AdminUser, UserEditFormState, UserFilter } from "./types";
+import type {
+    AdminUser,
+    ProjectOverview,
+    ProjectSummary,
+    UserEditFormState,
+    UserFilter,
+} from "./types";
 import type { BadgeVariant } from "../../components/ui/Badge";
 
 export const PAGE_SIZE = 8;
@@ -63,4 +69,159 @@ export function getDraftDisplayName(user: AdminUser, draftUser: UserEditFormStat
         .join(" ");
 
     return fullName || user.username || draftUser.email;
+}
+
+export function getAvailableProjects(projects: ProjectOverview[]): ProjectSummary[] {
+    return projects
+        .map((project) => ({
+            id: project.id,
+            name: project.name,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export function filterAdminUsers(
+    users: AdminUser[],
+    searchValue: string,
+    userFilter: UserFilter,
+): AdminUser[] {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+
+    return users.filter((user) => {
+        const searchableValues = [
+            user.id,
+            user.username,
+            user.email,
+            user.firstName,
+            user.lastName,
+            user.permissionGroup,
+            user.profileIcon,
+            String(user.enabled),
+            String(user.hasCompletedOnboarding),
+            ...user.roles.flatMap((role) => [
+                role.id,
+                role.name,
+                role.description,
+                role.type,
+            ]),
+            ...user.projects.flatMap((project) => [project.id, project.name]),
+        ];
+
+        const matchesSearch =
+            normalizedSearch.length === 0 ||
+            searchableValues.some((value) =>
+                value.toLowerCase().includes(normalizedSearch),
+            );
+
+        const matchesFilter =
+            userFilter === "all" ||
+            (userFilter === "enabled" && user.enabled) ||
+            (userFilter === "disabled" && !user.enabled) ||
+            (userFilter === "onboarded" && user.hasCompletedOnboarding) ||
+            (userFilter === "not-onboarded" && !user.hasCompletedOnboarding);
+
+        return matchesSearch && matchesFilter;
+    });
+}
+
+export function filterAdminProjects(
+    projects: ProjectOverview[],
+    projectSearchValue: string,
+): ProjectOverview[] {
+    const normalizedSearch = projectSearchValue.trim().toLowerCase();
+
+    return projects.filter((project) => {
+        const searchableValues = [
+            project.id,
+            project.name,
+            project.description,
+            ...project.sources.flatMap((source) => [
+                source.id,
+                source.name,
+                source.type,
+                source.status,
+            ]),
+            ...project.users.flatMap((user) => [
+                user.id,
+                user.username,
+                user.email,
+                ...user.projectRoles,
+            ]),
+        ];
+
+        return (
+            normalizedSearch.length === 0 ||
+            searchableValues.some((value) =>
+                value.toLowerCase().includes(normalizedSearch),
+            )
+        );
+    });
+}
+
+export function getTotalPages(itemCount: number, pageSize = PAGE_SIZE) {
+    return Math.max(1, Math.ceil(itemCount / pageSize));
+}
+
+export function getSafePage(page: number, totalPages: number) {
+    return Math.min(page, totalPages);
+}
+
+export function getPaginatedUsers(
+    users: AdminUser[],
+    page: number,
+    pageSize = PAGE_SIZE,
+): AdminUser[] {
+    const startIndex = (page - 1) * pageSize;
+
+    return users.slice(startIndex, startIndex + pageSize);
+}
+
+export function areAllVisibleUsersSelected(
+    users: AdminUser[],
+    selectedUserIds: Set<string>,
+) {
+    return (
+        users.length > 0 && users.every((user) => selectedUserIds.has(user.id))
+    );
+}
+
+export function toggleSelectedUserId(
+    selectedUserIds: Set<string>,
+    userId: string,
+) {
+    const nextSelectedUserIds = new Set(selectedUserIds);
+
+    if (nextSelectedUserIds.has(userId)) {
+        nextSelectedUserIds.delete(userId);
+    } else {
+        nextSelectedUserIds.add(userId);
+    }
+
+    return nextSelectedUserIds;
+}
+
+export function toggleVisibleUserSelection(
+    selectedUserIds: Set<string>,
+    visibleUsers: AdminUser[],
+    allVisibleUsersSelected: boolean,
+) {
+    const nextSelectedUserIds = new Set(selectedUserIds);
+
+    if (allVisibleUsersSelected) {
+        visibleUsers.forEach((user) => nextSelectedUserIds.delete(user.id));
+    } else {
+        visibleUsers.forEach((user) => nextSelectedUserIds.add(user.id));
+    }
+
+    return nextSelectedUserIds;
+}
+
+export function removeUsersFromProjects(
+    projects: ProjectOverview[],
+    userIdsToRemove: Set<string>,
+): ProjectOverview[] {
+    return projects.map((project) => ({
+        ...project,
+        users: project.users.filter((user) => !userIdsToRemove.has(user.id)),
+    }));
 }

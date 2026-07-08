@@ -50,6 +50,29 @@ type SaveErrorState = {
     message: string;
 };
 
+function ReadonlyEditRow({
+    label,
+    value,
+    mono = false,
+}: {
+    label: string;
+    value: string;
+    mono?: boolean;
+}) {
+    return (
+        <div className="grid grid-cols-1 items-start gap-1 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:gap-4">
+            <span className="text-sm text-app-text-muted">{label}</span>
+            <span
+                className={`wrap-break-word text-sm font-medium text-app-text ${
+                    mono ? "font-mono text-xs" : ""
+                }`}
+            >
+                {value}
+            </span>
+        </div>
+    );
+}
+
 export function UserDetailsDrawer({
                                       user,
                                       availableProjects,
@@ -292,48 +315,46 @@ export function UserDetailsDrawer({
                     </div>
                 )}
 
-                <dl>
-                    {isEditing ? (
-                        <>
-                            <DetailRow label="Username" value={user.username} />
-                            <EditableDetailRow
-                                label="Email"
-                                value={draftUser.email}
-                                onChange={(value) => updateDraftField("email", value)}
-                                type="email"
-                                autoComplete="email"
-                            />
-                            <EditableDetailRow
-                                label="First name"
-                                value={draftUser.firstName}
-                                onChange={(value) => updateDraftField("firstName", value)}
-                                autoComplete="given-name"
-                            />
-                            <EditableDetailRow
-                                label="Last name"
-                                value={draftUser.lastName}
-                                onChange={(value) => updateDraftField("lastName", value)}
-                                autoComplete="family-name"
-                            />
-                            <EditableSelectDetailRow
-                                label="Role"
-                                value={draftUser.permissionGroup}
-                                onChange={(value) => updateDraftField("permissionGroup", value)}
-                                options={PERMISSION_GROUP_OPTIONS}
-                            />
-                            <DetailRow label="User ID" value={user.id} mono />
-                        </>
-                    ) : (
-                        <>
-                            <DetailRow label="Email" value={user.email} />
-                            <DetailRow label="Username" value={user.username} />
-                            <DetailRow label="First name" value={user.firstName} />
-                            <DetailRow label="Last name" value={user.lastName} />
-                            <DetailRow label="Role" value={user.permissionGroup} />
-                            <DetailRow label="User ID" value={user.id} mono />
-                        </>
-                    )}
-                </dl>
+                {isEditing ? (
+                    <div>
+                        <ReadonlyEditRow label="Username" value={user.username} />
+                        <EditableDetailRow
+                            label="Email"
+                            value={draftUser.email}
+                            onChange={(value) => updateDraftField("email", value)}
+                            type="email"
+                            autoComplete="email"
+                        />
+                        <EditableDetailRow
+                            label="First name"
+                            value={draftUser.firstName}
+                            onChange={(value) => updateDraftField("firstName", value)}
+                            autoComplete="given-name"
+                        />
+                        <EditableDetailRow
+                            label="Last name"
+                            value={draftUser.lastName}
+                            onChange={(value) => updateDraftField("lastName", value)}
+                            autoComplete="family-name"
+                        />
+                        <EditableSelectDetailRow
+                            label="Role"
+                            value={draftUser.permissionGroup}
+                            onChange={(value) => updateDraftField("permissionGroup", value)}
+                            options={PERMISSION_GROUP_OPTIONS}
+                        />
+                        <ReadonlyEditRow label="User ID" value={user.id} mono />
+                    </div>
+                ) : (
+                    <dl>
+                        <DetailRow label="Email" value={user.email} />
+                        <DetailRow label="Username" value={user.username} />
+                        <DetailRow label="First name" value={user.firstName} />
+                        <DetailRow label="Last name" value={user.lastName} />
+                        <DetailRow label="Role" value={user.permissionGroup} />
+                        <DetailRow label="User ID" value={user.id} mono />
+                    </dl>
+                )}
             </Section>
 
             <Section>
