@@ -37,6 +37,7 @@ import {
     deleteOnboardingTask,
     getOnboardingTasksByStep,
     updateOnboardingStep,
+    updateOnboardingTask,
     type OnboardingFeedback,
     type UserSkillLevel,
 } from '../services/teamManagementService';
@@ -475,6 +476,65 @@ export function TeamMemberDetailPage() {
         }));
 
         return nextTasks;
+    }
+
+    async function handleReorderTasks(
+        stepId: string,
+        activeTaskId: string,
+        overTaskId: string,
+    ) {
+        if (activeTaskId === overTaskId) return;
+
+        const currentTasks = [...(stepTasksById[stepId] ?? [])].sort(
+            (a, b) => a.position - b.position,
+        );
+        const activeIndex = currentTasks.findIndex((task) => task.id === activeTaskId);
+        const overIndex = currentTasks.findIndex((task) => task.id === overTaskId);
+
+        if (activeIndex < 0 || overIndex < 0) return;
+
+        const reorderedTasks = [...currentTasks];
+        const [movedTask] = reorderedTasks.splice(activeIndex, 1);
+        reorderedTasks.splice(overIndex, 0, movedTask);
+
+        const nextTasks = reorderedTasks.map((task, index) => ({
+            ...task,
+            position: index,
+        }));
+        const changedTasks = nextTasks.filter(
+            (task) =>
+                currentTasks.find((currentTask) => currentTask.id === task.id)
+                    ?.position !== task.position,
+        );
+
+        setStepActionId(stepId);
+        setOnboardingError('');
+        setStepTasksById((current) => ({
+            ...current,
+            [stepId]: nextTasks,
+        }));
+
+        try {
+            for (const task of changedTasks) {
+                await updateOnboardingTask(task.id, {
+                    position: task.position,
+                    title: task.title,
+                    description: task.description,
+                    finished: task.finished,
+                });
+            }
+
+            await refreshStepTasks(stepId);
+        } catch (error) {
+            setOnboardingError(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to reorder tasks.',
+            );
+            await refreshStepTasks(stepId);
+        } finally {
+            setStepActionId(null);
+        }
     }
 
     async function handleDeleteTask(task: OnboardingTaskEndpoint) {
@@ -1194,6 +1254,13 @@ export function TeamMemberDetailPage() {
                     onCreateTask={() => void handleCreateTask()}
                     formatMinutes={formatMinutes}
                     getStepStatusStyles={getStepStatusStyles}
+                    onReorderTasks={(activeTaskId, overTaskId) =>
+                        void handleReorderTasks(
+                            detailStep.id,
+                            activeTaskId,
+                            overTaskId,
+                        )
+                    }
                 />
             )}
         </div>

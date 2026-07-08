@@ -4,11 +4,11 @@ import {
     Circle,
     Clock,
     ClipboardList,
-    GripVertical,
     Plus,
     SkipForward,
 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
+import { DragHandle } from '../../../../components/ui/DragHandle';
 import { StepOriginBadge } from '../../../onboarding/components/StepOriginBadge';
 import type {
     OnboardingPhaseEndpoint,
@@ -454,7 +454,7 @@ function StepCard({
                     onSelect();
                 }
             }}
-            className={`group w-full rounded-2xl border bg-app-surface p-4 text-left transition-all ${
+            className={`group/step w-full rounded-2xl border bg-app-surface p-4 text-left transition-all ${
                 isDragTarget
                     ? 'border-app-brand bg-app-brand-soft shadow-sm'
                     : isSelected
@@ -471,15 +471,10 @@ function StepCard({
             }`}
         >
             <div className="flex gap-4">
-                <div className="flex items-start gap-2">
-                    <span
-                        className="mt-0.5 cursor-grab rounded-lg p-1 text-app-text-disabled transition-colors group-hover:text-app-text-muted active:cursor-grabbing"
-                        aria-hidden="true"
-                    >
-                        <GripVertical className="h-4 w-4" />
-                    </span>
+                <div className="flex items-center">
+                    <DragHandle visibleClassName="group-hover/step:mr-1 group-hover/step:w-4 group-hover/step:opacity-100 group-hover/step:text-app-text-muted" />
 
-                    <span className="pt-0.5">
+                    <span>
                         {step.status === 'FINISHED' ? (
                             <CheckCircle2 className="h-5 w-5 text-app-success-solid" />
                         ) : step.status === 'SKIPPED' ? (
