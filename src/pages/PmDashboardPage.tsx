@@ -2,6 +2,7 @@
 
 import { BriefcaseBusiness } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
+import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
@@ -51,6 +52,21 @@ export function PmDashboardPage() {
                         <FaqWidget />
                         <KnowledgeGapWidget />
                     </div>
+                </section>
+
+                {/* Data Ingestion Section */}
+                <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">
+                    <div className="mb-4">
+                        <h2 className="text-lg font-semibold text-app-text">
+                            Data ingestion
+                        </h2>
+                        <p className="text-sm text-app-text-muted">
+                            Sync health of connected sources: last run,
+                            ingested/updated/failed counts and errors.
+                        </p>
+                    </div>
+
+                    <IngestionStatusWidget />
                 </section>
             </main>
         </div>
