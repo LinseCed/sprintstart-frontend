@@ -185,9 +185,16 @@ export function TeamMemberDetailPage() {
                 getUserOnboardingPath(userId),
                 knowledgeGapService.fetchKnowledgeGaps(),
             ]);
-            const feedback = memberData?.hasFeedback
-                ? await getUserOnboardingFeedback(userId)
-                : [];
+            let feedback: OnboardingFeedback[] = [];
+            try {
+                feedback = await getUserOnboardingFeedback(userId);
+            } catch (error) {
+                setFeedbackError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Unable to load feedback.',
+                );
+            }
 
             setUser(memberData);
             setAvailableRoles(rolesData);
@@ -459,6 +466,13 @@ export function TeamMemberDetailPage() {
 
         try {
             await markOnboardingFeedbackRead(feedbackId);
+            setFeedbackItems((current) =>
+                current.map((feedback) =>
+                    feedback.id === feedbackId
+                        ? { ...feedback, read: true }
+                        : feedback,
+                ),
+            );
             await Promise.all([refreshFeedback(), refreshMember()]);
         } catch (error) {
             setFeedbackError(
@@ -619,8 +633,30 @@ export function TeamMemberDetailPage() {
     const detailStepActualMinutes = detailStep ? getActualMinutes(detailStep) : null;
 
     const detailStepFeedback = detailStep
-        ? feedbackItems.filter((feedback) => feedback.stepId === detailStep.id)
+        ? feedbackItems
+            .filter((feedback) => feedback.stepId === detailStep.id)
+            .map((feedback) => ({
+                ...feedback,
+                helpful:
+                    feedback.helpful ??
+                    (detailStep.feedback?.id === feedback.id
+                        ? detailStep.feedback.helpful
+                        : undefined),
+            }))
         : [];
+    const displayedDetailStepFeedback =
+        detailStepFeedback.length > 0 || !detailStep?.feedback
+            ? detailStepFeedback
+            : [
+                {
+                    id: detailStep.feedback.id,
+                    stepId: detailStep.id,
+                    stepTitle: detailStep.title,
+                    message: detailStep.feedback.comment,
+                    helpful: detailStep.feedback.helpful,
+                    createdAt: detailStep.feedback.createdAt,
+                },
+            ];
     const detailStepSkipReason = detailStep?.skip?.reason || '';
     const skillGaps = skillLevels.filter(
         (skill) => skill.level === 'BEGINNER' || skill.level === 'INTERMEDIATE',
@@ -847,8 +883,8 @@ export function TeamMemberDetailPage() {
                                 <p className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
                                     Loading feedback...
                                 </p>
-                            ) : feedbackItems.length > 0 ? (
-                                feedbackItems.map((feedback) => {
+                            ) : unreadFeedback.length > 0 ? (
+                                unreadFeedback.map((feedback) => {
                                     const isUnread =
                                         feedback.read !== true && !feedback.readAt;
 
@@ -929,7 +965,7 @@ export function TeamMemberDetailPage() {
                                         </div>
                                     );
                                 })
-                            ) : user.hasFeedback ? (
+                            ) : user.hasFeedback && feedbackItems.length === 0 ? (
                                 <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg p-4">
                                     <div className="flex items-start gap-3">
                                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface text-app-warning-text">
@@ -1080,7 +1116,7 @@ export function TeamMemberDetailPage() {
                     tasks={sortedDetailStepTasks}
                     doneTaskCount={detailStepDoneTasks}
                     actualMinutes={detailStepActualMinutes}
-                    feedbackItems={detailStepFeedback}
+                    feedbackItems={displayedDetailStepFeedback}
                     skipReason={detailStepSkipReason}
                     taskInsertTarget={taskInsertTarget}
                     newTaskTitle={newTaskTitle}

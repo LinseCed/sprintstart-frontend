@@ -1,4 +1,13 @@
-import { CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
+import {
+    CheckCircle2,
+    Circle,
+    MessageSquareText,
+    Plus,
+    SkipForward,
+    ThumbsDown,
+    ThumbsUp,
+    Trash2,
+} from 'lucide-react';
 import { SidePanel } from '../../../../components/ui/SidePanel';
 import type {
     OnboardingStepEndpoint,
@@ -12,7 +21,10 @@ type DetailOnboardingStep = OnboardingStepEndpoint & {
     skip?: {
         id?: string;
         status?: string;
+        accepted?: boolean | null;
         reason?: string;
+        reviewComment?: string | null;
+        reviewedAt?: string | null;
     } | null;
 };
 
@@ -78,6 +90,8 @@ export function StepDetailsPanel({
     formatMinutes,
     getStepStatusStyles,
 }: StepDetailsPanelProps) {
+    const skipStatus = getSkipStatus(step);
+
     return (
         <SidePanel
             isOpen
@@ -338,24 +352,92 @@ export function StepDetailsPanel({
                 </h3>
 
                 {skipReason && (
-                    <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                    <div className={`rounded-2xl border px-4 py-3 ${
                         step.status === 'SKIPPED'
-                            ? 'border-app-danger-border bg-app-danger-bg text-app-danger-text'
-                            : 'border-app-warning-border bg-app-warning-bg text-app-warning-text'
+                            ? 'border-app-danger-border bg-app-danger-bg'
+                            : 'border-app-warning-border bg-app-warning-bg'
                     }`}>
-                        {skipReason}
+                        <div className="flex items-start gap-3">
+                            <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface ${
+                                step.status === 'SKIPPED'
+                                    ? 'text-app-danger-text'
+                                    : 'text-app-warning-text'
+                            }`}>
+                                <SkipForward className="h-4 w-4" />
+                            </span>
+
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-semibold text-app-text">
+                                        Skip request
+                                    </p>
+                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                        step.status === 'SKIPPED'
+                                            ? 'bg-app-surface text-app-danger-text'
+                                            : 'bg-app-surface text-app-warning-text'
+                                    }`}>
+                                        {skipStatus}
+                                    </span>
+                                </div>
+
+                                <p className="mt-2 text-sm text-app-text">
+                                    {skipReason}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
 
                 {feedbackItems.length > 0 ? (
-                    feedbackItems.map((feedback) => (
-                        <div
-                            key={feedback.id}
-                            className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text"
-                        >
-                            {feedback.message}
-                        </div>
-                    ))
+                    feedbackItems.map((feedback) => {
+                        const rating = getFeedbackRating(feedback.helpful);
+
+                        return (
+                            <div
+                                key={feedback.id}
+                                className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${rating.iconClassName}`}>
+                                        {rating.icon}
+                                    </span>
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-sm font-semibold text-app-text">
+                                                Feedback
+                                            </p>
+                                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${rating.badgeClassName}`}>
+                                                {rating.label}
+                                            </span>
+                                            {feedback.read === false && (
+                                                <span className="rounded-full bg-app-warning-bg px-2 py-0.5 text-xs font-medium text-app-warning-text">
+                                                    Unread
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <p className="mt-2 text-sm text-app-text">
+                                            {feedback.message}
+                                        </p>
+
+                                        {feedback.createdAt && (
+                                            <p className="mt-2 text-xs text-app-text-muted">
+                                                {new Date(feedback.createdAt).toLocaleDateString(
+                                                    'en-US',
+                                                    {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                    },
+                                                )}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
                 ) : (
                     !skipReason && (
                         <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
@@ -366,6 +448,49 @@ export function StepDetailsPanel({
             </section>
         </SidePanel>
     );
+}
+
+function getSkipStatus(step: DetailOnboardingStep) {
+    if (step.skip?.status) {
+        return step.skip.status.charAt(0) + step.skip.status.slice(1).toLowerCase();
+    }
+
+    if (step.skip?.accepted === true || step.status === 'SKIPPED') {
+        return 'Accepted';
+    }
+
+    if (step.skip?.accepted === false) {
+        return 'Denied';
+    }
+
+    return 'Pending';
+}
+
+function getFeedbackRating(helpful?: boolean | null) {
+    if (helpful === true) {
+        return {
+            label: 'Helpful',
+            icon: <ThumbsUp className="h-4 w-4" />,
+            iconClassName: 'bg-app-success-bg text-app-success-solid',
+            badgeClassName: 'bg-app-success-bg text-app-success-solid',
+        };
+    }
+
+    if (helpful === false) {
+        return {
+            label: 'Not helpful',
+            icon: <ThumbsDown className="h-4 w-4" />,
+            iconClassName: 'bg-app-danger-bg text-app-danger-text',
+            badgeClassName: 'bg-app-danger-bg text-app-danger-text',
+        };
+    }
+
+    return {
+        label: 'Feedback',
+        icon: <MessageSquareText className="h-4 w-4" />,
+        iconClassName: 'bg-app-surface text-app-text-muted',
+        badgeClassName: 'bg-app-border-muted text-app-text-muted',
+    };
 }
 
 function TaskInsertButton({

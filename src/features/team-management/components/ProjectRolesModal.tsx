@@ -57,6 +57,7 @@ export function ProjectRolesModal({
         );
 
         setRoles((current) => [...current, newRole]);
+        setSelectedRole(newRole);
         setRoleName('');
         setRoleDescription('');
     }
@@ -154,29 +155,23 @@ export function ProjectRolesModal({
                 size="lg"
                 onClose={onClose}
                 footer={
-                    <>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => void handleCreateRole()}
-                            className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse transition-colors hover:bg-app-brand-hover"
-                        >
-                            Create Role
-                        </button>
-                    </>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                    >
+                        Done
+                    </button>
                 }
             >
                 <div className="border-t border-app-border pt-6">
                     <h3 className="mb-3 text-sm font-medium text-app-text">
                         Create New Role
                     </h3>
+                    <p className="mb-3 text-xs leading-relaxed text-app-text-muted">
+                        Create a project role first. After that, select it below
+                        to add the skills people in this role should assess.
+                    </p>
 
                     <div className="space-y-3">
                         <input
@@ -197,12 +192,26 @@ export function ProjectRolesModal({
                             rows={2}
                             className="w-full resize-none rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand-border-strong"
                         />
+
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => void handleCreateRole()}
+                                disabled={!roleName.trim()}
+                                className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse transition-colors hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Create Role
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mt-6">
                         <h3 className="mb-3 text-sm font-medium text-app-text">
                             Existing Roles
                         </h3>
+                        <p className="mb-3 text-xs leading-relaxed text-app-text-muted">
+                            Select a role to manage its skills.
+                        </p>
 
                         <div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
                             {roles.map((role) => {
@@ -262,6 +271,11 @@ export function ProjectRolesModal({
                                 <div className="mt-4">
                                     <p className="mb-2 text-xs font-medium text-app-text-muted">
                                         Skills
+                                    </p>
+                                    <p className="mb-3 text-xs leading-relaxed text-app-text-muted">
+                                        Add skills that belong to this role.
+                                        These show up in the skill assessment
+                                        flow for assigned team members.
                                     </p>
 
                                     <div className="flex flex-wrap gap-2">
@@ -339,7 +353,8 @@ export function ProjectRolesModal({
                                         onClick={() =>
                                             void handleCreateSkill()
                                         }
-                                        className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse hover:bg-app-brand-hover"
+                                        disabled={!skillName.trim()}
+                                        className="rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         Add
                                     </button>

@@ -9,6 +9,10 @@ type DataIngestionTabsProps = {
     onAddSource: () => void;
 };
 
+/**
+ * Navigation tabs for the data ingestion dashboard.
+ * Switches between sources, artifacts, and runs views, and provides the "Add Source" action.
+ */
 export function DataIngestionTabs({
     activeTab,
     onTabChange,
