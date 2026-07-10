@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { buildDataSources, INGESTION_RUN_LIMIT } from "../data.ts";
 import { getIngestionRuns, getIngestionStatus } from "../../../services/ingestionService.ts";
 import { useFetch } from "../../../hooks/useFetch.ts";
+import { ClickableCard } from "../../../components/common/ClickableCard.tsx";
 import { IngestionMetrics } from "./IngestionMetrics.tsx";
 
 async function fetchIngestionSources() {
@@ -62,7 +63,11 @@ export function IngestionStatusWidget() {
     // ── RENDER ───────────────────────────────────────────────
 
     return (
-        <div className="rounded-2xl border border-app-border bg-app-surface p-5">
+        <ClickableCard
+            onClick={() => void navigate("/data-ingestion")}
+            aria-label="View data ingestion details"
+            className="rounded-2xl border border-app-border bg-app-surface p-5 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover"
+        >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Database className="w-4 h-4 text-app-brand" />
@@ -70,16 +75,13 @@ export function IngestionStatusWidget() {
                         Data ingestion
                     </span>
                 </div>
-                <button
-                    onClick={() => void navigate("/data-ingestion")}
-                    className="flex items-center gap-1 text-xs text-app-text-muted hover:text-app-text transition-colors"
-                >
+                <span className="flex items-center gap-1 text-xs text-app-text-muted">
                     View details
                     <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                </span>
             </div>
 
             <IngestionMetrics sources={sources} />
-        </div>
+        </ClickableCard>
     );
 }

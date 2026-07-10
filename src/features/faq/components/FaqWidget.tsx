@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import type { FAQGroup } from "../types";
 import { insightsService } from "../../../services/faqService";
 import { useFetch } from "../../../hooks/useFetch";
+import { ClickableCard } from "../../../components/common/ClickableCard";
 
 import {
   TrendingUp,
@@ -65,7 +66,11 @@ export function FaqWidget() {
   // ── RENDER ───────────────────────────────────────────────
 
   return (
-    <div className="rounded-2xl border border-app-border bg-app-surface p-5">
+    <ClickableCard
+      onClick={() => void navigate("/insights/faq")}
+      aria-label="View all recurring questions"
+      className="rounded-2xl border border-app-border bg-app-surface p-5 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover has-[button:hover]:!border-app-border has-[button:hover]:!bg-app-surface"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -74,18 +79,18 @@ export function FaqWidget() {
             Recurring questions
           </span>
         </div>
-        <button
-          onClick={() => void navigate("/insights/faq")}
-          className="flex items-center gap-1 text-xs text-app-text-muted hover:text-app-text transition-colors"
-        >
+        <span className="flex items-center gap-1 text-xs text-app-text-muted">
           See all ({sorted.length})
           <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+        </span>
       </div>
 
       {/* Hero card — most asked */}
       <button
-        onClick={() => goToDetail(hero)}
+        onClick={(event) => {
+          event.stopPropagation();
+          goToDetail(hero);
+        }}
         className="w-full text-left rounded-2xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-4 mb-3 relative overflow-hidden"
       >
         {/* Big count in the corner */}
@@ -120,7 +125,10 @@ export function FaqWidget() {
         {rest.map((group) => (
           <button
             key={group.groupId}
-            onClick={() => goToDetail(group)}
+            onClick={(event) => {
+              event.stopPropagation();
+              goToDetail(group);
+            }}
             className="text-left rounded-xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-3"
           >
             <div className="text-xl font-semibold text-app-brand mb-1">
@@ -138,6 +146,6 @@ export function FaqWidget() {
           </button>
         ))}
       </div>
-    </div>
+    </ClickableCard>
   );
 }
