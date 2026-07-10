@@ -447,7 +447,10 @@ export function TeamMemberDetailPage() {
             setNewTaskTitle('');
             setNewTaskDescription('');
             await refreshStepTasks(taskInsertTarget.stepId);
-            await refreshOnboardingPath();
+            // Adding a task reopens a completed step on the backend (status back to
+            // IN_PROGRESS). Refresh the path so the step cards update, and the team-overview
+            // member data so the header progress bar and current step reflect the change too.
+            await Promise.all([refreshOnboardingPath(), refreshMember()]);
         } catch (error) {
             setOnboardingError(
                 error instanceof Error
