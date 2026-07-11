@@ -65,9 +65,10 @@ export const knowledgeService = {
                     ingestionRunId: null,
                 }));
 
-                // Deduplicate to avoid React key collisions if an upload is also in project artifacts
-                const existingIds = new Set(artifacts.map(a => a.id));
-                const uniqueUploads = uploadArtifacts.filter(a => !existingIds.has(a.id));
+                // Deduplicate using title (filename) as a temporary frontend workaround,
+                // because the backend doesn't return sourceId for ingested artifacts yet.
+                const existingTitles = new Set(artifacts.map(a => a.title));
+                const uniqueUploads = uploadArtifacts.filter(a => !existingTitles.has(a.title));
 
                 artifacts = [...artifacts, ...uniqueUploads];
             }
@@ -88,7 +89,7 @@ export const knowledgeService = {
      * @param artifactId UUID of the artifact whose content should be retrieved.
      * @returns The raw content text and its effective mime type.
      */
-    async getArtifactContent(projectId: string, artifactId: string, sourceSystem: string = 'GITHUB'): Promise<ArtifactContent> {
+    async getArtifactContent(projectId: string, artifactId: string, _sourceSystem: string = 'GITHUB'): Promise<ArtifactContent> {
         try {
             if (keycloak.authenticated) {
                 await keycloak.updateToken(30);
@@ -99,9 +100,7 @@ export const knowledgeService = {
             throw new Error('Authentication required');
         }
 
-        const endpoint = sourceSystem === 'UPLOAD'
-            ? `/api/v1/uploads/${artifactId}/content`
-            : `/api/v1/projects/${projectId}/artifacts/${artifactId}/content`;
+        const endpoint = `/api/v1/projects/${projectId}/artifacts/${artifactId}/content`;
 
         const response = await fetch(endpoint, {
             headers: keycloak.token ? { 'Authorization': `Bearer ${keycloak.token}` } : {},
@@ -197,11 +196,11 @@ export const knowledgeService = {
     /**
      * Uploads an array of files sequentially to the backend ingestion service.
      * 
-     * @param _projectId UUID of the project (currently unused, binds to uploaderId on backend).
+     * @param projectId UUID of the project.
      * @param files Array of physical File objects selected by the user.
      * @returns Array of results indicating success or failure per file.
      */
-    async uploadDocuments(_projectId: string, files: File[]): Promise<{ filename: string; status: 'success' | 'error'; error?: string }[]> {
+    async uploadDocuments(projectId: string, files: File[]): Promise<{ filename: string; status: 'success' | 'error'; error?: string }[]> {
         const results: { filename: string; status: 'success' | 'error'; error?: string }[] = [];
 
         const profile = await userService.getProfile();
@@ -215,6 +214,12 @@ export const knowledgeService = {
             const formData = new FormData();
             formData.append('files', file);
 
+            const requestPayload = {
+                projectId,
+                uploaderId
+            };
+            formData.append('request', new Blob([JSON.stringify(requestPayload)], { type: 'application/json' }));
+
             try {
                 interface UploadResponseItem {
                     filename: string;
@@ -222,7 +227,7 @@ export const knowledgeService = {
                     error?: string;
                 }
 
-                const uploadResults = await apiClient.fetch<UploadResponseItem[]>(`/api/v1/uploads?uploaderId=${uploaderId}`, {
+                const uploadResults = await apiClient.fetch<UploadResponseItem[]>(`/api/v1/uploads`, {
                     method: 'POST',
                     body: formData,
                 });

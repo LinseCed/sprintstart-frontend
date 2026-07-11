@@ -83,7 +83,7 @@ export function ArtifactList({ artifacts, onSelect }: ArtifactListProps) {
                                     {artifact.sourceSystem}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-4 text-xs font-medium text-app-text-muted">
+                            <div className="flex items-center gap-4 text-xs font-medium text-app-text-muted mt-2">
                                 <span>Ingested: {formatDate(artifact.ingestedAt)}</span>
                             </div>
                         </div>
