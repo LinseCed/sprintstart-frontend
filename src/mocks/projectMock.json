@@ -30,8 +30,11 @@
           "username": "max.mustermann",
           "email": "max.mustermann@example.com",
           "projectRoles": [
-            "PM",
-            "Backend Dev"
+            "MANAGER",
+            "TEAMLEAD"
+          ],
+          "roles": [
+            "ADMIN"
           ]
         },
         {
@@ -39,7 +42,10 @@
           "username": "lisa.meier",
           "email": "lisa.meier@example.com",
           "projectRoles": [
-            "Frontend Dev"
+            "MEMBER"
+          ],
+          "roles": [
+            "USER"
           ]
         }
       ]
@@ -74,7 +80,10 @@
           "username": "max.mustermann",
           "email": "max.mustermann@example.com",
           "projectRoles": [
-            "Backend Dev"
+            "MANAGER"
+          ],
+          "roles": [
+            "ADMIN"
           ]
         },
         {
@@ -82,7 +91,10 @@
           "username": "tom.schneider",
           "email": "tom.schneider@example.com",
           "projectRoles": [
-            "DevOps"
+            "MEMBER"
+          ],
+          "roles": [
+            "USER"
           ]
         }
       ]
@@ -117,7 +129,10 @@
           "username": "lisa.meier",
           "email": "lisa.meier@example.com",
           "projectRoles": [
-            "Frontend Dev"
+            "TEAMLEAD"
+          ],
+          "roles": [
+            "USER"
           ]
         },
         {
@@ -125,7 +140,10 @@
           "username": "tom.schneider",
           "email": "tom.schneider@example.com",
           "projectRoles": [
-            "QA"
+            "MEMBER"
+          ],
+          "roles": [
+            "USER"
           ]
         }
       ]
@@ -160,7 +178,10 @@
           "username": "max.mustermann",
           "email": "max.mustermann@example.com",
           "projectRoles": [
-            "PM"
+            "MANAGER"
+          ],
+          "roles": [
+            "ADMIN"
           ]
         },
         {
@@ -168,7 +189,10 @@
           "username": "sarah.klein",
           "email": "sarah.klein@example.com",
           "projectRoles": [
-            "HR"
+            "MEMBER"
+          ],
+          "roles": [
+            "USER"
           ]
         }
       ]
@@ -203,7 +227,10 @@
           "username": "lisa.meier",
           "email": "lisa.meier@example.com",
           "projectRoles": [
-            "QA"
+            "TEAMLEAD"
+          ],
+          "roles": [
+            "USER"
           ]
         },
         {
@@ -211,7 +238,10 @@
           "username": "sarah.klein",
           "email": "sarah.klein@example.com",
           "projectRoles": [
-            "DevOps"
+            "MEMBER"
+          ],
+          "roles": [
+            "USER"
           ]
         }
       ]

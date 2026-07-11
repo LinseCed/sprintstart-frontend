@@ -2,11 +2,25 @@
 
 import { BriefcaseBusiness } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
+import { useAuth } from "../context/useAuth";
+import { ProjectSelect } from "../features/projects/components/ProjectSelect";
+import { useProjectSelection } from "../features/projects/useProjectSelection";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
+import { PermissionGroup } from "../services/types";
 
 export function PmDashboardPage() {
+    const { profile } = useAuth();
+    const isAdmin = profile?.permissionGroup === PermissionGroup.ADMIN;
+    const {
+        projects,
+        selectedProjectId,
+        isLoading: isLoadingProjects,
+        errorMessage: projectErrorMessage,
+        setSelectedProjectId,
+    } = useProjectSelection({ enabled: isAdmin });
+
     return (
         <div className="min-h-screen bg-app-bg">
             <header className="border-b border-app-border bg-app-bg">
@@ -15,6 +29,17 @@ export function PmDashboardPage() {
                         icon={BriefcaseBusiness}
                         title="PM Dashboard"
                         subtitle="Track team onboarding, spot recurring questions and keep knowledge gaps visible."
+                        actions={
+                            isAdmin ? (
+                                <ProjectSelect
+                                    projects={projects}
+                                    selectedProjectId={selectedProjectId}
+                                    isLoading={isLoadingProjects}
+                                    errorMessage={projectErrorMessage}
+                                    onChange={setSelectedProjectId}
+                                />
+                            ) : null
+                        }
                     />
                 </div>
             </header>

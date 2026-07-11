@@ -38,6 +38,7 @@ import {
     getIngestionRuns,
     getIngestionStatus,
 } from "../services/ingestionService.ts";
+import { useProjectSelection } from "../features/projects/useProjectSelection.ts";
 import {
     connectGithubRepository,
     getGithubPatNames,
@@ -221,6 +222,14 @@ export function DataIngestionPage() {
         string | null
     >(null);
     const [pollingUntil, setPollingUntil] = useState<number | null>(null);
+
+    const {
+        projects,
+        selectedProjectId,
+        isLoading: isLoadingProjects,
+        errorMessage: projectErrorMessage,
+        setSelectedProjectId,
+    } = useProjectSelection();
 
     const commitIngestionData = useCallback(
         (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
@@ -473,6 +482,11 @@ export function DataIngestionPage() {
             <div>
                 <DataIngestionHeader
                     isLoading={isLoading}
+                    projects={projects}
+                    selectedProjectId={selectedProjectId}
+                    isLoadingProjects={isLoadingProjects}
+                    projectErrorMessage={projectErrorMessage}
+                    onProjectChange={setSelectedProjectId}
                     onRefresh={() => {
                         void loadData();
                     }}

@@ -40,6 +40,11 @@ export type ProjectUserSummary = {
     profileIcon?: string;
 
     /**
+     * Global application roles, for example ADMIN or USER.
+     */
+    roles?: GlobalUserRole[];
+
+    /**
      * Project-specific roles are only valid in a project context.
      */
     projectRoles: ProjectRole[];
@@ -78,6 +83,8 @@ export type AdminProject = {
 export type AdminProjectDetails = Omit<AdminProject, "users"> & {
     users: ProjectUser[];
 };
+
+export type ProjectSummary = Pick<AdminProject, "id" | "name">;
 
 export type CreateProjectRequest = {
     name: string;
@@ -223,9 +230,20 @@ function capitalize(value: string): string {
     return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function normalizeRoleValues(roles?: unknown[]): GlobalUserRole[] {
+    if (!Array.isArray(roles)) {
+        return [];
+    }
+
+    return roles
+        .filter((role): role is string => typeof role === "string")
+        .map((role) => role.toUpperCase());
+}
+
 function toProjectUser(userSummary: ProjectUserSummary): ProjectUser {
     const user = findMockUserById(userSummary.id);
     const fallbackNameParts = getFallbackNameParts(userSummary);
+    const summaryRoles = normalizeRoleValues(userSummary.roles);
 
     return {
         id: userSummary.id,
@@ -239,7 +257,7 @@ function toProjectUser(userSummary: ProjectUserSummary): ProjectUser {
             user?.lastName ??
             user?.lastname ??
             fallbackNameParts.lastName,
-        roles: normalizeGlobalRoles(user),
+        roles: summaryRoles.length > 0 ? summaryRoles : normalizeGlobalRoles(user),
         projectRoles: userSummary.projectRoles,
         enabled: user?.enabled ?? true,
     };
@@ -261,6 +279,7 @@ function toProjectUserSummary(
         id: user.id,
         username: user.username,
         email: user.email,
+        roles: normalizeGlobalRoles(user),
         projectRoles,
     };
 }

@@ -27,7 +27,7 @@ export function ProjectUserList({ users }: ProjectUserListProps) {
                         user.email
                         : user.username || user.email;
 
-                const globalRoles = "roles" in user ? user.roles : [];
+                const globalRoles = "roles" in user ? (user.roles ?? []) : [];
                 const hasGlobalRoles = globalRoles.length > 0;
                 const hasProjectRoles = user.projectRoles.length > 0;
 

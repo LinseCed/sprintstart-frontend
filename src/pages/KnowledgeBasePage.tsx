@@ -13,6 +13,8 @@ import {
     X,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { ProjectSelect } from '../features/projects/components/ProjectSelect';
+import { useProjectSelection } from '../features/projects/useProjectSelection';
 
 /**
  * Multi-file and multi-format management view for uploaded project resources.
@@ -20,6 +22,13 @@ import { PageHeader } from '../components/layout/PageHeader';
  */
 export function KnowledgeBasePage() {
     const { profile } = useAuth();
+    const {
+        projects,
+        selectedProjectId,
+        isLoading: isLoadingProjects,
+        errorMessage: projectErrorMessage,
+        setSelectedProjectId,
+    } = useProjectSelection();
 
     const [documents, setDocuments] = useState<DocumentMetadata[]>(() => {
         const saved = sessionStorage.getItem(
@@ -173,6 +182,15 @@ export function KnowledgeBasePage() {
                         icon={BookOpen}
                         title="Knowledge Base"
                         subtitle="Ingest project documentation and keep workspace context ready for search, chat and onboarding."
+                        actions={
+                            <ProjectSelect
+                                projects={projects}
+                                selectedProjectId={selectedProjectId}
+                                isLoading={isLoadingProjects}
+                                errorMessage={projectErrorMessage}
+                                onChange={setSelectedProjectId}
+                            />
+                        }
                     />
                 </motion.div>
             </header>
