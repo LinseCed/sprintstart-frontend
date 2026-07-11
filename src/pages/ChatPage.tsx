@@ -34,10 +34,16 @@ export function ChatPage() {
         showBrainrot,
         timestamp
     } = useChat();
+    const hasChatHistory = chats?.length !== 0;
 
     return (
-        <div className="app-page-frame flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
-            {chats?.length !== 0 && (
+        <div
+            className={[
+                "flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen",
+                hasChatHistory ? "" : "app-page-frame",
+            ].filter(Boolean).join(" ")}
+        >
+            {hasChatHistory && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
                 </aside>
