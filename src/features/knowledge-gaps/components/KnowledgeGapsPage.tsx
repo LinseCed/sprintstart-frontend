@@ -21,6 +21,8 @@ import {
   ChevronDown,
   SlidersHorizontal,
   RefreshCw,
+  FileText,
+  User,
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
@@ -108,21 +110,28 @@ export function KnowledgeGapsPage() {
     severityFilter.includes(gap.severity),
   );
 
-  // Sort based on selected sort option
+  // Sort based on selected sort option, with the number of missing docs as a
+  // secondary tie-breaker (more missing docs ranks higher within the same
+  // primary bucket, e.g. same severity).
   filtered.sort((a, b) => {
+    let primary = 0;
     switch (sortBy) {
       case "severity":
-        return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+        primary = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+        break;
       case "date":
-        return (
-          new Date(b.lastUpdated).getTime() -
-          new Date(a.lastUpdated).getTime()
-        );
+        primary =
+          new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+        break;
       case "component":
-        return a.component.localeCompare(b.component);
-      default:
-        return 0;
+        primary = a.component.localeCompare(b.component);
+        break;
     }
+
+    if (primary !== 0) return primary;
+
+    // Secondary: more missing docs first.
+    return b.missingTypes.length - a.missingTypes.length;
   });
 
   const toggleSeverityFilter = (severity: KnowledgeGapSeverity) => {
@@ -278,6 +287,7 @@ export function KnowledgeGapsPage() {
         <div className="space-y-3">
           {filtered.map((gap) => {
             const { badge, label } = SEVERITY_STYLES[gap.severity];
+            const owner = gap.owners[0] ?? null;
 
             return (
               <button
@@ -302,24 +312,35 @@ export function KnowledgeGapsPage() {
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {gap.missingTypes.map((type) => (
-                      <span
-                        key={type}
-                        className="bg-app-surface-muted border border-app-border rounded px-2 py-1 text-xs"
-                      >
-                        {type}
-                      </span>
-                    ))}
+                  {/* Missing document types for this component */}
+                  <div className="mb-3">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-app-text-muted mb-1.5">
+                      <FileText className="w-3.5 h-3.5" />
+                      Missing documentation ({gap.missingTypes.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {gap.missingTypes.map((type) => (
+                        <span
+                          key={type}
+                          className="bg-app-surface-muted border border-app-border rounded px-2 py-1 text-xs"
+                        >
+                          {type}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-app-text-muted">
-                    <span>
-                      {gap.missingTypes.length} missing{" "}
-                      {gap.missingTypes.length === 1 ? "type" : "types"}
+                  <div className="flex items-center justify-between gap-2 text-xs text-app-text-muted">
+                    <span className="flex items-center gap-1 min-w-0">
+                      <User className="w-3 h-3 shrink-0" />
+                      <span className="truncate">
+                        {owner
+                          ? `${owner.firstname} ${owner.lastname}`
+                          : "Unassigned"}
+                      </span>
                     </span>
 
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 shrink-0">
                       <Clock className="w-3 h-3" />
                       {formatRelativeDate(gap.lastUpdated)}
                     </span>

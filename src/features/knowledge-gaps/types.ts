@@ -3,7 +3,8 @@ export interface KnowledgeGapOwner {
     username: string;
     firstname: string;
     lastname: string;
-    workingArea: string;
+    // Project role of the owner, derived by the backend. May be absent.
+    role?: string;
 }
 
 export type KnowledgeGapSeverity = 'high' | 'medium' | 'low';

@@ -3,8 +3,10 @@
 // Route: /insights/knowledge-gaps/:gapId
 // ============================================================
 
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { knowledgeGapService } from "../../../services/knowledgeGapService";
+import { getTeamOverview } from "../../../services/teamManagementService";
 import { useFetch } from "../../../hooks/useFetch";
 import { formatDate } from "../format";
 import { SEVERITY_STYLES } from "../severity";
@@ -15,6 +17,8 @@ import {
   AlertCircle,
   Clock,
   User,
+  UserPlus,
+  X,
   FileCheck,
   ShieldAlert,
   Wrench,
@@ -28,14 +32,19 @@ export function KnowledgeGapsDetailPage() {
   const { gapId } = useParams<{ gapId: string }>();
   const navigate = useNavigate();
 
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [savingOwners, setSavingOwners] = useState(false);
+
   const {
     data: gap,
     loading,
     error,
   } = useFetch(
     () => knowledgeGapService.fetchKnowledgeGap(gapId ?? ""),
-    [gapId],
+    [gapId, refreshKey],
   );
+
+  const { data: teamUsers } = useFetch(() => getTeamOverview(), []);
 
   // ── LOADING ────────────────────────────────────────────
 
@@ -75,6 +84,29 @@ export function KnowledgeGapsDetailPage() {
   }
 
   const { badge, bar, longLabel, ring } = SEVERITY_STYLES[gap.severity];
+
+  // A component has a single owner; assigning replaces any previous one.
+  const currentOwner = gap.owners[0] ?? null;
+  const assignableUsers = (teamUsers ?? []).filter(
+    (u) => u.userId !== currentOwner?.id,
+  );
+
+  const saveOwners = async (userIds: string[]) => {
+    setSavingOwners(true);
+    try {
+      await knowledgeGapService.setComponentOwners(gap.component, userIds);
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      console.error("Failed to update owner", err);
+    } finally {
+      setSavingOwners(false);
+    }
+  };
+
+  const setOwner = (userId: string) => {
+    if (userId) void saveOwners([userId]);
+  };
+  const clearOwner = () => void saveOwners([]);
 
   // ── RENDER ─────────────────────────────────────────────
 
@@ -188,39 +220,65 @@ export function KnowledgeGapsDetailPage() {
           </div>
         </div>
 
-        {/* Owners */}
+        {/* Owner */}
         <div className="rounded-2xl border border-app-border bg-app-surface p-5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-3">
             <User className="w-3.5 h-3.5" />
-            Owners ({gap.owners.length})
+            Owner
           </div>
           <div className="space-y-2">
-            {gap.owners.length === 0 && (
+            {!currentOwner && (
               <p className="text-sm text-app-text-muted">
-                No owners assigned yet.
+                No owner assigned yet.
               </p>
             )}
-            {gap.owners.map((owner) => (
-              <div
-                key={owner.id}
-                className="flex items-center gap-3 bg-app-surface-muted rounded-xl p-3"
-              >
+            {currentOwner && (
+              <div className="flex items-center gap-3 bg-app-surface-muted rounded-xl p-3">
                 {/* Avatar initials */}
                 <div className="w-8 h-8 rounded-full bg-app-brand-soft flex items-center justify-center shrink-0">
                   <span className="text-xs font-semibold text-app-brand-text">
-                    {owner.firstname[0]}{owner.lastname[0]}
+                    {currentOwner.firstname[0]}{currentOwner.lastname[0]}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-app-text">
-                    {owner.firstname} {owner.lastname}
+                    {currentOwner.firstname} {currentOwner.lastname}
                   </div>
                   <div className="text-xs text-app-text-muted">
-                    @{owner.username} · {owner.workingArea}
+                    @{currentOwner.username}
+                    {currentOwner.role ? ` · ${currentOwner.role}` : ""}
                   </div>
                 </div>
+                <button
+                  onClick={clearOwner}
+                  disabled={savingOwners}
+                  title="Remove owner"
+                  className="text-app-text-muted hover:text-app-danger-solid transition-colors disabled:opacity-60 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Assign / change owner */}
+          <div className="mt-3 flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-app-text-muted shrink-0" />
+            <select
+              value=""
+              disabled={savingOwners || assignableUsers.length === 0}
+              onChange={(e) => setOwner(e.target.value)}
+              className="flex-1 text-sm rounded-lg border border-app-border bg-app-bg text-app-text px-3 py-2 disabled:opacity-60"
+            >
+              <option value="" disabled>
+                {currentOwner ? "Change owner…" : "Assign owner…"}
+              </option>
+              {assignableUsers.map((u) => (
+                <option key={u.userId} value={u.userId}>
+                  {u.firstname} {u.lastname}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
