@@ -91,21 +91,3 @@ export function getMatchingProtectedRoute(pathname: string): AppRoute | null {
         ) ?? null
     );
 }
-
-/**
- * Connector governance (enable/disable a connector, allow/deny its sources)
- * is a sub-feature of the `/data-ingestion` page, not its own route. It is
- * backed by the backend Connector Overview API, which is authorized for
- * ADMIN/PM only (no HR unlike the rest of `/data-ingestion`) - keep this in
- * sync with that backend `@PreAuthorize` rule.
- */
-export function canManageConnectors(profile: UserProfile | null): boolean {
-    if (!profile) {
-        return false;
-    }
-
-    return (
-        profile.permissionGroup === PermissionGroup.PM ||
-        profile.permissionGroup === PermissionGroup.ADMIN
-    );
-}

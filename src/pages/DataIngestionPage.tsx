@@ -19,8 +19,6 @@ import { ConnectorsLoadingState } from "../features/connectors/components/Connec
 import { toConnectorListItems } from "../features/connectors/data.ts";
 import type { ConnectorListItem } from "../features/connectors/types.ts";
 import { connectorService } from "../services/connectorService.ts";
-import { canManageConnectors } from "../auth/accessPolicy.ts";
-import { useAuth } from "../context/useAuth";
 import {
     createDataSource,
     formatDateTime,
@@ -228,9 +226,6 @@ export function DataIngestionPage() {
         string | null
     >(null);
     const [pollingUntil, setPollingUntil] = useState<number | null>(null);
-
-    const { profile } = useAuth();
-    const canManageConnectorScope = canManageConnectors(profile);
 
     const [connectors, setConnectors] = useState<ConnectorListItem[]>([]);
     const [connectorsLoadingState, setConnectorsLoadingState] =
@@ -607,11 +602,6 @@ export function DataIngestionPage() {
                                 activeTab={activeTab}
                                 onTabChange={handleTabChange}
                                 onAddSource={handleOpenSourceModal}
-                                tabs={
-                                    canManageConnectorScope
-                                        ? ["sources", "artifacts", "runs", "connectors"]
-                                        : undefined
-                                }
                             />
 
                             <div className="space-y-4 p-5 sm:p-6">
@@ -640,8 +630,7 @@ export function DataIngestionPage() {
                                     <RunHistory runs={runs} />
                                 ) : null}
 
-                                {activeTab === "connectors" &&
-                                canManageConnectorScope ? (
+                                {activeTab === "connectors" ? (
                                     <>
                                         {connectorsErrorMessage && (
                                             <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">

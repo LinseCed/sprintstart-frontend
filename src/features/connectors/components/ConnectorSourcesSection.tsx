@@ -313,12 +313,12 @@ export function ConnectorSourcesSection({
                 </div>
             )}
 
-            {!isLoading && draftSources.length > 0 && (
+            {hasPendingChanges && (
                 <div className="flex gap-3">
                     <button
                         type="button"
                         onClick={discardChanges}
-                        disabled={!hasPendingChanges || isSaving}
+                        disabled={isSaving}
                         className="flex-1 rounded-xl border border-app-border bg-app-surface-muted px-4 py-2.5 text-sm font-semibold text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Discard
@@ -329,14 +329,12 @@ export function ConnectorSourcesSection({
                         onClick={() => {
                             void saveChanges();
                         }}
-                        disabled={!hasPendingChanges || isSaving}
+                        disabled={isSaving}
                         className="flex-1 rounded-xl bg-app-brand px-4 py-2.5 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {isSaving
                             ? "Saving..."
-                            : hasPendingChanges
-                                ? `Save ${activeDraft.changedSourceIds.size} change${activeDraft.changedSourceIds.size === 1 ? "" : "s"}`
-                                : "No changes"}
+                            : `Save ${activeDraft.changedSourceIds.size} change${activeDraft.changedSourceIds.size === 1 ? "" : "s"}`}
                     </button>
                 </div>
             )}
