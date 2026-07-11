@@ -115,7 +115,8 @@ export function UsersTab({
                                 <div className="flex shrink-0 items-center justify-center">
                                     <UserAvatar
                                         profileIcon={user.profileIcon}
-                                        fallbackName={user.firstName}
+                                        fallbackName={`${user.firstName} ${user.lastName}`.trim()}
+                                        seed={user.id}
                                         size={40}
                                     />
                                 </div>

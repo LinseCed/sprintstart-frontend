@@ -1,5 +1,7 @@
-import { Bot, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
+import { useAuth } from "../context/useAuth";
+import { UserAvatar } from "../components/common/UserAvatar.tsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -13,6 +15,7 @@ import "katex/dist/katex.min.css";
  * Displays the interface for communication with the chat.
  */
 export function ChatPage() {
+    const { profile } = useAuth();
     const {
         messages,
         chatId,
@@ -136,11 +139,16 @@ export function ChatPage() {
                                 >
                                     <div
                                         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                            isRequest ? "bg-app-brand" : "bg-app-surface-muted"
+                                            isRequest ? "" : "bg-app-surface-muted"
                                         }`}
                                     >
                                         {isRequest ? (
-                                            <User size={16} className="text-white" />
+                                            <UserAvatar
+                                                profileIcon={profile?.profileIcon}
+                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
+                                                seed={profile?.id}
+                                                size={32}
+                                            />
                                         ) : (
                                             <Bot size={16} className="text-app-brand-text" />
                                         )}

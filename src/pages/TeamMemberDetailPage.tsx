@@ -696,7 +696,7 @@ export function TeamMemberDetailPage() {
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center gap-4">
                             <div className="flex shrink-0 items-center justify-center">
-                                <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={56} />
+                                <UserAvatar profileIcon={user.profileIcon} fallbackName={`${user.firstname} ${user.lastname}`.trim()} seed={user.userId} size={56} />
                             </div>
 
                             <div>
