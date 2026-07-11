@@ -161,7 +161,7 @@ export function TeamManagementWidget() {
 
             {/* Member cards — same TeamMemberCard used on the Team Management page,
                 rendered in its compact variant to fit the dashboard widget */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {mostStuck.map((user) => (
                     // Propagation guard only: TeamMemberCard is itself a keyboard-
                     // and mouse-accessible <Link>, this wrapper just stops its click

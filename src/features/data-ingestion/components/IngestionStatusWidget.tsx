@@ -25,10 +25,10 @@ async function fetchIngestionSources() {
 }
 
 /**
- * PM Dashboard widget showing ingestion sync health at a glance.
- * Reuses {@link IngestionMetrics} (the same 4 summary cards shown at the
- * top of the Data Ingestion page) so the dashboard and the ingestion page
- * always render identical numbers computed from the same source data.
+ * PM Dashboard strip showing ingestion sync health at a glance.
+ * Reuses {@link IngestionMetrics} in its compact/inline mode so the
+ * dashboard and the full Data Ingestion page always render identical
+ * numbers computed from the same source data.
  */
 export function IngestionStatusWidget() {
     const navigate = useNavigate();
@@ -41,8 +41,8 @@ export function IngestionStatusWidget() {
 
     if (loading) {
         return (
-            <div className="rounded-2xl border border-app-border bg-app-surface p-6 flex items-center justify-center min-h-48">
-                <Loader2 className="w-5 h-5 animate-spin text-app-brand" />
+            <div className="rounded-2xl border border-app-border bg-app-surface p-4 flex items-center justify-center">
+                <Loader2 className="w-4 h-4 animate-spin text-app-brand" />
             </div>
         );
     }
@@ -51,8 +51,8 @@ export function IngestionStatusWidget() {
 
     if (error || !sources) {
         return (
-            <div className="rounded-2xl border border-app-border bg-app-surface p-6 flex flex-col items-center justify-center gap-2 min-h-48 text-center">
-                <Database className="w-5 h-5 text-app-text-muted" />
+            <div className="rounded-2xl border border-app-border bg-app-surface p-4 flex items-center justify-center gap-2 text-center">
+                <Database className="w-4 h-4 text-app-text-muted" />
                 <p className="text-sm text-app-text-muted">
                     Could not load ingestion status.
                 </p>
@@ -66,22 +66,21 @@ export function IngestionStatusWidget() {
         <ClickableCard
             onClick={() => void navigate("/data-ingestion")}
             aria-label="View data ingestion details"
-            className="rounded-2xl border border-app-border bg-app-surface p-5 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover"
+            className="rounded-2xl border border-app-border bg-app-surface p-4 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover flex flex-wrap items-center gap-4 sm:justify-between"
         >
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-app-brand" />
-                    <span className="text-sm font-semibold text-app-text">
-                        Data ingestion
-                    </span>
-                </div>
-                <span className="flex items-center gap-1 text-xs text-app-text-muted">
-                    View details
-                    <ArrowRight className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-2 shrink-0">
+                <Database className="w-4 h-4 text-app-brand" />
+                <span className="text-sm font-semibold text-app-text">
+                    Data ingestion
                 </span>
             </div>
 
-            <IngestionMetrics sources={sources} />
+            <IngestionMetrics sources={sources} compact />
+
+            <span className="flex items-center gap-1 text-xs text-app-text-muted shrink-0">
+                View details
+                <ArrowRight className="w-3.5 h-3.5" />
+            </span>
         </ClickableCard>
     );
 }
