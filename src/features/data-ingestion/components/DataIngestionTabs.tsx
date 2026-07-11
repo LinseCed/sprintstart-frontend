@@ -7,6 +7,12 @@ type DataIngestionTabsProps = {
     activeTab: ActiveTab;
     onTabChange: (tab: ActiveTab) => void;
     onAddSource: () => void;
+    /**
+     * Overrides the default tab list. Used to additionally show the
+     * "connectors" tab for PM/Admin users without affecting the default
+     * tabs shown to everyone else.
+     */
+    tabs?: ActiveTab[];
 };
 
 /**
@@ -17,12 +23,13 @@ export function DataIngestionTabs({
     activeTab,
     onTabChange,
     onAddSource,
+    tabs = TABS,
 }: DataIngestionTabsProps) {
     return (
         <div className="flex flex-col gap-4 border-b border-app-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="max-w-full overflow-x-auto">
                 <div className="flex w-max rounded-xl bg-app-bg-soft p-1">
-                    {TABS.map((tab) => (
+                    {tabs.map((tab) => (
                         <button
                             key={tab}
                             type="button"

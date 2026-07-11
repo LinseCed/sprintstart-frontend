@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canAccessRoute, getDefaultRoute, getMatchingProtectedRoute } from '../../../src/auth/accessPolicy';
+import { canAccessRoute, canManageConnectors, getDefaultRoute, getMatchingProtectedRoute } from '../../../src/auth/accessPolicy';
 import { PermissionGroup } from '../../../src/services/types';
 import type { UserProfile } from '../../../src/services/types';
 
@@ -34,6 +34,16 @@ describe('accessPolicy', () => {
 
         it('returns false when profile is null', () => {
             expect(canAccessRoute(null, '/chat')).toBe(false);
+        });
+    });
+
+    describe('canManageConnectors', () => {
+        it('permits PM and ADMIN but blocks HR, USER, and unauthenticated', () => {
+            expect(canManageConnectors(createMockProfile(PermissionGroup.PM))).toBe(true);
+            expect(canManageConnectors(createMockProfile(PermissionGroup.ADMIN))).toBe(true);
+            expect(canManageConnectors(createMockProfile(PermissionGroup.HR))).toBe(false);
+            expect(canManageConnectors(createMockProfile(PermissionGroup.USER))).toBe(false);
+            expect(canManageConnectors(null)).toBe(false);
         });
     });
 
