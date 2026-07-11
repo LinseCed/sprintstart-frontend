@@ -71,10 +71,9 @@ describe('UsersTab', () => {
 
     it('calls onOpenUserDetails when row is clicked', async () => {
         const user = userEvent.setup();
-        render(<UsersTab {...defaultProps} />);
+        const { container } = render(<UsersTab {...defaultProps} />);
 
-        const rows = screen
-            .getAllByRole('button')
+        const rows = Array.from(container.querySelectorAll('[tabindex="0"]'))
             .filter((el) => el.textContent?.includes('John Doe'));
 
         await user.click(rows[0]);
