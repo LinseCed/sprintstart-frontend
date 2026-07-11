@@ -15,7 +15,7 @@ import {
   AlertCircle,
   Clock,
   User,
-  MessageCircleQuestion,
+  FileCheck,
   ShieldAlert,
   Wrench,
 } from "lucide-react";
@@ -131,11 +131,11 @@ export function KnowledgeGapsDetailPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-app-surface-muted rounded-xl p-3">
               <div className="text-xs text-app-text-muted mb-1 flex items-center gap-1">
-                <MessageCircleQuestion className="w-3.5 h-3.5" />
-                Related questions
+                <FileCheck className="w-3.5 h-3.5" />
+                Present document types
               </div>
               <div className="text-2xl font-semibold text-app-text">
-                {gap.relatedQuestions}
+                {gap.presentTypes?.length ?? 0}
               </div>
             </div>
             <div className="bg-app-surface-muted rounded-xl p-3">
@@ -149,6 +149,26 @@ export function KnowledgeGapsDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Present types */}
+        {gap.presentTypes && gap.presentTypes.length > 0 && (
+          <div className="rounded-2xl border border-app-border bg-app-surface p-5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-3">
+              <FileCheck className="w-3.5 h-3.5" />
+              Present document types
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {gap.presentTypes.map((t) => (
+                <span
+                  key={t}
+                  className="text-sm text-app-success-text bg-app-success-bg border border-app-success-border rounded-lg px-3 py-1.5"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Missing types */}
         <div className="rounded-2xl border border-app-border bg-app-surface p-5">
@@ -175,6 +195,11 @@ export function KnowledgeGapsDetailPage() {
             Owners ({gap.owners.length})
           </div>
           <div className="space-y-2">
+            {gap.owners.length === 0 && (
+              <p className="text-sm text-app-text-muted">
+                No owners assigned yet.
+              </p>
+            )}
             {gap.owners.map((owner) => (
               <div
                 key={owner.id}

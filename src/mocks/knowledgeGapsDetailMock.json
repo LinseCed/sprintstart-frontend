@@ -5,6 +5,10 @@
         "runbook",
         "adr"
     ],
+    "presentTypes": [
+        "readme",
+        "api-documentation"
+    ],
     "lastUpdated": "2025-05-01T00:00:00Z",
     "owners": [
         {
@@ -15,6 +19,5 @@
             "workingArea": "BACKEND"
         }
     ],
-    "severity": "high",
-    "relatedQuestions": 12
+    "severity": "high"
 }

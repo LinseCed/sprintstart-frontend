@@ -20,6 +20,7 @@ import {
   X,
   ChevronDown,
   SlidersHorizontal,
+  RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
@@ -34,17 +35,48 @@ export function KnowledgeGapsPage() {
     "low",
   ]);
   const [sortBy, setSortBy] = useState<
-    "severity" | "date" | "questions" | "component"
+    "severity" | "date" | "component"
   >("severity");
   const [expandFilters, setExpandFilters] = useState(false);
 
   const navigate = useNavigate();
 
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
   const {
     data: overview,
     loading,
     error,
-  } = useFetch(() => knowledgeGapService.fetchKnowledgeGaps(), []);
+  } = useFetch(() => knowledgeGapService.fetchKnowledgeGaps(), [refreshKey]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      await knowledgeGapService.refreshKnowledgeGaps();
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      console.error("Knowledge-gaps refresh failed", err);
+      setRefreshError(
+        "Refresh failed. Is the AI service running?",
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const refreshButton = (
+    <button
+      onClick={() => void handleRefresh()}
+      disabled={refreshing}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all disabled:opacity-60 shrink-0"
+    >
+      <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+      {refreshing ? "Refreshing…" : "Refresh"}
+    </button>
+  );
 
   if (loading) {
     return (
@@ -54,13 +86,19 @@ export function KnowledgeGapsPage() {
     );
   }
 
-  if (error || !overview) {
+  if (error || !overview || overview.gaps.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 py-20">
+      <div className="flex flex-col items-center gap-3 py-20">
         <AlertCircle className="w-5 h-5 text-app-text-muted" />
         <p className="text-app-text-muted">
-          Could not load knowledge gaps.
+          No knowledge gaps yet. Trigger a refresh to detect them.
         </p>
+        {refreshButton}
+        {refreshError && (
+          <p className="text-sm text-app-danger-text max-w-md text-center">
+            {refreshError}
+          </p>
+        )}
       </div>
     );
   }
@@ -80,8 +118,6 @@ export function KnowledgeGapsPage() {
           new Date(b.lastUpdated).getTime() -
           new Date(a.lastUpdated).getTime()
         );
-      case "questions":
-        return b.relatedQuestions - a.relatedQuestions;
       case "component":
         return a.component.localeCompare(b.component);
       default:
@@ -108,12 +144,17 @@ export function KnowledgeGapsPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to PM-Dashboard
           </button>
-          <PageHeader
-            icon={ShieldAlert}
-            title="Knowledge Gaps"
-            subtitle="Documentation gaps identified across the organization and prioritized by impact."
-            className="mb-6"
-          />
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <PageHeader
+              icon={ShieldAlert}
+              title="Knowledge Gaps"
+              subtitle="Documentation gaps identified across the organization and prioritized by impact."
+            />
+            {refreshButton}
+          </div>
+          {refreshError && (
+            <p className="text-sm text-app-danger-text mb-4">{refreshError}</p>
+          )}
           <SeveritySummaryBar gaps={overview.gaps} className="mb-6" />
         </div>
       </div>
@@ -196,7 +237,6 @@ export function KnowledgeGapsPage() {
                       [
                         { value: "severity", label: "Severity" },
                         { value: "date", label: "Last Updated" },
-                        { value: "questions", label: "Related Questions" },
                         { value: "component", label: "Component Name" },
                       ] as Array<{ value: typeof sortBy; label: string }>
                     ).map(({ value, label }) => (
@@ -274,7 +314,10 @@ export function KnowledgeGapsPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-app-text-muted">
-                    <span>{gap.relatedQuestions} related questions</span>
+                    <span>
+                      {gap.missingTypes.length} missing{" "}
+                      {gap.missingTypes.length === 1 ? "type" : "types"}
+                    </span>
 
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />

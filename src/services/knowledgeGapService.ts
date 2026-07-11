@@ -40,4 +40,19 @@ export const knowledgeGapService = {
             return knowledgeGapDetailMock as KnowledgeGap;
         }
     },
+
+    /**
+     * Triggers the backend to (re)detect knowledge gaps via the AI service.
+     *
+     * Unlike the fetch methods, this does not fall back to mock data: the caller
+     * needs to know whether the refresh actually succeeded, so errors propagate.
+     *
+     * @returns The number of gaps stored after the refresh.
+     */
+    async refreshKnowledgeGaps(): Promise<{ gapCount: number }> {
+        return await apiClient.fetch<{ gapCount: number }>(
+            '/api/v1/insights/knowledge-gaps/refresh',
+            { method: 'POST' }
+        );
+    },
 };
