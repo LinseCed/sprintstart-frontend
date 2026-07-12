@@ -15,11 +15,20 @@ import { RunHistory } from "../features/data-ingestion/components/RunHistory.tsx
 import { SourceConnectModal } from "../features/data-ingestion/components/SourceConnectModal.tsx";
 import { SourceDetailsPanel } from "../features/data-ingestion/components/SourceDetailsPanel.tsx";
 import { SourceList } from "../features/data-ingestion/components/SourceList.tsx";
+import { ConnectorList } from "../features/connectors/components/ConnectorList.tsx";
+import { ConnectorsLoadingState } from "../features/connectors/components/ConnectorsLoadingState.tsx";
+import { toConnectorListItems } from "../features/connectors/data.ts";
+import type { ConnectorListItem } from "../features/connectors/types.ts";
+import {
+  connectorService,
+  type ConnectorSource,
+} from "../services/connectorService.ts";
 import {
   formatDateTime,
   getBackendSourceStatusLabel,
   getSourceStatus,
   getSourceStatusFromBackend,
+  getSourceStatusLabel,
   INGESTION_RUN_LIMIT,
   isRunInProgress,
   SOURCE_META,
@@ -27,8 +36,10 @@ import {
 } from "../features/data-ingestion/data.ts";
 import type {
   ActiveTab,
+  Artifact,
   ConnectState,
   DataSource,
+  GithubRepositoryDetails,
   GithubRepositoryReference,
   IngestionRun,
   LoadingState,
@@ -38,13 +49,13 @@ import type {
 import {
   getIngestionRuns,
   getIngestionStatus,
+  getProjectArtifactSnapshot,
 } from "../services/ingestionService.ts";
 import { useAuth } from "../context/useAuth";
 import { useProjectSelection } from "../features/projects/useProjectSelection.ts";
 import {
   connectGithubRepository,
   getGithubPatNames,
-  updateAllGithubRepositories,
   updateGithubRepository,
 } from "../services/sources/githubService.ts";
 import type { ProjectSource } from "../services/projectService.ts";
@@ -102,27 +113,6 @@ function parseGithubRepositoryReference(value: string) {
   return null;
 }
 
-function readStoredGithubRepository(): GithubRepositoryReference | null {
-  try {
-    const value = window.localStorage.getItem(GITHUB_REPOSITORY_STORAGE_KEY);
-
-    if (!value) return null;
-
-    const repository = JSON.parse(value) as Partial<GithubRepositoryReference>;
-
-    if (repository.owner && repository.name) {
-      return {
-        owner: repository.owner,
-        name: repository.name,
-      };
-    }
-  } catch {
-    window.localStorage.removeItem(GITHUB_REPOSITORY_STORAGE_KEY);
-  }
-
-  return null;
-}
-
 function storeGithubRepository(repository: GithubRepositoryReference) {
   window.localStorage.setItem(
     GITHUB_REPOSITORY_STORAGE_KEY,
@@ -144,13 +134,212 @@ function toSourceSystem(value: string): SourceSystem | null {
   return null;
 }
 
+function normalizeSearchValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function getArtifactSearchText(artifact: Artifact) {
+  return [
+    artifact.title,
+    artifact.sourceUrl,
+    artifact.metadata,
+    artifact.sourceSystem,
+    artifact.artifactType,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getProjectSourceArtifacts(
+  artifacts: Artifact[],
+  projectSource: ProjectSource,
+  sourceSystem: SourceSystem,
+  sourceCountForSystem: number,
+) {
+  const sourceArtifacts = artifacts.filter(
+    (artifact) => artifact.sourceSystem === sourceSystem,
+  );
+
+  if (sourceCountForSystem <= 1) {
+    return sourceArtifacts;
+  }
+
+  const candidates = [projectSource.name, projectSource.id]
+    .map(normalizeSearchValue)
+    .filter((value) => value.length > 0);
+
+  return sourceArtifacts.filter((artifact) => {
+    const artifactSearchText = getArtifactSearchText(artifact);
+    return candidates.some((candidate) =>
+      artifactSearchText.includes(candidate),
+    );
+  });
+}
+
+function getLatestArtifactIngestedAt(artifacts: Artifact[]) {
+  return artifacts.reduce<string | null>((latest, artifact) => {
+    if (!latest) return artifact.ingestedAt;
+
+    return new Date(artifact.ingestedAt).getTime() > new Date(latest).getTime()
+      ? artifact.ingestedAt
+      : latest;
+  }, null);
+}
+
+type GithubArtifactMetadataPayload = {
+  repositoryId?: string;
+  repositoryFullName?: string;
+};
+
+function parseGithubArtifactMetadata(
+  artifact: Artifact,
+): GithubArtifactMetadataPayload | null {
+  try {
+    const metadata = JSON.parse(
+      artifact.metadata,
+    ) as GithubArtifactMetadataPayload;
+
+    if (metadata.repositoryId || metadata.repositoryFullName) {
+      return metadata;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function getGithubMetadataForSource(
+  artifacts: Artifact[],
+  projectSource: ProjectSource,
+) {
+  const parsedMetadata = artifacts
+    .map(parseGithubArtifactMetadata)
+    .filter((metadata): metadata is GithubArtifactMetadataPayload =>
+      Boolean(metadata),
+    );
+
+  return (
+    parsedMetadata.find(
+      (metadata) => metadata.repositoryId === projectSource.id,
+    ) ??
+    parsedMetadata[0] ??
+    null
+  );
+}
+
+function getConnectorSourceForGithubRepository(
+  projectSource: ProjectSource,
+  connectorSources: ConnectorSource[],
+  repositoryFullName?: string,
+) {
+  const normalizedProjectSourceName = normalizeSearchValue(projectSource.name);
+  const normalizedFullName = repositoryFullName
+    ? normalizeSearchValue(repositoryFullName)
+    : null;
+
+  if (normalizedFullName) {
+    const exactMatch = connectorSources.find((source) => {
+      const normalizedSourceId = normalizeSearchValue(source.id);
+      const normalizedSourceUrl = normalizeSearchValue(source.url);
+
+      return (
+        normalizedSourceId === normalizedFullName ||
+        normalizedSourceUrl.includes(`github.com/${normalizedFullName}`)
+      );
+    });
+
+    if (exactMatch) return exactMatch;
+  }
+
+  return connectorSources.find(
+    (source) =>
+      normalizeSearchValue(source.name) === normalizedProjectSourceName,
+  );
+}
+
+function getGithubRepositoryDetails(
+  projectSource: ProjectSource,
+  artifacts: Artifact[],
+  connectorSources: ConnectorSource[],
+): GithubRepositoryDetails | null {
+  const metadata = getGithubMetadataForSource(artifacts, projectSource);
+  const metadataReference = metadata?.repositoryFullName
+    ? parseGithubRepositoryReference(metadata.repositoryFullName)
+    : null;
+  const connectorSource = getConnectorSourceForGithubRepository(
+    projectSource,
+    connectorSources,
+    metadata?.repositoryFullName,
+  );
+  const connectorReference = connectorSource
+    ? (parseGithubRepositoryReference(connectorSource.id) ??
+      parseGithubRepositoryReference(connectorSource.url))
+    : null;
+  const artifactReference =
+    artifacts
+      .map((artifact) =>
+        parseGithubRepositoryReference(artifact.sourceUrl ?? ""),
+      )
+      .find((reference): reference is GithubRepositoryReference =>
+        Boolean(reference),
+      ) ?? null;
+  const sourceIdReference = parseGithubRepositoryReference(projectSource.id);
+  const repositoryReference =
+    metadataReference ??
+    connectorReference ??
+    artifactReference ??
+    sourceIdReference;
+
+  if (!repositoryReference) return null;
+
+  const fullName = `${repositoryReference.owner}/${repositoryReference.name}`;
+  const hasRepositorySourceId = sourceIdReference !== null;
+
+  return {
+    ...repositoryReference,
+    repositoryId:
+      metadata?.repositoryId ??
+      (hasRepositorySourceId ? null : projectSource.id),
+    fullName,
+    url: connectorSource?.url ?? `https://github.com/${fullName}`,
+    enabled: connectorSource?.enabled ?? null,
+  };
+}
+
+function getIngestionStatusLabel(
+  hasNeverSynced: boolean,
+  hasErrors: boolean,
+  runStatus: IngestionRun["status"] | null,
+) {
+  if (!hasNeverSynced && !hasErrors && runStatus === null) {
+    return "Synced";
+  }
+
+  return getSourceStatusLabel(hasNeverSynced, hasErrors, runStatus);
+}
+
 function buildProjectDataSources(
   projectSources: ProjectSource[],
   sourceStatuses: SourceIngestionStatus[],
   runs: IngestionRun[],
+  artifacts: Artifact[],
+  githubConnectorSources: ConnectorSource[],
 ): DataSource[] {
   const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
   const latestRunBySource = new Map<SourceSystem, IngestionRun>();
+  const sourceCountBySystem = new Map<SourceSystem, number>();
+
+  projectSources.forEach((projectSource) => {
+    const sourceSystem = toSourceSystem(projectSource.type);
+    if (!sourceSystem) return;
+
+    sourceCountBySystem.set(
+      sourceSystem,
+      (sourceCountBySystem.get(sourceSystem) ?? 0) + 1,
+    );
+  });
 
   sourceStatuses.forEach((status) => {
     statusBySource.set(status.sourceSystem, status);
@@ -170,14 +359,42 @@ function buildProjectDataSources(
     const status = statusBySource.get(sourceSystem);
     const latestRun = latestRunBySource.get(sourceSystem);
     const backendStatus = projectSource.status;
-    const latestIngestedCount =
-      latestRun?.ingestedCount ?? status?.ingestedCount ?? 0;
+    const matchedArtifacts = getProjectSourceArtifacts(
+      artifacts,
+      projectSource,
+      sourceSystem,
+      sourceCountBySystem.get(sourceSystem) ?? 1,
+    );
+    const githubRepository =
+      sourceSystem === "GITHUB"
+        ? getGithubRepositoryDetails(
+            projectSource,
+            matchedArtifacts,
+            githubConnectorSources,
+          )
+        : null;
+    const totalArtifactCount = matchedArtifacts.length;
+    const runIds = Array.from(
+      new Set(
+        matchedArtifacts.flatMap((artifact) =>
+          artifact.ingestionRunId ? [artifact.ingestionRunId] : [],
+        ),
+      ),
+    );
+    const sharesSourceSystem = (sourceCountBySystem.get(sourceSystem) ?? 1) > 1;
+    const latestArtifactIngestedAt =
+      getLatestArtifactIngestedAt(matchedArtifacts);
+    const latestIngestedCount = totalArtifactCount;
     const latestUpdatedCount =
       latestRun?.updatedCount ?? status?.updatedCount ?? 0;
     const failedItems = latestRun?.failedItems ?? status?.failedItems ?? [];
     const errors =
       latestRun?.failedCount ?? status?.failedCount ?? failedItems.length;
-    const lastRunAt = latestRun?.startedAt ?? status?.lastRunTime ?? null;
+    const lastRunAt =
+      latestArtifactIngestedAt ??
+      latestRun?.startedAt ??
+      status?.lastRunTime ??
+      null;
     const hasNeverSynced = lastRunAt === null;
     const runStatus = latestRun?.status ?? status?.status ?? null;
     const runtimeStatus = getSourceStatus(
@@ -186,10 +403,6 @@ function buildProjectDataSources(
       runStatus,
     );
     const backendDerivedStatus = getSourceStatusFromBackend(backendStatus);
-    const sourceStatus =
-      runtimeStatus === "warning" && !hasNeverSynced
-        ? runtimeStatus
-        : backendDerivedStatus;
 
     return [
       {
@@ -198,14 +411,16 @@ function buildProjectDataSources(
         name: projectSource.name,
         type: meta.type,
         icon: meta.icon,
-        status: sourceStatus,
+        status: backendDerivedStatus,
         backendStatus,
-        statusLabel: hasNeverSynced
-          ? getBackendSourceStatusLabel(backendStatus)
-          : sourceStatus === "running"
-            ? "Running"
-            : getBackendSourceStatusLabel(backendStatus),
-        artifacts: latestIngestedCount,
+        statusLabel: getBackendSourceStatusLabel(backendStatus),
+        ingestionStatus: runtimeStatus,
+        ingestionStatusLabel: getIngestionStatusLabel(
+          hasNeverSynced,
+          errors > 0,
+          runStatus,
+        ),
+        artifacts: totalArtifactCount,
         lastSync: formatDateTime(lastRunAt),
         nextSync: "Not available",
         errors,
@@ -213,12 +428,15 @@ function buildProjectDataSources(
         lastRunAt,
         latestIngestedCount,
         latestUpdatedCount,
+        totalArtifactCount,
+        runIds,
+        sharesSourceSystem,
         failedItems,
+        githubRepository,
       },
     ];
   });
 }
-
 function hasSourceId(sources: DataSource[], sourceId: string) {
   return sources.some((source) => source.sourceId === sourceId);
 }
@@ -233,6 +451,11 @@ export function DataIngestionPage() {
     [],
   );
   const [runs, setRuns] = useState<IngestionRun[]>([]);
+  const [projectArtifacts, setProjectArtifacts] = useState<Artifact[]>([]);
+  const [projectArtifactTotal, setProjectArtifactTotal] = useState(0);
+  const [artifactSnapshotVersion, setArtifactSnapshotVersion] = useState(0);
+  const [artifactSummaryErrorMessage, setArtifactSummaryErrorMessage] =
+    useState<string | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -244,10 +467,9 @@ export function DataIngestionPage() {
   const [githubRepositoryName, setGithubRepositoryName] = useState("");
   const [githubTokenName, setGithubTokenName] = useState("");
   const [githubTokenNames, setGithubTokenNames] = useState<string[]>([]);
-  const [lastGithubRepository, setLastGithubRepository] =
-    useState<GithubRepositoryReference | null>(() =>
-      readStoredGithubRepository(),
-    );
+  const [githubConnectorSources, setGithubConnectorSources] = useState<
+    ConnectorSource[]
+  >([]);
 
   const [connectState, setConnectState] = useState<ConnectState>("idle");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(
@@ -257,6 +479,19 @@ export function DataIngestionPage() {
     string | null
   >(null);
   const [pollingUntil, setPollingUntil] = useState<number | null>(null);
+  const [connectors, setConnectors] = useState<ConnectorListItem[]>([]);
+  const [connectorsLoadingState, setConnectorsLoadingState] =
+    useState<LoadingState>("idle");
+  const [connectorsErrorMessage, setConnectorsErrorMessage] = useState<
+    string | null
+  >(null);
+  const [hasLoadedConnectors, setHasLoadedConnectors] = useState(false);
+  const [togglingConnectorId, setTogglingConnectorId] = useState<string | null>(
+    null,
+  );
+  const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(
+    null,
+  );
 
   const {
     projects,
@@ -280,6 +515,47 @@ export function DataIngestionPage() {
       setSelectedProjectId(requestedProjectId);
     });
   }, [requestedProjectId, selectedProjectId, setSelectedProjectId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void Promise.resolve().then(async () => {
+      if (!selectedProjectId) {
+        if (!isMounted) return;
+
+        setProjectArtifacts([]);
+        setProjectArtifactTotal(0);
+        setArtifactSummaryErrorMessage(null);
+        return;
+      }
+
+      if (!isMounted) return;
+      setArtifactSummaryErrorMessage(null);
+
+      try {
+        const snapshot = await getProjectArtifactSnapshot(selectedProjectId);
+
+        if (!isMounted) return;
+
+        setProjectArtifacts(snapshot.artifacts);
+        setProjectArtifactTotal(snapshot.totalElements);
+      } catch (error) {
+        if (!isMounted) return;
+
+        setProjectArtifacts([]);
+        setProjectArtifactTotal(0);
+        setArtifactSummaryErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Artifact summary could not be loaded.",
+        );
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [artifactSnapshotVersion, selectedProjectId]);
 
   const commitIngestionData = useCallback(
     (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
@@ -314,6 +590,19 @@ export function DataIngestionPage() {
     },
     [commitIngestionData],
   );
+
+  const loadGithubConnectorSources = useCallback(async () => {
+    try {
+      const response = await connectorService.getConnectorSources("github");
+      setGithubConnectorSources(response.sources);
+    } catch {
+      setGithubConnectorSources([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => loadGithubConnectorSources());
+  }, [loadGithubConnectorSources]);
 
   useEffect(() => {
     let isMounted = true;
@@ -372,8 +661,16 @@ export function DataIngestionPage() {
       selectedProject?.sources ?? [],
       sourceStatuses,
       runs,
+      projectArtifacts,
+      githubConnectorSources,
     );
-  }, [runs, selectedProject?.sources, sourceStatuses]);
+  }, [
+    githubConnectorSources,
+    projectArtifacts,
+    runs,
+    selectedProject?.sources,
+    sourceStatuses,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -412,6 +709,74 @@ export function DataIngestionPage() {
   const visibleRuns = useMemo(
     () => runs.filter((run) => visibleSourceSystems.has(run.sourceSystem)),
     [runs, visibleSourceSystems],
+  );
+
+  const loadConnectors = useCallback(async () => {
+    setConnectorsLoadingState("loading");
+    setConnectorsErrorMessage(null);
+
+    try {
+      const response = await connectorService.listConnectors();
+      setConnectors(toConnectorListItems(response));
+      setHasLoadedConnectors(true);
+      setConnectorsLoadingState("success");
+    } catch (error) {
+      setConnectorsLoadingState("error");
+      setConnectorsErrorMessage(
+        error instanceof Error ? error.message : "Failed to load connectors",
+      );
+    }
+  }, []);
+
+  const handleTabChange = useCallback(
+    (tab: ActiveTab) => {
+      setActiveTab(tab);
+
+      if (
+        tab === "connectors" &&
+        !hasLoadedConnectors &&
+        connectorsLoadingState !== "loading"
+      ) {
+        void loadConnectors();
+      }
+    },
+    [connectorsLoadingState, hasLoadedConnectors, loadConnectors],
+  );
+
+  const handleToggleConnectorEnabled = useCallback(
+    async (connector: ConnectorListItem) => {
+      setTogglingConnectorId(connector.id);
+      setConnectorsErrorMessage(null);
+
+      try {
+        const response = await connectorService.setConnectorEnabled(
+          connector.id,
+          !connector.enabled,
+        );
+
+        setConnectors((current) =>
+          current.map((item) =>
+            item.id === connector.id ? { ...item, ...response } : item,
+          ),
+        );
+      } catch (error) {
+        setConnectorsErrorMessage(
+          error instanceof Error ? error.message : "Failed to update connector",
+        );
+      } finally {
+        setTogglingConnectorId(null);
+      }
+    },
+    [],
+  );
+
+  const handleToggleConnectorSources = useCallback(
+    (connector: ConnectorListItem) => {
+      setSelectedConnectorId((current) =>
+        current === connector.id ? null : connector.id,
+      );
+    },
+    [],
   );
 
   const selectedSource = useMemo(() => {
@@ -492,7 +857,6 @@ export function DataIngestionPage() {
           projectId: selectedProjectId,
         });
         storeGithubRepository(parsedRepository);
-        setLastGithubRepository(parsedRepository);
 
         setConnectState("success");
         setConnectSuccessMessage(
@@ -505,11 +869,18 @@ export function DataIngestionPage() {
         setIsSourceModalOpen(false);
         setActiveTab("sources");
 
-        await Promise.all([loadData(), reloadProjects()]);
+        await Promise.all([
+          loadData(),
+          reloadProjects(),
+          loadGithubConnectorSources(),
+        ]);
+        setArtifactSnapshotVersion((version) => version + 1);
 
         window.setTimeout(() => {
           void loadData(false);
           void reloadProjects();
+          void loadGithubConnectorSources();
+          setArtifactSnapshotVersion((version) => version + 1);
         }, 1500);
       } catch (error) {
         setConnectState("error");
@@ -523,6 +894,7 @@ export function DataIngestionPage() {
       githubRepositoryName,
       githubTokenName,
       loadData,
+      loadGithubConnectorSources,
       reloadProjects,
       selectedConnectSourceSystem,
       selectedProject,
@@ -531,34 +903,40 @@ export function DataIngestionPage() {
   );
 
   const handleUpdateSource = useCallback(
-    async (sourceSystem: SourceSystem) => {
-      if (sourceSystem !== "GITHUB") {
+    async (source: DataSource) => {
+      if (source.sourceSystem !== "GITHUB" || !source.githubRepository) {
         throw new Error(
-          `${SOURCE_META[sourceSystem].type} updates are not available yet.`,
+          "Repository details are not available for this source.",
         );
       }
 
-      const repositoryLabel = lastGithubRepository
-        ? `${lastGithubRepository.owner}/${lastGithubRepository.name}`
-        : "all connected GitHub repositories";
-
-      if (lastGithubRepository) {
-        await updateGithubRepository(lastGithubRepository);
-      } else {
-        await updateAllGithubRepositories();
-      }
+      await updateGithubRepository(source.githubRepository);
 
       setPollingUntil(Date.now() + 60000);
-      setConnectSuccessMessage(`Update for ${repositoryLabel} started.`);
+      setConnectSuccessMessage(
+        `Update for ${source.githubRepository.fullName} started.`,
+      );
 
-      await loadData(false);
+      await Promise.all([loadData(false), loadGithubConnectorSources()]);
+      setArtifactSnapshotVersion((version) => version + 1);
 
       window.setTimeout(() => {
         void loadData(false);
+        void loadGithubConnectorSources();
+        setArtifactSnapshotVersion((version) => version + 1);
       }, 1500);
     },
-    [lastGithubRepository, loadData],
+    [loadData, loadGithubConnectorSources],
   );
+
+  const refreshSourceDetails = useCallback(async () => {
+    await Promise.all([
+      loadData(false),
+      reloadProjects(),
+      loadGithubConnectorSources(),
+    ]);
+    setArtifactSnapshotVersion((version) => version + 1);
+  }, [loadData, loadGithubConnectorSources, reloadProjects]);
 
   const isLoading = loadingState === "loading" || isLoadingProjects;
   const shouldShowInitialLoading =
@@ -575,7 +953,7 @@ export function DataIngestionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-app-bg">
+    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-app-bg [scrollbar-gutter:stable] lg:h-screen">
       <div>
         <DataIngestionHeader
           isLoading={isLoading}
@@ -587,6 +965,8 @@ export function DataIngestionPage() {
           onRefresh={() => {
             void loadData();
             void reloadProjects();
+            void loadGithubConnectorSources();
+            setArtifactSnapshotVersion((version) => version + 1);
           }}
           showProjectSelect={profile?.permissionGroup === "ADMIN"}
         />
@@ -596,6 +976,12 @@ export function DataIngestionPage() {
             {errorMessage && (
               <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-5 py-4 text-sm text-app-warning-text">
                 {errorMessage}
+              </div>
+            )}
+
+            {artifactSummaryErrorMessage && (
+              <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-5 py-4 text-sm text-app-warning-text">
+                {artifactSummaryErrorMessage}
               </div>
             )}
 
@@ -613,12 +999,15 @@ export function DataIngestionPage() {
               </div>
             )}
 
-            <IngestionMetrics sources={sources} />
+            <IngestionMetrics
+              sources={sources}
+              totalArtifactCount={projectArtifactTotal}
+            />
 
             <section className="overflow-hidden rounded-3xl border border-app-border bg-app-surface">
               <DataIngestionTabs
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                onTabChange={handleTabChange}
                 onAddSource={handleOpenSourceModal}
               />
 
@@ -636,11 +1025,42 @@ export function DataIngestionPage() {
                 ) : null}
 
                 {!isLoading && activeTab === "artifacts" ? (
-                  <ArtifactTable sources={sources} runs={visibleRuns} />
+                  <ArtifactTable
+                    projectId={selectedProjectId}
+                    sources={sources}
+                  />
                 ) : null}
 
                 {!isLoading && activeTab === "runs" ? (
                   <RunHistory runs={visibleRuns} />
+                ) : null}
+                {activeTab === "connectors" ? (
+                  <>
+                    {connectorsErrorMessage && (
+                      <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
+                        {connectorsErrorMessage}
+                      </div>
+                    )}
+
+                    {connectorsLoadingState === "loading" &&
+                    !hasLoadedConnectors ? (
+                      <ConnectorsLoadingState />
+                    ) : (
+                      <ConnectorList
+                        connectors={connectors}
+                        togglingConnectorId={togglingConnectorId}
+                        expandedConnectorId={selectedConnectorId}
+                        onToggleEnabled={(connector) => {
+                          void handleToggleConnectorEnabled(connector);
+                        }}
+                        onToggleSources={handleToggleConnectorSources}
+                        onSourcesSaved={() => {
+                          void loadConnectors();
+                          void loadGithubConnectorSources();
+                        }}
+                      />
+                    )}
+                  </>
                 ) : null}
               </div>
             </section>
@@ -651,12 +1071,8 @@ export function DataIngestionPage() {
       {selectedSource && (
         <SourceDetailsPanel
           source={selectedSource}
-          githubRepository={
-            selectedSource.sourceSystem === "GITHUB"
-              ? lastGithubRepository
-              : null
-          }
           onUpdateSource={handleUpdateSource}
+          onRefreshDetails={refreshSourceDetails}
           onClose={closeSourceDetails}
         />
       )}

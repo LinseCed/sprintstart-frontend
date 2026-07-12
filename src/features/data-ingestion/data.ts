@@ -68,15 +68,24 @@ export function createDataSource(
       hasErrors,
       status?.status,
     ),
+    ingestionStatus: sourceStatus,
+    ingestionStatusLabel: getSourceStatusLabel(
+      hasNeverSynced,
+      hasErrors,
+      status?.status,
+    ),
     artifacts: latestIngestedCount,
     lastSync: formatDateTime(lastRunAt),
     nextSync: "Not available",
     errors: failedCount,
-    description: meta.description,
     lastRunAt,
     latestIngestedCount,
     latestUpdatedCount,
+    totalArtifactCount: latestIngestedCount,
+    runIds: [],
+    sharesSourceSystem: false,
     failedItems: status?.failedItems ?? [],
+    githubRepository: null,
   };
 }
 

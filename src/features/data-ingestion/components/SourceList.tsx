@@ -55,21 +55,19 @@ export function SourceList({
                 </div>
 
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div>
                     <h3 className="break-words text-lg font-semibold text-app-text">
                       {source.name}
                     </h3>
 
-                    <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                      {source.type}
-                    </span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
+                        {source.type}
+                      </span>
 
-                    <SourceStatusBadge source={source} />
+                      <SourceStatusBadge source={source} />
+                    </div>
                   </div>
-
-                  <p className="mt-2 max-w-3xl text-sm text-app-text-muted">
-                    {source.description}
-                  </p>
                 </div>
               </div>
 
@@ -85,16 +83,16 @@ export function SourceList({
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <InfoBlock
-                label="Latest Ingested"
-                value={formatNumber(source.latestIngestedCount)}
+                label="Artifacts Ingested"
+                value={formatNumber(source.totalArtifactCount)}
               />
+
+              <InfoBlock label="Last Sync" value={source.lastSync} />
 
               <InfoBlock
                 label="Latest Updated"
                 value={formatNumber(source.latestUpdatedCount)}
               />
-
-              <InfoBlock label="Last Sync" value={source.lastSync} />
 
               <InfoBlock
                 label="Errors"
