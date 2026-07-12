@@ -8,8 +8,9 @@ import {
   Search,
   UserPlus,
 } from "lucide-react";
-import { projectService } from "../../../services/projectService";
+import { UserAvatar } from "../../../components/common/UserAvatar";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
+import { projectService } from "../../../services/projectService";
 import {
   getProjectEditFormState,
   getProjectSourcesCount,
@@ -22,7 +23,6 @@ import type {
   ProjectOverview,
   ProjectUser,
 } from "../types";
-import { UserAvatar } from "../../../components/common/UserAvatar";
 import { AccessBadge } from "./Badges";
 import { EditableDetailRow } from "./EditableDetailRow";
 import { ProjectUserList } from "./ProjectUserList";
@@ -31,11 +31,11 @@ import { SourceList } from "./SourceList";
 
 type ProjectDetailsDrawerProps = {
   project: ProjectOverview;
-  availableUsers: AdminUser[];
+  availableUsers?: AdminUser[];
   isOpen: boolean;
   onClose: () => void;
-  onOpenSourceDetails: (projectId: string, sourceId: string) => void;
-  onProjectUpdated: (updatedProject: AdminProjectDetails) => void;
+  onOpenSourceDetails?: (projectId: string, sourceId: string) => void;
+  onProjectUpdated?: (updatedProject: AdminProjectDetails) => void;
 };
 
 type ProjectDetailsError = {
@@ -79,7 +79,7 @@ function matchesUserSearch(user: AdminUser, search: string) {
 
 export function ProjectDetailsDrawer({
   project,
-  availableUsers,
+  availableUsers = [],
   isOpen,
   onClose,
   onOpenSourceDetails,
@@ -232,7 +232,7 @@ export function ProjectDetailsDrawer({
     };
 
     setProjectDetails(updatedProject);
-    onProjectUpdated(updatedProject);
+    onProjectUpdated?.(updatedProject);
   };
 
   const addUserToProject = async (userId: string) => {
@@ -309,7 +309,7 @@ export function ProjectDetailsDrawer({
         projectId: updatedProject.id,
         draftProject: getProjectEditFormState(updatedProject),
       });
-      onProjectUpdated(updatedProject);
+      onProjectUpdated?.(updatedProject);
       setEditingProjectId(null);
     } catch (error) {
       setSaveError({
@@ -332,8 +332,7 @@ export function ProjectDetailsDrawer({
       onClose={closeDrawer}
       title={visibleProjectName}
       closeAriaLabel="Close project details"
-      widthClassName="w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]"
-      headerClassName="mx-5 px-4 pb-3 pt-7 lg:px-5 lg:pt-8"
+      widthClassName="w-full sm:w-[min(94vw,34rem)] lg:w-[min(72vw,58rem)]"
       leading={
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-muted text-app-text-muted">
           <Folder className="h-6 w-6" />
@@ -431,7 +430,7 @@ export function ProjectDetailsDrawer({
                   value={draftProject.name}
                   onChange={(value) => updateDraftField("name", value)}
                 />
-                <div className="grid grid-cols-[7.5rem_1fr] items-start gap-4 py-2.5">
+                <div className="grid grid-cols-1 items-start gap-1 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:gap-4">
                   <label
                     htmlFor={descriptionInputId}
                     className="pt-2 text-sm text-app-text-muted"
@@ -463,8 +462,10 @@ export function ProjectDetailsDrawer({
             </p>
             <SourceList
               sources={visibleProject.sources}
-              onOpenSourceDetails={(sourceId) =>
-                onOpenSourceDetails(project.id, sourceId)
+              onOpenSourceDetails={
+                onOpenSourceDetails
+                  ? (sourceId) => onOpenSourceDetails(project.id, sourceId)
+                  : undefined
               }
             />
           </Section>

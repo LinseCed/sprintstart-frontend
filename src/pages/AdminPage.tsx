@@ -1,89 +1,50 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  AlertCircle,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Layers,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-  SlidersHorizontal,
-  Terminal,
-  Trash2,
-  Users,
-} from "lucide-react";
-import { adminUserService } from "../services/adminUserService";
-import { projectService } from "../services/projectService";
-import { getGithubPatNames } from "../services/sources/githubService";
+import { AlertCircle, Check, Loader2, RefreshCw, Terminal } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { AlertDialog } from "../components/ui/AlertDialog";
 import { Modal } from "../components/ui/Modal";
 import {
   DRAWER_CLOSE_DELAY_MS,
-  PAGE_SIZE,
-  USER_FILTER_OPTIONS,
+  areAllVisibleUsersSelected,
+  filterAdminProjects,
+  filterAdminUsers,
+  getAvailableProjects,
   getDisplayName,
+  getPaginatedUsers,
+  getSafePage,
+  getTotalPages,
+  removeUsersFromProjects,
+  toggleSelectedUserId,
+  toggleVisibleUserSelection,
 } from "../features/admin/data";
+import { AdminMetrics } from "../features/admin/components/AdminMetrics";
+import { AdminPagination } from "../features/admin/components/AdminPagination";
+import { AdminProjectsToolbar } from "../features/admin/components/AdminProjectsToolbar";
+import { AdminUsersToolbar } from "../features/admin/components/AdminUsersToolbar";
 import { ProjectDetailsDrawer } from "../features/admin/components/ProjectDetailsDrawer";
 import { ProjectsTab } from "../features/admin/components/ProjectsTab";
 import { TabSwitcher } from "../features/admin/components/TabSwitcher";
 import { TokensTab } from "../features/admin/components/TokensTab";
 import { UserDetailsDrawer } from "../features/admin/components/UserDetailsDrawer";
 import { UsersTab } from "../features/admin/components/UsersTab";
+import { useAdminData } from "../features/admin/hooks/useAdminData";
 import type {
   AdminProjectDetails,
   AdminTab,
   AdminUser,
-  LoadingState,
   ProjectOverview,
-  ProjectSummary,
   UserFilter,
 } from "../features/admin/types";
-
-function getProjectSummaries(projects: ProjectOverview[]): ProjectSummary[] {
-  return projects
-    .map((project) => ({
-      id: project.id,
-      name: project.name,
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function enrichUsersWithProjectNames(
-  users: AdminUser[],
-  projects: ProjectSummary[],
-): AdminUser[] {
-  const projectsById = new Map(
-    projects.map((project) => [project.id, project]),
-  );
-
-  return users.map((user) => ({
-    ...user,
-    projects: user.projects.map(
-      (project) => projectsById.get(project.id) ?? project,
-    ),
-  }));
-}
+import { adminUserService } from "../services/adminUserService";
+import { projectService } from "../services/projectService";
 
 export function AdminPage() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
-  const [users, setUsers] = useState<AdminUser[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
     new Set(),
   );
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-  const [projects, setProjects] = useState<ProjectOverview[]>([]);
-  const [selectedProject, setSelectedProject] =
-    useState<ProjectOverview | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  const [loadingState, setLoadingState] = useState<LoadingState>("loading");
-  const [errorMessage, setErrorMessage] = useState("");
 
   const [searchValue, setSearchValue] = useState("");
   const [projectSearchValue, setProjectSearchValue] = useState("");
@@ -91,7 +52,6 @@ export function AdminPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [page, setPage] = useState(1);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
   const [userPendingDelete, setUserPendingDelete] = useState<AdminUser | null>(
     null,
@@ -103,15 +63,54 @@ export function AdminPage() {
   const [isBulkDeletingUsers, setIsBulkDeletingUsers] = useState(false);
   const [bulkDeleteErrorMessage, setBulkDeleteErrorMessage] = useState("");
 
-  const [tokenNames, setTokenNames] = useState<string[]>([]);
-  const [tokensLoaded, setTokensLoaded] = useState(false);
-
-  // Create project modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [createProjectError, setCreateProjectError] = useState("");
+
+  const {
+    users,
+    setUsers,
+    projects,
+    setProjects,
+    selectedUser,
+    setSelectedUser,
+    selectedProject,
+    setSelectedProject,
+    loadingState,
+    errorMessage,
+    isRefreshing,
+    refreshAdminData,
+    tokenNames,
+    tokensLoaded,
+    loadTokenNames,
+  } = useAdminData();
+
+  const availableProjects = useMemo(
+    () => getAvailableProjects(projects),
+    [projects],
+  );
+
+  const filteredUsers = useMemo(() => {
+    return filterAdminUsers(users, searchValue, userFilter);
+  }, [users, searchValue, userFilter]);
+
+  const filteredProjects = useMemo(() => {
+    return filterAdminProjects(projects, projectSearchValue);
+  }, [projects, projectSearchValue]);
+
+  const totalPages = getTotalPages(filteredUsers.length);
+  const safePage = getSafePage(page, totalPages);
+
+  const paginatedUsers = useMemo(() => {
+    return getPaginatedUsers(filteredUsers, safePage);
+  }, [filteredUsers, safePage]);
+
+  const allVisibleUsersSelected = areAllVisibleUsersSelected(
+    paginatedUsers,
+    selectedUserIds,
+  );
 
   const openCreateModal = useCallback(() => {
     setNewProjectName("");
@@ -121,9 +120,11 @@ export function AdminPage() {
   }, []);
 
   const closeCreateModal = useCallback(() => {
+    if (isCreatingProject) return;
+
     setIsCreateModalOpen(false);
     setCreateProjectError("");
-  }, []);
+  }, [isCreatingProject]);
 
   const handleCreateProject = useCallback(async () => {
     const trimmedName = newProjectName.trim();
@@ -147,170 +148,21 @@ export function AdminPage() {
     } finally {
       setIsCreatingProject(false);
     }
-  }, [newProjectName, newProjectDescription, closeCreateModal]);
-
-  const loadAdminData = useCallback(async () => {
-    try {
-      const [nextUsers, nextProjects] = await Promise.all([
-        adminUserService.getUsers(),
-        projectService.getProjects(),
-      ]);
-      const nextProjectSummaries = getProjectSummaries(nextProjects);
-      const nextEnrichedUsers = enrichUsersWithProjectNames(
-        nextUsers,
-        nextProjectSummaries,
-      );
-
-      setUsers(nextEnrichedUsers);
-      setProjects(nextProjects);
-      setLoadingState("success");
-
-      setSelectedUser((currentSelectedUser) => {
-        if (!currentSelectedUser) return null;
-
-        return (
-          nextEnrichedUsers.find(
-            (user) => user.id === currentSelectedUser.id,
-          ) ?? currentSelectedUser
-        );
-      });
-
-      setSelectedProject((currentSelectedProject) => {
-        if (!currentSelectedProject) return null;
-
-        return (
-          nextProjects.find(
-            (project) => project.id === currentSelectedProject.id,
-          ) ?? currentSelectedProject
-        );
-      });
-    } catch (error) {
-      setLoadingState("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Admin data could not be loaded.",
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    void Promise.resolve().then(loadAdminData);
-  }, [loadAdminData]);
-
-  const availableProjects = useMemo<ProjectSummary[]>(() => {
-    return getProjectSummaries(projects);
-  }, [projects]);
-
-  const filteredUsers = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase();
-
-    return users.filter((user) => {
-      const searchableValues = [
-        user.id,
-        user.username,
-        user.email,
-        user.firstName,
-        user.lastName,
-        user.permissionGroup,
-        user.profileIcon,
-        String(user.enabled),
-        String(user.hasCompletedOnboarding),
-        ...user.roles.flatMap((role) => [
-          role.id,
-          role.name,
-          role.description,
-          role.type,
-        ]),
-        ...user.projects.flatMap((project) => [project.id, project.name]),
-      ];
-
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        searchableValues.some((value) =>
-          value.toLowerCase().includes(normalizedSearch),
-        );
-
-      const matchesFilter =
-        userFilter === "all" ||
-        (userFilter === "enabled" && user.enabled) ||
-        (userFilter === "disabled" && !user.enabled) ||
-        (userFilter === "onboarded" && user.hasCompletedOnboarding) ||
-        (userFilter === "not-onboarded" && !user.hasCompletedOnboarding);
-
-      return matchesSearch && matchesFilter;
-    });
-  }, [users, searchValue, userFilter]);
-
-  const filteredProjects = useMemo(() => {
-    const normalizedSearch = projectSearchValue.trim().toLowerCase();
-
-    return projects.filter((project) => {
-      const searchableValues = [
-        project.id,
-        project.name,
-        project.description,
-        ...project.sources.flatMap((source) => [
-          source.id,
-          source.name,
-          source.type,
-          source.status,
-        ]),
-        ...project.users.flatMap((user) => [
-          user.id,
-          user.username,
-          user.email,
-          ...user.projectRoles,
-        ]),
-      ];
-
-      return (
-        normalizedSearch.length === 0 ||
-        searchableValues.some((value) =>
-          value.toLowerCase().includes(normalizedSearch),
-        )
-      );
-    });
-  }, [projects, projectSearchValue]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-
-  const paginatedUsers = useMemo(() => {
-    const startIndex = (safePage - 1) * PAGE_SIZE;
-
-    return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredUsers, safePage]);
-
-  const allVisibleUsersSelected =
-    paginatedUsers.length > 0 &&
-    paginatedUsers.every((user) => selectedUserIds.has(user.id));
+  }, [closeCreateModal, newProjectDescription, newProjectName, setProjects]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds((current) => {
-      const next = new Set(current);
-
-      if (next.has(userId)) {
-        next.delete(userId);
-      } else {
-        next.add(userId);
-      }
-
-      return next;
+      return toggleSelectedUserId(current, userId);
     });
   };
 
   const toggleAllVisibleUsers = () => {
     setSelectedUserIds((current) => {
-      const next = new Set(current);
-
-      if (allVisibleUsersSelected) {
-        paginatedUsers.forEach((user) => next.delete(user.id));
-      } else {
-        paginatedUsers.forEach((user) => next.add(user.id));
-      }
-
-      return next;
+      return toggleVisibleUserSelection(
+        current,
+        paginatedUsers,
+        allVisibleUsersSelected,
+      );
     });
   };
 
@@ -376,10 +228,7 @@ export function AdminPage() {
       );
 
       setProjects((currentProjects) =>
-        currentProjects.map((project) => ({
-          ...project,
-          users: project.users.filter((user) => user.id !== userId),
-        })),
+        removeUsersFromProjects(currentProjects, new Set([userId])),
       );
 
       setSelectedUserIds((currentSelectedUserIds) => {
@@ -446,12 +295,7 @@ export function AdminPage() {
       );
 
       setProjects((currentProjects) =>
-        currentProjects.map((project) => ({
-          ...project,
-          users: project.users.filter(
-            (user) => !userIdsToDeleteSet.has(user.id),
-          ),
-        })),
+        removeUsersFromProjects(currentProjects, userIdsToDeleteSet),
       );
 
       setSelectedUser((currentSelectedUser) =>
@@ -499,79 +343,89 @@ export function AdminPage() {
     setIsDrawerOpen(true);
   };
 
-  const handleProjectUpdated = (updatedProject: AdminProjectDetails) => {
-    const projectSummary = {
-      id: updatedProject.id,
-      name: updatedProject.name,
-    };
-    const assignedUserIds = new Set(
-      updatedProject.users.map((projectUser) => projectUser.id),
-    );
+  const handleProjectUpdated = useCallback(
+    (updatedProject: AdminProjectDetails) => {
+      const projectSummary = {
+        id: updatedProject.id,
+        name: updatedProject.name,
+      };
+      const assignedUserIds = new Set(
+        updatedProject.users.map((projectUser) => projectUser.id),
+      );
 
-    setProjects((currentProjects) =>
-      currentProjects.map((currentProject) =>
-        currentProject.id === updatedProject.id
+      setProjects((currentProjects) =>
+        currentProjects.map((currentProject) =>
+          currentProject.id === updatedProject.id
+            ? updatedProject
+            : currentProject,
+        ),
+      );
+
+      setUsers((currentUsers) =>
+        currentUsers.map((currentUser) => {
+          const isAssignedToProject = assignedUserIds.has(currentUser.id);
+          const hasProject = currentUser.projects.some(
+            (project) => project.id === updatedProject.id,
+          );
+
+          if (isAssignedToProject) {
+            const nextProjects = hasProject
+              ? currentUser.projects.map((project) =>
+                  project.id === updatedProject.id ? projectSummary : project,
+                )
+              : [...currentUser.projects, projectSummary];
+
+            return {
+              ...currentUser,
+              projects: nextProjects.sort((left, right) =>
+                left.name.localeCompare(right.name),
+              ),
+            };
+          }
+
+          if (hasProject) {
+            return {
+              ...currentUser,
+              projects: currentUser.projects.filter(
+                (project) => project.id !== updatedProject.id,
+              ),
+            };
+          }
+
+          return currentUser;
+        }),
+      );
+
+      setSelectedProject((currentSelectedProject) =>
+        currentSelectedProject?.id === updatedProject.id
           ? updatedProject
-          : currentProject,
-      ),
-    );
-    setUsers((currentUsers) =>
-      currentUsers.map((currentUser) => {
-        const isAssignedToProject = assignedUserIds.has(currentUser.id);
-        const hasProject = currentUser.projects.some(
-          (project) => project.id === updatedProject.id,
-        );
-
-        if (isAssignedToProject) {
-          const nextProjects = hasProject
-            ? currentUser.projects.map((project) =>
-                project.id === updatedProject.id ? projectSummary : project,
-              )
-            : [...currentUser.projects, projectSummary];
-
-          return {
-            ...currentUser,
-            projects: nextProjects.sort((left, right) =>
-              left.name.localeCompare(right.name),
-            ),
-          };
-        }
-
-        if (hasProject) {
-          return {
-            ...currentUser,
-            projects: currentUser.projects.filter(
-              (project) => project.id !== updatedProject.id,
-            ),
-          };
-        }
-
-        return currentUser;
-      }),
-    );
-    setSelectedProject((currentSelectedProject) =>
-      currentSelectedProject?.id === updatedProject.id
-        ? updatedProject
-        : currentSelectedProject,
-    );
-  };
+          : currentSelectedProject,
+      );
+    },
+    [setProjects, setSelectedProject, setUsers],
+  );
 
   const openSourceDetails = (projectId: string, sourceId: string) => {
     const params = new URLSearchParams({ projectId, sourceId });
-    void navigate(`/data-ingestion?${params.toString()}`);
+    window.history.pushState(null, "", `/data-ingestion?${params.toString()}`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   };
-  const handleUserUpdated = useCallback((updatedUser: AdminUser) => {
-    setUsers((currentUsers) =>
-      currentUsers.map((currentUser) =>
-        currentUser.id === updatedUser.id ? updatedUser : currentUser,
-      ),
-    );
-    setSelectedUser((currentSelectedUser) =>
-      currentSelectedUser?.id === updatedUser.id
-        ? updatedUser
-        : currentSelectedUser,
-    );
-  }, []);
+
+  const handleUserUpdated = useCallback(
+    (updatedUser: AdminUser) => {
+      setUsers((currentUsers) =>
+        currentUsers.map((currentUser) =>
+          currentUser.id === updatedUser.id ? updatedUser : currentUser,
+        ),
+      );
+      setSelectedUser((currentSelectedUser) =>
+        currentSelectedUser?.id === updatedUser.id
+          ? updatedUser
+          : currentSelectedUser,
+      );
+    },
+    [setSelectedUser, setUsers],
+  );
 
   const closeDetails = () => {
     setOpenUserMenuId(null);
@@ -583,16 +437,6 @@ export function AdminPage() {
     }, DRAWER_CLOSE_DELAY_MS);
   };
 
-  const loadTokenNames = useCallback(async () => {
-    try {
-      const names = await getGithubPatNames();
-      setTokenNames(names);
-      setTokensLoaded(true);
-    } catch {
-      setTokensLoaded(true);
-    }
-  }, []);
-
   const handleTabChange = (tab: AdminTab) => {
     setOpenUserMenuId(null);
     closeDetails();
@@ -602,60 +446,37 @@ export function AdminPage() {
     }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-
-    try {
-      await loadAdminData();
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   const showInitialLoading =
     loadingState === "idle" || loadingState === "loading";
 
   return (
     <div className="h-dvh overflow-y-scroll overscroll-contain bg-app-bg">
       <header className="border-b border-app-border bg-app-bg">
-        <div className="app-page-frame py-6">
+        <div className="admin-page-frame py-4 sm:py-6">
           <PageHeader
             icon={Terminal}
-            title="Admin Console"
-            subtitle="Manage users, projects and access tokens from one operational view."
+            title="Access Management"
+            subtitle="Manage users, projects and access tokens."
             actions={
-              <>
-                <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
-                  <Users className="h-4 w-4 text-app-text-muted" />
-                  <span className="text-sm font-semibold text-app-text">
-                    {users.length}
-                  </span>
-                  <span className="text-sm text-app-text-muted">users</span>
-                </div>
-
-                <div className="flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-3 py-2">
-                  <Layers className="h-4 w-4 text-app-text-muted" />
-                  <span className="text-sm font-semibold text-app-text">
-                    {projects.length}
-                  </span>
-                  <span className="text-sm text-app-text-muted">projects</span>
-                </div>
-              </>
+              <AdminMetrics
+                userCount={users.length}
+                projectCount={projects.length}
+              />
             }
           />
         </div>
       </header>
 
-      <main className="app-page-frame py-6">
-        <div className="overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-app-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <main className="admin-page-frame py-4 sm:py-6">
+        <div className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm sm:rounded-3xl">
+          <div className="flex flex-col gap-4 border-b border-app-border px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
             <TabSwitcher activeTab={activeTab} onChange={handleTabChange} />
 
             <button
               type="button"
-              onClick={() => void handleRefresh()}
+              onClick={() => void refreshAdminData()}
               disabled={isRefreshing}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60 sm:w-11"
               aria-label="Refresh admin data"
             >
               <RefreshCw
@@ -664,7 +485,7 @@ export function AdminPage() {
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-3 sm:p-6">
             {showInitialLoading ? (
               <div className="flex min-h-96 items-center justify-center">
                 <div className="flex flex-col items-center gap-3 text-app-text-muted">
@@ -684,7 +505,7 @@ export function AdminPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => void handleRefresh()}
+                    onClick={() => void refreshAdminData()}
                     className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-app-text px-5 py-2.5 text-sm font-medium text-app-text-inverse transition-colors hover:opacity-90"
                   >
                     Try again
@@ -693,86 +514,24 @@ export function AdminPage() {
               </div>
             ) : activeTab === "users" ? (
               <>
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-app-text">
-                      {filteredUsers.length} users
-                    </span>
-
-                    {selectedUserIds.size > 0 && (
-                      <span className="text-sm text-app-brand-text">
-                        {selectedUserIds.size} selected
-                      </span>
-                    )}
-
-                    {selectedUserIds.size > 0 && (
-                      <button
-                        type="button"
-                        onClick={requestBulkUserDelete}
-                        className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-app-danger-bg bg-app-danger-bg px-3 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete All
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div className="relative w-full sm:w-64">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-disabled" />
-                      <input
-                        value={searchValue}
-                        onChange={(event) => {
-                          setSearchValue(event.target.value);
-                          setPage(1);
-                        }}
-                        placeholder="Search users..."
-                        className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
-                      />
-                    </div>
-
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowFilters((current) => !current)}
-                        className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors ${
-                          userFilter !== "all"
-                            ? "border-app-brand-border bg-app-brand-soft text-app-brand-text"
-                            : "border-app-border bg-app-surface text-app-text hover:bg-app-surface-hover"
-                        }`}
-                      >
-                        <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Filter
-                      </button>
-
-                      {showFilters && (
-                        <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl">
-                          {USER_FILTER_OPTIONS.map(({ value, label }) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => {
-                                setUserFilter(value);
-                                setShowFilters(false);
-                                setPage(1);
-                              }}
-                              className={`flex min-h-11 w-full items-center justify-between px-4 py-3 text-sm transition-colors ${
-                                userFilter === value
-                                  ? "bg-app-brand-soft text-app-brand-text"
-                                  : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
-                              }`}
-                            >
-                              {label}
-                              {userFilter === value && (
-                                <Check className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <AdminUsersToolbar
+                  userCount={filteredUsers.length}
+                  selectedUserCount={selectedUserIds.size}
+                  searchValue={searchValue}
+                  userFilter={userFilter}
+                  showFilters={showFilters}
+                  onSearchChange={(value) => {
+                    setSearchValue(value);
+                    setPage(1);
+                  }}
+                  onFilterChange={(value) => {
+                    setUserFilter(value);
+                    setShowFilters(false);
+                    setPage(1);
+                  }}
+                  onToggleFilters={() => setShowFilters((current) => !current)}
+                  onRequestBulkDelete={requestBulkUserDelete}
+                />
 
                 <UsersTab
                   paginatedUsers={paginatedUsers}
@@ -787,88 +546,26 @@ export function AdminPage() {
                   onRequestUserDeleteFromMenu={requestUserDeleteFromMenu}
                 />
 
-                {totalPages > 1 && (
-                  <div className="mt-4 flex items-center justify-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setPage(Math.max(1, safePage - 1))}
-                      disabled={safePage === 1}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
-                      aria-label="Previous page"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-
-                    {Array.from(
-                      { length: totalPages },
-                      (_, index) => index + 1,
-                    ).map((pageNumber) => (
-                      <button
-                        key={pageNumber}
-                        type="button"
-                        onClick={() => setPage(pageNumber)}
-                        className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-colors ${
-                          safePage === pageNumber
-                            ? "bg-app-surface-muted text-app-text"
-                            : "text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
-                        }`}
-                      >
-                        {pageNumber}
-                      </button>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPage(Math.min(totalPages, safePage + 1))
-                      }
-                      disabled={safePage === totalPages}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-text-muted"
-                      aria-label="Next page"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
+                <AdminPagination
+                  safePage={safePage}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
               </>
             ) : activeTab === "projects" ? (
               <>
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm font-semibold text-app-text">
-                    {filteredProjects.length === 0 && projects.length === 0
-                      ? "No projects yet"
-                      : `${filteredProjects.length} ${filteredProjects.length === 1 ? "project" : "projects"}${filteredProjects.length !== projects.length ? ` (filtered from ${projects.length})` : ""}`}
-                  </span>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div className="relative w-full sm:w-64">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-disabled" />
-                      <input
-                        value={projectSearchValue}
-                        onChange={(event) =>
-                          setProjectSearchValue(event.target.value)
-                        }
-                        placeholder="Search projects..."
-                        className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={openCreateModal}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover"
-                    >
-                      <Plus className="h-4 w-4" />
-                      New Project
-                    </button>
-                  </div>
-                </div>
+                <AdminProjectsToolbar
+                  projectCount={filteredProjects.length}
+                  projectSearchValue={projectSearchValue}
+                  onProjectSearchChange={setProjectSearchValue}
+                  onCreateProject={openCreateModal}
+                />
 
                 <ProjectsTab
                   filteredProjects={filteredProjects}
-                  onOpenProjectDetails={openProjectDetails}
                   hasSearchQuery={projectSearchValue.trim().length > 0}
                   totalCount={projects.length}
+                  onOpenProjectDetails={openProjectDetails}
                 />
               </>
             ) : (
@@ -960,81 +657,76 @@ export function AdminPage() {
 
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={closeCreateModal}
         title="New Project"
-        description="Create a new project to manage teams, sources, and onboarding."
-        size="md"
+        description="Create a project shell for sources and member assignments."
+        onClose={closeCreateModal}
+        isDismissDisabled={isCreatingProject}
         footer={
-          <div className="flex w-full gap-3">
+          <>
             <button
               type="button"
               onClick={closeCreateModal}
               disabled={isCreatingProject}
-              className="flex-1 rounded-xl border border-app-border bg-app-surface px-5 py-2.5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-app-border bg-app-surface px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
             <button
-              type="button"
-              onClick={() => void handleCreateProject()}
+              type="submit"
+              form="create-project-form"
               disabled={isCreatingProject || !newProjectName.trim()}
-              className="flex-1 rounded-xl border border-app-brand bg-app-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isCreatingProject ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Creating...
-                </span>
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Create Project"
+                <Check className="h-4 w-4" />
               )}
+              Create Project
             </button>
-          </div>
+          </>
         }
       >
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="project-name"
-              className="text-sm font-medium text-app-text"
-            >
-              Project name <span className="text-app-danger-text">*</span>
-            </label>
-            <input
-              id="project-name"
-              value={newProjectName}
-              onChange={(event) => setNewProjectName(event.target.value)}
-              placeholder="e.g. Project X"
-              disabled={isCreatingProject}
-              className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-4 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="project-description"
-              className="text-sm font-medium text-app-text"
-            >
-              Description
-            </label>
-            <textarea
-              id="project-description"
-              value={newProjectDescription}
-              onChange={(event) => setNewProjectDescription(event.target.value)}
-              placeholder="Optional description of the project"
-              rows={3}
-              disabled={isCreatingProject}
-              className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-sm text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-
+        <form
+          id="create-project-form"
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleCreateProject();
+          }}
+        >
           {createProjectError && (
-            <div className="flex items-start gap-2 rounded-lg border border-app-danger-border bg-app-danger-bg px-4 py-3 text-sm text-app-danger-text">
+            <div className="flex items-start gap-2 rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3 text-sm text-app-danger-text">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{createProjectError}</span>
             </div>
           )}
-        </div>
+
+          <label className="block">
+            <span className="text-sm font-medium text-app-text-muted">
+              Name
+            </span>
+            <input
+              value={newProjectName}
+              onChange={(event) => setNewProjectName(event.target.value)}
+              disabled={isCreatingProject}
+              className="mt-1 h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm font-medium text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-app-text-muted">
+              Description
+            </span>
+            <textarea
+              value={newProjectDescription}
+              onChange={(event) => setNewProjectDescription(event.target.value)}
+              disabled={isCreatingProject}
+              rows={4}
+              className="mt-1 min-h-28 w-full resize-y rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium leading-relaxed text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </label>
+        </form>
       </Modal>
     </div>
   );
