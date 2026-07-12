@@ -182,7 +182,7 @@ export function KnowledgeGapWidget() {
 
                   <span className="ml-auto flex items-center gap-1 shrink-0">
                     <Clock className="w-3 h-3" />
-                    {formatRelativeDate(gap.lastUpdated)}
+                    {formatRelativeDate(gap.lastIngested)}
                   </span>
                 </div>
               </div>

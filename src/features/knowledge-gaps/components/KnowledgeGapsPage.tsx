@@ -121,7 +121,8 @@ export function KnowledgeGapsPage() {
         break;
       case "date":
         primary =
-          new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+          new Date(b.lastIngested).getTime() -
+          new Date(a.lastIngested).getTime();
         break;
       case "component":
         primary = a.component.localeCompare(b.component);
@@ -159,7 +160,14 @@ export function KnowledgeGapsPage() {
               title="Knowledge Gaps"
               subtitle="Documentation gaps identified across the organization and prioritized by impact."
             />
-            {refreshButton}
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {refreshButton}
+              {overview.gaps[0] && (
+                <span className="text-xs text-app-text-muted">
+                  Last analyzed {formatRelativeDate(overview.gaps[0].refreshedAt)}
+                </span>
+              )}
+            </div>
           </div>
           {refreshError && (
             <p className="text-sm text-app-danger-text mb-4">{refreshError}</p>
@@ -342,7 +350,7 @@ export function KnowledgeGapsPage() {
 
                     <span className="flex items-center gap-1 shrink-0">
                       <Clock className="w-3 h-3" />
-                      {formatRelativeDate(gap.lastUpdated)}
+                      {formatRelativeDate(gap.lastIngested)}
                     </span>
                   </div>
                 </div>

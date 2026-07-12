@@ -15,7 +15,12 @@ export interface KnowledgeGap {
     missingTypes: string[];
     // Document types the component already has. Provided by the AI; not always rendered yet.
     presentTypes?: string[];
-    lastUpdated: string;
+    // When the component was last written into the AI index (most recent ingestion).
+    lastIngested: string;
+    // When the component was first ingested. May be null when it has no ingested artifacts.
+    firstIngested?: string | null;
+    // When this gap was last (re)analyzed by a knowledge-gaps refresh.
+    refreshedAt: string;
     // Populated by the backend once component owners are assigned; empty until then.
     owners: KnowledgeGapOwner[];
     severity: KnowledgeGapSeverity;

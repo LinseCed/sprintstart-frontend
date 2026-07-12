@@ -8,7 +8,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { knowledgeGapService } from "../../../services/knowledgeGapService";
 import { getTeamOverview } from "../../../services/teamManagementService";
 import { useFetch } from "../../../hooks/useFetch";
-import { formatDate } from "../format";
+import { formatDateTime, formatRelativeDate, daysSince } from "../format";
 import { SEVERITY_STYLES } from "../severity";
 
 import {
@@ -22,7 +22,11 @@ import {
   FileCheck,
   ShieldAlert,
   Wrench,
+  Database,
 } from "lucide-react";
+
+// Nudge the PM to re-ingest when the newest artifact is older than this.
+const STALE_AFTER_DAYS = 30;
 
 // ─────────────────────────────────────────────────────────────
 // COMPONENT: KnowledgeGapsDetailPage
@@ -108,6 +112,10 @@ export function KnowledgeGapsDetailPage() {
   };
   const clearOwner = () => void saveOwners([]);
 
+  const firstIngested = gap.firstIngested ?? gap.lastIngested;
+  const daysSinceIngest = daysSince(gap.lastIngested);
+  const isStale = daysSinceIngest > STALE_AFTER_DAYS;
+
   // ── RENDER ─────────────────────────────────────────────
 
   return (
@@ -130,7 +138,8 @@ export function KnowledgeGapsDetailPage() {
               </h1>
               <div className="flex items-center gap-2 text-xs text-app-text-muted">
                 <Clock className="w-3.5 h-3.5" />
-                Last updated {formatDate(gap.lastUpdated)}
+                First ingested {formatDateTime(firstIngested)} ·{" "}
+                {formatRelativeDate(firstIngested)}
               </div>
             </div>
             <span className={`text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 ${badge}`}>
@@ -280,6 +289,47 @@ export function KnowledgeGapsDetailPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Data source */}
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-3">
+            <Database className="w-3.5 h-3.5" />
+            Data source
+          </div>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="text-sm text-app-text space-y-1">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-app-text-muted shrink-0" />
+                <span>
+                  Last ingested{" "}
+                  <span className="font-medium">
+                    {formatDateTime(gap.lastIngested)}
+                  </span>{" "}
+                  <span className="text-app-text-muted">
+                    · {formatRelativeDate(gap.lastIngested)}
+                  </span>
+                </span>
+              </div>
+              <div className="text-xs text-app-text-muted pl-6">
+                Last analyzed {formatDateTime(gap.refreshedAt)}
+              </div>
+            </div>
+            <button
+              onClick={() => void navigate("/data-ingestion")}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all shrink-0"
+            >
+              <Database className="w-4 h-4" />
+              Update data source
+            </button>
+          </div>
+          {isStale && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-app-warning-text bg-app-warning-bg border border-app-warning-border rounded-lg px-3 py-2">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              This data was last ingested {daysSinceIngest} days ago — re-ingest the
+              source to refresh it.
+            </div>
+          )}
         </div>
 
       </main>
