@@ -148,6 +148,32 @@ describe("projectService", () => {
     expect(newProject.id).toBe("project-new");
   });
 
+  it("updateProject patches backend-supported fields and keeps empty descriptions", async () => {
+    let capturedBody: unknown;
+    server.use(
+      http.patch("/api/v1/admin/projects/project-1", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({
+          ...backendProjectDetails,
+          name: "Renamed Project",
+          description: "",
+        });
+      }),
+    );
+
+    const updatedProject = await projectService.updateProject("project-1", {
+      name: "Renamed Project",
+      description: "",
+    });
+
+    expect(capturedBody).toEqual({
+      name: "Renamed Project",
+      description: "",
+    });
+    expect(updatedProject.name).toBe("Renamed Project");
+    expect(updatedProject.description).toBe("");
+  });
+
   it("assignUsersToProject returns backend response without a follow-up fetch", async () => {
     let capturedBody: unknown;
     server.use(

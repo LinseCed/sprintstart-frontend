@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   Check,
@@ -34,6 +35,7 @@ import { TokensTab } from "../features/admin/components/TokensTab";
 import { UserDetailsDrawer } from "../features/admin/components/UserDetailsDrawer";
 import { UsersTab } from "../features/admin/components/UsersTab";
 import type {
+  AdminProjectDetails,
   AdminTab,
   AdminUser,
   LoadingState,
@@ -55,7 +57,9 @@ function enrichUsersWithProjectNames(
   users: AdminUser[],
   projects: ProjectSummary[],
 ): AdminUser[] {
-  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const projectsById = new Map(
+    projects.map((project) => [project.id, project]),
+  );
 
   return users.map((user) => ({
     ...user,
@@ -66,6 +70,7 @@ function enrichUsersWithProjectNames(
 }
 
 export function AdminPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
@@ -164,8 +169,9 @@ export function AdminPage() {
         if (!currentSelectedUser) return null;
 
         return (
-          nextEnrichedUsers.find((user) => user.id === currentSelectedUser.id) ??
-          currentSelectedUser
+          nextEnrichedUsers.find(
+            (user) => user.id === currentSelectedUser.id,
+          ) ?? currentSelectedUser
         );
       });
 
@@ -493,6 +499,67 @@ export function AdminPage() {
     setIsDrawerOpen(true);
   };
 
+  const handleProjectUpdated = (updatedProject: AdminProjectDetails) => {
+    const projectSummary = {
+      id: updatedProject.id,
+      name: updatedProject.name,
+    };
+    const assignedUserIds = new Set(
+      updatedProject.users.map((projectUser) => projectUser.id),
+    );
+
+    setProjects((currentProjects) =>
+      currentProjects.map((currentProject) =>
+        currentProject.id === updatedProject.id
+          ? updatedProject
+          : currentProject,
+      ),
+    );
+    setUsers((currentUsers) =>
+      currentUsers.map((currentUser) => {
+        const isAssignedToProject = assignedUserIds.has(currentUser.id);
+        const hasProject = currentUser.projects.some(
+          (project) => project.id === updatedProject.id,
+        );
+
+        if (isAssignedToProject) {
+          const nextProjects = hasProject
+            ? currentUser.projects.map((project) =>
+                project.id === updatedProject.id ? projectSummary : project,
+              )
+            : [...currentUser.projects, projectSummary];
+
+          return {
+            ...currentUser,
+            projects: nextProjects.sort((left, right) =>
+              left.name.localeCompare(right.name),
+            ),
+          };
+        }
+
+        if (hasProject) {
+          return {
+            ...currentUser,
+            projects: currentUser.projects.filter(
+              (project) => project.id !== updatedProject.id,
+            ),
+          };
+        }
+
+        return currentUser;
+      }),
+    );
+    setSelectedProject((currentSelectedProject) =>
+      currentSelectedProject?.id === updatedProject.id
+        ? updatedProject
+        : currentSelectedProject,
+    );
+  };
+
+  const openSourceDetails = (projectId: string, sourceId: string) => {
+    const params = new URLSearchParams({ projectId, sourceId });
+    void navigate(`/data-ingestion?${params.toString()}`);
+  };
   const handleUserUpdated = useCallback((updatedUser: AdminUser) => {
     setUsers((currentUsers) =>
       currentUsers.map((currentUser) =>
@@ -840,8 +907,11 @@ export function AdminPage() {
       {selectedProject && (
         <ProjectDetailsDrawer
           project={selectedProject}
+          availableUsers={users}
           isOpen={isDrawerOpen}
           onClose={closeDetails}
+          onOpenSourceDetails={openSourceDetails}
+          onProjectUpdated={handleProjectUpdated}
         />
       )}
 

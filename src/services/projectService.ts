@@ -135,8 +135,8 @@ function toProjectSource(source: BackendProjectSource): ProjectSource {
   return {
     id: source.id,
     name: source.name,
-    type: source.type as ProjectSourceType,
-    status: source.status as ProjectSourceStatus,
+    type: source.type,
+    status: source.status,
   };
 }
 
@@ -158,8 +158,8 @@ function toProjectUser(user: BackendProjectUser): ProjectUser {
     email: user.email ?? "",
     firstName: user.firstName,
     lastName: user.lastName,
-    roles: user.roles.map((role) => role as GlobalUserRole),
-    projectRoles: user.projectRoles.map((role) => role as ProjectRole),
+    roles: user.roles,
+    projectRoles: user.projectRoles,
     enabled: user.enabled,
   };
 }

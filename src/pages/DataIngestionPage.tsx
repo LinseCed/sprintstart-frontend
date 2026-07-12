@@ -5,6 +5,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ArtifactTable } from "../features/data-ingestion/components/ArtifactTable.tsx";
 import { DataIngestionHeader } from "../features/data-ingestion/components/DataIngestionHeader.tsx";
 import { DataIngestionLoadingState } from "../features/data-ingestion/components/DataIngestionLoadingState.tsx";
@@ -26,7 +27,6 @@ import {
 } from "../features/data-ingestion/data.ts";
 import type {
   ActiveTab,
-  BackendProjectSourceStatus,
   ConnectState,
   DataSource,
   GithubRepositoryReference,
@@ -169,7 +169,7 @@ function buildProjectDataSources(
     const meta = SOURCE_META[sourceSystem];
     const status = statusBySource.get(sourceSystem);
     const latestRun = latestRunBySource.get(sourceSystem);
-    const backendStatus = projectSource.status as BackendProjectSourceStatus;
+    const backendStatus = projectSource.status;
     const latestIngestedCount =
       latestRun?.ingestedCount ?? status?.ingestedCount ?? 0;
     const latestUpdatedCount =
@@ -225,6 +225,7 @@ function hasSourceId(sources: DataSource[], sourceId: string) {
 
 export function DataIngestionPage() {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
 
@@ -266,6 +267,19 @@ export function DataIngestionPage() {
     setSelectedProjectId,
     reloadProjects,
   } = useProjectSelection();
+
+  const requestedProjectId = searchParams.get("projectId") ?? "";
+  const requestedSourceId = searchParams.get("sourceId") ?? "";
+
+  useEffect(() => {
+    if (!requestedProjectId || requestedProjectId === selectedProjectId) {
+      return;
+    }
+
+    void Promise.resolve().then(() => {
+      setSelectedProjectId(requestedProjectId);
+    });
+  }, [requestedProjectId, selectedProjectId, setSelectedProjectId]);
 
   const commitIngestionData = useCallback(
     (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
@@ -362,12 +376,33 @@ export function DataIngestionPage() {
   }, [runs, selectedProject?.sources, sourceStatuses]);
 
   useEffect(() => {
-    setSelectedSourceId((currentSourceId) =>
-      currentSourceId && hasSourceId(sources, currentSourceId)
-        ? currentSourceId
-        : null,
-    );
-  }, [sources]);
+    let isMounted = true;
+
+    void Promise.resolve().then(() => {
+      if (!isMounted) return;
+
+      const requestedSourceExists =
+        requestedSourceId.length > 0 && hasSourceId(sources, requestedSourceId);
+
+      if (requestedSourceExists) {
+        setActiveTab("sources");
+      }
+
+      setSelectedSourceId((currentSourceId) => {
+        if (requestedSourceExists) {
+          return requestedSourceId;
+        }
+
+        return currentSourceId && hasSourceId(sources, currentSourceId)
+          ? currentSourceId
+          : null;
+      });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [requestedSourceId, sources]);
 
   const visibleSourceSystems = useMemo(
     () => new Set(sources.map((source) => source.sourceSystem)),
@@ -490,7 +525,7 @@ export function DataIngestionPage() {
       loadData,
       reloadProjects,
       selectedConnectSourceSystem,
-      selectedProject?.name,
+      selectedProject,
       selectedProjectId,
     ],
   );
@@ -528,6 +563,16 @@ export function DataIngestionPage() {
   const isLoading = loadingState === "loading" || isLoadingProjects;
   const shouldShowInitialLoading =
     isLoading && sources.every((source) => source.lastRunAt === null);
+
+  const closeSourceDetails = () => {
+    setSelectedSourceId(null);
+
+    if (!searchParams.has("sourceId")) return;
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete("sourceId");
+    setSearchParams(nextSearchParams, { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-app-bg">
@@ -612,7 +657,7 @@ export function DataIngestionPage() {
               : null
           }
           onUpdateSource={handleUpdateSource}
-          onClose={() => setSelectedSourceId(null)}
+          onClose={closeSourceDetails}
         />
       )}
 
