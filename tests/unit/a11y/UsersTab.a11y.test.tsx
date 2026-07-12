@@ -6,7 +6,7 @@ import { UsersTab } from '../../../src/features/admin/components/UsersTab';
 import type { AdminUser } from '../../../src/features/admin/types';
 
 vi.mock('../../../src/components/common/UserAvatar', () => ({
-    UserAvatar: () => <svg role="img" aria-label="User Avatar" width="40" height="40" />
+    UserAvatar: () => <svg role="img" aria-label="User Avatar" width="40" height="40" />,
 }));
 
 const users: AdminUser[] = [
@@ -21,7 +21,7 @@ const users: AdminUser[] = [
         projects: [{ id: 'p1', name: 'SprintStart' }],
         enabled: true,
         profileIcon: '',
-        hasCompletedOnboarding: true
+        hasCompletedOnboarding: true,
     },
     {
         id: 'u2',
@@ -34,8 +34,8 @@ const users: AdminUser[] = [
         projects: [],
         enabled: false,
         profileIcon: '',
-        hasCompletedOnboarding: false
-    }
+        hasCompletedOnboarding: false,
+    },
 ];
 
 describe('UsersTab Accessibility', () => {
@@ -56,17 +56,14 @@ describe('UsersTab Accessibility', () => {
                         onRequestUserDeleteFromMenu={vi.fn()}
                     />
                 </main>
-            </MemoryRouter>
+            </MemoryRouter>,
         );
 
         expect(screen.getByRole('checkbox', { name: 'Select all users' })).toBeInTheDocument();
         expect(screen.getAllByRole('checkbox', { name: 'Select Alice Smith' })).toHaveLength(2);
+        expect(screen.getAllByRole('button', { name: 'Open details for Alice Smith' })).toHaveLength(2);
         expect(screen.getAllByRole('button', { name: 'Open context menu for Alice Smith' })).toHaveLength(2);
 
-        expect(await axe(baseElement, {
-            rules: {
-                'nested-interactive': { enabled: false },
-            },
-        })).toHaveNoViolations();
+        expect(await axe(baseElement)).toHaveNoViolations();
     });
 });

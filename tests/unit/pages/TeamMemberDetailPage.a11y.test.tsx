@@ -69,23 +69,23 @@ vi.mock('../../../src/components/common/UserAvatar', () => ({
 }));
 
 vi.mock('../../../src/features/team-management/components/detail/MemberOnboardingSection', () => ({
-    MemberOnboardingSection: () => <div data-testid="member-onboarding-section">Onboarding</div>,
+    MemberOnboardingSection: () => <section aria-label="Onboarding">Onboarding</section>,
 }));
 
 vi.mock('../../../src/features/team-management/components/detail/MemberGapsPanel', () => ({
-    MemberGapsPanel: () => <div data-testid="member-gaps-panel">Gaps</div>,
+    MemberGapsPanel: () => <section aria-label="Gaps">Gaps</section>,
 }));
 
 vi.mock('../../../src/features/team-management/components/detail/StepDetailsPanel', () => ({
-    StepDetailsPanel: () => <div data-testid="step-details-panel">Step Details</div>,
+    StepDetailsPanel: () => <aside aria-label="Step details">Step Details</aside>,
 }));
 
 vi.mock('../../../src/features/team-management/components/detail/AddCustomStepModal', () => ({
-    AddCustomStepModal: () => <div data-testid="add-custom-step-modal">Add Step</div>,
+    AddCustomStepModal: () => null,
 }));
 
 vi.mock('../../../src/features/team-management/components/detail/MemberDetailDialogs', () => ({
-    MemberDetailDialogs: () => <div data-testid="member-detail-dialogs">Dialogs</div>,
+    MemberDetailDialogs: () => null,
 }));
 
 describe('TeamMemberDetailPage Accessibility', () => {
@@ -98,11 +98,6 @@ describe('TeamMemberDetailPage Accessibility', () => {
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
         });
 
-        expect(await axe(baseElement, {
-            rules: {
-                'heading-order': { enabled: false },
-                region: { enabled: false },
-            },
-        })).toHaveNoViolations();
+        expect(await axe(baseElement)).toHaveNoViolations();
     });
 });
