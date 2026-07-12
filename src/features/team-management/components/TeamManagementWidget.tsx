@@ -147,10 +147,10 @@ export function TeamManagementWidget({
   const navigate = useNavigate();
 
   useEffect(() => {
-    setLoading(true);
-    setError(false);
-
     const load = async () => {
+      setLoading(true);
+      setError(false);
+
       try {
         const data = await getTeamOverview(
           undefined,
@@ -164,7 +164,8 @@ export function TeamManagementWidget({
         setLoading(false);
       }
     };
-    void load();
+
+    void Promise.resolve().then(() => load());
   }, [projectId]);
 
   // ── LOADING ──────────────────────────────────────────────
