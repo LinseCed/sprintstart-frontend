@@ -683,7 +683,7 @@ export function TeamMemberDetailPage() {
 
     return (
         <div className="min-h-screen bg-app-bg">
-            <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
+            <header className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <button
                         onClick={goBack}
@@ -766,7 +766,7 @@ export function TeamMemberDetailPage() {
                         </span>
                     </div>
                 </div>
-            </div>
+            </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.8fr)]">
@@ -795,11 +795,11 @@ export function TeamMemberDetailPage() {
                         getActualMinutes={getActualMinutes}
                         getStepStatusStyles={getStepStatusStyles}
                     />
-                    <aside className="space-y-4">
+                    <aside aria-label="Member insights" className="space-y-4">
                     <div className="rounded-3xl border border-app-border bg-app-surface p-6">
-                        <h4 className="text-lg font-semibold text-app-text">
+                        <h2 className="text-lg font-semibold text-app-text">
                             Feedback & Skip Requests
-                        </h4>
+                        </h2>
 
                         <div className="mt-4 space-y-3">
                             <div className="flex items-center justify-between gap-3">
