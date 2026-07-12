@@ -68,7 +68,7 @@ export function FaqPage() {
   return (
     <div className="min-h-screen bg-app-bg">
       {/* Header */}
-      <div className="border-b border-app-border bg-app-bg/90">
+      <section aria-label="Page header" className="border-b border-app-border bg-app-bg/90">
         <div className="app-page-content py-8">
           <button
             onClick={() => void navigate("/pm-dashboard")}
@@ -144,7 +144,7 @@ export function FaqPage() {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Content */}
       <main className="app-page-content py-8">

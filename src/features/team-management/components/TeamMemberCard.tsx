@@ -72,11 +72,7 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
 
             <div className={`flex items-center gap-2 ${compact ? 'pr-7' : 'pr-14 gap-3'}`}>
                 <div className="flex shrink-0 items-center justify-center">
-                    <UserAvatar
-                        profileIcon={user.profileIcon}
-                        fallbackName={user.firstname}
-                        size={compact ? 26 : 40}
-                    />
+                    <UserAvatar profileIcon={user.profileIcon} fallbackName={`${user.firstname} ${user.lastname}`.trim()} seed={user.userId} size={compact ? 26 : 40} />
                 </div>
 
                 <div className="min-w-0">
