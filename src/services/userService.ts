@@ -37,9 +37,17 @@ export const userService = {
      * @returns Promise resolving to the updated UserProfile.
      */
     async updateProfile(profile: Partial<UserProfile>): Promise<UserProfile> {
+        // Workaround: Map 'projectIds' to 'projectsId' since the backend incorrectly expects it 
+        // and treats it as mandatory even for PATCH requests.
+        const payload: Record<string, unknown> = { ...profile };
+        if (payload.projectIds !== undefined) {
+            payload.projectsId = payload.projectIds;
+            delete payload.projectIds;
+        }
+
         return await apiClient.fetch<UserProfile>('/api/v1/users/me', {
             method: 'PATCH',
-            body: JSON.stringify(profile),
+            body: JSON.stringify(payload),
         });
     },
 
