@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
     AlertCircle,
     Check,
@@ -7,6 +7,7 @@ import {
     Trash2,
 } from "lucide-react";
 import { adminUserService } from "../../../services/adminUserService";
+import { projectService } from "../../../services/projectService";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
 import {
     getDisplayName,
@@ -76,6 +77,14 @@ export function UserDetailsDrawer({
         draftUserState.userId === user.id
             ? draftUserState.draftUser
             : getUserEditFormState(user);
+
+    const enrichedAssignedProjects = useMemo(
+        () => user.projects.map((userProject) => {
+            const match = availableProjects.find((p) => p.id === userProject.id);
+            return match ?? userProject;
+        }),
+        [user.projects, availableProjects],
+    );
 
     const visibleTitle = isEditing
         ? getDraftDisplayName(user, draftUser)
@@ -148,12 +157,62 @@ export function UserDetailsDrawer({
         });
     };
 
+    const getProjectSummariesById = (projectIds: Set<string>) => {
+        const projectsById = new Map(
+            [...availableProjects, ...enrichedAssignedProjects].map((project) => [
+                project.id,
+                project,
+            ]),
+        );
+
+        return Array.from(projectIds)
+            .map(
+                (projectId) =>
+                    projectsById.get(projectId) ?? {
+                        id: projectId,
+                        name: `Project ${projectId.slice(0, 8)}`,
+                    },
+            )
+            .sort((left, right) => left.name.localeCompare(right.name));
+    };
+
+    const assignProjectToUser = async (projectId: string) => {
+        await projectService.assignUsersToProject(projectId, {
+            userIds: [user.id],
+        });
+
+        const nextProjectIds = new Set(
+            enrichedAssignedProjects.map((project) => project.id),
+        );
+        nextProjectIds.add(projectId);
+
+        onUserUpdated({
+            ...user,
+            projects: getProjectSummariesById(nextProjectIds),
+        });
+    };
+
+    const removeProjectFromUser = async (projectId: string) => {
+        await projectService.removeUserFromProject(projectId, user.id);
+
+        const nextProjectIds = new Set(
+            enrichedAssignedProjects.map((project) => project.id),
+        );
+        nextProjectIds.delete(projectId);
+
+        onUserUpdated({
+            ...user,
+            projects: getProjectSummariesById(nextProjectIds),
+        });
+    };
+
     const saveUserChanges = async () => {
         const request: UpdateAdminUserRequest = {
             email: draftUser.email.trim(),
             firstName: draftUser.firstName.trim(),
             lastName: draftUser.lastName.trim(),
             permissionGroup: draftUser.permissionGroup.trim(),
+            projectsId: enrichedAssignedProjects.map((p) => p.id),
         };
 
         if (!request.email) {
@@ -183,6 +242,8 @@ export function UserDetailsDrawer({
                     enabled: draftUser.enabled,
                 });
             }
+
+            updatedUser = { ...updatedUser, projects: enrichedAssignedProjects };
 
             onUserUpdated(updatedUser);
             setDraftUserState({
@@ -360,9 +421,11 @@ export function UserDetailsDrawer({
 
             <Section>
                 <ProjectAccessPanel
-                    assignedProjects={user.projects}
+                    assignedProjects={enrichedAssignedProjects}
                     availableProjects={availableProjects}
                     onOpenProjectDetails={onOpenProjectDetails}
+                    onAssignProject={assignProjectToUser}
+                    onRemoveProject={removeProjectFromUser}
                 />
             </Section>
         </DetailsSideDrawer>

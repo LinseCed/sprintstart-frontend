@@ -11,6 +11,7 @@ type DataIngestionHeaderProps = {
     projectErrorMessage: string | null;
     onProjectChange: (projectId: string) => void;
     onRefresh: () => void;
+    showProjectSelect?: boolean;
 };
 
 export function DataIngestionHeader({
@@ -21,6 +22,7 @@ export function DataIngestionHeader({
     projectErrorMessage,
     onProjectChange,
     onRefresh,
+    showProjectSelect = true,
 }: DataIngestionHeaderProps) {
     return (
         <header className="border-b border-app-border bg-app-bg">
@@ -31,13 +33,15 @@ export function DataIngestionHeader({
                     subtitle="Manage connected sources, indexed artifacts and ingestion runs."
                     actions={
                         <>
-                            <ProjectSelect
-                                projects={projects}
-                                selectedProjectId={selectedProjectId}
-                                isLoading={isLoadingProjects}
-                                errorMessage={projectErrorMessage}
-                                onChange={onProjectChange}
-                            />
+                            {showProjectSelect && (
+                                <ProjectSelect
+                                    projects={projects}
+                                    selectedProjectId={selectedProjectId}
+                                    isLoading={isLoadingProjects}
+                                    errorMessage={projectErrorMessage}
+                                    onChange={onProjectChange}
+                                />
+                            )}
 
                             <button
                                 type="button"

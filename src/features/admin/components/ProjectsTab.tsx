@@ -6,16 +6,38 @@ import { AccessBadge } from "./Badges";
 type ProjectsTabProps = {
     filteredProjects: ProjectOverview[];
     onOpenProjectDetails: (project: ProjectOverview) => void;
+    hasSearchQuery?: boolean;
+    totalCount?: number;
 };
 
-export function ProjectsTab({ filteredProjects, onOpenProjectDetails }: ProjectsTabProps) {
+export function ProjectsTab({ filteredProjects, onOpenProjectDetails, hasSearchQuery, totalCount }: ProjectsTabProps) {
     if (filteredProjects.length === 0) {
+        const noProjectsExist = totalCount !== undefined && totalCount === 0;
+
         return (
             <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-app-border bg-app-surface px-6 text-center">
-                <p className="text-base font-medium text-app-text">No projects found</p>
-                <p className="mt-1 text-sm text-app-text-muted">
-                    Try another search term or create a new project first.
-                </p>
+                {noProjectsExist ? (
+                    <>
+                        <p className="text-base font-medium text-app-text">No projects yet</p>
+                        <p className="mt-1 text-sm text-app-text-muted">
+                            Create your first project to get started.
+                        </p>
+                    </>
+                ) : hasSearchQuery ? (
+                    <>
+                        <p className="text-base font-medium text-app-text">No projects found</p>
+                        <p className="mt-1 text-sm text-app-text-muted">
+                            Try adjusting your search term.
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-base font-medium text-app-text">No projects found</p>
+                        <p className="mt-1 text-sm text-app-text-muted">
+                            Try another search term or create a new project first.
+                        </p>
+                    </>
+                )}
             </div>
         );
     }
