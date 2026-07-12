@@ -119,7 +119,7 @@ export function TeamManagementWidget() {
     return (
         <ClickableCard
             onClick={() => void navigate('/team-management')}
-            aria-label="View all team members"
+            interactive={false}
             className="rounded-2xl border border-app-border bg-app-surface p-5 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover has-[a:hover]:!border-app-border has-[a:hover]:!bg-app-surface"
         >
             {/* Header */}
@@ -131,10 +131,17 @@ export function TeamManagementWidget() {
                     </span>
                 </div>
 
-                <span className="flex items-center gap-1 text-xs text-app-text-muted">
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        void navigate('/team-management');
+                    }}
+                    className="flex items-center gap-1 rounded-lg text-xs text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                >
                     See all ({users.length})
                     <ArrowRight className="w-3.5 h-3.5" />
-                </span>
+                </button>
             </div>
 
             {/* Unread count badges — only render the badges that have a count */}

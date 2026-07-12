@@ -67,7 +67,7 @@ export function KnowledgeGapWidget() {
   return (
     <ClickableCard
       onClick={() => void navigate("/insights/knowledge-gaps")}
-      aria-label="View all knowledge gaps"
+      interactive={false}
       className="rounded-2xl border border-app-border bg-app-surface p-5 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover has-[button:hover]:!border-app-border has-[button:hover]:!bg-app-surface"
     >
       {/* Header */}
@@ -78,10 +78,18 @@ export function KnowledgeGapWidget() {
             Knowledge gaps
           </span>
         </div>
-        <span className="flex items-center gap-1 text-xs text-app-text-muted">
+
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            void navigate("/insights/knowledge-gaps");
+          }}
+          className="flex items-center gap-1 rounded-lg text-xs text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+        >
           See all ({gapCount})
           <ArrowRight className="w-3.5 h-3.5" />
-        </span>
+        </button>
       </div>
 
       {/* Stacked severity overview bar */}
