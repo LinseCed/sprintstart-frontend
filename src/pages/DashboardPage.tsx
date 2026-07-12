@@ -69,7 +69,8 @@ export function DashboardPage() {
                         <UserAvatar 
                             size={48} 
                             profileIcon={profile?.profileIcon} 
-                            fallbackName={displayName} 
+                            fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : displayName}
+                            seed={profile?.id}
                         />
                     </div>
 
