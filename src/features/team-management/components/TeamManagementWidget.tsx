@@ -147,24 +147,37 @@ export function TeamManagementWidget({
   const navigate = useNavigate();
 
   useEffect(() => {
-    setLoading(true);
-    setError(false);
+    let isCurrentRequest = true;
 
-    const load = async () => {
+    void Promise.resolve().then(async () => {
+      if (!isCurrentRequest) return;
+
+      setLoading(true);
+      setError(false);
+
       try {
         const data = await getTeamOverview(
           undefined,
           undefined,
           projectId ? [projectId] : undefined,
         );
+        if (!isCurrentRequest) return;
+
         setUsers(data);
       } catch {
+        if (!isCurrentRequest) return;
+
         setError(true);
       } finally {
-        setLoading(false);
+        if (isCurrentRequest) {
+          setLoading(false);
+        }
       }
+    });
+
+    return () => {
+      isCurrentRequest = false;
     };
-    void load();
   }, [projectId]);
 
   // ── LOADING ──────────────────────────────────────────────

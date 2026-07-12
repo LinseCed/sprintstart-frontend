@@ -84,7 +84,7 @@ export function useProjectSelection({
     }, [enabled]);
 
     useEffect(() => {
-        void loadProjects();
+        void Promise.resolve().then(loadProjects);
     }, [loadProjects]);
 
     const selectedProject = useMemo(
