@@ -7,9 +7,9 @@ import { MemoryRouter } from 'react-router-dom';
 
 const mockOverview: KnowledgeGapOverview = {
     gaps: [
-        { id: 'gap1', component: 'Auth Service', missingTypes: ['README'], lastUpdated: new Date().toISOString(), owners: [], severity: 'high', relatedQuestions: 5 },
-        { id: 'gap2', component: 'API Gateway', missingTypes: ['API Docs'], lastUpdated: new Date().toISOString(), owners: [], severity: 'medium', relatedQuestions: 3 },
-        { id: 'gap3', component: 'Database', missingTypes: ['Schema'], lastUpdated: new Date().toISOString(), owners: [], severity: 'low', relatedQuestions: 1 },
+        { id: 'gap1', component: 'Auth Service', missingTypes: ['README'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'high' },
+        { id: 'gap2', component: 'API Gateway', missingTypes: ['API Docs'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'medium' },
+        { id: 'gap3', component: 'Database', missingTypes: ['Schema'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'low' },
     ],
 };
 
@@ -53,10 +53,13 @@ describe('KnowledgeGapsPage', () => {
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('shows error state', () => {
+    it('shows the empty/refresh state on error', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: null, loading: false, error: true });
         renderPage();
-        expect(screen.getByText('Could not load knowledge gaps.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No knowledge gaps yet. Trigger a refresh to detect them.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
 
     it('expands the filter panel when clicked', async () => {
