@@ -229,7 +229,7 @@ export function AddCustomStepModal({
                                     <span className="rounded bg-app-surface px-2 py-0.5 text-xs font-medium text-app-text-muted">
                                         Task {index + 1}
                                     </span>
-                                    
+
                                     {tasks.length > 1 && (
                                         <button
                                             type="button"
