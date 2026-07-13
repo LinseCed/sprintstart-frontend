@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import type { ActiveTab } from "../types.ts";
 
-const TABS: ActiveTab[] = ["sources", "artifacts", "runs"];
+const TABS: ActiveTab[] = ["sources", "artifacts", "runs", "connectors"];
 
 type DataIngestionTabsProps = {
     activeTab: ActiveTab;
@@ -11,7 +11,7 @@ type DataIngestionTabsProps = {
 
 /**
  * Navigation tabs for the data ingestion dashboard.
- * Switches between sources, artifacts, and runs views, and provides the "Add Source" action.
+ * Switches between sources, artifacts, runs, and connectors views, and provides the "Add Source" action.
  */
 export function DataIngestionTabs({
     activeTab,
