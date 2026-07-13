@@ -178,9 +178,12 @@ describe('onboardingService', () => {
                     phaseId: 'phase1',
                     passed: false,
                     createdAt: new Date().toISOString(),
+                    correctCount: 1,
+                    questionCount: 2,
+                    requiredPercent: 80,
                     phaseCheckSummary: {
                         required: true,
-                        questionCount: 1,
+                        questionCount: 2,
                         passed: false,
                         latestAttemptId: 'attempt1',
                         latestAttemptAt: new Date().toISOString(),
@@ -193,6 +196,15 @@ describe('onboardingService', () => {
                             correctOptionIds: ['o2'],
                             correctAnswer: null,
                             explanation: 'Nope.',
+                            feedback: null,
+                        },
+                        {
+                            questionId: 'q2',
+                            correct: true,
+                            correctOptionIds: [],
+                            correctAnswer: 'gradlew bootRun',
+                            explanation: null,
+                            feedback: 'Right idea.',
                         },
                     ],
                 });
@@ -201,11 +213,20 @@ describe('onboardingService', () => {
 
         const result = await onboardingService.submitPhaseCheck('phase1', [
             { questionId: 'q1', selectedOptionIds: ['o1'] },
+            { questionId: 'q2', textAnswer: 'run the wrapper' },
         ]);
 
-        expect(capturedBody).toEqual({ answers: [{ questionId: 'q1', selectedOptionIds: ['o1'] }] });
+        expect(capturedBody).toEqual({
+            answers: [
+                { questionId: 'q1', selectedOptionIds: ['o1'] },
+                { questionId: 'q2', textAnswer: 'run the wrapper' },
+            ],
+        });
         expect(result.passed).toBe(false);
+        expect(result.requiredPercent).toBe(80);
         expect(result.results[0].correctOptionIds).toEqual(['o2']);
+        // AI feedback on the short-text answer is surfaced through the service.
+        expect(result.results[1].feedback).toBe('Right idea.');
     });
 
     it('savePhaseCheck sends a PUT with the questions payload', async () => {

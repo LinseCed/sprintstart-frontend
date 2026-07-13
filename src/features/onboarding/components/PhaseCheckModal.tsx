@@ -28,11 +28,14 @@ interface PhaseCheckModalProps {
   phaseId: string;
   phaseTitle: string;
   /**
-   * Called when the modal closes. `submittedAttempt` is true when at least one
-   * attempt was submitted while the modal was open, so the parent can refetch
-   * the path (lock states and check summaries may have changed).
+   * Called when the modal closes.
+   * - `submittedAttempt`: true when at least one attempt was submitted while the
+   *   modal was open, so the parent can refetch the path (lock states and check
+   *   summaries may have changed).
+   * - `passed`: true when the check is now passed — lets the parent celebrate
+   *   passing the final phase's check.
    */
-  onClose: (submittedAttempt: boolean) => void;
+  onClose: (result: { submittedAttempt: boolean; passed: boolean }) => void;
 }
 
 /** Answers keyed by question id while the user fills in the check. */
@@ -115,7 +118,7 @@ export function PhaseCheckModal({ phaseId, phaseTitle, onClose }: PhaseCheckModa
   const resultFor = (questionId: string): PhaseCheckAnswerResult | null =>
     result?.results.find((entry) => entry.questionId === questionId) ?? null;
 
-  const close = () => onClose(hasSubmitted);
+  const close = () => onClose({ submittedAttempt: hasSubmitted, passed: result?.passed ?? false });
 
   const footer =
     check && check.questions.length > 0 ? (
@@ -192,8 +195,9 @@ export function PhaseCheckModal({ phaseId, phaseTitle, onClose }: PhaseCheckModa
               {result.passed ? "Check passed!" : "Not passed yet"}
             </div>
             <div className="text-xs text-app-text-muted mt-0.5">
-              {result.results.filter((entry) => entry.correct).length}/{result.results.length}{" "}
-              questions answered correctly.
+              {result.correctCount}/{result.questionCount} correct (
+              {Math.round((result.correctCount / Math.max(result.questionCount, 1)) * 100)}% ·{" "}
+              {result.requiredPercent}% required).
               {result.passed && result.nextPhaseUnlocked && " The next phase is now unlocked."}
               {!result.passed && " Review the answers below and try again."}
             </div>
@@ -260,6 +264,15 @@ function QuestionCard({ question, index, draft, result, onToggleOption, onTextCh
           {index + 1}
         </span>
         <div className="flex-1 min-w-0">
+          {/* Carried-over repeat question from an earlier phase */}
+          {question.review && (
+            <div className="inline-flex items-center gap-1.5 mb-1.5 px-2 py-0.5 rounded-full bg-app-surface-muted text-app-text-muted text-[11px] font-medium">
+              <RotateCcw className="w-3 h-3" />
+              {question.reviewSourcePhaseTitle
+                ? `Repeat from ${question.reviewSourcePhaseTitle}`
+                : "Repeat question"}
+            </div>
+          )}
           <div className="flex items-start justify-between gap-3">
             <h3 className="font-semibold text-app-text text-sm">{question.question}</h3>
             {graded &&
@@ -316,9 +329,13 @@ function QuestionCard({ question, index, draft, result, onToggleOption, onTextCh
                 placeholder="Your answer..."
                 className="w-full rounded-xl border border-app-border bg-app-bg px-4 py-2.5 text-sm text-app-text placeholder:text-app-text-subtle focus:border-app-brand focus:outline-none disabled:opacity-70"
               />
+              {/* AI feedback on the free-text answer (both correct and incorrect) */}
+              {graded && result.feedback && (
+                <p className="mt-2 text-xs text-app-text-muted">{result.feedback}</p>
+              )}
               {graded && !result.correct && result.correctAnswer && (
                 <p className="mt-2 text-xs text-app-text-muted">
-                  Correct answer:{" "}
+                  Sample answer:{" "}
                   <span className="font-medium text-app-success-text">{result.correctAnswer}</span>
                 </p>
               )}

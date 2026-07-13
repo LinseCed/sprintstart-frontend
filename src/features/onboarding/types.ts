@@ -149,6 +149,9 @@ export interface PhaseCheckQuestionEndpoint {
   question: string;
   // Only present for MULTIPLE_CHOICE questions
   options?: PhaseCheckOptionEndpoint[];
+  // True when this is a carried-over repeat question from an earlier phase.
+  review?: boolean;
+  reviewSourcePhaseTitle?: string | null;
 }
 
 // GET /onboarding/me/phases/{phaseId}/checks — never contains correct answers
@@ -172,6 +175,11 @@ export interface PhaseCheckAnswerResult {
   correctOptionIds: string[];
   correctAnswer: string | null;
   explanation: string | null;
+  // AI feedback for short-text answers; null for multiple choice.
+  feedback: string | null;
+  // True when this result is for a carried-over repeat question from an earlier phase.
+  review?: boolean;
+  reviewSourcePhaseTitle?: string | null;
 }
 
 // POST /onboarding/me/phases/{phaseId}/checks/attempts — reveals correct answers
@@ -180,6 +188,10 @@ export interface PhaseCheckAttemptResult {
   phaseId: string;
   passed: boolean;
   createdAt: string;
+  // How many questions were correct, out of how many, and the pass threshold (percent).
+  correctCount: number;
+  questionCount: number;
+  requiredPercent: number;
   phaseCheckSummary: PhaseCheckSummaryEndpoint;
   nextPhaseUnlocked: boolean;
   results: PhaseCheckAnswerResult[];
