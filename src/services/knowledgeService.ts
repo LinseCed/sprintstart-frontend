@@ -6,6 +6,12 @@ import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../featur
 /**
  * Service responsible for managing the knowledge base unified artifacts.
  */
+interface UploadResponseItem {
+    filename: string;
+    status: string;
+    error?: string;
+}
+
 export const knowledgeService = {
     /**
      * Fetches all unified artifacts for a specific project, merged with the
@@ -13,6 +19,16 @@ export const knowledgeService = {
      *
      * @param projectId UUID of the project to scope the artifact listing.
      * @returns Merged list of project-scoped artifacts and the user's uploads.
+     *
+     * @remarks Failure behavior: both downstream endpoints are best-effort. If the
+     * project artifacts endpoint or the personal-uploads endpoint fails, the error
+     * is logged via `console.warn` and the function returns whatever it could fetch
+     * (possibly an empty array) rather than throwing. This keeps the KB page usable
+     * while the ingestion service is still being rolled out.
+     *
+     * @remarks Known limitation: uploads are de-duplicated against project artifacts
+     * by `title` (filename) because the backend does not yet return `sourceId` for
+     * ingested artifacts. Two unrelated uploads sharing a filename will collide.
      */
     async getUnifiedArtifacts(projectId: string): Promise<Artifact[]> {
         let artifacts: Artifact[] = [];
@@ -47,7 +63,7 @@ export const knowledgeService = {
                     mime: string;
                     uploadedAt: string;
                 }
-                const uploads = await apiClient.fetch<UploadListItemResponse[]>(`/api/v1/uploads?uploaderId=${profile.id}`);
+                const uploads = await apiClient.fetch<UploadListItemResponse[]>(`/api/v1/uploads?uploaderId=${encodeURIComponent(profile.id)}`);
 
                 const uploadArtifacts: Artifact[] = uploads.map(u => ({
                     id: u.id,
@@ -144,7 +160,7 @@ export const knowledgeService = {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${keycloak.token}`
+                ...(keycloak.token ? { "Authorization": `Bearer ${keycloak.token}` } : {}),
             }
         });
 
@@ -155,7 +171,8 @@ export const knowledgeService = {
 
         const reader = res.body?.getReader();
         if (!reader) {
-            throw new Error("No response stream");
+            handlers.onError?.(new Error("No response stream"));
+            return;
         }
 
         const decoder = new TextDecoder();
@@ -221,12 +238,6 @@ export const knowledgeService = {
             formData.append('request', new Blob([JSON.stringify(requestPayload)], { type: 'application/json' }));
 
             try {
-                interface UploadResponseItem {
-                    filename: string;
-                    status: string;
-                    error?: string;
-                }
-
                 const uploadResults = await apiClient.fetch<UploadResponseItem[]>(`/api/v1/uploads`, {
                     method: 'POST',
                     body: formData,

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, Plus } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
 import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
-import type { KnowledgeTab } from '../features/knowledge-base/components/ArtifactFilters';
+import type { KnowledgeTab } from '../features/knowledge-base/components';
 import { Pagination } from '../components/ui/Pagination';
 import type { Artifact } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -11,14 +11,23 @@ import { useAuth } from '../context/useAuth';
 
 /**
  * Unified Knowledge Base view for project resources.
- * Displays all artifacts (uploads, github, etc.) in a filtered grid,
- * with a side drawer for viewing raw content and AI summaries.
+ *
+ * Bound to the `/knowledge-base` route (accessible to all permission groups).
+ * Displays all artifacts (uploads, github, etc.) in a filtered grid, with a side
+ * drawer for viewing raw content and AI summaries. Artifacts are fetched via
+ * `knowledgeService.getUnifiedArtifacts`, scoped to the user's first project id.
+ *
+ * @remarks Known limitation: only `profile.projectIds[0]` is used. Users with
+ * multiple projects currently see artifacts for the first one only.
  */
 export function KnowledgeBasePage() {
     const { profile } = useAuth();
+    // TODO: support project switching — currently only the first project is scoped.
     const projectId = profile?.projectIds?.[0] ?? null;
 
     const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+    // Initial loading only when a project is available; the effect's finally block
+    // flips this back to false after the first fetch completes or fails.
     const [isLoading, setIsLoading] = useState(projectId !== null);
 
     // Filter State

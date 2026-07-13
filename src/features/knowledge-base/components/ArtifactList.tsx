@@ -15,18 +15,14 @@ const getIcon = (type: ArtifactType) => {
     switch (type) {
         case 'COMMIT': return <FileText className="w-5 h-5 text-app-text-muted" />;
         case 'FILE': return <FileCode className="w-5 h-5 text-app-brand" />;
-        case 'ISSUE': return <CircleDot className="w-5 h-5 text-app-warning-500" />;
-        case 'PULL_REQUEST': return <GitPullRequest className="w-5 h-5 text-app-success-500" />;
+        case 'ISSUE': return <CircleDot className="w-5 h-5 text-app-warning-text" />;
+        case 'PULL_REQUEST': return <GitPullRequest className="w-5 h-5 text-app-success-text" />;
         default: return <FileText className="w-5 h-5 text-app-text-muted" />;
     }
 };
 
 const formatDate = (iso: string): string => {
-    try {
-        return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch {
-        return iso;
-    }
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
 /**

@@ -7,9 +7,11 @@ import { knowledgeService } from '../../../services/knowledgeService';
 /**
  * Props for the UploadArtifactModal component.
  */
-interface Props {
+interface UploadArtifactModalProps {
     isOpen: boolean;
+    /** Closes the modal and resets upload state in the parent. */
     onClose: () => void;
+    /** Project scope the uploaded files will be ingested into. */
     projectId: string;
 }
 
@@ -19,7 +21,7 @@ interface Props {
  * Orchestrates the batch upload process of user documents into the knowledge base.
  * Provides feedback on success or failure for each individual file ingested.
  */
-export function UploadArtifactModal({ isOpen, onClose, projectId }: Props) {
+export function UploadArtifactModal({ isOpen, onClose, projectId }: UploadArtifactModalProps) {
     const [isUploading, setIsUploading] = useState(false);
     const [batchResult, setBatchResult] = useState<{
         success: number;
@@ -128,7 +130,7 @@ export function UploadArtifactModal({ isOpen, onClose, projectId }: Props) {
                                         {batchResult.errors.length > 0 && (
                                             <ul className="mt-2 list-inside list-disc space-y-1 pl-8 text-sm text-app-warning-text">
                                                 {batchResult.errors.map((err, i) => (
-                                                    <li key={i}>{err}</li>
+                                                    <li key={`${i}-${err.slice(0, 20)}`}>{err}</li>
                                                 ))}
                                             </ul>
                                         )}

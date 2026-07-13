@@ -9,8 +9,10 @@ export type KnowledgeTab = 'ALL' | 'UPLOADS' | 'PR' | 'ISSUES' | 'FILES' | 'COMM
  */
 export interface ArtifactFiltersProps {
     searchQuery: string;
+    /** Fired on every keystroke with the new search text. Resets pagination in the parent. */
     onSearchChange: (query: string) => void;
     activeTab: KnowledgeTab;
+    /** Fired when the user picks a different artifact-type tab. Resets pagination in the parent. */
     onTabChange: (tab: KnowledgeTab) => void;
 }
 
@@ -48,7 +50,6 @@ export function ArtifactFilters({
                 />
             </div>
             
-            {/* Segmented Tabs */}
             <div 
                 className="flex p-1 space-x-1 bg-app-surface border border-app-border rounded-xl w-full overflow-x-auto scrollbar-hide"
                 role="tablist"

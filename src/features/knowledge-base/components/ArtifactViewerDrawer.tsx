@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useReducer } from 'react';
 import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,24 +13,83 @@ import { SidePanel } from '../../../components/ui/SidePanel';
  */
 interface ArtifactViewerDrawerProps {
     artifact: Artifact | null;
+    /** Closes the drawer and clears the selected artifact in the parent. */
     onClose: () => void;
+    /** Project scope required to fetch the artifact content and summary stream. */
     projectId: string;
 }
 
+type ViewMode = 'raw' | 'summary';
+
+interface DrawerState {
+    viewMode: ViewMode;
+    content: ArtifactContent | null;
+    summary: string;
+    isLoading: boolean;
+    isStreaming: boolean;
+    error: string | null;
+}
+
+type DrawerAction =
+    | { type: 'reset' }
+    | { type: 'loadStart' }
+    | { type: 'loadSuccess'; content: ArtifactContent }
+    | { type: 'loadError'; error: string }
+    | { type: 'summarizeStart' }
+    | { type: 'summarizeToken'; token: string }
+    | { type: 'summarizeDone' }
+    | { type: 'summarizeError'; error: string }
+    | { type: 'showRaw' };
+
+const initialState: DrawerState = {
+    viewMode: 'raw',
+    content: null,
+    summary: '',
+    isLoading: false,
+    isStreaming: false,
+    error: null,
+};
+
+function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
+    switch (action.type) {
+        case 'reset':
+            return { ...initialState, isLoading: true };
+        case 'loadStart':
+            return { ...state, isLoading: true, error: null };
+        case 'loadSuccess':
+            return { ...state, isLoading: false, content: action.content };
+        case 'loadError':
+            return { ...state, isLoading: false, error: action.error };
+        case 'summarizeStart':
+            return { ...state, viewMode: 'summary', summary: '', isStreaming: true, error: null };
+        case 'summarizeToken':
+            return { ...state, summary: state.summary + action.token };
+        case 'summarizeDone':
+            return { ...state, isStreaming: false };
+        case 'summarizeError':
+            return { ...state, isStreaming: false, error: action.error };
+        case 'showRaw':
+            return { ...state, viewMode: 'raw' };
+        default:
+            return state;
+    }
+}
+
+/** ISSUE and PULL_REQUEST artifacts are always rendered as Markdown regardless of mime, since the backend normalizes their bodies to Markdown. */
+const shouldRenderAsMarkdown = (content: ArtifactContent, artifact: Artifact | null): boolean =>
+    content.mimeType.startsWith('text/markdown')
+    || artifact?.artifactType === 'ISSUE'
+    || artifact?.artifactType === 'PULL_REQUEST';
+
 /**
  * ArtifactViewerDrawer
- * 
+ *
  * Slide-out panel that displays the raw content of a selected artifact.
  * Allows users to trigger an AI summarization of the content to quickly extract key information
  * without reading massive files or issues.
  */
 export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactViewerDrawerProps) {
-    const [viewMode, setViewMode] = useState<'raw' | 'summary'>('raw');
-    const [content, setContent] = useState<ArtifactContent | null>(null);
-    const [summary, setSummary] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [state, dispatch] = useReducer(drawerReducer, initialState);
 
     /**
      * Loads the raw artifact content from the backend whenever a new artifact is selected.
@@ -38,28 +97,16 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
      */
     useEffect(() => {
         if (!artifact) return;
-        
+
         let isMounted = true;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setViewMode('raw');
-         
-        setContent(null);
-         
-        setSummary('');
-         
-        setError(null);
-         
-        setIsLoading(true);
+        dispatch({ type: 'reset' });
 
         knowledgeService.getArtifactContent(projectId, artifact.id, artifact.sourceSystem)
             .then(data => {
-                if (isMounted) setContent(data);
+                if (isMounted) dispatch({ type: 'loadSuccess', content: data });
             })
             .catch(err => {
-                if (isMounted) setError(err instanceof Error ? err.message : String(err));
-            })
-            .finally(() => {
-                if (isMounted) setIsLoading(false);
+                if (isMounted) dispatch({ type: 'loadError', error: err instanceof Error ? err.message : String(err) });
             });
 
         return () => {
@@ -73,34 +120,25 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
      */
     const handleSummarize = async () => {
         if (!artifact) return;
-        
-        setViewMode('summary');
-        setSummary('');
-        setIsStreaming(true);
-        setError(null);
+
+        dispatch({ type: 'summarizeStart' });
 
         try {
             await knowledgeService.summarizeArtifact(projectId, artifact.id, {
-                onToken: (token) => {
-                    setSummary(prev => prev + token);
-                },
-                onDone: () => {
-                    setIsStreaming(false);
-                },
-                onError: (err) => {
-                    setError(err.message);
-                    setIsStreaming(false);
-                }
+                onToken: (token) => dispatch({ type: 'summarizeToken', token }),
+                onDone: () => dispatch({ type: 'summarizeDone' }),
+                onError: (err) => dispatch({ type: 'summarizeError', error: err.message }),
             });
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to summarize');
-            setIsStreaming(false);
+            dispatch({ type: 'summarizeError', error: err instanceof Error ? err.message : 'Failed to summarize' });
         }
     };
 
+    const { viewMode, content, summary, isLoading, isStreaming, error } = state;
+
     const titleContent = viewMode === 'summary' ? (
-        <button 
-            onClick={() => setViewMode('raw')}
+        <button
+            onClick={() => dispatch({ type: 'showRaw' })}
             className="p-1.5 hover:bg-app-surface border border-transparent hover:border-app-border rounded-md transition-colors flex items-center gap-1 text-sm font-medium text-app-text-muted"
             data-testid="back-to-file-btn"
         >
@@ -136,7 +174,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
             contentClassName="p-6"
         >
             {error ? (
-                <div className="p-4 bg-app-danger-500/10 text-app-danger-500 rounded-lg border border-app-danger-500/20">
+                <div className="p-4 bg-app-danger-bg text-app-danger-text rounded-lg border border-app-danger-border">
                     <p className="font-medium">Error loading content</p>
                     <p className="text-sm mt-1">{error}</p>
                 </div>
@@ -150,8 +188,8 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                             <div className="h-4 bg-app-border rounded w-2/3"></div>
                         </div>
                     ) : (
-                        content && (content.mimeType.startsWith('text/markdown') || artifact?.artifactType === 'ISSUE' || artifact?.artifactType === 'PULL_REQUEST') ? (
-                            <div data-testid="raw-content" className="prose prose-sm dark:prose-invert max-w-none">
+                        content && shouldRenderAsMarkdown(content, artifact) ? (
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[rehypeKatex]}
@@ -160,7 +198,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                                 </ReactMarkdown>
                             </div>
                         ) : (
-                            <pre data-testid="raw-content" className="font-mono text-sm text-app-text bg-app-bg p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
+                            <pre className="font-mono text-sm text-app-text bg-app-bg p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-app-border">
                                 {content?.content}
                             </pre>
                         )
@@ -172,7 +210,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                         <Sparkles className="w-5 h-5" />
                         <span className="text-lg">AI Summary</span>
                     </div>
-                    
+
                     {!summary && isStreaming ? (
                         <div className="flex items-center gap-3 text-app-text-muted py-8 justify-center">
                             <Loader2 className="w-5 h-5 animate-spin text-app-brand" />

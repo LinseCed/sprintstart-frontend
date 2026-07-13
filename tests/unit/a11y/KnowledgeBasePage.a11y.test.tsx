@@ -8,6 +8,12 @@ vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', username: 'Test', email: 'test@test.com', projectIds: ['proj1'] } })
 }));
 
+vi.mock('../../../src/services/knowledgeService', () => ({
+    knowledgeService: {
+        getUnifiedArtifacts: vi.fn().mockResolvedValue([]),
+    },
+}));
+
 describe('KnowledgeBasePage Accessibility', () => {
     it('should not have any a11y violations', async () => {
         const { baseElement } = render(
