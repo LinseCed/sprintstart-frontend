@@ -64,12 +64,29 @@ export interface OnboardingStepEndpoint {
   skip: OnboardingStepSkip | null;
 }
 
+// Why the backend considers a phase locked (see OnboardingPhaseEndpoint.unlockReason)
+export type PhaseUnlockReason =
+  | "PREVIOUS_PHASE_INCOMPLETE"
+  | "PREVIOUS_PHASE_CHECK_NOT_PASSED";
+
+// Compact knowledge check state embedded into each phase of GET /onboarding/me/path
+export interface PhaseCheckSummaryEndpoint {
+  required: boolean;
+  questionCount: number;
+  passed: boolean;
+  latestAttemptId: string | null;
+  latestAttemptAt: string | null;
+}
+
 export interface OnboardingPhaseEndpoint {
   id: string;
   pathId: string;
   position: number;
   title: string;
   description: string;
+  locked: boolean;
+  unlockReason: PhaseUnlockReason | null;
+  checkSummary: PhaseCheckSummaryEndpoint;
   steps: OnboardingStepEndpoint[];
 }
 
@@ -113,6 +130,117 @@ export interface OnboardingSkipEndpoint {
 export interface OnboardingStepDetail extends OnboardingStepEndpoint {
     tasks: OnboardingTaskEndpoint[];
     resources: OnboardingResourceEndpoint[];
+}
+
+// ─── Phase Knowledge Checks (GET/POST /onboarding/me/phases/{phaseId}/checks…) ─
+
+export type CheckQuestionType = "MULTIPLE_CHOICE" | "SHORT_TEXT";
+
+export interface PhaseCheckOptionEndpoint {
+  id: string;
+  position: number;
+  label: string;
+}
+
+export interface PhaseCheckQuestionEndpoint {
+  id: string;
+  position: number;
+  type: CheckQuestionType;
+  question: string;
+  // Only present for MULTIPLE_CHOICE questions
+  options?: PhaseCheckOptionEndpoint[];
+}
+
+// GET /onboarding/me/phases/{phaseId}/checks — never contains correct answers
+export interface PhaseCheckEndpoint {
+  phaseId: string;
+  required: boolean;
+  passed: boolean;
+  latestAttemptId: string | null;
+  questions: PhaseCheckQuestionEndpoint[];
+}
+
+export interface PhaseCheckAnswerSubmission {
+  questionId: string;
+  selectedOptionIds?: string[];
+  textAnswer?: string;
+}
+
+export interface PhaseCheckAnswerResult {
+  questionId: string;
+  correct: boolean;
+  correctOptionIds: string[];
+  correctAnswer: string | null;
+  explanation: string | null;
+}
+
+// POST /onboarding/me/phases/{phaseId}/checks/attempts — reveals correct answers
+export interface PhaseCheckAttemptResult {
+  attemptId: string;
+  phaseId: string;
+  passed: boolean;
+  createdAt: string;
+  phaseCheckSummary: PhaseCheckSummaryEndpoint;
+  nextPhaseUnlocked: boolean;
+  results: PhaseCheckAnswerResult[];
+}
+
+// ─── Phase Check Admin (GET/PUT /onboarding/phases/{phaseId}/checks) ──────────
+
+export interface AdminPhaseCheckOptionEndpoint {
+  id: string;
+  position: number;
+  label: string;
+  correct: boolean;
+}
+
+export interface AdminPhaseCheckQuestionEndpoint {
+  id: string;
+  position: number;
+  type: CheckQuestionType;
+  question: string;
+  explanation: string | null;
+  correctAnswer?: string | null;
+  options?: AdminPhaseCheckOptionEndpoint[];
+}
+
+export interface AdminPhaseCheckEndpoint {
+  phaseId: string;
+  questions: AdminPhaseCheckQuestionEndpoint[];
+}
+
+export interface UpsertPhaseCheckQuestion {
+  position: number;
+  type: CheckQuestionType;
+  question: string;
+  explanation?: string | null;
+  // SHORT_TEXT only
+  correctAnswer?: string | null;
+  // MULTIPLE_CHOICE only
+  options?: {
+    position: number;
+    label: string;
+    correct: boolean;
+  }[];
+}
+
+// GET /onboarding/users/{userId}/phases/{phaseId}/checks/attempts
+export interface PhaseCheckAttemptsReviewEndpoint {
+  userId: string;
+  phaseId: string;
+  attempts: {
+    id: string;
+    passed: boolean;
+    createdAt: string;
+    correctAnswerCount: number;
+    questionCount: number;
+    answers: {
+      questionId: string;
+      selectedOptionIds: string[];
+      textAnswer: string | null;
+      correct: boolean;
+    }[];
+  }[];
 }
 
 // ─── AI Path Generation (POST /onboarding/me/path/personalize, SSE) ──────────

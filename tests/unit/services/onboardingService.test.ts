@@ -138,4 +138,117 @@ describe('onboardingService', () => {
             finished: true,
         });
     });
+
+    it('fetchPhaseCheck loads the check without correct answers', async () => {
+        server.use(
+            http.get('/api/v1/onboarding/me/phases/phase1/checks', () =>
+                HttpResponse.json({
+                    phaseId: 'phase1',
+                    required: true,
+                    passed: false,
+                    latestAttemptId: null,
+                    questions: [
+                        {
+                            id: 'q1',
+                            position: 0,
+                            type: 'MULTIPLE_CHOICE',
+                            question: 'Which one?',
+                            options: [{ id: 'o1', position: 0, label: 'A' }],
+                        },
+                    ],
+                }),
+            ),
+        );
+
+        const check = await onboardingService.fetchPhaseCheck('phase1');
+
+        expect(check.phaseId).toBe('phase1');
+        expect(check.questions[0].options?.[0].label).toBe('A');
+        // Options must not leak a `correct` flag to the user-facing endpoint.
+        expect(check.questions[0].options?.[0]).not.toHaveProperty('correct');
+    });
+
+    it('submitPhaseCheck posts answers and returns the grading result', async () => {
+        let capturedBody: unknown = null;
+        server.use(
+            http.post('/api/v1/onboarding/me/phases/phase1/checks/attempts', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json({
+                    attemptId: 'attempt1',
+                    phaseId: 'phase1',
+                    passed: false,
+                    createdAt: new Date().toISOString(),
+                    phaseCheckSummary: {
+                        required: true,
+                        questionCount: 1,
+                        passed: false,
+                        latestAttemptId: 'attempt1',
+                        latestAttemptAt: new Date().toISOString(),
+                    },
+                    nextPhaseUnlocked: false,
+                    results: [
+                        {
+                            questionId: 'q1',
+                            correct: false,
+                            correctOptionIds: ['o2'],
+                            correctAnswer: null,
+                            explanation: 'Nope.',
+                        },
+                    ],
+                });
+            }),
+        );
+
+        const result = await onboardingService.submitPhaseCheck('phase1', [
+            { questionId: 'q1', selectedOptionIds: ['o1'] },
+        ]);
+
+        expect(capturedBody).toEqual({ answers: [{ questionId: 'q1', selectedOptionIds: ['o1'] }] });
+        expect(result.passed).toBe(false);
+        expect(result.results[0].correctOptionIds).toEqual(['o2']);
+    });
+
+    it('savePhaseCheck sends a PUT with the questions payload', async () => {
+        let capturedBody: unknown = null;
+        server.use(
+            http.put('/api/v1/onboarding/phases/phase1/checks', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json({ phaseId: 'phase1', questions: [] });
+            }),
+        );
+
+        await onboardingService.savePhaseCheck('phase1', [
+            { position: 0, type: 'SHORT_TEXT', question: 'cmd?', correctAnswer: 'run' },
+        ]);
+
+        expect(capturedBody).toEqual({
+            questions: [{ position: 0, type: 'SHORT_TEXT', question: 'cmd?', correctAnswer: 'run' }],
+        });
+    });
+
+    it('fetchPhaseCheckAttempts loads a user\'s attempts for review', async () => {
+        server.use(
+            http.get('/api/v1/onboarding/users/user1/phases/phase1/checks/attempts', () =>
+                HttpResponse.json({
+                    userId: 'user1',
+                    phaseId: 'phase1',
+                    attempts: [
+                        {
+                            id: 'attempt1',
+                            passed: true,
+                            createdAt: new Date().toISOString(),
+                            correctAnswerCount: 2,
+                            questionCount: 2,
+                            answers: [],
+                        },
+                    ],
+                }),
+            ),
+        );
+
+        const review = await onboardingService.fetchPhaseCheckAttempts('user1', 'phase1');
+
+        expect(review.attempts).toHaveLength(1);
+        expect(review.attempts[0].correctAnswerCount).toBe(2);
+    });
 });
