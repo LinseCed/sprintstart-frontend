@@ -12,19 +12,19 @@ vi.mock('../../../src/hooks/useFetch', () => ({
                     id: 'gap1',
                     component: 'AuthService',
                     missingTypes: ['API', 'Guide'],
-                    lastUpdated: '2026-07-01T00:00:00.000Z',
+                    lastIngested: '2026-07-01T00:00:00.000Z',
+                    refreshedAt: '2026-07-01T00:00:00.000Z',
                     owners: [],
-                    severity: 'high',
-                    relatedQuestions: 5
+                    severity: 'high'
                 },
                 {
                     id: 'gap2',
                     component: 'OnboardingFlow',
                     missingTypes: ['README'],
-                    lastUpdated: '2026-07-02T00:00:00.000Z',
+                    lastIngested: '2026-07-02T00:00:00.000Z',
+                    refreshedAt: '2026-07-02T00:00:00.000Z',
                     owners: [],
-                    severity: 'low',
-                    relatedQuestions: 1
+                    severity: 'low'
                 }
             ]
         },
