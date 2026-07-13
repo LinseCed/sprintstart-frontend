@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { onboardingService } from "../services/onboardingService";
 import { userService } from "../services/userService";
 import { ApiError } from "../services/apiClient";
+import { StepOriginBadge } from "../features/onboarding/components/StepOriginBadge";
 
 import {
   CheckCircle2,
@@ -378,6 +379,9 @@ export function OnBoardingPage() {
               <h2 className="text-2xl sm:text-3xl font-bold text-app-text">
                 {recommendedStep.title}
               </h2>
+              <div className="mt-3">
+                <StepOriginBadge step={recommendedStep} />
+              </div>
               <p className="text-app-text-muted mt-2 max-w-2xl">
                 {recommendedStep.description}
               </p>
@@ -449,6 +453,9 @@ export function OnBoardingPage() {
                           >
                             {step.title}
                           </h3>
+                          <div className="mt-2">
+                            <StepOriginBadge step={step} />
+                          </div>
                           <p className="text-sm text-app-text-muted mt-1 leading-relaxed">
                             {step.description}
                           </p>
