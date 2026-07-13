@@ -60,15 +60,20 @@ describe('FaqWidget', () => {
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('shows error state when there is an error', () => {
+    it('shows the empty/refresh state when there is an error', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: null, loading: false, error: true });
         renderWidget();
-        expect(screen.getByText('Could not load FAQ data.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No FAQ groups yet. Trigger a refresh to generate them.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
 
-    it('shows error state when overview has no groups', () => {
+    it('shows the empty/refresh state when overview has no groups', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: { groups: [] }, loading: false, error: false });
         renderWidget();
-        expect(screen.getByText('Could not load FAQ data.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No FAQ groups yet. Trigger a refresh to generate them.'),
+        ).toBeInTheDocument();
     });
 });
