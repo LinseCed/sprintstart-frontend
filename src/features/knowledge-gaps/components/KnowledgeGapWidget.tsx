@@ -4,6 +4,7 @@
 // On click navigiert zu /insights/knowledge-gaps/:gapId
 // ============================================================
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { knowledgeGapService } from "../../../services/knowledgeGapService";
 import { useFetch } from "../../../hooks/useFetch";
@@ -18,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -26,11 +28,30 @@ import {
 
 export function KnowledgeGapWidget() {
   const navigate = useNavigate();
+
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
   const {
     data: overview,
     loading,
     error,
-  } = useFetch(() => knowledgeGapService.fetchKnowledgeGaps(), []);
+  } = useFetch(() => knowledgeGapService.fetchKnowledgeGaps(), [refreshKey]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      await knowledgeGapService.refreshKnowledgeGaps();
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      console.error("Knowledge-gaps refresh failed", err);
+      setRefreshError("Refresh failed. Is the AI service running?");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // ── LOADING ────────────────────────────────────────────
 
@@ -46,9 +67,31 @@ export function KnowledgeGapWidget() {
 
   if (error || !overview || overview.gaps.length === 0) {
     return (
-      <div className="rounded-2xl border border-app-border bg-app-surface p-6 flex flex-col items-center justify-center gap-2 min-h-48 text-center">
+      <div className="rounded-2xl border border-app-border bg-app-surface p-6 flex flex-col items-center justify-center gap-3 min-h-48 text-center">
         <AlertCircle className="w-5 h-5 text-app-text-muted" />
-        <p className="text-sm text-app-text-muted">No knowledge gaps found.</p>
+        <p className="text-sm text-app-text-muted">
+          No knowledge gaps yet. Trigger a refresh to detect them.
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-app-brand hover:bg-app-brand-hover text-white text-xs font-medium transition-all disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+          <button
+            onClick={() => void navigate("/insights/knowledge-gaps")}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-app-border text-xs text-app-text-muted hover:text-app-text transition-colors"
+          >
+            Open page
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {refreshError && (
+          <p className="text-xs text-app-danger-text max-w-xs">{refreshError}</p>
+        )}
       </div>
     );
   }
@@ -78,18 +121,31 @@ export function KnowledgeGapWidget() {
             Knowledge gaps
           </span>
         </div>
-
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            void navigate("/insights/knowledge-gaps");
-          }}
-          className="flex items-center gap-1 rounded-lg text-xs text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-        >
-          See all ({gapCount})
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleRefresh();
+            }}
+            disabled={refreshing}
+            title="Refresh"
+            className="flex items-center text-app-text-muted hover:text-app-text transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void navigate("/insights/knowledge-gaps");
+            }}
+            className="flex items-center gap-1 rounded-lg text-xs text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+          >
+            See all ({gapCount})
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Stacked severity overview bar */}
@@ -142,7 +198,7 @@ export function KnowledgeGapWidget() {
 
                   <span className="ml-auto flex items-center gap-1 shrink-0">
                     <Clock className="w-3 h-3" />
-                    {formatRelativeDate(gap.lastUpdated)}
+                    {formatRelativeDate(gap.lastIngested)}
                   </span>
                 </div>
               </div>

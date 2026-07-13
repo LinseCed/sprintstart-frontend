@@ -57,8 +57,8 @@ describe('AddCustomStepModal Accessibility', () => {
             expect(closeButton).toHaveFocus();
         });
 
-        expect(screen.getByPlaceholderText('Meet your colleagues')).toBeInTheDocument();
-        expect(screen.getByText('Estimated minutes')).toBeInTheDocument();
+        expect(screen.getByLabelText('Step title *')).toBeInTheDocument();
+        expect(screen.getByLabelText('Est. minutes *')).toBeInTheDocument();
 
         expect(await axe(baseElement)).toHaveNoViolations();
     });
