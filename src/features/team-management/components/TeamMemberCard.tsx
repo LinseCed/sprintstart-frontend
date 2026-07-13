@@ -56,7 +56,7 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
 
             <div className="flex items-center gap-3 pr-14">
                 <div className="flex shrink-0 items-center justify-center">
-                    <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={40} />
+                    <UserAvatar profileIcon={user.profileIcon} fallbackName={`${user.firstname} ${user.lastname}`.trim()} seed={user.userId} size={40} />
                 </div>
 
                 <div className="min-w-0">

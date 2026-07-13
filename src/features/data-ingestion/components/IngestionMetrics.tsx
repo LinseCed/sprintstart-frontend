@@ -12,6 +12,10 @@ type IngestionMetricsProps = {
     sources: DataSource[];
 };
 
+/**
+ * Displays high-level summary metrics for all connected data sources.
+ * Gives project managers a quick overview of system health and sync status.
+ */
 export function IngestionMetrics({ sources }: IngestionMetricsProps) {
     const syncedSources = sources.filter((source) => source.lastRunAt !== null).length;
     const latestIngestedArtifacts = sources.reduce(

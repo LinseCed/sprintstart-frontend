@@ -1,5 +1,7 @@
-import { Bot, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
+import { useAuth } from "../context/useAuth";
+import { UserAvatar } from "../components/common/UserAvatar.tsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -13,6 +15,7 @@ import "katex/dist/katex.min.css";
  * Displays the interface for communication with the chat.
  */
 export function ChatPage() {
+    const { profile } = useAuth();
     const {
         messages,
         chatId,
@@ -31,16 +34,26 @@ export function ChatPage() {
         showBrainrot,
         timestamp
     } = useChat();
+    const hasChatHistory = chats?.length !== 0;
 
     return (
-        <div className="app-page-frame flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
-            {chats?.length !== 0 && (
+        <div
+            className={[
+                "flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen",
+                hasChatHistory ? "" : "app-page-frame",
+            ].filter(Boolean).join(" ")}
+        >
+            {hasChatHistory && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
                 </aside>
             )}
 
             <aside
+                id="chat-mobile-sidebar"
+                aria-label="Mobile chat navigation"
+                aria-hidden={!sidebarOpen}
+                inert={!sidebarOpen}
                 className={`
                     fixed top-0 left-0 h-full w-64 bg-app-bg
                     border-r border-app-border z-50
@@ -52,7 +65,7 @@ export function ChatPage() {
                 <div className="p-4 flex justify-between items-center">
                     <h2 className="font-bold">Chats</h2>
 
-                    <button onClick={() => setSidebarOpen(false)}>
+                    <button aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
                         <X size={24} />
                     </button>
                 </div>
@@ -61,6 +74,9 @@ export function ChatPage() {
             </aside>
 
             <button
+                aria-label="Toggle sidebar"
+                aria-controls="chat-mobile-sidebar"
+                aria-expanded={sidebarOpen}
                 className="
                     fixed
                     top-4
@@ -129,11 +145,16 @@ export function ChatPage() {
                                 >
                                     <div
                                         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                            isRequest ? "bg-app-brand" : "bg-app-surface-muted"
+                                            isRequest ? "" : "bg-app-surface-muted"
                                         }`}
                                     >
                                         {isRequest ? (
-                                            <User size={16} className="text-white" />
+                                            <UserAvatar
+                                                profileIcon={profile?.profileIcon}
+                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
+                                                seed={profile?.id}
+                                                size={32}
+                                            />
                                         ) : (
                                             <Bot size={16} className="text-app-brand-text" />
                                         )}
@@ -271,6 +292,7 @@ export function ChatPage() {
                             </h3>
 
                             <button
+                                aria-label="Close citation"
                                 onClick={() => setSelectedCitation(null)}
                                 className="text-app-text-muted hover:text-app-text transition-colors"
                             >
@@ -288,6 +310,7 @@ export function ChatPage() {
                     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
                         <textarea
                             ref={textareaRef}
+                            aria-label="Message"
                             placeholder="Ask anything about the project..."
                             className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
                             value={newRequest}
@@ -308,6 +331,7 @@ export function ChatPage() {
 
                         <button
                             type="submit"
+                            aria-label="Send message"
                             disabled={isThinking || isStreaming || !newRequest.trim()}
                             className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
                         >

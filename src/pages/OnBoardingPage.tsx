@@ -59,6 +59,20 @@ function ProgressBar({ value, max }: ProgressBarProps) {
   );
 }
 
+/**
+ * Index of the phase the user is currently working on: the first phase that still
+ * has a not-yet-finished/skipped step. Falls back to the last phase when everything
+ * is done, so a reload never drops the user back to phase 1.
+ */
+function findActivePhaseIndex(path: OnboardingPathEndpoint): number {
+  const index = path.phases.findIndex((phase) =>
+    phase.steps.some(
+      (step) => step.status !== "FINISHED" && step.status !== "SKIPPED",
+    ),
+  );
+  return index === -1 ? Math.max(0, path.phases.length - 1) : index;
+}
+
 // ─────────────────────────────────────────────────────────────
 // MAIN COMPONENT: OnBoardingPage
 // ─────────────────────────────────────────────────────────────
@@ -112,6 +126,8 @@ export function OnBoardingPage() {
 
         const path = await onboardingService.fetchPath();
         setOnBoardingPath(path);
+        // Land on the phase the user is actually working on, not always phase 1.
+        setSelectedPhaseIndex(findActivePhaseIndex(path));
         setLoadingState("success");
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {

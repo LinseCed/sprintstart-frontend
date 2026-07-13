@@ -187,9 +187,16 @@ export function TeamMemberDetailPage() {
                 getUserOnboardingPath(userId),
                 knowledgeGapService.fetchKnowledgeGaps(),
             ]);
-            const feedback = memberData?.hasFeedback
-                ? await getUserOnboardingFeedback(userId)
-                : [];
+            let feedback: OnboardingFeedback[] = [];
+            try {
+                feedback = await getUserOnboardingFeedback(userId);
+            } catch (error) {
+                setFeedbackError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Unable to load feedback.',
+                );
+            }
 
             setUser(memberData);
             setAvailableRoles(rolesData);
@@ -576,7 +583,10 @@ export function TeamMemberDetailPage() {
             setNewTaskTitle('');
             setNewTaskDescription('');
             await refreshStepTasks(taskInsertTarget.stepId);
-            await refreshOnboardingPath();
+            // Adding a task reopens a completed step on the backend (status back to
+            // IN_PROGRESS). Refresh the path so the step cards update, and the team-overview
+            // member data so the header progress bar and current step reflect the change too.
+            await Promise.all([refreshOnboardingPath(), refreshMember()]);
         } catch (error) {
             setOnboardingError(
                 error instanceof Error
@@ -595,6 +605,13 @@ export function TeamMemberDetailPage() {
 
         try {
             await markOnboardingFeedbackRead(feedbackId);
+            setFeedbackItems((current) =>
+                current.map((feedback) =>
+                    feedback.id === feedbackId
+                        ? { ...feedback, read: true }
+                        : feedback,
+                ),
+            );
             await Promise.all([refreshFeedback(), refreshMember()]);
         } catch (error) {
             setFeedbackError(
@@ -756,8 +773,30 @@ export function TeamMemberDetailPage() {
     const detailStepActualMinutes = detailStep ? getActualMinutes(detailStep) : null;
 
     const detailStepFeedback = detailStep
-        ? feedbackItems.filter((feedback) => feedback.stepId === detailStep.id)
+        ? feedbackItems
+            .filter((feedback) => feedback.stepId === detailStep.id)
+            .map((feedback) => ({
+                ...feedback,
+                helpful:
+                    feedback.helpful ??
+                    (detailStep.feedback?.id === feedback.id
+                        ? detailStep.feedback.helpful
+                        : undefined),
+            }))
         : [];
+    const displayedDetailStepFeedback =
+        detailStepFeedback.length > 0 || !detailStep?.feedback
+            ? detailStepFeedback
+            : [
+                {
+                    id: detailStep.feedback.id,
+                    stepId: detailStep.id,
+                    stepTitle: detailStep.title,
+                    message: detailStep.feedback.comment,
+                    helpful: detailStep.feedback.helpful,
+                    createdAt: detailStep.feedback.createdAt,
+                },
+            ];
     const detailStepSkipReason = detailStep?.skip?.reason || '';
     const skillGaps = skillLevels.filter(
         (skill) => skill.level === 'BEGINNER' || skill.level === 'INTERMEDIATE',
@@ -781,7 +820,7 @@ export function TeamMemberDetailPage() {
 
     return (
         <div className="min-h-screen bg-app-bg">
-            <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
+            <header className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <button
                         onClick={goBack}
@@ -794,7 +833,7 @@ export function TeamMemberDetailPage() {
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center gap-4">
                             <div className="flex shrink-0 items-center justify-center">
-                                <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={56} />
+                                <UserAvatar profileIcon={user.profileIcon} fallbackName={`${user.firstname} ${user.lastname}`.trim()} seed={user.userId} size={56} />
                             </div>
 
                             <div>
@@ -864,7 +903,7 @@ export function TeamMemberDetailPage() {
                         </span>
                     </div>
                 </div>
-            </div>
+            </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.8fr)]">
@@ -900,11 +939,11 @@ export function TeamMemberDetailPage() {
                         getActualMinutes={getActualMinutes}
                         getStepStatusStyles={getStepStatusStyles}
                     />
-                    <aside className="space-y-4">
+                    <aside aria-label="Member insights" className="space-y-4">
                     <div className="rounded-3xl border border-app-border bg-app-surface p-6">
-                        <h4 className="text-lg font-semibold text-app-text">
+                        <h2 className="text-lg font-semibold text-app-text">
                             Feedback & Skip Requests
-                        </h4>
+                        </h2>
 
                         <div className="mt-4 space-y-3">
                             <div className="flex items-center justify-between gap-3">
@@ -991,8 +1030,8 @@ export function TeamMemberDetailPage() {
                                 <p className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
                                     Loading feedback...
                                 </p>
-                            ) : feedbackItems.length > 0 ? (
-                                feedbackItems.map((feedback) => {
+                            ) : unreadFeedback.length > 0 ? (
+                                unreadFeedback.map((feedback) => {
                                     const isUnread =
                                         feedback.read !== true && !feedback.readAt;
 
@@ -1073,7 +1112,7 @@ export function TeamMemberDetailPage() {
                                         </div>
                                     );
                                 })
-                            ) : user.hasFeedback ? (
+                            ) : user.hasFeedback && feedbackItems.length === 0 ? (
                                 <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg p-4">
                                     <div className="flex items-start gap-3">
                                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface text-app-warning-text">
@@ -1224,7 +1263,7 @@ export function TeamMemberDetailPage() {
                     tasks={sortedDetailStepTasks}
                     doneTaskCount={detailStepDoneTasks}
                     actualMinutes={detailStepActualMinutes}
-                    feedbackItems={detailStepFeedback}
+                    feedbackItems={displayedDetailStepFeedback}
                     skipReason={detailStepSkipReason}
                     taskInsertTarget={taskInsertTarget}
                     newTaskTitle={newTaskTitle}
