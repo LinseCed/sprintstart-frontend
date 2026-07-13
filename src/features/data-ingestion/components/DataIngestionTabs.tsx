@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { CalendarClock, Plus } from "lucide-react";
 import type { ActiveTab } from "../types.ts";
 
 const TABS: ActiveTab[] = ["sources", "artifacts", "runs", "connectors"];
@@ -7,6 +7,7 @@ type DataIngestionTabsProps = {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onAddSource: () => void;
+  onOpenSyncSettings?: () => void;
 };
 
 /**
@@ -17,6 +18,7 @@ export function DataIngestionTabs({
   activeTab,
   onTabChange,
   onAddSource,
+  onOpenSyncSettings,
 }: DataIngestionTabsProps) {
   return (
     <div className="flex flex-col gap-4 border-b border-app-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -39,14 +41,28 @@ export function DataIngestionTabs({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onAddSource}
-        className="flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover"
-      >
-        <Plus size={16} />
-        Add Source
-      </button>
+      <div className="flex items-center gap-2">
+        {onOpenSyncSettings && (
+          <button
+            type="button"
+            onClick={onOpenSyncSettings}
+            aria-label="Open sync settings"
+            title="Sync settings"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition hover:bg-app-surface-hover hover:text-app-text focus:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+          >
+            <CalendarClock size={18} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={onAddSource}
+          className="flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover"
+        >
+          <Plus size={16} />
+          Add Source
+        </button>
+      </div>
     </div>
   );
 }

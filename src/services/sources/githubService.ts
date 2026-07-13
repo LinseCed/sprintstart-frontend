@@ -20,6 +20,54 @@ export type UpdateGithubRepositoryRequest = {
   name: string;
 };
 
+export type GithubScheduleDayOfWeek =
+  | "MONDAY"
+  | "TUESDAY"
+  | "WEDNESDAY"
+  | "THURSDAY"
+  | "FRIDAY"
+  | "SATURDAY"
+  | "SUNDAY";
+
+export type GithubScheduleSpec =
+  | {
+      type: "DAILY";
+      time: string;
+    }
+  | {
+      type: "WEEKLY";
+      time: string;
+      daysOfWeek: GithubScheduleDayOfWeek[];
+    }
+  | {
+      type: "MONTHLY";
+      time: string;
+      dayOfMonth: number;
+    }
+  | {
+      type: "INTERVAL";
+      everyMinutes: number;
+    }
+  | {
+      type: "CUSTOM";
+      cron: string;
+    };
+
+export type ConfigureGithubRepositoryRequest = {
+  autoUpdate: boolean;
+  schedule: GithubScheduleSpec;
+};
+
+export type GithubRepositoryConfig = {
+  id: string;
+  repositoryOwner: string;
+  repositoryName: string;
+  autoUpdate: boolean;
+  spec: GithubScheduleSpec | null;
+  schedule: string;
+  nextSyncAt: string | null;
+};
+
 export async function connectGithubRepository(
   request: ConnectGithubRepositoryRequest,
 ): Promise<ConnectGithubRepositoryResponse> {
@@ -81,4 +129,47 @@ export async function updateGithubRepository(
       body: JSON.stringify(request),
     },
   );
+}
+
+/**
+ * Applies one schedule and auto-update policy to all connected GitHub repositories.
+ * The backend converts the typed schedule payload into the stored cron expression.
+ */
+export async function configureAllGithubRepositories(
+  request: ConfigureGithubRepositoryRequest,
+): Promise<void> {
+  await apiClient.fetch<void>("/api/v1/github/config/global", {
+    method: "PUT",
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Loads the current schedule and auto-update policy for one connected GitHub repository.
+ */
+export async function getGithubRepositoryConfig(
+  request: UpdateGithubRepositoryRequest,
+): Promise<GithubRepositoryConfig> {
+  const owner = encodeURIComponent(request.owner);
+  const name = encodeURIComponent(request.name);
+
+  return apiClient.fetch<GithubRepositoryConfig>(
+    `/api/v1/github/config/${owner}/${name}`,
+  );
+}
+
+/**
+ * Updates the schedule and auto-update policy for one connected GitHub repository.
+ */
+export async function configureGithubRepository(
+  repository: UpdateGithubRepositoryRequest,
+  request: ConfigureGithubRepositoryRequest,
+): Promise<void> {
+  const owner = encodeURIComponent(repository.owner);
+  const name = encodeURIComponent(repository.name);
+
+  await apiClient.fetch<void>(`/api/v1/github/config/${owner}/${name}`, {
+    method: "PUT",
+    body: JSON.stringify(request),
+  });
 }
