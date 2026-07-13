@@ -77,7 +77,7 @@ function MemberRow({ user, onClick }: MemberRowProps) {
         >
             {/* Avatar */}
             <div className="flex shrink-0 items-center justify-center">
-                <UserAvatar profileIcon={user.profileIcon} fallbackName={user.firstname} size={32} />
+                <UserAvatar profileIcon={user.profileIcon} fallbackName={`${user.firstname} ${user.lastname}`.trim()} seed={user.userId} size={32} />
             </div>
 
             {/* Name + step */}
