@@ -11,6 +11,7 @@ import type {
   StepStatus,
 } from "../types";
 import { onboardingService } from "../../../services/onboardingService";
+import { StepOriginBadge } from "./StepOriginBadge";
 
 import {
   ArrowLeft,
@@ -359,6 +360,9 @@ export function OnBoardingItemPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-app-text">
                 {stepDetail.title}
               </h1>
+              <div className="mt-3">
+                <StepOriginBadge step={stepDetail} />
+              </div>
               <p className="text-app-text-muted mt-2 text-sm">
                 {stepDetail.description}
               </p>

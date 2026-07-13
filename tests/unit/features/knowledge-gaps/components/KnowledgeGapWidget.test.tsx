@@ -6,8 +6,8 @@ import { MemoryRouter } from 'react-router-dom';
 
 const mockOverview: KnowledgeGapOverview = {
     gaps: [
-        { id: 'gap1', component: 'Auth Service', missingTypes: ['README', 'API Docs'], lastUpdated: new Date().toISOString(), owners: [], severity: 'high', relatedQuestions: 5 },
-        { id: 'gap2', component: 'API Gateway', missingTypes: ['Schema'], lastUpdated: new Date().toISOString(), owners: [], severity: 'medium', relatedQuestions: 3 },
+        { id: 'gap1', component: 'Auth Service', missingTypes: ['README', 'API Docs'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'high' },
+        { id: 'gap2', component: 'API Gateway', missingTypes: ['Schema'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'medium' },
     ],
 };
 
@@ -59,15 +59,20 @@ describe('KnowledgeGapWidget', () => {
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('shows empty/error state', () => {
+    it('shows the empty/refresh state on error', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: null, loading: false, error: true });
         renderWidget();
-        expect(screen.getByText('No knowledge gaps found.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No knowledge gaps yet. Trigger a refresh to detect them.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
 
-    it('shows empty state when there are no gaps', () => {
+    it('shows the empty/refresh state when there are no gaps', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: { gaps: [] }, loading: false, error: false });
         renderWidget();
-        expect(screen.getByText('No knowledge gaps found.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No knowledge gaps yet. Trigger a refresh to detect them.'),
+        ).toBeInTheDocument();
     });
 });

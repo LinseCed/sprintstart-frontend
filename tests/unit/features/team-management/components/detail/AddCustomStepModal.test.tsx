@@ -30,9 +30,9 @@ describe('AddCustomStepModal', () => {
         render(<AddCustomStepModal {...defaultProps} />);
 
         expect(screen.getByText('Add Custom Step')).toBeInTheDocument();
-        expect(screen.getByPlaceholderText('Meet your colleagues')).toBeInTheDocument();
-        expect(screen.getByPlaceholderText('Describe what the member should do.')).toBeInTheDocument();
-        expect(screen.getByPlaceholderText('Describe the expected outcome.')).toBeInTheDocument();
+        expect(screen.getByLabelText('Step title *')).toBeInTheDocument();
+        expect(screen.getByLabelText('Description')).toBeInTheDocument();
+        expect(screen.getByLabelText('Expected outcome')).toBeInTheDocument();
     });
 
     it('does not render when closed', () => {
@@ -55,7 +55,7 @@ describe('AddCustomStepModal', () => {
         const onTitleChange = vi.fn();
         render(<AddCustomStepModal {...defaultProps} onTitleChange={onTitleChange} />);
 
-        const titleInput = screen.getByPlaceholderText('Meet your colleagues');
+        const titleInput = screen.getByLabelText('Step title *');
         await user.type(titleInput, 'A');
 
         expect(onTitleChange).toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('AddCustomStepModal', () => {
             />,
         );
 
-        expect(screen.getAllByRole('button', { name: 'Remove task row' })).toHaveLength(2);
+        expect(screen.getAllByRole('button', { name: /Remove task \d/ })).toHaveLength(2);
     });
 
     it('does not show a remove button when there is only one task', () => {
@@ -114,7 +114,7 @@ describe('AddCustomStepModal', () => {
             />,
         );
 
-        expect(screen.queryByRole('button', { name: 'Remove task row' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Remove task \d/ })).not.toBeInTheDocument();
     });
 
     it('shows the error message when provided', () => {

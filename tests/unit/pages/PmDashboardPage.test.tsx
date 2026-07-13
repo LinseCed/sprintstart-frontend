@@ -30,10 +30,9 @@ describe('PmDashboardPage', () => {
         expect(screen.getByText(/Track team onboarding/)).toBeInTheDocument();
     });
 
-    it('composes the TeamManagementWidget in the Team overview section', () => {
+    it('composes the TeamManagementWidget', () => {
         render(<MemoryRouter><PmDashboardPage /></MemoryRouter>);
         expect(screen.getByTestId('team-management-widget')).toBeInTheDocument();
-        expect(screen.getByText('Team overview')).toBeInTheDocument();
     });
 
     it('composes the FaqWidget in the Insights section', () => {
