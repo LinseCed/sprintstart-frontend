@@ -53,10 +53,13 @@ describe('KnowledgeGapsPage', () => {
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('shows error state', () => {
+    it('shows the empty/refresh state on error', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: null, loading: false, error: true });
         renderPage();
-        expect(screen.getByText('Could not load knowledge gaps.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No knowledge gaps yet. Trigger a refresh to detect them.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
 
     it('expands the filter panel when clicked', async () => {

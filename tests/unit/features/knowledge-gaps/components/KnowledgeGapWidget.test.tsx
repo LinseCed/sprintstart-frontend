@@ -59,15 +59,20 @@ describe('KnowledgeGapWidget', () => {
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('shows empty/error state', () => {
+    it('shows the empty/refresh state on error', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: null, loading: false, error: true });
         renderWidget();
-        expect(screen.getByText('No knowledge gaps found.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No knowledge gaps yet. Trigger a refresh to detect them.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
 
-    it('shows empty state when there are no gaps', () => {
+    it('shows the empty/refresh state when there are no gaps', () => {
         vi.mocked(useFetch).mockReturnValueOnce({ data: { gaps: [] }, loading: false, error: false });
         renderWidget();
-        expect(screen.getByText('No knowledge gaps found.')).toBeInTheDocument();
+        expect(
+            screen.getByText('No knowledge gaps yet. Trigger a refresh to detect them.'),
+        ).toBeInTheDocument();
     });
 });
