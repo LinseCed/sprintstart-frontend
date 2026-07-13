@@ -41,10 +41,23 @@ export interface ArtifactContent {
 }
 
 /**
- * Callbacks for handling the Server-Sent Events (SSE) stream during AI summarization.
+ * Citation metadata for an AI-generated artifact summary, sourced from the AI service
+ * and passed through the backend unchanged.
  */
-export interface SummaryStreamHandlers {
-    onToken: (token: string) => void;
-    onDone: () => void;
-    onError?: (error: Error) => void;
+export interface ArtifactSummaryCitation {
+    artifactId: string;
+    filename: string;
+    sourceUrl: string | null;
+}
+
+/**
+ * AI-generated summary for one artifact, returned as a single JSON response.
+ *
+ * @remarks The backend caches summaries by content hash, so repeat requests for unchanged
+ * content return instantly. The `summary` is GFM Markdown (with math) rendered client-side.
+ */
+export interface ArtifactSummaryResponse {
+    artifactId: string;
+    summary: string;
+    citations: ArtifactSummaryCitation[];
 }

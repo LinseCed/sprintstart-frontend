@@ -1,10 +1,10 @@
 import { useEffect, useReducer } from 'react';
-import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import type { Artifact, ArtifactContent } from '../types';
+import type { Artifact, ArtifactContent, ArtifactSummaryCitation } from '../types';
 import { knowledgeService } from '../../../services/knowledgeService';
 import { SidePanel } from '../../../components/ui/SidePanel';
 
@@ -15,7 +15,7 @@ interface ArtifactViewerDrawerProps {
     artifact: Artifact | null;
     /** Closes the drawer and clears the selected artifact in the parent. */
     onClose: () => void;
-    /** Project scope required to fetch the artifact content and summary stream. */
+    /** Project scope required to fetch the artifact content and summary. */
     projectId: string;
 }
 
@@ -25,8 +25,9 @@ interface DrawerState {
     viewMode: ViewMode;
     content: ArtifactContent | null;
     summary: string;
+    citations: ArtifactSummaryCitation[];
     isLoading: boolean;
-    isStreaming: boolean;
+    isFetchingSummary: boolean;
     error: string | null;
 }
 
@@ -36,8 +37,7 @@ type DrawerAction =
     | { type: 'loadSuccess'; content: ArtifactContent }
     | { type: 'loadError'; error: string }
     | { type: 'summarizeStart' }
-    | { type: 'summarizeToken'; token: string }
-    | { type: 'summarizeDone' }
+    | { type: 'summarizeSuccess'; summary: string; citations: ArtifactSummaryCitation[] }
     | { type: 'summarizeError'; error: string }
     | { type: 'showRaw' };
 
@@ -45,8 +45,9 @@ const initialState: DrawerState = {
     viewMode: 'raw',
     content: null,
     summary: '',
+    citations: [],
     isLoading: false,
-    isStreaming: false,
+    isFetchingSummary: false,
     error: null,
 };
 
@@ -61,13 +62,11 @@ function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
         case 'loadError':
             return { ...state, isLoading: false, error: action.error };
         case 'summarizeStart':
-            return { ...state, viewMode: 'summary', summary: '', isStreaming: true, error: null };
-        case 'summarizeToken':
-            return { ...state, summary: state.summary + action.token };
-        case 'summarizeDone':
-            return { ...state, isStreaming: false };
+            return { ...state, viewMode: 'summary', summary: '', citations: [], isFetchingSummary: true, error: null };
+        case 'summarizeSuccess':
+            return { ...state, isFetchingSummary: false, summary: action.summary, citations: action.citations };
         case 'summarizeError':
-            return { ...state, isStreaming: false, error: action.error };
+            return { ...state, isFetchingSummary: false, error: action.error };
         case 'showRaw':
             return { ...state, viewMode: 'raw' };
         default:
@@ -86,7 +85,8 @@ const shouldRenderAsMarkdown = (content: ArtifactContent, artifact: Artifact | n
  *
  * Slide-out panel that displays the raw content of a selected artifact.
  * Allows users to trigger an AI summarization of the content to quickly extract key information
- * without reading massive files or issues.
+ * without reading massive files or issues. The summary is returned as a single JSON response
+ * (not streamed) and includes citation metadata rendered as a source list.
  */
 export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactViewerDrawerProps) {
     const [state, dispatch] = useReducer(drawerReducer, initialState);
@@ -116,7 +116,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
 
     /**
      * Triggers the AI summarization process for the currently loaded artifact.
-     * Connects to the backend SSE stream to display the summary progressively.
+     * Fetches the full summary and citations from the backend in a single JSON response.
      */
     const handleSummarize = async () => {
         if (!artifact) return;
@@ -124,17 +124,14 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
         dispatch({ type: 'summarizeStart' });
 
         try {
-            await knowledgeService.summarizeArtifact(projectId, artifact.id, {
-                onToken: (token) => dispatch({ type: 'summarizeToken', token }),
-                onDone: () => dispatch({ type: 'summarizeDone' }),
-                onError: (err) => dispatch({ type: 'summarizeError', error: err.message }),
-            });
+            const result = await knowledgeService.summarizeArtifact(projectId, artifact.id);
+            dispatch({ type: 'summarizeSuccess', summary: result.summary, citations: result.citations });
         } catch (err) {
             dispatch({ type: 'summarizeError', error: err instanceof Error ? err.message : 'Failed to summarize' });
         }
     };
 
-    const { viewMode, content, summary, isLoading, isStreaming, error } = state;
+    const { viewMode, content, summary, citations, isLoading, isFetchingSummary, error } = state;
 
     const titleContent = viewMode === 'summary' ? (
         <button
@@ -211,20 +208,43 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                         <span className="text-lg">AI Summary</span>
                     </div>
 
-                    {!summary && isStreaming ? (
+                    {!summary && isFetchingSummary ? (
                         <div className="flex items-center gap-3 text-app-text-muted py-8 justify-center">
                             <Loader2 className="w-5 h-5 animate-spin text-app-brand" />
                             <span className="text-base font-medium">Generating summary...</span>
                         </div>
                     ) : (
-                        <div className="text-app-text">
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                            >
-                                {summary}
-                            </ReactMarkdown>
-                        </div>
+                        <>
+                            <div className="text-app-text">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
+                                >
+                                    {summary}
+                                </ReactMarkdown>
+                            </div>
+
+                            {citations.length > 0 && (
+                                <div data-testid="summary-citations" className="mt-6 border-t border-app-border pt-4 not-prose">
+                                    <h3 className="text-sm font-semibold text-app-text mb-2">Sources</h3>
+                                    <ul className="space-y-1">
+                                        {citations.map((c) => (
+                                            <li key={c.artifactId} className="flex items-center gap-2 text-sm text-app-text-muted">
+                                                <FileText className="w-4 h-4 text-app-brand" aria-hidden />
+                                                {c.sourceUrl ? (
+                                                    <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                                        className="hover:text-app-brand underline min-w-0 truncate">
+                                                        {c.filename}
+                                                    </a>
+                                                ) : (
+                                                    <span className="min-w-0 truncate">{c.filename}</span>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             )}

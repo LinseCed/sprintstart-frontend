@@ -1,7 +1,7 @@
 import { apiClient, ApiError } from './apiClient';
 import { userService } from './userService';
 import keycloak from '../config/keycloak';
-import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../features/knowledge-base/types';
+import type { Artifact, ArtifactContent, ArtifactSummaryResponse } from '../features/knowledge-base/types';
 
 /**
  * Service responsible for managing the knowledge base unified artifacts.
@@ -139,75 +139,23 @@ export const knowledgeService = {
     },
 
     /**
-     * Streams an AI summary of a specific artifact via Server-Sent Events.
+     * Requests an AI-generated summary for a specific artifact.
+     *
+     * Uses `apiClient.fetch` because the backend returns a JSON envelope (not raw bytes or
+     * an SSE stream). The backend caches the summary by content hash, so repeat calls for
+     * unchanged content return instantly.
      *
      * @param projectId UUID of the project that scopes the artifact.
      * @param artifactId UUID of the artifact to summarize.
-     * @param handlers Callbacks for receiving streamed tokens, completion, and errors.
+     * @returns The summary text (GFM Markdown) and its citations.
+     * @throws {ApiError} On a non-2xx backend response (e.g. 403 no access, 404 not found,
+     * 503 AI service unavailable).
      */
-    async summarizeArtifact(projectId: string, artifactId: string, handlers: SummaryStreamHandlers): Promise<void> {
-        try {
-            if (keycloak.authenticated) {
-                await keycloak.updateToken(30);
-            }
-        } catch (error) {
-            console.error('Failed to refresh Keycloak token for summary stream', error);
-            void keycloak.login();
-            return;
-        }
-
-        const res = await fetch(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                ...(keycloak.token ? { "Authorization": `Bearer ${keycloak.token}` } : {}),
-            }
-        });
-
-        if (!res.ok) {
-            handlers.onError?.(new Error(`HTTP error! status: ${res.status}`));
-            return;
-        }
-
-        const reader = res.body?.getReader();
-        if (!reader) {
-            handlers.onError?.(new Error("No response stream"));
-            return;
-        }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() ?? "";
-
-            for (const line of lines) {
-                if (!line.startsWith("data:")) continue;
-
-                try {
-                    const data = JSON.parse(line.slice(6)) as { type: string, content?: string, message?: string };
-
-                    if (data.type === 'token' && data.content) {
-                        handlers.onToken(data.content);
-                    } else if (data.type === 'done') {
-                        handlers.onDone();
-                        return;
-                    } else if (data.type === 'error') {
-                        handlers.onError?.(new Error(data.message || 'Stream error'));
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Failed to parse SSE line", line, e);
-                }
-            }
-        }
-
-        handlers.onDone();
+    async summarizeArtifact(projectId: string, artifactId: string): Promise<ArtifactSummaryResponse> {
+        return apiClient.fetch<ArtifactSummaryResponse>(
+            `/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`,
+            { method: 'POST' },
+        );
     },
 
     /**

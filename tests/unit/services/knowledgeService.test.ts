@@ -62,5 +62,62 @@ describe('knowledgeService', () => {
             expect(results[1].status).toBe('error');
         });
     });
+
+    describe('summarizeArtifact', () => {
+        const projectId = 'proj-uuid';
+        const artifactId = 'artifact-uuid';
+
+        it('returns the summary and citations on 200', async () => {
+            server.use(
+                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
+                    HttpResponse.json({
+                        artifactId,
+                        summary: '## Key points\nThis is the summary.',
+                        citations: [
+                            { artifactId, filename: 'README.md', sourceUrl: 'https://github.com/owner/repo/blob/main/README.md' },
+                        ],
+                    }),
+                ),
+            );
+
+            const result = await knowledgeService.summarizeArtifact(projectId, artifactId);
+
+            expect(result.artifactId).toBe(artifactId);
+            expect(result.summary).toBe('## Key points\nThis is the summary.');
+            expect(result.citations).toHaveLength(1);
+            expect(result.citations[0].filename).toBe('README.md');
+            expect(result.citations[0].sourceUrl).toBe('https://github.com/owner/repo/blob/main/README.md');
+        });
+
+        it('throws ApiError on 403', async () => {
+            server.use(
+                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
+                    HttpResponse.json({ detail: 'Forbidden' }, { status: 403 }),
+                ),
+            );
+
+            await expect(knowledgeService.summarizeArtifact(projectId, artifactId)).rejects.toThrow();
+        });
+
+        it('throws ApiError on 404', async () => {
+            server.use(
+                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
+                    HttpResponse.json({ detail: 'Not found' }, { status: 404 }),
+                ),
+            );
+
+            await expect(knowledgeService.summarizeArtifact(projectId, artifactId)).rejects.toThrow();
+        });
+
+        it('throws ApiError on 503', async () => {
+            server.use(
+                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
+                    HttpResponse.json({ detail: 'AI service unavailable' }, { status: 503 }),
+                ),
+            );
+
+            await expect(knowledgeService.summarizeArtifact(projectId, artifactId)).rejects.toThrow();
+        });
+    });
 });
 
