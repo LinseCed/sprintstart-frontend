@@ -319,7 +319,7 @@ export function OnBoardingItemPage() {
   return (
     <div className="min-h-screen bg-app-bg">
       {/* HEADER */}
-      <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
+      <section aria-label="Page header" className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
         <div className="app-page-content py-4">
           <button
             onClick={() => void navigate("/onboarding")}
@@ -368,7 +368,7 @@ export function OnBoardingItemPage() {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* MAIN CONTENT */}
       <main className="app-page-content py-6 pb-24">

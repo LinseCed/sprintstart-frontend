@@ -145,7 +145,7 @@ export function KnowledgeGapsPage() {
 
   return (
     <div className="min-h-screen bg-app-bg">
-      <div className="border-b border-app-border bg-app-bg/90">
+      <section aria-label="Page header" className="border-b border-app-border bg-app-bg/90">
         <div className="app-page-content py-8">
           <button
             onClick={() => void navigate("/pm-dashboard")}
@@ -174,7 +174,7 @@ export function KnowledgeGapsPage() {
           )}
           <SeveritySummaryBar gaps={overview.gaps} className="mb-6" />
         </div>
-      </div>
+      </section>
 
       <main className="app-page-content py-8">
         {/* Filter & Sort Controls */}
