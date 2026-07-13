@@ -6,8 +6,8 @@ import { MemoryRouter } from 'react-router-dom';
 
 const mockOverview: KnowledgeGapOverview = {
     gaps: [
-        { id: 'gap1', component: 'Auth Service', missingTypes: ['README', 'API Docs'], lastUpdated: new Date().toISOString(), owners: [], severity: 'high', relatedQuestions: 5 },
-        { id: 'gap2', component: 'API Gateway', missingTypes: ['Schema'], lastUpdated: new Date().toISOString(), owners: [], severity: 'medium', relatedQuestions: 3 },
+        { id: 'gap1', component: 'Auth Service', missingTypes: ['README', 'API Docs'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'high' },
+        { id: 'gap2', component: 'API Gateway', missingTypes: ['Schema'], lastIngested: new Date().toISOString(), refreshedAt: new Date().toISOString(), owners: [], severity: 'medium' },
     ],
 };
 
