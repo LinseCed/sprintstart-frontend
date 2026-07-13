@@ -1150,6 +1150,8 @@ export function DataIngestionPage() {
         <GithubRepositorySyncSettings
           initialConfig={globalGithubSyncConfig}
           onSave={handleSaveGlobalGithubConfig}
+          showNextSync={false}
+          disclaimer="Applying global settings overwrites the sync settings of every connected GitHub repository."
           autoUpdateOnText="Due checks update all connected GitHub repositories."
           autoUpdateOffText="Due checks only mark connected GitHub repositories out of date."
           toggleAriaLabel="Toggle global GitHub auto update"

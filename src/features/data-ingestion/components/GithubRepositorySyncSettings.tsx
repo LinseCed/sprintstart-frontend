@@ -16,6 +16,8 @@ type GithubRepositorySyncSettingsProps = {
   loadConfig?: () => Promise<GithubRepositoryConfig>;
   initialConfig?: ConfigureGithubRepositoryRequest;
   onSave: (request: ConfigureGithubRepositoryRequest) => Promise<void>;
+  disclaimer?: string;
+  showNextSync?: boolean;
   autoUpdateOnText?: string;
   autoUpdateOffText?: string;
   toggleAriaLabel?: string;
@@ -50,6 +52,8 @@ export function GithubRepositorySyncSettings({
   loadConfig,
   initialConfig,
   onSave,
+  disclaimer,
+  showNextSync = true,
   autoUpdateOnText = "Due checks update this repository.",
   autoUpdateOffText = "Due checks only mark this repository out of date.",
   toggleAriaLabel = "Toggle repository auto update",
@@ -82,14 +86,16 @@ export function GithubRepositorySyncSettings({
   useEffect(() => {
     if (loadConfig || !initialConfig) return;
 
-    setAutoUpdate(initialConfig.autoUpdate);
-    applyScheduleSpec(initialConfig.schedule, {
-      setScheduleType,
-      setEveryMinutes,
-      setTime,
-      setDaysOfWeek,
-      setDayOfMonth,
-      setCron,
+    void Promise.resolve().then(() => {
+      setAutoUpdate(initialConfig.autoUpdate);
+      applyScheduleSpec(initialConfig.schedule, {
+        setScheduleType,
+        setEveryMinutes,
+        setTime,
+        setDaysOfWeek,
+        setDayOfMonth,
+        setCron,
+      });
     });
   }, [initialConfig, loadConfig]);
 
@@ -196,13 +202,21 @@ export function GithubRepositorySyncSettings({
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-2 border-b border-app-border pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-semibold text-app-text">Next sync</p>
-        <p className="inline-flex items-center gap-2 text-sm font-semibold text-app-text">
-          <CalendarClock className="h-4 w-4 text-app-text-muted" />
-          {nextSyncAt ? formatDateTime(nextSyncAt) : "Not available"}
-        </p>
-      </div>
+      {disclaimer && (
+        <div className="mb-4 rounded-xl border border-app-warning-border bg-app-warning-bg px-3 py-2 text-sm text-app-warning-text">
+          {disclaimer}
+        </div>
+      )}
+
+      {showNextSync && (
+        <div className="mb-4 flex flex-col gap-2 border-b border-app-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-app-text">Next sync</p>
+          <p className="inline-flex items-center gap-2 text-sm font-semibold text-app-text">
+            <CalendarClock className="h-4 w-4 text-app-text-muted" />
+            {nextSyncAt ? formatDateTime(nextSyncAt) : "Not available"}
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
         <div>
