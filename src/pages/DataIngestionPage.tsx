@@ -6,12 +6,14 @@ import {
   type FormEvent,
 } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Modal } from "../components/ui/Modal.tsx";
 import { ArtifactTable } from "../features/data-ingestion/components/ArtifactTable.tsx";
 import { DataIngestionHeader } from "../features/data-ingestion/components/DataIngestionHeader.tsx";
 import { DataIngestionLoadingState } from "../features/data-ingestion/components/DataIngestionLoadingState.tsx";
 import { DataIngestionTabs } from "../features/data-ingestion/components/DataIngestionTabs.tsx";
 import { IngestionMetrics } from "../features/data-ingestion/components/IngestionMetrics.tsx";
 import { RunHistory } from "../features/data-ingestion/components/RunHistory.tsx";
+import { GithubRepositorySyncSettings } from "../features/data-ingestion/components/GithubRepositorySyncSettings.tsx";
 import { SourceConnectModal } from "../features/data-ingestion/components/SourceConnectModal.tsx";
 import { SourceDetailsPanel } from "../features/data-ingestion/components/SourceDetailsPanel.tsx";
 import { SourceList } from "../features/data-ingestion/components/SourceList.tsx";
@@ -54,14 +56,22 @@ import {
 import { useAuth } from "../context/useAuth";
 import { useProjectSelection } from "../features/projects/useProjectSelection.ts";
 import {
+  configureAllGithubRepositories,
+  configureGithubRepository,
   connectGithubRepository,
+  getGithubRepositoryConfig,
   getGithubPatNames,
   updateGithubRepository,
+  type ConfigureGithubRepositoryRequest,
 } from "../services/sources/githubService.ts";
 import type { ProjectSource } from "../services/projectService.ts";
 
 const GITHUB_REPOSITORY_STORAGE_KEY =
   "sprintstart:data-ingestion:last-github-repository";
+const DEFAULT_GLOBAL_GITHUB_SYNC_CONFIG: ConfigureGithubRepositoryRequest = {
+  autoUpdate: true,
+  schedule: { type: "INTERVAL", everyMinutes: 60 },
+};
 
 async function fetchIngestionData() {
   const [statusData, runData] = await Promise.all([
@@ -460,6 +470,12 @@ export function DataIngestionPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+  const [isSyncSettingsModalOpen, setIsSyncSettingsModalOpen] =
+    useState(false);
+  const [globalGithubSyncConfig, setGlobalGithubSyncConfig] =
+    useState<ConfigureGithubRepositoryRequest>(
+      DEFAULT_GLOBAL_GITHUB_SYNC_CONFIG,
+    );
   const [selectedConnectSourceSystem, setSelectedConnectSourceSystem] =
     useState<SourceSystem>("GITHUB");
 
@@ -705,6 +721,9 @@ export function DataIngestionPage() {
     () => new Set(sources.map((source) => source.sourceSystem)),
     [sources],
   );
+  const hasGithubSources = visibleSourceSystems.has("GITHUB");
+  const canManageGithubSyncSettings =
+    profile?.permissionGroup === "ADMIN" || profile?.permissionGroup === "PM";
 
   const visibleRuns = useMemo(
     () => runs.filter((run) => visibleSourceSystems.has(run.sourceSystem)),
@@ -929,6 +948,41 @@ export function DataIngestionPage() {
     [loadData, loadGithubConnectorSources],
   );
 
+  const handleSaveGlobalGithubConfig = useCallback(
+    async (request: ConfigureGithubRepositoryRequest) => {
+      await configureAllGithubRepositories(request);
+      setGlobalGithubSyncConfig(request);
+      await Promise.all([
+        loadData(false),
+        reloadProjects(),
+        loadGithubConnectorSources(),
+      ]);
+    },
+    [loadData, loadGithubConnectorSources, reloadProjects],
+  );
+
+  const handleLoadGithubRepositoryConfig = useCallback(
+    async (repository: GithubRepositoryDetails) => {
+      return getGithubRepositoryConfig(repository);
+    },
+    [],
+  );
+
+  const handleSaveGithubRepositoryConfig = useCallback(
+    async (
+      repository: GithubRepositoryDetails,
+      request: ConfigureGithubRepositoryRequest,
+    ) => {
+      await configureGithubRepository(repository, request);
+      await Promise.all([
+        loadData(false),
+        reloadProjects(),
+        loadGithubConnectorSources(),
+      ]);
+    },
+    [loadData, loadGithubConnectorSources, reloadProjects],
+  );
+
   const refreshSourceDetails = useCallback(async () => {
     await Promise.all([
       loadData(false),
@@ -1012,6 +1066,11 @@ export function DataIngestionPage() {
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
                 onAddSource={handleOpenSourceModal}
+                onOpenSyncSettings={
+                  canManageGithubSyncSettings && hasGithubSources
+                    ? () => setIsSyncSettingsModalOpen(true)
+                    : undefined
+                }
               />
 
               <div className="space-y-4 p-5 sm:p-6">
@@ -1076,9 +1135,32 @@ export function DataIngestionPage() {
           source={selectedSource}
           onUpdateSource={handleUpdateSource}
           onRefreshDetails={refreshSourceDetails}
+          canManageSyncSettings={canManageGithubSyncSettings}
+          onLoadRepositoryConfig={handleLoadGithubRepositoryConfig}
+          onSaveRepositoryConfig={handleSaveGithubRepositoryConfig}
           onClose={closeSourceDetails}
         />
       )}
+
+      <Modal
+        isOpen={isSyncSettingsModalOpen}
+        title="GitHub Sync Settings"
+        description="Apply one sync policy to all connected GitHub repositories."
+        size="lg"
+        bodyClassName="px-5 py-5 sm:px-7 sm:py-6"
+        onClose={() => setIsSyncSettingsModalOpen(false)}
+      >
+        <GithubRepositorySyncSettings
+          initialConfig={globalGithubSyncConfig}
+          onSave={handleSaveGlobalGithubConfig}
+          showNextSync={false}
+          disclaimer="Applying global settings overwrites the sync settings of every connected GitHub repository."
+          autoUpdateOnText="Due checks update all connected GitHub repositories."
+          autoUpdateOffText="Due checks only mark connected GitHub repositories out of date."
+          toggleAriaLabel="Toggle global GitHub auto update"
+          saveLabel="Apply globally"
+        />
+      </Modal>
 
       {isSourceModalOpen && (
         <SourceConnectModal
