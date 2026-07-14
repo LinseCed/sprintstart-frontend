@@ -10,7 +10,13 @@ import type { DataSource } from "../types.ts";
 
 type IngestionMetricsProps = {
   sources: DataSource[];
-  totalArtifactCount: number;
+  totalArtifactCount?: number;
+  /**
+   * Renders a slim row of inline stat chips (icon + value + label, no
+   * card borders) instead of the full metric-card grid, for tight spaces
+   * like the PM Dashboard's ingestion strip.
+   */
+  compact?: boolean;
 };
 
 /**
@@ -20,29 +26,69 @@ type IngestionMetricsProps = {
 export function IngestionMetrics({
   sources,
   totalArtifactCount,
+  compact = false,
 }: IngestionMetricsProps) {
   const syncedSources = sources.filter(
     (source) => source.lastRunAt !== null,
   ).length;
+  const latestIngestedArtifacts = sources.reduce(
+    (sum, source) => sum + source.latestIngestedCount,
+    0,
+  );
+  const artifactCount = totalArtifactCount ?? latestIngestedArtifacts;
   const totalErrors = sources.reduce((sum, source) => sum + source.errors, 0);
-  const staleSources = sources.filter(
-    (source) => source.status === "warning",
-  ).length;
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-4">
+        <StatChip
+          label="Synced"
+          value={`${syncedSources}/${sources.length}`}
+          icon={CheckCircle2}
+          iconColor="text-app-success-text"
+        />
+
+        <StatChip
+          label="Ingested"
+          value={formatNumber(latestIngestedArtifacts)}
+          icon={Database}
+          iconColor="text-app-brand"
+        />
+
+        <StatChip
+          label="Errors"
+          value={formatNumber(totalErrors)}
+          icon={AlertTriangle}
+          iconColor={
+            totalErrors > 0 ? "text-app-warning-solid" : "text-app-text-muted"
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <MetricCard
         title="Synced Sources"
         value={`${syncedSources}/${sources.length}`}
-        subtitle="sources with at least one artifact sync"
+        subtitle="sources with at least one ingestion run"
         icon={CheckCircle2}
         iconColor="text-app-success-text"
       />
 
       <MetricCard
-        title="All Artifacts Ingested"
-        value={formatNumber(totalArtifactCount)}
-        subtitle="stored artifacts for this project"
+        title={
+          totalArtifactCount === undefined
+            ? "Latest Ingested"
+            : "All Artifacts Ingested"
+        }
+        value={formatNumber(artifactCount)}
+        subtitle={
+          totalArtifactCount === undefined
+            ? "from latest source statuses"
+            : "stored artifacts for this project"
+        }
         icon={Database}
         iconColor="text-app-brand"
       />
@@ -56,12 +102,32 @@ export function IngestionMetrics({
       />
 
       <MetricCard
-        title="Sources Needing Review"
-        value={formatNumber(staleSources)}
-        subtitle="warning, failed or not yet synced"
+        title="Stale Artifacts"
+        value="N/A"
+        subtitle="not provided by current service"
         icon={Clock3}
         iconColor="text-app-warning-solid"
       />
+    </div>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  icon: Icon,
+  iconColor,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  iconColor: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 text-sm">
+      <Icon size={14} className={`shrink-0 ${iconColor}`} />
+      <span className="font-semibold text-app-text">{value}</span>
+      <span className="text-app-text-muted">{label}</span>
     </div>
   );
 }

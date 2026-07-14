@@ -966,6 +966,9 @@ export function DataIngestionPage() {
             void loadData();
             void reloadProjects();
             void loadGithubConnectorSources();
+            if (activeTab === "connectors") {
+              void loadConnectors();
+            }
             setArtifactSnapshotVersion((version) => version + 1);
           }}
           showProjectSelect={profile?.permissionGroup === "ADMIN"}
