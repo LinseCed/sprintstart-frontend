@@ -65,7 +65,7 @@ function renderDrawer(artifact: Artifact | null = createArtifact()) {
  * by invoking the captured handlers with the given token/citations/done sequence.
  */
 function streamingSuccess(summary: string, citations: ArtifactSummaryCitation[] = []) {
-    return (_artifactId: string, handlers: SummaryStreamHandlers) => {
+    return (_projectId: string, _artifactId: string, handlers: SummaryStreamHandlers) => {
         handlers.onToken(summary);
         for (const citation of citations) {
             handlers.onCitation(citation);
@@ -168,7 +168,7 @@ describe('ArtifactViewerDrawer', () => {
         const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
         let capturedSignal: AbortSignal | undefined;
         vi.mocked(knowledgeService.streamArtifactSummary).mockImplementation(
-            (_id, _handlers, signal) => {
+            (_projectId, _id, _handlers, signal) => {
                 capturedSignal = signal;
                 return new Promise<void>(() => {});
             },

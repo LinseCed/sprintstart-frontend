@@ -30,6 +30,7 @@ interface DrawerState {
     isLoading: boolean;
     isFetchingSummary: boolean;
     isIndexing: boolean;
+    stageDetail?: string;
     error: string | null;
 }
 
@@ -40,6 +41,7 @@ type DrawerAction =
     | { type: 'loadError'; error: string }
     | { type: 'summarizeStart' }
     | { type: 'summarizeIndexing' }
+    | { type: 'summarizeStage'; name: string; detail: string }
     | { type: 'summarizeToken'; chunk: string }
     | { type: 'summarizeCitation'; citation: ArtifactSummaryCitation }
     | { type: 'summarizeDone' }
@@ -54,6 +56,7 @@ const initialState: DrawerState = {
     isLoading: false,
     isFetchingSummary: false,
     isIndexing: false,
+    stageDetail: undefined,
     error: null,
 };
 
@@ -68,9 +71,11 @@ function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
         case 'loadError':
             return { ...state, isLoading: false, error: action.error };
         case 'summarizeStart':
-            return { ...state, viewMode: 'summary', summary: '', citations: [], isFetchingSummary: true, isIndexing: false, error: null };
+            return { ...state, viewMode: 'summary', summary: '', citations: [], isFetchingSummary: true, isIndexing: false, stageDetail: undefined, error: null };
         case 'summarizeIndexing':
-            return { ...state, isFetchingSummary: true, isIndexing: true };
+            return { ...state, isFetchingSummary: true, isIndexing: true, stageDetail: undefined };
+        case 'summarizeStage':
+            return { ...state, isFetchingSummary: true, isIndexing: false, stageDetail: action.detail };
         case 'summarizeToken':
             return { ...state, summary: state.summary + action.chunk };
         case 'summarizeCitation':
@@ -153,8 +158,10 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
 
             try {
                 await knowledgeService.streamArtifactSummary(
+                    projectId,
                     artifact.id,
                     {
+                        onStage: (name, detail) => dispatch({ type: 'summarizeStage', name, detail }),
                         onToken: (chunk) => dispatch({ type: 'summarizeToken', chunk }),
                         onCitation: (citation) => dispatch({ type: 'summarizeCitation', citation }),
                         onDone: () => dispatch({ type: 'summarizeDone' }),
@@ -180,7 +187,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
         }
     };
 
-    const { viewMode, content, summary, citations, isLoading, isFetchingSummary, isIndexing, error } = state;
+    const { viewMode, content, summary, citations, isLoading, isFetchingSummary, isIndexing, stageDetail, error } = state;
 
     const titleContent = viewMode === 'summary' ? (
         <button
@@ -261,7 +268,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                         <div className="flex items-center gap-3 text-app-text-muted py-8 justify-center">
                             <Loader2 className="w-5 h-5 animate-spin text-app-brand" />
                             <span className="text-base font-medium">
-                                {isIndexing ? 'Preparing summary...' : 'Generating summary...'}
+                                {stageDetail ? stageDetail : isIndexing ? 'Preparing summary...' : 'Generating summary...'}
                             </span>
                         </div>
                     ) : error ? (
@@ -300,8 +307,8 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                                 <div data-testid="summary-citations" className="mt-6 border-t border-app-border pt-4 not-prose">
                                     <h3 className="text-sm font-semibold text-app-text mb-2">Sources</h3>
                                     <ul className="space-y-1">
-                                        {citations.map((c) => (
-                                            <li key={c.artifactId} className="flex items-center gap-2 text-sm text-app-text-muted">
+                                        {citations.map((c, index) => (
+                                            <li key={`${c.artifactId}-${index}`} className="flex items-center gap-2 text-sm text-app-text-muted">
                                                 <FileText className="w-4 h-4 text-app-brand" aria-hidden />
                                                 {c.sourceUrl ? (
                                                     <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer"

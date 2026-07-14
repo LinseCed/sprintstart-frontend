@@ -7,9 +7,11 @@ import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../featur
  * SSE event shape emitted by the artifact summary streaming endpoint.
  */
 interface SummaryStreamEvent {
-    type: 'token' | 'citation' | 'done' | 'error';
+    type: 'token' | 'citation' | 'done' | 'error' | 'stage';
     content?: string;
     message?: string;
+    name?: string;
+    detail?: string;
     artifactId?: string;
     filename?: string;
     sourceUrl?: string | null;
@@ -158,6 +160,7 @@ export const knowledgeService = {
      * `error` events. The summary is rendered incrementally as tokens arrive, improving
      * perceived performance versus the previous blocking JSON response.
      *
+     * @param projectId  UUID of the project to check access.
      * @param artifactId UUID of the artifact to summarize.
      * @param handlers   Callbacks invoked for each streamed event.
      * @param signal     Optional AbortSignal to cancel the in-flight stream.
@@ -165,13 +168,8 @@ export const knowledgeService = {
      * on a non-2xx HTTP response (e.g. 403, 404, 503 indexing) so callers can retry
      * based on `status`, or rejects with a plain `Error` on an in-stream `error` event
      * (non-retryable).
-     *
-     * @remarks Known backend gap: the endpoint no longer takes `projectId`, which
-     * introduces an IDOR risk on the backend (any authenticated user can request the
-     * summary of any artifact by id). This must be addressed server-side before
-     * production deployment.
      */
-    async streamArtifactSummary(artifactId: string, handlers: SummaryStreamHandlers, signal?: AbortSignal): Promise<void> {
+    async streamArtifactSummary(projectId: string, artifactId: string, handlers: SummaryStreamHandlers, signal?: AbortSignal): Promise<void> {
         try {
             if (keycloak.authenticated) {
                 await keycloak.updateToken(30);
@@ -182,7 +180,7 @@ export const knowledgeService = {
             throw new Error('Authentication required');
         }
 
-        const endpoint = `/api/v1/artifacts/${artifactId}/summary`;
+        const endpoint = `/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`;
 
         const response = await fetch(endpoint, {
             method: 'GET',
@@ -227,6 +225,12 @@ export const knowledgeService = {
                     const event = JSON.parse(payload) as SummaryStreamEvent;
 
                     switch (event.type) {
+                        case 'stage':
+                            if (event.name && event.detail) {
+                                handlers.onStage?.(event.name, event.detail);
+                            }
+                            break;
+
                         case 'token':
                             if (event.content !== undefined) {
                                 handlers.onToken(event.content);

@@ -57,6 +57,8 @@ export interface ArtifactSummaryCitation {
 export interface SummaryStreamHandlers {
     /** Called for each incremental token chunk of the generated summary. */
     onToken: (chunk: string) => void;
+    /** Called when the AI transitions to a new generation stage (e.g. Analyzing...). */
+    onStage?: (name: string, detail: string) => void;
     /** Called when the backend emits a citation (source reference). */
     onCitation: (citation: ArtifactSummaryCitation) => void;
     /** Called once the stream has completed successfully. */

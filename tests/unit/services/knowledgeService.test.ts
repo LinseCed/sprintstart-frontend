@@ -64,6 +64,7 @@ describe('knowledgeService', () => {
     });
 
     describe('streamArtifactSummary', () => {
+        const projectId = 'project-uuid';
         const artifactId = 'artifact-uuid';
 
         function makeStream(chunks: string[]): ReadableStream<Uint8Array> {
@@ -80,7 +81,7 @@ describe('knowledgeService', () => {
 
         it('invokes onToken/onCitation/onDone for token, citation, and done events', async () => {
             server.use(
-                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                http.get(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
                     new HttpResponse(
                         makeStream([
                             'data: {"type":"token","content":"## Key"}\n\n',
@@ -98,7 +99,7 @@ describe('knowledgeService', () => {
             const onDone = vi.fn();
             const onError = vi.fn();
 
-            await knowledgeService.streamArtifactSummary(artifactId, { onToken, onCitation, onDone, onError });
+            await knowledgeService.streamArtifactSummary(projectId, artifactId, { onToken, onCitation, onDone, onError });
 
             expect(onToken).toHaveBeenCalledTimes(2);
             expect(onToken).toHaveBeenNthCalledWith(1, '## Key');
@@ -114,13 +115,13 @@ describe('knowledgeService', () => {
 
         it('rejects with ApiError on 503 so callers can retry on indexing', async () => {
             server.use(
-                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                http.get(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
                     HttpResponse.json({ detail: 'AI service unavailable' }, { status: 503 }),
                 ),
             );
 
             await expect(
-                knowledgeService.streamArtifactSummary(artifactId, {
+                knowledgeService.streamArtifactSummary(projectId, artifactId, {
                     onToken: vi.fn(),
                     onCitation: vi.fn(),
                     onDone: vi.fn(),
@@ -130,13 +131,13 @@ describe('knowledgeService', () => {
 
         it('rejects with ApiError on 404', async () => {
             server.use(
-                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                http.get(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
                     HttpResponse.json({ detail: 'Not found' }, { status: 404 }),
                 ),
             );
 
             await expect(
-                knowledgeService.streamArtifactSummary(artifactId, {
+                knowledgeService.streamArtifactSummary(projectId, artifactId, {
                     onToken: vi.fn(),
                     onCitation: vi.fn(),
                     onDone: vi.fn(),
@@ -146,7 +147,7 @@ describe('knowledgeService', () => {
 
         it('calls onError and rejects with a plain Error on in-stream error event', async () => {
             server.use(
-                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                http.get(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
                     new HttpResponse(
                         makeStream(['data: {"type":"error","message":"Model overload"}\n\n']),
                         { headers: { 'Content-Type': 'text/event-stream' } },
@@ -157,7 +158,7 @@ describe('knowledgeService', () => {
             const onError = vi.fn();
 
             await expect(
-                knowledgeService.streamArtifactSummary(artifactId, {
+                knowledgeService.streamArtifactSummary(projectId, artifactId, {
                     onToken: vi.fn(),
                     onCitation: vi.fn(),
                     onDone: vi.fn(),
