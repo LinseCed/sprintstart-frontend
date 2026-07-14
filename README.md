@@ -158,9 +158,6 @@ VITE_KEYCLOAK_AUTHORITY=http://localhost:8081/auth/realms/sprintstart
 VITE_KEYCLOAK_CLIENT_ID=sprintstart-frontend
 # 5173 if started with npm run dev
 VITE_KEYCLOAK_REDIRECT_URI=http://localhost:3000
-
-# Github token (classic)
-VITE_GITHUB_PAT=ghp_yor_token
 ```
 
 ### Development
