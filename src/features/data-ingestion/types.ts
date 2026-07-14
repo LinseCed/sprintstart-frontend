@@ -22,6 +22,31 @@ export type IngestionRunStatus =
 
 export type ArtifactType = "COMMIT" | "FILE" | "ISSUE" | "PULL_REQUEST";
 
+export type Artifact = {
+  id: string;
+  title: string | null;
+  sourceSystem: SourceSystem;
+  sourceUrl: string | null;
+  artifactType: ArtifactType;
+  ingestedAt: string;
+  metadata: string;
+  ingestionRunId?: string | null;
+};
+
+export type ArtifactPageMetadata = {
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+};
+
+export type ArtifactPage = {
+  items: Artifact[];
+  page: ArtifactPageMetadata;
+};
+
 export type IngestionRun = {
   runId: string;
   sourceSystem: SourceSystem;
@@ -42,6 +67,13 @@ export type FailedArtifact = {
 export type GithubRepositoryReference = {
   owner: string;
   name: string;
+};
+
+export type GithubRepositoryDetails = GithubRepositoryReference & {
+  repositoryId: string | null;
+  fullName: string;
+  url: string;
+  enabled: boolean | null;
 };
 
 export type SourceIngestionStatus = {
@@ -81,7 +113,11 @@ export type SourceDetailsSource = {
   errors: number;
   latestIngestedCount?: number;
   latestUpdatedCount?: number;
+  totalArtifactCount?: number;
+  runIds?: string[];
+  sharesSourceSystem?: boolean;
   failedItems?: SourceIngestionStatus["failedItems"];
+  githubRepository?: GithubRepositoryDetails | null;
   description?: string;
   nextSync?: string;
 };
@@ -89,10 +125,16 @@ export type SourceDetailsSource = {
 export type DataSource = SourceDetailsSource & {
   icon: LucideIcon;
   statusLabel: string;
+  ingestionStatus: SourceStatus;
+  ingestionStatusLabel: string;
   lastRunAt: string | null;
   latestIngestedCount: number;
   latestUpdatedCount: number;
+  totalArtifactCount: number;
+  runIds: string[];
+  sharesSourceSystem: boolean;
   failedItems: SourceIngestionStatus["failedItems"];
+  githubRepository: GithubRepositoryDetails | null;
 };
 
 export type SourceConnectMeta = SourceMeta;

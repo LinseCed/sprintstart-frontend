@@ -14,13 +14,19 @@ function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
         icon: GitBranch,
         status: 'connected',
         statusLabel: 'Synced',
+        ingestionStatus: 'connected',
+        ingestionStatusLabel: 'Synced',
         artifacts: 10,
         lastSync: '2026-07-05',
         errors: 0,
         latestIngestedCount: 10,
         latestUpdatedCount: 3,
+        totalArtifactCount: 10,
+        runIds: [],
+        sharesSourceSystem: false,
         lastRunAt: '2026-07-05T10:00:00Z',
         failedItems: [],
+        githubRepository: null,
         description: 'Indexes repositories, README files, pull requests.',
         ...overrides,
     };
@@ -65,6 +71,7 @@ describe('SourceList', () => {
         const sources: DataSource[] = [
             createMockSource({
                 latestIngestedCount: 42,
+                totalArtifactCount: 42,
                 latestUpdatedCount: 7,
                 lastSync: '2026-07-05',
                 errors: 3,
@@ -79,7 +86,7 @@ describe('SourceList', () => {
             />,
         );
 
-        expect(screen.getByText('Latest Ingested')).toBeInTheDocument();
+        expect(screen.getByText('Artifacts Ingested')).toBeInTheDocument();
         expect(screen.getByText('42')).toBeInTheDocument();
         expect(screen.getByText('Latest Updated')).toBeInTheDocument();
         expect(screen.getByText('7')).toBeInTheDocument();
