@@ -16,6 +16,7 @@ vi.mock('../../../../../src/services/ingestionService', () => ({
 }));
 
 const mockSource: SourceDetailsSource = {
+    sourceId: 'source-github',
     sourceSystem: 'GITHUB',
     name: 'GitHub Repository',
     type: 'GitHub',

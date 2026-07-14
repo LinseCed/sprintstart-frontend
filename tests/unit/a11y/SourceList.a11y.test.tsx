@@ -8,6 +8,7 @@ import type { DataSource } from '../../../src/features/data-ingestion/types';
 
 const sources: DataSource[] = [
     {
+        sourceId: 'source-github',
         sourceSystem: 'GITHUB',
         name: 'GitHub Repository',
         type: 'GitHub',
@@ -32,7 +33,7 @@ describe('SourceList Accessibility', () => {
                 <main>
                     <SourceList
                         sources={sources}
-                        selectedSourceSystem={null}
+                        selectedSourceId={null}
                         onSelectSource={vi.fn()}
                     />
                 </main>

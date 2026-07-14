@@ -3,10 +3,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GitBranch, Database } from 'lucide-react';
 import { SourceList } from '../../../../../src/features/data-ingestion/components/SourceList';
-import type { DataSource, SourceSystem } from '../../../../../src/features/data-ingestion/types';
+import type { DataSource } from '../../../../../src/features/data-ingestion/types';
 
 function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
     return {
+        sourceId: 'source-github',
         sourceSystem: 'GITHUB',
         name: 'GitHub Repository',
         type: 'GitHub',
@@ -48,7 +49,7 @@ describe('SourceList', () => {
         render(
             <SourceList
                 sources={sources}
-                selectedSourceSystem={null}
+                selectedSourceId={null}
                 onSelectSource={vi.fn()}
             />,
         );
@@ -73,7 +74,7 @@ describe('SourceList', () => {
         render(
             <SourceList
                 sources={sources}
-                selectedSourceSystem={null}
+                selectedSourceId={null}
                 onSelectSource={vi.fn()}
             />,
         );
@@ -94,6 +95,7 @@ describe('SourceList', () => {
         const sources: DataSource[] = [
             createMockSource({ sourceSystem: 'GITHUB', name: 'GitHub Repository' }),
             createMockSource({
+                sourceId: 'source-jira',
                 sourceSystem: 'JIRA',
                 name: 'Jira Project Board',
                 icon: Database,
@@ -103,14 +105,14 @@ describe('SourceList', () => {
         render(
             <SourceList
                 sources={sources}
-                selectedSourceSystem={null}
+                selectedSourceId={null}
                 onSelectSource={onSelectSource}
             />,
         );
 
         await user.click(screen.getByText('Jira Project Board'));
 
-        expect(onSelectSource).toHaveBeenCalledWith('JIRA' satisfies SourceSystem);
+        expect(onSelectSource).toHaveBeenCalledWith('source-jira');
         expect(onSelectSource).toHaveBeenCalledTimes(1);
     });
 
@@ -118,6 +120,7 @@ describe('SourceList', () => {
         const sources: DataSource[] = [
             createMockSource({ sourceSystem: 'GITHUB', name: 'GitHub Repository' }),
             createMockSource({
+                sourceId: 'source-jira',
                 sourceSystem: 'JIRA',
                 name: 'Jira Project Board',
                 icon: Database,
@@ -127,7 +130,7 @@ describe('SourceList', () => {
         render(
             <SourceList
                 sources={sources}
-                selectedSourceSystem="JIRA"
+                selectedSourceId="source-jira"
                 onSelectSource={vi.fn()}
             />,
         );
@@ -143,7 +146,7 @@ describe('SourceList', () => {
         render(
             <SourceList
                 sources={[]}
-                selectedSourceSystem={null}
+                selectedSourceId={null}
                 onSelectSource={vi.fn()}
             />,
         );
@@ -170,7 +173,7 @@ describe('SourceList', () => {
         render(
             <SourceList
                 sources={sources}
-                selectedSourceSystem={null}
+                selectedSourceId={null}
                 onSelectSource={vi.fn()}
             />,
         );

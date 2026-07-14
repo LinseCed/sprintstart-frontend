@@ -6,6 +6,7 @@ import type { DataSource } from '../../../../../src/features/data-ingestion/type
 
 function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
     return {
+        sourceId: 'source-github',
         sourceSystem: 'GITHUB',
         name: 'GitHub Repository',
         type: 'GitHub',
