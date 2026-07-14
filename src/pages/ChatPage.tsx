@@ -1,4 +1,4 @@
-import { Bot, ExternalLink, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, ExternalLink, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
 import { useAuth } from "../context/useAuth";
 import { UserAvatar } from "../components/common/UserAvatar.tsx";
