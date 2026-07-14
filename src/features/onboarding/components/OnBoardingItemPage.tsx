@@ -11,6 +11,7 @@ import type {
   StepStatus,
 } from "../types";
 import { onboardingService } from "../../../services/onboardingService";
+import { StepOriginBadge } from "./StepOriginBadge";
 
 import {
   ArrowLeft,
@@ -319,7 +320,7 @@ export function OnBoardingItemPage() {
   return (
     <div className="min-h-screen bg-app-bg">
       {/* HEADER */}
-      <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
+      <section aria-label="Page header" className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
         <div className="app-page-content py-4">
           <button
             onClick={() => void navigate("/onboarding")}
@@ -355,6 +356,9 @@ export function OnBoardingItemPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-app-text">
                 {stepDetail.title}
               </h1>
+              <div className="mt-3">
+                <StepOriginBadge step={stepDetail} />
+              </div>
               <p className="text-app-text-muted mt-2 text-sm">
                 {stepDetail.description}
               </p>
@@ -368,7 +372,7 @@ export function OnBoardingItemPage() {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* MAIN CONTENT */}
       <main className="app-page-content py-6 pb-24">

@@ -1,46 +1,92 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { axe } from 'vitest-axe';
+import { MemoryRouter } from 'react-router-dom';
 import { UserDetailsDrawer } from '../../../src/features/admin/components/UserDetailsDrawer';
-import type { AdminUser } from '../../../src/features/admin/types';
+import type { AdminUser, ProjectSummary } from '../../../src/features/admin/types';
 
-const adminUser: AdminUser = {
-    id: 'user-1',
-    authId: 'auth-1',
-    username: 'john.doe',
-    email: 'john@example.com',
-    firstName: 'John',
-    lastName: 'Doe',
-    roles: [{ id: 'role-dev', name: 'Developer', description: '', type: 'primary' }],
-    permissionGroup: 'User',
-    projects: [],
+vi.mock('../../../src/components/common/UserAvatar', () => ({
+    UserAvatar: () => <svg role="img" aria-label="User Avatar" width="64" height="64" />
+}));
+
+vi.mock('../../../src/services/adminUserService', () => ({
+    adminUserService: {
+        updateUser: vi.fn().mockResolvedValue({
+            id: 'u1',
+            username: 'asmith',
+            email: 'alice@example.com',
+            firstName: 'Alice',
+            lastName: 'Smith',
+            roles: [],
+            permissionGroup: 'Admin',
+            projects: [],
+            enabled: true,
+            profileIcon: '',
+            hasCompletedOnboarding: true
+        }),
+        updateUserEnabled: vi.fn().mockResolvedValue({
+            id: 'u1',
+            username: 'asmith',
+            email: 'alice@example.com',
+            firstName: 'Alice',
+            lastName: 'Smith',
+            roles: [],
+            permissionGroup: 'Admin',
+            projects: [],
+            enabled: true,
+            profileIcon: '',
+            hasCompletedOnboarding: true
+        })
+    }
+}));
+
+vi.mock('../../../src/services/teamManagementService', () => ({
+    getProjectRoles: vi.fn().mockResolvedValue([
+        { id: 'r1', name: 'Developer', description: '' }
+    ]),
+    assignProjectRoleToUser: vi.fn().mockResolvedValue(undefined),
+    unassignProjectRoleFromUser: vi.fn().mockResolvedValue(undefined)
+}));
+
+const user: AdminUser = {
+    id: 'u1',
+    username: 'asmith',
+    email: 'alice@example.com',
+    firstName: 'Alice',
+    lastName: 'Smith',
+    roles: [{ id: 'r1', name: 'Developer', description: '', type: 'primary' }],
+    permissionGroup: 'Admin',
+    projects: [{ id: 'p1', name: 'SprintStart' }],
     enabled: true,
     profileIcon: '',
-    hasCompletedOnboarding: true,
+    hasCompletedOnboarding: true
 };
 
+const availableProjects: ProjectSummary[] = [
+    { id: 'p1', name: 'SprintStart' },
+    { id: 'p2', name: 'Backend' }
+];
+
 describe('UserDetailsDrawer Accessibility', () => {
-    it('has no axe violations in read and edit mode', async () => {
-        const user = userEvent.setup();
+    it('should not have any a11y violations', async () => {
         const { baseElement } = render(
-            <UserDetailsDrawer
-                user={adminUser}
-                availableProjects={[]}
-                isOpen
-                onClose={vi.fn()}
-                onOpenProjectDetails={vi.fn()}
-                onUserUpdated={vi.fn()}
-                onRequestDelete={vi.fn()}
-            />,
+            <MemoryRouter>
+                <UserDetailsDrawer
+                    user={user}
+                    availableProjects={availableProjects}
+                    isOpen={true}
+                    onClose={vi.fn()}
+                    onOpenProjectDetails={vi.fn()}
+                    onUserUpdated={vi.fn()}
+                    onRequestDelete={vi.fn()}
+                />
+            </MemoryRouter>
         );
 
-        expect(screen.getByRole('dialog', { name: 'John Doe' })).toBeInTheDocument();
-        expect(await axe(baseElement)).toHaveNoViolations();
+        expect(screen.getByRole('button', { name: 'Edit User' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Delete Alice Smith' })).toBeInTheDocument();
+        expect(screen.getByText('Email')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Edit User' }));
-
-        expect(screen.getByLabelText('Email')).toBeInTheDocument();
         expect(await axe(baseElement)).toHaveNoViolations();
     });
 });

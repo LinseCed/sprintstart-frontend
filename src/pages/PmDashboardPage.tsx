@@ -1,14 +1,18 @@
-// features/dashboard/DashboardView.tsx
-
 import { BriefcaseBusiness } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
-import { ProjectSelect } from "../features/projects/components/ProjectSelect";
-import { useProjectSelection } from "../features/projects/useProjectSelection";
 import { useAuth } from "../context/useAuth";
+import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
+import { ProjectSelect } from "../features/projects/components/ProjectSelect";
+import { useProjectSelection } from "../features/projects/useProjectSelection";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
 
+/**
+ * Landing page for PM/HR/Admin users. Surfaces at-a-glance widgets for
+ * ingestion health, team onboarding progress, recurring FAQ questions, and
+ * knowledge gaps, each linking to its full detail page.
+ */
 export function PmDashboardPage() {
   const { profile } = useAuth();
   const {
@@ -43,7 +47,8 @@ export function PmDashboardPage() {
       </header>
 
       <main className="app-page-frame space-y-5 py-6 lg:py-8">
-        {/* Team Overview */}
+        <IngestionStatusWidget />
+
         <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-app-text">
@@ -57,7 +62,6 @@ export function PmDashboardPage() {
           <TeamManagementWidget projectId={selectedProjectId} />
         </section>
 
-        {/* Insights Section */}
         <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-app-text">Insights</h2>
@@ -66,7 +70,7 @@ export function PmDashboardPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <FaqWidget />
             <KnowledgeGapWidget />
           </div>

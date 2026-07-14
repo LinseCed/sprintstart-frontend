@@ -54,7 +54,7 @@ export type SourceIngestionStatus = {
   failedItems: FailedArtifact[];
 };
 
-export type ActiveTab = "sources" | "artifacts" | "runs";
+export type ActiveTab = "sources" | "artifacts" | "runs" | "connectors";
 
 export type LoadingState = "idle" | "loading" | "success" | "error";
 

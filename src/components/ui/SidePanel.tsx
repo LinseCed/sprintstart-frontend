@@ -68,12 +68,15 @@ export function SidePanel({
     const descriptionId = useId();
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            previouslyFocusedElement.current?.focus();
+            return;
+        }
 
         previouslyFocusedElement.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-        window.requestAnimationFrame(() => {
+        const animationFrameId = window.requestAnimationFrame(() => {
             const panel = panelRef.current;
             if (!panel) return;
 
@@ -82,7 +85,7 @@ export function SidePanel({
         });
 
         return () => {
-            previouslyFocusedElement.current?.focus();
+            window.cancelAnimationFrame(animationFrameId);
         };
     }, [isOpen]);
 
