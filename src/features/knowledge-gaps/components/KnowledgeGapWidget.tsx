@@ -11,6 +11,7 @@ import { useFetch } from "../../../hooks/useFetch";
 import { formatRelativeDate } from "../format";
 import { SEVERITY_ORDER, SEVERITY_STYLES } from "../severity";
 import { SeverityBar, SeveritySummaryBar } from "./SeverityIndicators";
+import { ClickableCard } from "../../../components/common/ClickableCard";
 
 import {
   ShieldAlert,
@@ -107,7 +108,11 @@ export function KnowledgeGapWidget() {
   // ── RENDER ─────────────────────────────────────────────
 
   return (
-    <div className="rounded-2xl border border-app-border bg-app-surface p-5">
+    <ClickableCard
+      onClick={() => void navigate("/insights/knowledge-gaps")}
+      interactive={false}
+      className="rounded-2xl border border-app-border bg-app-surface p-5 cursor-pointer transition-colors hover:border-app-brand-border-strong hover:bg-app-surface-hover has-[button:hover]:!border-app-border has-[button:hover]:!bg-app-surface"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -118,16 +123,24 @@ export function KnowledgeGapWidget() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => void handleRefresh()}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleRefresh();
+            }}
             disabled={refreshing}
             title="Refresh"
-            className="flex items-center text-app-text-muted hover:text-app-text transition-colors disabled:opacity-60"
+            className="flex items-center text-app-text-muted hover:text-app-text transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
           </button>
           <button
-            onClick={() => void navigate("/insights/knowledge-gaps")}
-            className="flex items-center gap-1 text-xs text-app-text-muted hover:text-app-text transition-colors"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void navigate("/insights/knowledge-gaps");
+            }}
+            className="flex items-center gap-1 rounded-lg text-xs text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
           >
             See all ({gapCount})
             <ArrowRight className="w-3.5 h-3.5" />
@@ -145,7 +158,10 @@ export function KnowledgeGapWidget() {
           return (
             <button
               key={gap.id}
-              onClick={() => void navigate(`/insights/knowledge-gaps/${gap.id}`)}
+              onClick={(event) => {
+                event.stopPropagation();
+                void navigate(`/insights/knowledge-gaps/${gap.id}`);
+              }}
               className="w-full text-left flex items-stretch gap-3 rounded-xl border border-app-border bg-app-surface hover:border-app-border-strong transition-colors p-3"
             >
               <SeverityBar severity={gap.severity} />
@@ -190,6 +206,6 @@ export function KnowledgeGapWidget() {
           );
         })}
       </div>
-    </div>
+    </ClickableCard>
   );
 }

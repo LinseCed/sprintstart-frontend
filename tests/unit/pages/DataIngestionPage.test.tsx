@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { DataIngestionPage } from '../../../src/pages/DataIngestionPage';
 
 vi.mock('../../../src/context/useAuth', () => ({
-    useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', lastName: 'User', projectIds: ['p1'] } }),
+    useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', lastName: 'User' } }),
 }));
 
 const {
@@ -123,7 +123,6 @@ describe('DataIngestionPage', () => {
                     owner: 'octocat',
                     name: 'hello-world',
                     tokenName: 'token1',
-                    projectId: 'p1',
                 }),
             );
         });
