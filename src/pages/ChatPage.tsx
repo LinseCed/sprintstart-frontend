@@ -1,19 +1,22 @@
-import {Bot, Check, Filter, MessageSquareText, Plus, Send, Sparkles, User, X} from "lucide-react";
+import { Bot, Check, Filter, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
+import { useAuth } from "../context/useAuth";
+import { UserAvatar } from "../components/common/UserAvatar.tsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
 import { PageHeader } from "../components/layout/PageHeader.tsx";
+import { SOURCE_SYSTEMS } from "../features/chatbot/types.ts";
 
 import "katex/dist/katex.min.css";
-import {SOURCE_SYSTEMS} from "../features/chatbot/types.ts";
 
 /**
  * Displays the interface for communication with the chat.
  */
 export function ChatPage() {
+    const { profile } = useAuth();
     const {
         messages,
         chatId,
@@ -41,16 +44,26 @@ export function ChatPage() {
         sourceSystems,
         toggleSourceSystem
     } = useChat();
+    const hasChatHistory = chats?.length !== 0;
 
     return (
-        <div className="app-page-frame flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
-            {chats?.length !== 0 && (
+        <div
+            className={[
+                "flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen",
+                hasChatHistory ? "" : "app-page-frame",
+            ].filter(Boolean).join(" ")}
+        >
+            {hasChatHistory && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
                 </aside>
             )}
 
             <aside
+                id="chat-mobile-sidebar"
+                aria-label="Mobile chat navigation"
+                aria-hidden={!sidebarOpen}
+                inert={!sidebarOpen}
                 className={`
                     fixed top-0 left-0 h-full w-64 bg-app-bg
                     border-r border-app-border z-50
@@ -62,7 +75,7 @@ export function ChatPage() {
                 <div className="p-4 flex justify-between items-center">
                     <h2 className="font-bold">Chats</h2>
 
-                    <button onClick={() => setSidebarOpen(false)}>
+                    <button aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
                         <X size={24} />
                     </button>
                 </div>
@@ -71,6 +84,9 @@ export function ChatPage() {
             </aside>
 
             <button
+                aria-label="Toggle sidebar"
+                aria-controls="chat-mobile-sidebar"
+                aria-expanded={sidebarOpen}
                 className="
                     fixed
                     top-4
@@ -139,11 +155,16 @@ export function ChatPage() {
                                 >
                                     <div
                                         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                            isRequest ? "bg-app-brand" : "bg-app-surface-muted"
+                                            isRequest ? "" : "bg-app-surface-muted"
                                         }`}
                                     >
                                         {isRequest ? (
-                                            <User size={16} className="text-white" />
+                                            <UserAvatar
+                                                profileIcon={profile?.profileIcon}
+                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
+                                                seed={profile?.id}
+                                                size={32}
+                                            />
                                         ) : (
                                             <Bot size={16} className="text-app-brand-text" />
                                         )}
@@ -158,7 +179,7 @@ export function ChatPage() {
                                             className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                                                 isRequest
                                                     ? "bg-app-brand text-white rounded-tr-none"
-                                                    : "bg-app-surface-muted border border-app-border-muted text-app-text rounded-tl-none"
+                                                    : "bg-app-surface-muted text-app-text rounded-tl-none"
                                             }`}
                                         >
                                             <ReactMarkdown
@@ -181,49 +202,6 @@ export function ChatPage() {
                                                         <td className={`border-2 px-3 py-2 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
                                                             {children}
                                                         </td>
-                                                    ),
-                                                    h1: ({ children }) => (
-                                                        <h1 className={`text-2xl font-semibold my-4 pb-1 border-b ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
-                                                            {children}
-                                                        </h1>
-                                                    ),
-
-                                                    h2: ({ children }) => (
-                                                        <h2 className={`text-xl font-semibold my-3 pb-1 border-b ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
-                                                            {children}
-                                                        </h2>
-                                                    ),
-
-                                                    h3: ({ children }) => (
-                                                        <h3 className="text-lg font-semibold my-2">
-                                                            {children}
-                                                        </h3>
-                                                    ),
-
-                                                    h4: ({ children }) => (
-                                                        <h4 className="text-md font-semibold my-1">
-                                                            {children}
-                                                        </h4>
-                                                    ),
-                                                    hr: () => (
-                                                        <hr
-                                                            className={`my-4 border-t border-3 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}
-                                                        />
-                                                    ),
-                                                    ul: ({ children }) => (
-                                                        <ul className="list-disc pl-6 my-3 space-y-1">
-                                                            {children}
-                                                        </ul>
-                                                    ),
-
-                                                    ol: ({ children }) => (
-                                                        <ol className="list-decimal pl-6 my-3 space-y-1">
-                                                            {children}
-                                                        </ol>
-                                                    ),
-
-                                                    li: ({ children }) => (
-                                                        <li>{children}</li>
                                                     ),
                                                     code({ children, className }: { children?: React.ReactNode; className?: string }) {
 
@@ -258,26 +236,7 @@ export function ChatPage() {
                                                                 {props.children}
                                                             </pre>
                                                         );
-                                                    },
-                                                    a: ({ href, children }) => (
-                                                        <a
-                                                            href={href}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className={`
-                                                                underline
-                                                                underline-offset-2
-                                                                transition-colors
-                                                                ${
-                                                                    isRequest
-                                                                        ? "text-blue-200 hover:text-blue-100"
-                                                                        : "text-app-brand hover:text-app-brand-hover"
-                                                                }
-                                                            `}
-                                                        >
-                                                            {children}
-                                                        </a>
-                                                    )
+                                                    }
                                                 }}>
                                                 {message.content}
                                             </ReactMarkdown>
@@ -355,6 +314,7 @@ export function ChatPage() {
                             </h3>
 
                             <button
+                                aria-label="Close citation"
                                 onClick={() => setSelectedCitation(null)}
                                 className="text-app-text-muted hover:text-app-text transition-colors"
                             >
@@ -438,6 +398,7 @@ export function ChatPage() {
                                                 <button
                                                     key={source}
                                                     type="button"
+                                                    aria-pressed={selected}
                                                     onClick={() => toggleSourceSystem(source)}
                                                     className={`
                                                         h-10
@@ -470,12 +431,11 @@ export function ChatPage() {
                         </div>
                     )}
 
-                    <form
-                        onSubmit={handleSubmit}
-                        className="max-w-4xl mx-auto flex gap-3 items-end"
-                    >
+                    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
                         <button
                             type="button"
+                            aria-label="Toggle source filters"
+                            aria-expanded={showFilters}
                             onClick={() => setShowFilters((v) => !v)}
                             className="p-2.5 rounded-xl border border-app-border bg-app-surface-muted hover:bg-app-surface transition-colors h-11 w-11 flex items-center justify-center"
                         >
@@ -484,6 +444,7 @@ export function ChatPage() {
 
                         <textarea
                             ref={textareaRef}
+                            aria-label="Message"
                             placeholder="Ask anything about the project..."
                             className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
                             value={newRequest}
@@ -504,6 +465,7 @@ export function ChatPage() {
 
                         <button
                             type="submit"
+                            aria-label="Send message"
                             disabled={isThinking || isStreaming || !newRequest.trim()}
                             className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
                         >
