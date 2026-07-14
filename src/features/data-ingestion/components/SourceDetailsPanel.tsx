@@ -1,13 +1,26 @@
 import { GitBranch, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
+import type {
+  ConfigureGithubRepositoryRequest,
+  GithubRepositoryConfig,
+} from "../../../services/sources/githubService.ts";
 import { formatDateTime, formatNumber, SOURCE_META } from "../data.ts";
 import type { DataSource, LoadingState, SourceStatus } from "../types.ts";
+import { GithubRepositorySyncSettings } from "./GithubRepositorySyncSettings.tsx";
 
 type SourceDetailsPanelProps = {
   source: DataSource;
   onUpdateSource?: (source: DataSource) => Promise<void>;
   onRefreshDetails?: () => Promise<void>;
+  canManageSyncSettings?: boolean;
+  onLoadRepositoryConfig?: (
+    repository: NonNullable<DataSource["githubRepository"]>,
+  ) => Promise<GithubRepositoryConfig>;
+  onSaveRepositoryConfig?: (
+    repository: NonNullable<DataSource["githubRepository"]>,
+    request: ConfigureGithubRepositoryRequest,
+  ) => Promise<void>;
   onClose: () => void;
 };
 
@@ -18,6 +31,9 @@ export function SourceDetailsPanel({
   source,
   onUpdateSource,
   onRefreshDetails,
+  canManageSyncSettings = false,
+  onLoadRepositoryConfig,
+  onSaveRepositoryConfig,
   onClose,
 }: SourceDetailsPanelProps) {
   const [updateState, setUpdateState] = useState<LoadingState>("idle");
@@ -32,6 +48,35 @@ export function SourceDetailsPanel({
     source.sourceSystem === "GITHUB" &&
     repository !== null &&
     onUpdateSource !== undefined;
+  const canManageRepositoryConfig =
+    canManageSyncSettings &&
+    source.sourceSystem === "GITHUB" &&
+    repository !== null &&
+    onLoadRepositoryConfig !== undefined &&
+    onSaveRepositoryConfig !== undefined;
+
+  const loadRepositoryConfig = useCallback(async () => {
+    if (!canManageRepositoryConfig || !repository || !onLoadRepositoryConfig) {
+      throw new Error("Repository sync config is not available.");
+    }
+
+    return onLoadRepositoryConfig(repository);
+  }, [canManageRepositoryConfig, onLoadRepositoryConfig, repository]);
+
+  const saveRepositoryConfig = useCallback(
+    async (request: ConfigureGithubRepositoryRequest) => {
+      if (
+        !canManageRepositoryConfig ||
+        !repository ||
+        !onSaveRepositoryConfig
+      ) {
+        throw new Error("Repository sync config is not available.");
+      }
+
+      await onSaveRepositoryConfig(repository, request);
+    },
+    [canManageRepositoryConfig, onSaveRepositoryConfig, repository],
+  );
 
   const handleUpdateSource = useCallback(async () => {
     if (!canUpdateRepository || !onUpdateSource) return;
@@ -178,6 +223,16 @@ export function SourceDetailsPanel({
           />
         </dl>
       </Section>
+
+      {canManageRepositoryConfig && repository && (
+        <Section title="Sync Schedule">
+          <GithubRepositorySyncSettings
+            loadKey={repository.fullName}
+            loadConfig={loadRepositoryConfig}
+            onSave={saveRepositoryConfig}
+          />
+        </Section>
+      )}
 
       <Section title="Ingestion">
         <dl>
