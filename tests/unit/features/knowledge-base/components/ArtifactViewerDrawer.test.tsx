@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ArtifactViewerDrawer } from '../../../../../src/features/knowledge-base/components/ArtifactViewerDrawer';
-import type { Artifact } from '../../../../../src/features/knowledge-base/types';
+import { ApiError } from '../../../../../src/services/apiClient';
+import type { Artifact, ArtifactSummaryCitation, SummaryStreamHandlers } from '../../../../../src/features/knowledge-base/types';
 
 vi.mock('../../../../../src/services/knowledgeService', () => ({
     knowledgeService: {
@@ -10,7 +11,7 @@ vi.mock('../../../../../src/services/knowledgeService', () => ({
             content: '# Test content',
             mimeType: 'text/markdown',
         }),
-        summarizeArtifact: vi.fn(),
+        streamArtifactSummary: vi.fn(),
     },
 }));
 
@@ -59,14 +60,30 @@ function renderDrawer(artifact: Artifact | null = createArtifact()) {
     );
 }
 
+/**
+ * Builds a streamArtifactSummary implementation that resolves the stream immediately
+ * by invoking the captured handlers with the given token/citations/done sequence.
+ */
+function streamingSuccess(summary: string, citations: ArtifactSummaryCitation[] = []) {
+    return (_artifactId: string, handlers: SummaryStreamHandlers) => {
+        handlers.onToken(summary);
+        for (const citation of citations) {
+            handlers.onCitation(citation);
+        }
+        handlers.onDone();
+        return Promise.resolve();
+    };
+}
+
 describe('ArtifactViewerDrawer', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.useRealTimers();
     });
 
     it('shows a spinner while fetching the summary', async () => {
         const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
-        vi.mocked(knowledgeService.summarizeArtifact).mockReturnValue(new Promise(() => {}));
+        vi.mocked(knowledgeService.streamArtifactSummary).mockReturnValue(new Promise(() => {}));
 
         renderDrawer();
         const summariseBtn = await screen.findByTestId('summarise-btn');
@@ -75,15 +92,12 @@ describe('ArtifactViewerDrawer', () => {
         expect(screen.getByText('Generating summary...')).toBeInTheDocument();
     });
 
-    it('renders the summary markdown and citations on success', async () => {
+    it('renders the streamed summary markdown and citations on success', async () => {
         const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
-        vi.mocked(knowledgeService.summarizeArtifact).mockResolvedValue({
-            artifactId: 'artifact-1',
-            summary: '## Key points\nThis is the summary.',
-            citations: [
-                { artifactId: 'artifact-1', filename: 'README.md', sourceUrl: 'https://github.com/owner/repo/blob/main/README.md' },
-            ],
-        });
+        vi.mocked(knowledgeService.streamArtifactSummary).mockImplementation(streamingSuccess(
+            '## Key points\nThis is the summary.',
+            [{ artifactId: 'artifact-1', filename: 'README.md', sourceUrl: 'https://github.com/owner/repo/blob/main/README.md' }],
+        ));
 
         renderDrawer();
         const summariseBtn = await screen.findByTestId('summarise-btn');
@@ -96,25 +110,38 @@ describe('ArtifactViewerDrawer', () => {
         expect(screen.getByRole('link', { name: 'README.md' })).toHaveAttribute('href', 'https://github.com/owner/repo/blob/main/README.md');
     });
 
-    it('shows an error when summarization fails', async () => {
+    it('shows "Preparing summary..." and retries on 503, then succeeds', async () => {
         const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
-        vi.mocked(knowledgeService.summarizeArtifact).mockRejectedValue(new Error('AI service unavailable'));
+        vi.mocked(knowledgeService.streamArtifactSummary)
+            .mockRejectedValueOnce(new ApiError(503, 'Service Unavailable'))
+            .mockImplementationOnce(streamingSuccess('## Summary after retry'));
 
         renderDrawer();
         const summariseBtn = await screen.findByTestId('summarise-btn');
         await userEvent.click(summariseBtn);
 
-        expect(await screen.findByText('Error loading content')).toBeInTheDocument();
-        expect(screen.getByText('AI service unavailable')).toBeInTheDocument();
+        expect(await screen.findByText('Preparing summary...', {}, { timeout: 5000 })).toBeInTheDocument();
+        expect(await screen.findByText('Summary after retry', {}, { timeout: 10000 })).toBeInTheDocument();
+        expect(knowledgeService.streamArtifactSummary).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows error with retry and back-to-file buttons on non-503 failure', async () => {
+        const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
+        vi.mocked(knowledgeService.streamArtifactSummary).mockRejectedValue(new Error('Network failure'));
+
+        renderDrawer();
+        const summariseBtn = await screen.findByTestId('summarise-btn');
+        await userEvent.click(summariseBtn);
+
+        expect(await screen.findByTestId('retry-summary-btn', {}, { timeout: 5000 })).toBeInTheDocument();
+        expect(await screen.findByText('Network failure', {}, { timeout: 5000 })).toBeInTheDocument();
+        const backBtns = screen.getAllByText('Back to File');
+        expect(backBtns.length).toBeGreaterThanOrEqual(1);
     });
 
     it('returns to raw view on Back to File', async () => {
         const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
-        vi.mocked(knowledgeService.summarizeArtifact).mockResolvedValue({
-            artifactId: 'artifact-1',
-            summary: 'Summary text',
-            citations: [],
-        });
+        vi.mocked(knowledgeService.streamArtifactSummary).mockImplementation(streamingSuccess('Summary text'));
 
         renderDrawer();
         const summariseBtn = await screen.findByTestId('summarise-btn');
@@ -128,12 +155,31 @@ describe('ArtifactViewerDrawer', () => {
 
     it('hides the Summarise button in summary view', async () => {
         const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
-        vi.mocked(knowledgeService.summarizeArtifact).mockReturnValue(new Promise(() => {}));
+        vi.mocked(knowledgeService.streamArtifactSummary).mockReturnValue(new Promise(() => {}));
 
         renderDrawer();
         const summariseBtn = await screen.findByTestId('summarise-btn');
         await userEvent.click(summariseBtn);
 
         expect(screen.queryByTestId('summarise-btn')).not.toBeInTheDocument();
+    });
+
+    it('aborts the in-flight stream when the drawer unmounts', async () => {
+        const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
+        let capturedSignal: AbortSignal | undefined;
+        vi.mocked(knowledgeService.streamArtifactSummary).mockImplementation(
+            (_id, _handlers, signal) => {
+                capturedSignal = signal;
+                return new Promise<void>(() => {});
+            },
+        );
+
+        const { unmount } = renderDrawer();
+        const summariseBtn = await screen.findByTestId('summarise-btn');
+        await userEvent.click(summariseBtn);
+
+        unmount();
+
+        expect(capturedSignal?.aborted).toBe(true);
     });
 });

@@ -1,11 +1,12 @@
-import { useEffect, useReducer } from 'react';
-import { Sparkles, ArrowLeft, Loader2, FileText } from 'lucide-react';
+import { useEffect, useReducer, useRef } from 'react';
+import { Sparkles, ArrowLeft, Loader2, FileText, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import type { Artifact, ArtifactContent, ArtifactSummaryCitation } from '../types';
 import { knowledgeService } from '../../../services/knowledgeService';
+import { ApiError } from '../../../services/apiClient';
 import { SidePanel } from '../../../components/ui/SidePanel';
 
 /**
@@ -28,6 +29,7 @@ interface DrawerState {
     citations: ArtifactSummaryCitation[];
     isLoading: boolean;
     isFetchingSummary: boolean;
+    isIndexing: boolean;
     error: string | null;
 }
 
@@ -37,7 +39,10 @@ type DrawerAction =
     | { type: 'loadSuccess'; content: ArtifactContent }
     | { type: 'loadError'; error: string }
     | { type: 'summarizeStart' }
-    | { type: 'summarizeSuccess'; summary: string; citations: ArtifactSummaryCitation[] }
+    | { type: 'summarizeIndexing' }
+    | { type: 'summarizeToken'; chunk: string }
+    | { type: 'summarizeCitation'; citation: ArtifactSummaryCitation }
+    | { type: 'summarizeDone' }
     | { type: 'summarizeError'; error: string }
     | { type: 'showRaw' };
 
@@ -48,6 +53,7 @@ const initialState: DrawerState = {
     citations: [],
     isLoading: false,
     isFetchingSummary: false,
+    isIndexing: false,
     error: null,
 };
 
@@ -62,11 +68,17 @@ function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
         case 'loadError':
             return { ...state, isLoading: false, error: action.error };
         case 'summarizeStart':
-            return { ...state, viewMode: 'summary', summary: '', citations: [], isFetchingSummary: true, error: null };
-        case 'summarizeSuccess':
-            return { ...state, isFetchingSummary: false, summary: action.summary, citations: action.citations };
+            return { ...state, viewMode: 'summary', summary: '', citations: [], isFetchingSummary: true, isIndexing: false, error: null };
+        case 'summarizeIndexing':
+            return { ...state, isFetchingSummary: true, isIndexing: true };
+        case 'summarizeToken':
+            return { ...state, summary: state.summary + action.chunk };
+        case 'summarizeCitation':
+            return { ...state, citations: [...state.citations, action.citation] };
+        case 'summarizeDone':
+            return { ...state, isFetchingSummary: false, isIndexing: false };
         case 'summarizeError':
-            return { ...state, isFetchingSummary: false, error: action.error };
+            return { ...state, isFetchingSummary: false, isIndexing: false, error: action.error };
         case 'showRaw':
             return { ...state, viewMode: 'raw' };
         default:
@@ -85,11 +97,13 @@ const shouldRenderAsMarkdown = (content: ArtifactContent, artifact: Artifact | n
  *
  * Slide-out panel that displays the raw content of a selected artifact.
  * Allows users to trigger an AI summarization of the content to quickly extract key information
- * without reading massive files or issues. The summary is returned as a single JSON response
- * (not streamed) and includes citation metadata rendered as a source list.
+ * without reading massive files or issues. The summary is streamed over Server-Sent Events and
+ * rendered incrementally as tokens arrive; citation metadata is rendered as a source list.
  */
 export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactViewerDrawerProps) {
     const [state, dispatch] = useReducer(drawerReducer, initialState);
+
+    const abortRef = useRef<AbortController | null>(null);
 
     /**
      * Loads the raw artifact content from the backend whenever a new artifact is selected.
@@ -111,27 +125,62 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
 
         return () => {
             isMounted = false;
+            abortRef.current?.abort();
+            abortRef.current = null;
         };
     }, [artifact, projectId]);
 
     /**
-     * Triggers the AI summarization process for the currently loaded artifact.
-     * Fetches the full summary and citations from the backend in a single JSON response.
+     * Triggers the AI summarization stream for the currently loaded artifact.
+     *
+     * The backend may return 503 when the artifact is still being indexed by the AI service
+     * (the async ingestion hasn't completed yet). In that case the handler aborts the current
+     * stream and retries with exponential backoff (2s, 4s, 8s, ... capped at 30s), showing a
+     * "Preparing summary..." spinner until the artifact is ready. Non-503 errors surface
+     * immediately with a retry button. Aborting on unmount or before a retry prevents orphan
+     * streams from dispatching into an unmounted or replaced stream.
      */
     const handleSummarize = async () => {
         if (!artifact) return;
 
         dispatch({ type: 'summarizeStart' });
 
-        try {
-            const result = await knowledgeService.summarizeArtifact(projectId, artifact.id);
-            dispatch({ type: 'summarizeSuccess', summary: result.summary, citations: result.citations });
-        } catch (err) {
-            dispatch({ type: 'summarizeError', error: err instanceof Error ? err.message : 'Failed to summarize' });
+        let attempt = 0;
+        while (true) {
+            abortRef.current?.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+
+            try {
+                await knowledgeService.streamArtifactSummary(
+                    artifact.id,
+                    {
+                        onToken: (chunk) => dispatch({ type: 'summarizeToken', chunk }),
+                        onCitation: (citation) => dispatch({ type: 'summarizeCitation', citation }),
+                        onDone: () => dispatch({ type: 'summarizeDone' }),
+                    },
+                    controller.signal,
+                );
+                return;
+            } catch (err) {
+                if (err instanceof Error && err.name === 'AbortError') {
+                    return;
+                }
+                const isStillIndexing = err instanceof ApiError && err.status === 503;
+                if (!isStillIndexing) {
+                    const message = err instanceof Error ? err.message : 'Failed to summarize';
+                    dispatch({ type: 'summarizeError', error: message });
+                    return;
+                }
+                dispatch({ type: 'summarizeIndexing' });
+                const delay = Math.min(2000 * Math.pow(2, attempt), 30000);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                attempt++;
+            }
         }
     };
 
-    const { viewMode, content, summary, citations, isLoading, isFetchingSummary, error } = state;
+    const { viewMode, content, summary, citations, isLoading, isFetchingSummary, isIndexing, error } = state;
 
     const titleContent = viewMode === 'summary' ? (
         <button
@@ -170,7 +219,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
             headerClassName="p-4 bg-app-bg"
             contentClassName="p-6"
         >
-            {error ? (
+            {error && viewMode === 'raw' ? (
                 <div className="p-4 bg-app-danger-bg text-app-danger-text rounded-lg border border-app-danger-border">
                     <p className="font-medium">Error loading content</p>
                     <p className="text-sm mt-1">{error}</p>
@@ -211,7 +260,30 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId }: ArtifactV
                     {!summary && isFetchingSummary ? (
                         <div className="flex items-center gap-3 text-app-text-muted py-8 justify-center">
                             <Loader2 className="w-5 h-5 animate-spin text-app-brand" />
-                            <span className="text-base font-medium">Generating summary...</span>
+                            <span className="text-base font-medium">
+                                {isIndexing ? 'Preparing summary...' : 'Generating summary...'}
+                            </span>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center gap-4 py-8 not-prose">
+                            <p className="text-sm text-app-text-muted text-center max-w-sm">{error}</p>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => void handleSummarize()}
+                                    data-testid="retry-summary-btn"
+                                    className="flex items-center gap-2 px-4 py-2 bg-app-brand text-white rounded-md text-sm font-medium hover:bg-app-brand/90 transition-colors"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                    Retry
+                                </button>
+                                <button
+                                    onClick={() => dispatch({ type: 'showRaw' })}
+                                    className="flex items-center gap-2 px-4 py-2 text-app-text-muted rounded-md text-sm font-medium hover:bg-app-surface-muted transition-colors border border-app-border"
+                                >
+                                    <ArrowLeft className="w-4 h-4" />
+                                    Back to File
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <>

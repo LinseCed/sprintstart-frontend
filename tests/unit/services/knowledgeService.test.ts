@@ -63,60 +63,109 @@ describe('knowledgeService', () => {
         });
     });
 
-    describe('summarizeArtifact', () => {
-        const projectId = 'proj-uuid';
+    describe('streamArtifactSummary', () => {
         const artifactId = 'artifact-uuid';
 
-        it('returns the summary and citations on 200', async () => {
+        function makeStream(chunks: string[]): ReadableStream<Uint8Array> {
+            const encoder = new TextEncoder();
+            return new ReadableStream({
+                start(controller) {
+                    for (const chunk of chunks) {
+                        controller.enqueue(encoder.encode(chunk));
+                    }
+                    controller.close();
+                },
+            });
+        }
+
+        it('invokes onToken/onCitation/onDone for token, citation, and done events', async () => {
             server.use(
-                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
-                    HttpResponse.json({
-                        artifactId,
-                        summary: '## Key points\nThis is the summary.',
-                        citations: [
-                            { artifactId, filename: 'README.md', sourceUrl: 'https://github.com/owner/repo/blob/main/README.md' },
-                        ],
-                    }),
+                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                    new HttpResponse(
+                        makeStream([
+                            'data: {"type":"token","content":"## Key"}\n\n',
+                            'data: {"type":"token","content":" points"}\n\n',
+                            `data: {"type":"citation","artifactId":"${artifactId}","filename":"README.md","sourceUrl":"https://github.com/owner/repo/blob/main/README.md"}\n\n`,
+                            'data: {"type":"done"}\n\n',
+                        ]),
+                        { headers: { 'Content-Type': 'text/event-stream' } },
+                    ),
                 ),
             );
 
-            const result = await knowledgeService.summarizeArtifact(projectId, artifactId);
+            const onToken = vi.fn();
+            const onCitation = vi.fn();
+            const onDone = vi.fn();
+            const onError = vi.fn();
 
-            expect(result.artifactId).toBe(artifactId);
-            expect(result.summary).toBe('## Key points\nThis is the summary.');
-            expect(result.citations).toHaveLength(1);
-            expect(result.citations[0].filename).toBe('README.md');
-            expect(result.citations[0].sourceUrl).toBe('https://github.com/owner/repo/blob/main/README.md');
+            await knowledgeService.streamArtifactSummary(artifactId, { onToken, onCitation, onDone, onError });
+
+            expect(onToken).toHaveBeenCalledTimes(2);
+            expect(onToken).toHaveBeenNthCalledWith(1, '## Key');
+            expect(onToken).toHaveBeenNthCalledWith(2, ' points');
+            expect(onCitation).toHaveBeenCalledWith({
+                artifactId,
+                filename: 'README.md',
+                sourceUrl: 'https://github.com/owner/repo/blob/main/README.md',
+            });
+            expect(onDone).toHaveBeenCalledTimes(1);
+            expect(onError).not.toHaveBeenCalled();
         });
 
-        it('throws ApiError on 403', async () => {
+        it('rejects with ApiError on 503 so callers can retry on indexing', async () => {
             server.use(
-                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
-                    HttpResponse.json({ detail: 'Forbidden' }, { status: 403 }),
-                ),
-            );
-
-            await expect(knowledgeService.summarizeArtifact(projectId, artifactId)).rejects.toThrow();
-        });
-
-        it('throws ApiError on 404', async () => {
-            server.use(
-                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
-                    HttpResponse.json({ detail: 'Not found' }, { status: 404 }),
-                ),
-            );
-
-            await expect(knowledgeService.summarizeArtifact(projectId, artifactId)).rejects.toThrow();
-        });
-
-        it('throws ApiError on 503', async () => {
-            server.use(
-                http.post(`/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`, () =>
+                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
                     HttpResponse.json({ detail: 'AI service unavailable' }, { status: 503 }),
                 ),
             );
 
-            await expect(knowledgeService.summarizeArtifact(projectId, artifactId)).rejects.toThrow();
+            await expect(
+                knowledgeService.streamArtifactSummary(artifactId, {
+                    onToken: vi.fn(),
+                    onCitation: vi.fn(),
+                    onDone: vi.fn(),
+                }),
+            ).rejects.toMatchObject({ name: 'ApiError', status: 503 });
+        });
+
+        it('rejects with ApiError on 404', async () => {
+            server.use(
+                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                    HttpResponse.json({ detail: 'Not found' }, { status: 404 }),
+                ),
+            );
+
+            await expect(
+                knowledgeService.streamArtifactSummary(artifactId, {
+                    onToken: vi.fn(),
+                    onCitation: vi.fn(),
+                    onDone: vi.fn(),
+                }),
+            ).rejects.toMatchObject({ name: 'ApiError', status: 404 });
+        });
+
+        it('calls onError and rejects with a plain Error on in-stream error event', async () => {
+            server.use(
+                http.get(`/api/v1/artifacts/${artifactId}/summary`, () =>
+                    new HttpResponse(
+                        makeStream(['data: {"type":"error","message":"Model overload"}\n\n']),
+                        { headers: { 'Content-Type': 'text/event-stream' } },
+                    ),
+                ),
+            );
+
+            const onError = vi.fn();
+
+            await expect(
+                knowledgeService.streamArtifactSummary(artifactId, {
+                    onToken: vi.fn(),
+                    onCitation: vi.fn(),
+                    onDone: vi.fn(),
+                    onError,
+                }),
+            ).rejects.toThrow('Model overload');
+
+            expect(onError).toHaveBeenCalledWith('Model overload');
         });
     });
 });

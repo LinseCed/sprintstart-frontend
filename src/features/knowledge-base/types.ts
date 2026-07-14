@@ -51,13 +51,16 @@ export interface ArtifactSummaryCitation {
 }
 
 /**
- * AI-generated summary for one artifact, returned as a single JSON response.
- *
- * @remarks The backend caches summaries by content hash, so repeat requests for unchanged
- * content return instantly. The `summary` is GFM Markdown (with math) rendered client-side.
+ * Callbacks invoked by {@link streamArtifactSummary} as the backend streams
+ * summary events over Server-Sent Events.
  */
-export interface ArtifactSummaryResponse {
-    artifactId: string;
-    summary: string;
-    citations: ArtifactSummaryCitation[];
+export interface SummaryStreamHandlers {
+    /** Called for each incremental token chunk of the generated summary. */
+    onToken: (chunk: string) => void;
+    /** Called when the backend emits a citation (source reference). */
+    onCitation: (citation: ArtifactSummaryCitation) => void;
+    /** Called once the stream has completed successfully. */
+    onDone: () => void;
+    /** Called when an in-stream error event is received (non-HTTP failure). */
+    onError?: (error: string) => void;
 }

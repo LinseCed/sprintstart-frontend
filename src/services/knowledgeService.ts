@@ -1,7 +1,19 @@
 import { apiClient, ApiError } from './apiClient';
 import { userService } from './userService';
 import keycloak from '../config/keycloak';
-import type { Artifact, ArtifactContent, ArtifactSummaryResponse } from '../features/knowledge-base/types';
+import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../features/knowledge-base/types';
+
+/**
+ * SSE event shape emitted by the artifact summary streaming endpoint.
+ */
+interface SummaryStreamEvent {
+    type: 'token' | 'citation' | 'done' | 'error';
+    content?: string;
+    message?: string;
+    artifactId?: string;
+    filename?: string;
+    sourceUrl?: string | null;
+}
 
 /**
  * Service responsible for managing the knowledge base unified artifacts.
@@ -139,23 +151,119 @@ export const knowledgeService = {
     },
 
     /**
-     * Requests an AI-generated summary for a specific artifact.
+     * Streams an AI-generated summary for a specific artifact over Server-Sent Events.
      *
-     * Uses `apiClient.fetch` because the backend returns a JSON envelope (not raw bytes or
-     * an SSE stream). The backend caches the summary by content hash, so repeat calls for
-     * unchanged content return instantly.
+     * Bypasses `apiClient.fetch` (which JSON-parses the whole body) because the backend
+     * returns a `text/event-stream` of incremental `token`, `citation`, `done`, and
+     * `error` events. The summary is rendered incrementally as tokens arrive, improving
+     * perceived performance versus the previous blocking JSON response.
      *
-     * @param projectId UUID of the project that scopes the artifact.
      * @param artifactId UUID of the artifact to summarize.
-     * @returns The summary text (GFM Markdown) and its citations.
-     * @throws {ApiError} On a non-2xx backend response (e.g. 403 no access, 404 not found,
-     * 503 AI service unavailable).
+     * @param handlers   Callbacks invoked for each streamed event.
+     * @param signal     Optional AbortSignal to cancel the in-flight stream.
+     * @returns Resolves once the `done` event is received; rejects with {@link ApiError}
+     * on a non-2xx HTTP response (e.g. 403, 404, 503 indexing) so callers can retry
+     * based on `status`, or rejects with a plain `Error` on an in-stream `error` event
+     * (non-retryable).
+     *
+     * @remarks Known backend gap: the endpoint no longer takes `projectId`, which
+     * introduces an IDOR risk on the backend (any authenticated user can request the
+     * summary of any artifact by id). This must be addressed server-side before
+     * production deployment.
      */
-    async summarizeArtifact(projectId: string, artifactId: string): Promise<ArtifactSummaryResponse> {
-        return apiClient.fetch<ArtifactSummaryResponse>(
-            `/api/v1/projects/${projectId}/artifacts/${artifactId}/summary`,
-            { method: 'POST' },
-        );
+    async streamArtifactSummary(artifactId: string, handlers: SummaryStreamHandlers, signal?: AbortSignal): Promise<void> {
+        try {
+            if (keycloak.authenticated) {
+                await keycloak.updateToken(30);
+            }
+        } catch (error) {
+            console.error('Failed to refresh Keycloak token for artifact summary stream', error);
+            void keycloak.login();
+            throw new Error('Authentication required');
+        }
+
+        const endpoint = `/api/v1/artifacts/${artifactId}/summary`;
+
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: keycloak.token ? { 'Authorization': `Bearer ${keycloak.token}` } : {},
+            signal,
+        });
+
+        if (response.status === 401) {
+            void keycloak.login();
+            throw new ApiError(401, 'Unauthorized');
+        }
+
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'Unknown error');
+            throw new ApiError(response.status, errorBody || response.statusText);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+            throw new Error('No response stream');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                const lines = buffer.split('\n');
+                buffer = lines.pop() ?? '';
+
+                for (const line of lines) {
+                    if (!line.startsWith('data:')) continue;
+
+                    const payload = line.replace('data:', '').trim();
+                    if (!payload) continue;
+
+                    const event = JSON.parse(payload) as SummaryStreamEvent;
+
+                    switch (event.type) {
+                        case 'token':
+                            if (event.content !== undefined) {
+                                handlers.onToken(event.content);
+                            }
+                            break;
+
+                        case 'citation':
+                            if (event.artifactId && event.filename) {
+                                handlers.onCitation({
+                                    artifactId: event.artifactId,
+                                    filename: event.filename,
+                                    sourceUrl: event.sourceUrl ?? null,
+                                });
+                            }
+                            break;
+
+                        case 'done':
+                            handlers.onDone();
+                            return;
+
+                        case 'error': {
+                            const message = event.message ?? 'Unknown error';
+                            handlers.onError?.(message);
+                            throw new Error(message);
+                        }
+                    }
+                }
+            }
+            // Fallback: ensure onDone is called when the stream ends without an explicit done event.
+            handlers.onDone();
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw error;
+            }
+            if (error instanceof Error) throw error;
+            throw new Error(String(error));
+        }
     },
 
     /**
