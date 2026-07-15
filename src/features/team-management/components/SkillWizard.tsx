@@ -1,5 +1,6 @@
-import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Modal } from '../../../components/ui/Modal';
+import { isSkillLinkedToRole } from '../types';
 import type { Skill, SkillLevel, TeamOverviewUser } from '../types';
 
 export type CreateSkillAssessmentRequest = {
@@ -38,7 +39,11 @@ export function SkillWizard({
     const requiredSkills = useMemo(() => {
         const roleIds = user.roles.map((role) => role.id);
 
-        return skills.filter((skill) => roleIds.includes(skill.roleId));
+        return skills.filter(
+            (skill) =>
+                skill.status === 'ACTIVE' &&
+                roleIds.some((roleId) => isSkillLinkedToRole(skill, roleId)),
+        );
     }, [skills, user.roles]);
 
     const allSkillsRated =
@@ -66,37 +71,42 @@ export function SkillWizard({
         onClose();
     }
 
-    if (!open) {
-        return null;
-    }
-
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-app-overlay p-4 backdrop-blur-md">
-            <div className="relative w-full max-w-2xl overflow-hidden rounded-[28px] border border-app-border bg-app-bg p-7 shadow-2xl">
-                <div className="pointer-events-none absolute -right-16 -top-16 h-[200px] w-[200px] rounded-full bg-app-brand-glow blur-3xl" />
-
-                <div className="relative z-10 flex items-start justify-between gap-4">
-                    <div>
-                        <h2 className="text-[22px] font-bold leading-tight text-app-text">
-                            Skill Self Assessment
-                        </h2>
-
-                        <p className="mt-1 text-xs text-app-text-muted">
-                            Please rate your current level for the skills
-                            required by your assigned roles.
-                        </p>
-                    </div>
-
+        <Modal
+            isOpen={open}
+            title="Skill Self Assessment"
+            description="Please rate your current level for the skills required by your assigned roles."
+            size="lg"
+            zIndexClassName="z-[70]"
+            isDismissDisabled={saving}
+            onClose={onClose}
+            footer={
+                <>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg border border-app-border p-2 text-app-text-muted hover:bg-app-surface-hover"
+                        disabled={saving}
+                        className="rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-xs font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     >
-                        <X className="h-4 w-4" />
+                        Later
                     </button>
-                </div>
 
-                <div className="relative z-10 mt-6 max-h-[60vh] space-y-2.5 overflow-y-auto pr-1">
+                    <button
+                        type="button"
+                        onClick={() => void handleSubmit()}
+                        disabled={!allSkillsRated || saving}
+                        className={`rounded-xl px-5 py-2.5 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus ${
+                            allSkillsRated && !saving
+                                ? 'bg-app-brand text-app-text-inverse shadow-lg hover:bg-app-brand-hover'
+                                : 'cursor-not-allowed bg-app-surface-muted text-app-text-disabled'
+                        }`}
+                    >
+                        {requiredSkills.length === 0 ? 'Continue' : 'Save Assessment'}
+                    </button>
+                </>
+            }
+        >
+                <div className="max-h-[60vh] space-y-2.5 overflow-y-auto pr-1">
                     {requiredSkills.length > 0 ? (
                         requiredSkills.map((skill) => {
                             const isRated = !!selectedLevels[skill.id];
@@ -149,29 +159,6 @@ export function SkillWizard({
                     )}
                 </div>
 
-                <div className="relative z-10 mt-6 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-xl border border-app-border px-4 py-2.5 text-xs font-medium text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                    >
-                        Later
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => void handleSubmit()}
-                        disabled={!allSkillsRated || saving}
-                        className={`rounded-xl px-5 py-2.5 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus ${
-                            allSkillsRated && !saving
-                                ? 'bg-app-brand text-white shadow-lg hover:bg-app-brand-hover'
-                                : 'cursor-not-allowed bg-app-surface-muted text-app-text-disabled'
-                        }`}
-                    >
-                        {requiredSkills.length === 0 ? 'Continue' : 'Save Assessment'}
-                    </button>
-                </div>
-            </div>
-        </div>
+        </Modal>
     );
 }

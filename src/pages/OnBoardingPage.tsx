@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { onboardingService } from "../services/onboardingService";
 import { userService } from "../services/userService";
 import { ApiError } from "../services/apiClient";
+import { StepOriginBadge } from "../features/onboarding/components/StepOriginBadge";
 
 import {
   CheckCircle2,
@@ -26,7 +27,11 @@ import {
   Lock,
   Eye,
   RefreshCw,
+  ClipboardCheck,
 } from "lucide-react";
+import { PageHeader } from "../components/layout/PageHeader";
+import { PhaseCheckModal } from "../features/onboarding/components/PhaseCheckModal";
+import { OnboardingCompleteCelebration } from "../features/onboarding/components/OnboardingCompleteCelebration";
 //import type {UserProfile} from "../services/types.ts";
 
 type LoadingState = "idle" | "loading" | "generating" | "success" | "error";
@@ -57,6 +62,20 @@ function ProgressBar({ value, max }: ProgressBarProps) {
   );
 }
 
+/**
+ * Index of the phase the user is currently working on: the first phase that still
+ * has a not-yet-finished/skipped step. Falls back to the last phase when everything
+ * is done, so a reload never drops the user back to phase 1.
+ */
+function findActivePhaseIndex(path: OnboardingPathEndpoint): number {
+  const index = path.phases.findIndex((phase) =>
+    phase.steps.some(
+      (step) => step.status !== "FINISHED" && step.status !== "SKIPPED",
+    ),
+  );
+  return index === -1 ? Math.max(0, path.phases.length - 1) : index;
+}
+
 // ─────────────────────────────────────────────────────────────
 // MAIN COMPONENT: OnBoardingPage
 // ─────────────────────────────────────────────────────────────
@@ -82,7 +101,39 @@ export function OnBoardingPage() {
   // Current AI generation stage, shown while loadingState === "generating"
   const [generationStage, setGenerationStage] = useState<{ name: string; detail?: string } | null>(null);
 
+  // Phase whose knowledge check is currently open in the modal (null = closed)
+  const [checkPhase, setCheckPhase] = useState<OnboardingPhaseEndpoint | null>(null);
+
+  // Shows the "on board" confetti celebration after passing the final phase's check.
+  const [celebrate, setCelebrate] = useState(false);
+
   const navigate = useNavigate();
+
+  // Silently re-fetches the path, e.g. after a check attempt changed lock states.
+  const refreshPath = async () => {
+    try {
+      const path = await onboardingService.fetchPath();
+      setOnBoardingPath(path);
+    } catch (err) {
+      console.error("Failed to refresh onboarding path:", err);
+    }
+  };
+
+  const closeCheckModal = ({
+    submittedAttempt,
+    passed,
+  }: {
+    submittedAttempt: boolean;
+    passed: boolean;
+  }) => {
+    // Passing the last phase's check completes the whole journey -> celebrate.
+    const wasFinalPhase =
+      !!checkPhase &&
+      OnBoardingPathEndpoint?.phases.at(-1)?.id === checkPhase.id;
+    setCheckPhase(null);
+    if (passed && wasFinalPhase) setCelebrate(true);
+    if (submittedAttempt) void refreshPath();
+  };
 
   // Triggers AI path generation and streams progress until a path is produced.
   const generatePath = async () => {
@@ -110,6 +161,8 @@ export function OnBoardingPage() {
 
         const path = await onboardingService.fetchPath();
         setOnBoardingPath(path);
+        // Land on the phase the user is actually working on, not always phase 1.
+        setSelectedPhaseIndex(findActivePhaseIndex(path));
         setLoadingState("success");
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
@@ -159,21 +212,35 @@ export function OnBoardingPage() {
       ? Math.round((totalProgress.completed / totalProgress.total) * 100)
       : 0;
 
-  // Recommended next step (first not-yet-finished/skipped step across all phases).
-  // This is the only step the user is allowed to start; everything after it is locked.
+  // Recommended next step (first not-yet-finished/skipped step across all
+  // unlocked phases). Steps in locked phases can never be recommended.
   const recommendedStep =
     OnBoardingPathEndpoint?.phases
+      .filter((phase) => !phase.locked)
       .flatMap((phase) => phase.steps)
       .find((step) => step.status !== "FINISHED" && step.status !== "SKIPPED") ?? null;
+
+  // First unlocked phase whose required knowledge check is still open while all
+  // of its steps are already done — the check is what blocks the next phase.
+  const pendingCheckPhase =
+    OnBoardingPathEndpoint?.phases.find(
+      (phase) =>
+        !phase.locked &&
+        phase.checkSummary?.required &&
+        !phase.checkSummary.passed &&
+        phase.steps.every(
+          (step) => step.status === "FINISHED" || step.status === "SKIPPED",
+        ),
+    ) ?? null;
 
   // How a single step in the list should behave:
   //  - "completed": FINISHED or SKIPPED  -> read-only, can be reopened to look at it
   //  - "active":    the recommended next step -> can be started / continued
-  //  - "locked":    a later, not-yet-reachable step -> status only, no action
+  //  - "locked":    a later, not-yet-reachable step (or any step in a locked phase)
   type StepMode = "completed" | "active" | "locked";
-  const getStepMode = (step: OnboardingStepEndpoint): StepMode => {
+  const getStepMode = (step: OnboardingStepEndpoint, phaseLocked: boolean): StepMode => {
     if (step.status === "FINISHED" || step.status === "SKIPPED") return "completed";
-    if (recommendedStep && step.id === recommendedStep.id) return "active";
+    if (!phaseLocked && recommendedStep && step.id === recommendedStep.id) return "active";
     return "locked";
   };
 
@@ -264,39 +331,47 @@ export function OnBoardingPage() {
     );
   }
 
+  // The knowledge check acts as the phase's final step: it only becomes
+  // actionable once every real step is finished/skipped, and passing it unlocks
+  // the next phase (or completes onboarding for the last phase).
+  const allStepsDone = currentPhase.steps.every(
+    (step) => step.status === "FINISHED" || step.status === "SKIPPED",
+  );
+  const isFinalPhase =
+    OnBoardingPathEndpoint.phases.at(-1)?.id === currentPhase.id;
+
   // ── RENDER: SUCCESS STATE ──────────────────────────────────
   return (
     <div className="min-h-screen bg-app-bg">
       {/* ── HEADER ───────────────────────────────────────── */}
       <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          {/* Title + overall percent */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-app-brand" />
-                <h1 className="text-2xl font-bold text-app-text">
-                  Your onboarding journey
-                </h1>
+        <div className="app-page-content py-4">
+          <PageHeader
+            icon={Sparkles}
+            title="Your onboarding journey"
+            subtitle="Follow your personalized path, continue the next task and review completed steps."
+            className="mb-4"
+            actions={
+              <>
                 <button
                   onClick={() => void generatePath()}
                   title="Regenerate path with AI"
-                  className="ml-1 p-1.5 rounded-lg text-app-text-muted hover:text-app-brand hover:bg-app-brand-soft transition-all"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-text-muted transition-all hover:bg-app-brand-soft hover:text-app-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
-              </div>
-            </div>
 
-            <div className="text-right">
-              <div className="text-4xl font-bold text-app-brand">
-                {totalPercentage}%
-              </div>
-              <div className="text-xs text-app-text-muted">
-                overall
-              </div>
-            </div>
-          </div>
+                <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft px-4 py-2 text-right">
+                  <div className="text-3xl font-bold text-app-brand">
+                    {totalPercentage}%
+                  </div>
+                  <div className="text-xs font-medium text-app-brand-text">
+                    overall
+                  </div>
+                </div>
+              </>
+            }
+          />
 
           {/* Total progress bar */}
           <ProgressBar
@@ -320,8 +395,20 @@ export function OnBoardingPage() {
                       : "border-app-border hover:border-app-border-strong bg-app-surface"
                   }`}
                 >
-                  <div className="font-semibold text-app-text text-sm mb-1">
-                    {phase.title}
+                  <div className="font-semibold text-app-text text-sm mb-1 flex items-center gap-1.5">
+                    {phase.locked && (
+                      <Lock className="w-3.5 h-3.5 shrink-0 text-app-text-disabled" />
+                    )}
+                    <span className="truncate">{phase.title}</span>
+                    {phase.checkSummary?.required && (
+                      <ClipboardCheck
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          phase.checkSummary.passed
+                            ? "text-app-success-solid"
+                            : "text-app-text-disabled"
+                        }`}
+                      />
+                    )}
                   </div>
                   <ProgressBar
                     value={progress.completed}
@@ -349,7 +436,7 @@ export function OnBoardingPage() {
       </div>
 
       {/* ── MAIN CONTENT ─────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
+      <main className="app-page-content py-6 pb-24 pt-8">
         {/* "Up Next" Banner — nur wenn es einen empfohlenen Step gibt */}
         {recommendedStep && (
           <div className="rounded-3xl border border-app-brand-border bg-app-surface p-6 sm:p-8 mb-6 overflow-hidden relative">
@@ -362,6 +449,9 @@ export function OnBoardingPage() {
               <h2 className="text-2xl sm:text-3xl font-bold text-app-text">
                 {recommendedStep.title}
               </h2>
+              <div className="mt-3">
+                <StepOriginBadge step={recommendedStep} />
+              </div>
               <p className="text-app-text-muted mt-2 max-w-2xl">
                 {recommendedStep.description}
               </p>
@@ -371,6 +461,36 @@ export function OnBoardingPage() {
                   className="px-6 py-3 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all flex items-center gap-2"
                 >
                   {recommendedStep.status === "IN_PROGRESS" ? "Continue" : "Start now"}
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* "Knowledge check pending" banner — all steps of the phase are done,
+            only the check still blocks the next phase */}
+        {!recommendedStep && pendingCheckPhase && (
+          <div className="rounded-3xl border border-app-brand-border bg-app-surface p-6 sm:p-8 mb-6 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-app-brand-soft blur-3xl rounded-full pointer-events-none" />
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-app-brand-soft text-app-brand-text text-xs font-medium mb-4">
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                Knowledge check
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-app-text">
+                Ready for the {pendingCheckPhase.title} check?
+              </h2>
+              <p className="text-app-text-muted mt-2 max-w-2xl">
+                You finished all steps of this phase. Pass the knowledge check to
+                unlock the next phase.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 mt-6">
+                <button
+                  onClick={() => setCheckPhase(pendingCheckPhase)}
+                  className="px-6 py-3 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all flex items-center gap-2"
+                >
+                  Start knowledge check
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -388,10 +508,22 @@ export function OnBoardingPage() {
           </p>
         </div>
 
-        {/* Task list */}
+        {/* Locked phase notice */}
+        {currentPhase.locked && (
+          <div className="mb-4 rounded-2xl border border-app-border bg-app-surface-muted p-4 flex items-center gap-3">
+            <Lock className="w-5 h-5 shrink-0 text-app-text-muted" />
+            <p className="text-sm text-app-text-muted">
+              {currentPhase.unlockReason === "PREVIOUS_PHASE_CHECK_NOT_PASSED"
+                ? "This phase unlocks once you pass the knowledge check of the previous phase."
+                : "This phase unlocks once you complete all steps of the previous phase."}
+            </p>
+          </div>
+        )}
+
+        {/* Task list — the phase's knowledge check is appended as the final "step" below */}
         <div className="space-y-4">
           {currentPhase.steps.map((step) => {
-            const mode = getStepMode(step);
+            const mode = getStepMode(step, currentPhase.locked);
             return (
               <div
                 key={step.id}
@@ -433,6 +565,9 @@ export function OnBoardingPage() {
                           >
                             {step.title}
                           </h3>
+                          <div className="mt-2">
+                            <StepOriginBadge step={step} />
+                          </div>
                           <p className="text-sm text-app-text-muted mt-1 leading-relaxed">
                             {step.description}
                           </p>
@@ -483,8 +618,108 @@ export function OnBoardingPage() {
               </div>
             );
           })}
+
+          {/* Knowledge check — rendered as the phase's final step */}
+          {currentPhase.checkSummary?.required &&
+            (() => {
+              const passed = currentPhase.checkSummary.passed;
+              // Locked = phase not reached yet, or earlier steps still open.
+              const locked = currentPhase.locked || !allStepsDone;
+              return (
+                <div
+                  className={`group rounded-2xl border transition-all bg-app-surface ${
+                    passed
+                      ? "border-app-border opacity-60"
+                      : locked
+                        ? "border-app-border opacity-75"
+                        : "border-app-brand-border hover:border-app-border-strong hover:shadow-lg"
+                  }`}
+                >
+                  <div className="p-5">
+                    <div className="flex gap-4">
+                      <div className="pt-0.5 shrink-0">
+                        <ClipboardCheck
+                          className={`w-5 h-5 ${
+                            passed
+                              ? "text-app-success-solid"
+                              : locked
+                                ? "text-app-text-disabled"
+                                : "text-app-brand"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div>
+                            <h3
+                              className={`font-semibold text-base ${
+                                passed
+                                  ? "line-through text-app-text-subtle"
+                                  : "text-app-text"
+                              }`}
+                            >
+                              Knowledge check
+                            </h3>
+                            <p className="text-sm text-app-text-muted mt-1 leading-relaxed">
+                              {currentPhase.checkSummary.questionCount}{" "}
+                              {currentPhase.checkSummary.questionCount === 1
+                                ? "question"
+                                : "questions"}{" "}
+                              ·{" "}
+                              {isFinalPhase
+                                ? "pass to complete your onboarding"
+                                : "pass to unlock the next phase"}
+                            </p>
+                          </div>
+
+                          {/* Same action pattern as steps: passed -> status chip,
+                              locked -> lock chip, otherwise start/retry the check. */}
+                          <div className="shrink-0 self-start sm:self-center">
+                            {passed ? (
+                              <span className="text-xs px-3 py-1 rounded-full font-medium bg-app-success-bg text-app-success-text">
+                                Passed
+                              </span>
+                            ) : locked ? (
+                              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium bg-app-surface-muted text-app-text-muted">
+                                <Lock className="w-3.5 h-3.5" />
+                                Locked
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setCheckPhase(currentPhase)}
+                                className="px-6 py-3 rounded-xl bg-app-brand hover:bg-app-brand-hover text-white text-sm font-medium transition-all flex items-center gap-2"
+                              >
+                                {currentPhase.checkSummary.latestAttemptId
+                                  ? "Try again"
+                                  : "Start check"}
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
         </div>
       </main>
+
+      {/* Knowledge check modal */}
+      {checkPhase && (
+        <PhaseCheckModal
+          phaseId={checkPhase.id}
+          phaseTitle={checkPhase.title}
+          onClose={closeCheckModal}
+        />
+      )}
+
+      {/* Confetti + "on board" celebration after passing the final phase's check */}
+      {celebrate && (
+        <OnboardingCompleteCelebration onDismiss={() => setCelebrate(false)} />
+      )}
     </div>
   );
 }

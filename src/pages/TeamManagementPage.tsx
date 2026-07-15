@@ -10,6 +10,7 @@ import type {
     ProjectRole,
 } from '../features/team-management/types';
 import { getTeamOverview, getProjectRoles } from '../services/teamManagementService';
+import { PageHeader } from '../components/layout/PageHeader';
 
 export function TeamManagementPage() {
     const navigate = useNavigate();
@@ -84,7 +85,7 @@ export function TeamManagementPage() {
 
     return (
         <div className="min-h-screen bg-app-bg">
-            <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
+            <header className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <button
                         onClick={() => void navigate('/pm-dashboard')}
@@ -94,31 +95,23 @@ export function TeamManagementPage() {
                         Back to PM-Dashboard
                     </button>
 
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <Users className="w-5 h-5 text-app-brand" />
-                                <h1 className="text-2xl font-bold text-app-text">
-                                    Team Management
-                                </h1>
+                    <PageHeader
+                        icon={Users}
+                        title="Team Management"
+                        subtitle="Monitor onboarding progress across team members and manage project roles."
+                        actions={
+                            <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft px-4 py-2 text-right">
+                                <div className="text-3xl font-bold text-app-brand">
+                                    {filteredUsers.length}
+                                </div>
+                                <div className="text-xs font-medium text-app-brand-text">
+                                    members
+                                </div>
                             </div>
-
-                            <p className="text-sm text-app-text-muted">
-                                Monitor onboarding progress across team members.
-                            </p>
-                        </div>
-
-                        <div className="hidden sm:block text-right">
-                            <div className="text-4xl font-bold text-app-brand">
-                                {filteredUsers.length}
-                            </div>
-                            <div className="text-xs text-app-text-muted">
-                                members
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
                 </div>
-            </div>
+            </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

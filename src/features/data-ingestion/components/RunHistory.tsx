@@ -2,6 +2,8 @@ import {
     formatDateTime,
     formatNumber,
     formatRunFinishedAt,
+    getAiSyncStatusLabel,
+    getAiSyncStatusTone,
     getRunStatusLabel,
     getRunStatusTone,
     getSourceLabel,
@@ -12,6 +14,10 @@ type RunHistoryProps = {
     runs: IngestionRun[];
 };
 
+/**
+ * Displays a historical log of all recent ingestion runs.
+ * Useful for tracking when syncs occurred and their overall success or failure status.
+ */
 export function RunHistory({ runs }: RunHistoryProps) {
     if (runs.length === 0) {
         return (
@@ -53,8 +59,12 @@ export function RunHistory({ runs }: RunHistoryProps) {
                             </p>
                         </div>
 
-                        <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
                             <RunStatusBadge status={run.status} />
+                            <AiSyncStatusBadge
+                                status={run.aiSyncStatus}
+                                failureReason={run.aiSyncFailureReason}
+                            />
                         </div>
 
                         <div>
@@ -134,6 +144,52 @@ function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
 
     return (
         <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
+            {label}
+        </span>
+    );
+}
+
+function AiSyncStatusBadge({
+    status,
+    failureReason,
+}: {
+    status: IngestionRun["aiSyncStatus"];
+    failureReason: IngestionRun["aiSyncFailureReason"];
+}) {
+    const label = getAiSyncStatusLabel(status);
+    if (!label) return null;
+
+    const tone = getAiSyncStatusTone(status);
+    const title =
+        status === "FAILED" && failureReason ? failureReason : undefined;
+
+    if (tone === "success") {
+        return (
+            <span
+                title={title}
+                className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text"
+            >
+                {label}
+            </span>
+        );
+    }
+
+    if (tone === "running") {
+        return (
+            <span
+                title={title}
+                className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text"
+            >
+                {label}
+            </span>
+        );
+    }
+
+    return (
+        <span
+            title={title}
+            className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text"
+        >
             {label}
         </span>
     );

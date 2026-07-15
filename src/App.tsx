@@ -14,7 +14,7 @@ function AppContent() {
         <div className="flex min-h-screen w-full bg-app-bg text-app-text">
             {showSidebar && <SideBar />}
 
-            <main className="min-h-screen flex-1 bg-app-bg pt-[64px] lg:pt-0">
+            <main className="min-h-screen min-w-0 flex-1 bg-app-bg pt-[64px] lg:pt-0">
                 <AppRouter />
             </main>
         </div>

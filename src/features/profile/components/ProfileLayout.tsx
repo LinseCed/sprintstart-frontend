@@ -4,7 +4,8 @@ import { userService } from '../../../services/userService';
 import type { UserProfile } from '../../../services/types';
 import { AccountForm } from './AccountForm';
 import { PasswordForm } from './PasswordForm';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserCircle } from 'lucide-react';
+import { PageHeader } from '../../../components/layout/PageHeader';
 
 /**
  * Wrapper layout for the profile settings view.
@@ -17,23 +18,31 @@ export function ProfileLayout() {
 
     useEffect(() => {
         let mounted = true;
-        userService.getProfile()
-            .then(data => {
+        userService
+            .getProfile()
+            .then((data) => {
                 if (mounted && data) {
                     setProfile(data);
                 }
                 if (mounted) setIsLoading(false);
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error('Failed to load profile', err);
                 if (mounted) setIsLoading(false);
             });
-        return () => { mounted = false; };
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
         try {
-            const updatedProfile = await userService.updateProfile(updates);
+            // Workaround: Backend requires projectsId on PATCH requests
+            const payload = {
+                ...updates,
+                projectIds: profile?.projectIds || []
+            };
+            const updatedProfile = await userService.updateProfile(payload);
             setProfile(updatedProfile);
             await refetchProfile();
         } catch (error) {
@@ -59,16 +68,28 @@ export function ProfileLayout() {
     }
 
     return (
-        <div className="mx-auto max-w-4xl space-y-8 p-6 md:p-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-app-text">User Profile</h1>
-                <p className="text-app-text-muted">
-                    Manage your account settings and password.
-                </p>
-            </div>
+        <>
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-content py-6">
+                    <div className="max-w-4xl">
+                        <PageHeader
+                            icon={UserCircle}
+                            title="User Profile"
+                            subtitle="Manage your account details, profile appearance and password."
+                        />
+                    </div>
+                </div>
+            </header>
 
-            <AccountForm profile={profile} onUpdate={handleUpdateProfile} />
-            <PasswordForm />
-        </div>
+            <main className="app-page-content py-6 md:py-8">
+                <div className="max-w-4xl space-y-8">
+                    <AccountForm
+                        profile={profile}
+                        onUpdate={handleUpdateProfile}
+                    />
+                    <PasswordForm />
+                </div>
+            </main>
+        </>
     );
 }

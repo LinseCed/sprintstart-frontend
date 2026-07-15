@@ -17,6 +17,7 @@ export default defineConfig(
       "src/keycloak-theme/**",
       "public/keycloak-theme/**",
       "public/keycloakify-dev-resources/**",
+      "storybook-static/**"
     ]),
 
     {
@@ -73,6 +74,17 @@ export default defineConfig(
           },
         ],
       },
+    },
+    {
+      files: ["**/*.test.{ts,tsx}", "tests/unit/setup/vitest.setup.ts"],
+      rules: {
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/consistent-type-imports": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-empty-object-type": "off",
+        "@typescript-eslint/no-unused-vars": "off"
+      }
     },
     prettier,
   ]

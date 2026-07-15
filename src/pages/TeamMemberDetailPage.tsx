@@ -1,16 +1,10 @@
 import {
-    AlertTriangle,
     ArrowLeft,
     Check,
-    CheckCircle2,
-    Circle,
-    Clock,
-    ClipboardList,
     MessageSquareText,
     Pencil,
     Plus,
     SkipForward,
-    Trash2,
     X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -42,6 +36,8 @@ import {
     deleteOnboardingStep,
     deleteOnboardingTask,
     getOnboardingTasksByStep,
+    updateOnboardingStep,
+    updateOnboardingTask,
     type OnboardingFeedback,
     type UserSkillLevel,
 } from '../services/teamManagementService';
@@ -65,9 +61,13 @@ function getElapsedDays(startedAt: string): number {
     );
 }
 
-function getInitials(firstname: string, lastname: string): string {
-    return `${firstname.charAt(0)}${lastname.charAt(0)}`.toUpperCase();
-}
+import { UserAvatar } from '../components/common/UserAvatar';
+import { Modal } from '../components/ui/Modal';
+import { AddCustomStepModal } from '../features/team-management/components/detail/AddCustomStepModal';
+import { MemberDetailDialogs } from '../features/team-management/components/detail/MemberDetailDialogs';
+import { MemberGapsPanel } from '../features/team-management/components/detail/MemberGapsPanel';
+import { MemberOnboardingSection } from '../features/team-management/components/detail/MemberOnboardingSection';
+import { StepDetailsPanel } from '../features/team-management/components/detail/StepDetailsPanel';
 
 function formatMinutes(minutes?: number | null): string {
     if (!minutes || minutes <= 0) return 'No estimate';
@@ -187,9 +187,16 @@ export function TeamMemberDetailPage() {
                 getUserOnboardingPath(userId),
                 knowledgeGapService.fetchKnowledgeGaps(),
             ]);
-            const feedback = memberData?.hasFeedback
-                ? await getUserOnboardingFeedback(userId)
-                : [];
+            let feedback: OnboardingFeedback[] = [];
+            try {
+                feedback = await getUserOnboardingFeedback(userId);
+            } catch (error) {
+                setFeedbackError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Unable to load feedback.',
+                );
+            }
 
             setUser(memberData);
             setAvailableRoles(rolesData);
@@ -385,6 +392,81 @@ export function TeamMemberDetailPage() {
         }
     }
 
+    async function handleReorderSteps(
+        phaseId: string,
+        activeStepId: string,
+        overStepId: string,
+    ) {
+        if (activeStepId === overStepId) return;
+
+        const phase = onboardingPath?.phases.find((item) => item.id === phaseId);
+        const currentSteps = [...(phase?.steps ?? [])].sort(
+            (a, b) => a.position - b.position,
+        );
+        const activeIndex = currentSteps.findIndex((step) => step.id === activeStepId);
+        const overIndex = currentSteps.findIndex((step) => step.id === overStepId);
+
+        if (!phase || activeIndex < 0 || overIndex < 0) return;
+
+        const reorderedSteps = [...currentSteps];
+        const [movedStep] = reorderedSteps.splice(activeIndex, 1);
+        reorderedSteps.splice(overIndex, 0, movedStep);
+
+        const nextSteps = reorderedSteps.map((step, index) => ({
+            ...step,
+            position: index,
+        }));
+        const changedSteps = nextSteps.filter(
+            (step) =>
+                currentSteps.find((currentStep) => currentStep.id === step.id)
+                    ?.position !== step.position,
+        );
+
+        setStepActionId(activeStepId);
+        setOnboardingError('');
+        setOnboardingPath((currentPath) =>
+            currentPath
+                ? {
+                      ...currentPath,
+                      phases: currentPath.phases.map((currentPhase) =>
+                          currentPhase.id === phaseId
+                              ? {
+                                    ...currentPhase,
+                                    steps: nextSteps,
+                                }
+                              : currentPhase,
+                      ),
+                  }
+                : currentPath,
+        );
+
+        try {
+            for (const step of changedSteps) {
+                await updateOnboardingStep(step.id, {
+                    position: step.position,
+                    title: step.title,
+                    description: step.description,
+                    type: step.type,
+                    estimatedMinutes: step.estimatedMinutes,
+                    expectedOutcome: step.expectedOutcomes?.[0] ?? '',
+                    status: step.status,
+                    skip: step.skip ?? null,
+                });
+            }
+
+            await refreshOnboardingPath();
+        } catch (error) {
+            setOnboardingError(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to reorder onboarding steps.',
+            );
+            await refreshOnboardingPath();
+        } finally {
+            setStepActionId(null);
+        }
+    }
+
     async function refreshStepTasks(stepId: string) {
         const nextTasks = await getOnboardingTasksByStep(stepId);
 
@@ -401,6 +483,65 @@ export function TeamMemberDetailPage() {
         }));
 
         return nextTasks;
+    }
+
+    async function handleReorderTasks(
+        stepId: string,
+        activeTaskId: string,
+        overTaskId: string,
+    ) {
+        if (activeTaskId === overTaskId) return;
+
+        const currentTasks = [...(stepTasksById[stepId] ?? [])].sort(
+            (a, b) => a.position - b.position,
+        );
+        const activeIndex = currentTasks.findIndex((task) => task.id === activeTaskId);
+        const overIndex = currentTasks.findIndex((task) => task.id === overTaskId);
+
+        if (activeIndex < 0 || overIndex < 0) return;
+
+        const reorderedTasks = [...currentTasks];
+        const [movedTask] = reorderedTasks.splice(activeIndex, 1);
+        reorderedTasks.splice(overIndex, 0, movedTask);
+
+        const nextTasks = reorderedTasks.map((task, index) => ({
+            ...task,
+            position: index,
+        }));
+        const changedTasks = nextTasks.filter(
+            (task) =>
+                currentTasks.find((currentTask) => currentTask.id === task.id)
+                    ?.position !== task.position,
+        );
+
+        setStepActionId(stepId);
+        setOnboardingError('');
+        setStepTasksById((current) => ({
+            ...current,
+            [stepId]: nextTasks,
+        }));
+
+        try {
+            for (const task of changedTasks) {
+                await updateOnboardingTask(task.id, {
+                    position: task.position,
+                    title: task.title,
+                    description: task.description,
+                    finished: task.finished,
+                });
+            }
+
+            await refreshStepTasks(stepId);
+        } catch (error) {
+            setOnboardingError(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to reorder tasks.',
+            );
+            await refreshStepTasks(stepId);
+        } finally {
+            setStepActionId(null);
+        }
     }
 
     async function handleDeleteTask(task: OnboardingTaskEndpoint) {
@@ -442,7 +583,10 @@ export function TeamMemberDetailPage() {
             setNewTaskTitle('');
             setNewTaskDescription('');
             await refreshStepTasks(taskInsertTarget.stepId);
-            await refreshOnboardingPath();
+            // Adding a task reopens a completed step on the backend (status back to
+            // IN_PROGRESS). Refresh the path so the step cards update, and the team-overview
+            // member data so the header progress bar and current step reflect the change too.
+            await Promise.all([refreshOnboardingPath(), refreshMember()]);
         } catch (error) {
             setOnboardingError(
                 error instanceof Error
@@ -461,6 +605,13 @@ export function TeamMemberDetailPage() {
 
         try {
             await markOnboardingFeedbackRead(feedbackId);
+            setFeedbackItems((current) =>
+                current.map((feedback) =>
+                    feedback.id === feedbackId
+                        ? { ...feedback, read: true }
+                        : feedback,
+                ),
+            );
             await Promise.all([refreshFeedback(), refreshMember()]);
         } catch (error) {
             setFeedbackError(
@@ -491,6 +642,7 @@ export function TeamMemberDetailPage() {
             const createdStep = await createOnboardingStepForPhase(targetPhaseId, {
                 position:
                     stepInsertTarget?.position ?? selectedPhase.steps?.length ?? 0,
+                isAiAssisted: false,
                 title: customStepTitle.trim(),
                 description: customStepDescription.trim(),
                 type: 'TASK',
@@ -621,8 +773,30 @@ export function TeamMemberDetailPage() {
     const detailStepActualMinutes = detailStep ? getActualMinutes(detailStep) : null;
 
     const detailStepFeedback = detailStep
-        ? feedbackItems.filter((feedback) => feedback.stepId === detailStep.id)
+        ? feedbackItems
+            .filter((feedback) => feedback.stepId === detailStep.id)
+            .map((feedback) => ({
+                ...feedback,
+                helpful:
+                    feedback.helpful ??
+                    (detailStep.feedback?.id === feedback.id
+                        ? detailStep.feedback.helpful
+                        : undefined),
+            }))
         : [];
+    const displayedDetailStepFeedback =
+        detailStepFeedback.length > 0 || !detailStep?.feedback
+            ? detailStepFeedback
+            : [
+                {
+                    id: detailStep.feedback.id,
+                    stepId: detailStep.id,
+                    stepTitle: detailStep.title,
+                    message: detailStep.feedback.comment,
+                    helpful: detailStep.feedback.helpful,
+                    createdAt: detailStep.feedback.createdAt,
+                },
+            ];
     const detailStepSkipReason = detailStep?.skip?.reason || '';
     const skillGaps = skillLevels.filter(
         (skill) => skill.level === 'BEGINNER' || skill.level === 'INTERMEDIATE',
@@ -646,7 +820,7 @@ export function TeamMemberDetailPage() {
 
     return (
         <div className="min-h-screen bg-app-bg">
-            <div className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
+            <header className="border-b border-app-border bg-app-bg/90 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <button
                         onClick={goBack}
@@ -658,8 +832,8 @@ export function TeamMemberDetailPage() {
 
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-app-brand-soft text-lg font-semibold text-app-brand-text">
-                                {getInitials(user.firstname, user.lastname)}
+                            <div className="flex shrink-0 items-center justify-center">
+                                <UserAvatar profileIcon={user.profileIcon} fallbackName={`${user.firstname} ${user.lastname}`.trim()} seed={user.userId} size={56} />
                             </div>
 
                             <div>
@@ -729,333 +903,47 @@ export function TeamMemberDetailPage() {
                         </span>
                     </div>
                 </div>
-            </div>
+            </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pt-8">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.8fr)]">
+                    <MemberOnboardingSection
+                        phases={phases}
+                        selectedPhase={selectedPhase}
+                        selectedPhaseSteps={selectedPhaseSteps}
+                        selectedStep={selectedStep}
+                        nextStep={nextStep}
+                        finishedSteps={finishedSteps}
+                        totalSteps={allSteps.length}
+                        estimatedMinutes={estimatedMinutes}
+                        skippedSteps={skippedSteps}
+                        pendingSkipCount={pathPendingSkips}
+                        stepTaskCounts={stepTaskCounts}
+                        onSelectPhase={(phaseId, firstStepId) => {
+                            setSelectedPhaseId(phaseId);
+                            setSelectedStepId(firstStepId);
+                        }}
+                        onSelectStep={(stepId) => {
+                            setSelectedStepId(stepId);
+                            setDetailStepId(stepId);
+                        }}
+                        onAddStep={setStepInsertTarget}
+                        onReorderSteps={(phaseId, activeStepId, overStepId) =>
+                            void handleReorderSteps(
+                                phaseId,
+                                activeStepId,
+                                overStepId,
+                            )
+                        }
+                        formatMinutes={formatMinutes}
+                        getActualMinutes={getActualMinutes}
+                        getStepStatusStyles={getStepStatusStyles}
+                    />
+                    <aside aria-label="Member insights" className="space-y-4">
                     <div className="rounded-3xl border border-app-border bg-app-surface p-6">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <ClipboardList className="h-5 w-5 text-app-brand" />
-                                    <h2 className="text-lg font-semibold text-app-text">
-                                        Member onboarding
-                                    </h2>
-                                </div>
-
-                                <p className="mt-1 text-sm text-app-text-muted">
-                                    Preview the member journey and add project-specific steps.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
-                                <div className="rounded-2xl border border-app-border bg-app-surface-muted px-3 py-2">
-                                    <p className="text-xs text-app-text-muted">Done</p>
-                                    <p className="mt-1 text-sm font-semibold text-app-text">
-                                        {finishedSteps}/{allSteps.length || 0}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-2xl border border-app-border bg-app-surface-muted px-3 py-2">
-                                    <p className="text-xs text-app-text-muted">Estimate</p>
-                                    <p className="mt-1 text-sm font-semibold text-app-text">
-                                        {formatMinutes(estimatedMinutes)}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-2xl border border-app-border bg-app-surface-muted px-3 py-2">
-                                    <p className="text-xs text-app-text-muted">Skipped</p>
-                                    <p className="mt-1 text-sm font-semibold text-app-text">
-                                        {skippedSteps}
-                                    </p>
-                                </div>
-
-                                <div className={`rounded-2xl border px-3 py-2 ${
-                                    pathPendingSkips > 0
-                                        ? 'border-app-warning-border bg-app-warning-bg'
-                                        : 'border-app-border bg-app-surface-muted'
-                                }`}>
-                                    <p className="text-xs text-app-text-muted">Requests</p>
-                                    <p className={`mt-1 text-sm font-semibold ${
-                                        pathPendingSkips > 0
-                                            ? 'text-app-warning-text'
-                                            : 'text-app-text'
-                                    }`}>
-                                        {pathPendingSkips}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {phases.length === 0 ? (
-                            <div className="mt-5 rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-6 text-sm text-app-text-muted">
-                                No onboarding path details are available for this user yet.
-                            </div>
-                        ) : (
-                            <>
-                                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                    {phases.map((phase) => {
-                                        const steps = phase.steps ?? [];
-                                        const completed = steps.filter(
-                                            (step) =>
-                                                step.status === 'FINISHED' ||
-                                                step.status === 'SKIPPED',
-                                        ).length;
-                                        const percentage =
-                                            steps.length > 0
-                                                ? Math.round((completed / steps.length) * 100)
-                                                : 0;
-                                        const isSelected = phase.id === selectedPhase?.id;
-
-                                        return (
-                                            <button
-                                                key={phase.id}
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedPhaseId(phase.id);
-                                                    setSelectedStepId(steps[0]?.id ?? '');
-                                                }}
-                                                className={`rounded-2xl border p-4 text-left transition-all ${
-                                                    isSelected
-                                                        ? 'border-app-brand bg-app-brand-soft'
-                                                        : 'border-app-border bg-app-surface-muted hover:border-app-border-strong'
-                                                }`}
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <p className="text-sm font-semibold text-app-text">
-                                                        {phase.title}
-                                                    </p>
-                                                    <span className={`rounded-full px-2 py-0.5 text-xs ${
-                                                        percentage === 100
-                                                            ? 'bg-app-success-bg text-app-success-text'
-                                                            : 'bg-app-surface text-app-text-muted'
-                                                    }`}>
-                                                        {percentage}%
-                                                    </span>
-                                                </div>
-
-                                                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-app-border-muted">
-                                                    <div
-                                                        className="h-full rounded-full bg-gradient-to-r from-app-brand to-app-progress-fill-end"
-                                                        style={{ width: `${percentage}%` }}
-                                                    />
-                                                </div>
-
-                                                <p className="mt-2 text-xs text-app-text-muted">
-                                                    {completed}/{steps.length} steps
-                                                </p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="mt-5">
-                                    <div>
-                                        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                            <div>
-                                                <h3 className="text-sm font-semibold text-app-text">
-                                                    {selectedPhase?.title}
-                                                </h3>
-                                                {selectedPhase?.description && (
-                                                    <p className="mt-1 text-xs text-app-text-muted">
-                                                        {selectedPhase.description}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {selectedPhaseSteps.length === 0 ? (
-                                                <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-5 text-sm text-app-text-muted">
-                                                    <p>This phase has no steps yet.</p>
-                                                    {selectedPhase && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setStepInsertTarget({
-                                                                    phaseId: selectedPhase.id,
-                                                                    position: 0,
-                                                                })
-                                                            }
-                                                            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover"
-                                                        >
-                                                            <Plus className="h-3.5 w-3.5" />
-                                                            Add first step
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                selectedPhaseSteps.map((step, index) => {
-                                                    const skipReason = step.skip?.reason;
-                                                    const isSelected = step.id === selectedStep?.id;
-                                                    const isNextStep = step.id === nextStep?.id;
-                                                    const actualMinutes = getActualMinutes(step);
-                                                    const timingDelta =
-                                                        actualMinutes && step.estimatedMinutes
-                                                            ? actualMinutes - step.estimatedMinutes
-                                                            : null;
-
-                                                    return (
-                                                        <div key={step.id} className="group/step-insert space-y-1">
-                                                            {index === 0 && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        selectedPhase &&
-                                                                        setStepInsertTarget({
-                                                                            phaseId: selectedPhase.id,
-                                                                            position: 0,
-                                                                        })
-                                                                    }
-                                                                    className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
-                                                                    aria-label={`Add step before ${step.title}`}
-                                                                    title="Add step here"
-                                                                >
-                                                                    <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
-                                                                </button>
-                                                            )}
-
-                                                            <div
-                                                                role="button"
-                                                            tabIndex={0}
-                                                            onClick={() => {
-                                                                setSelectedStepId(step.id);
-                                                                setDetailStepId(step.id);
-                                                            }}
-                                                            onKeyDown={(event) => {
-                                                                if (event.key === 'Enter' || event.key === ' ') {
-                                                                    event.preventDefault();
-                                                                    setSelectedStepId(step.id);
-                                                                    setDetailStepId(step.id);
-                                                                }
-                                                            }}
-                                                            className={`group w-full rounded-2xl border bg-app-surface p-4 text-left transition-all ${
-                                                                isSelected
-                                                                    ? 'border-app-brand shadow-sm'
-                                                                    : isNextStep
-                                                                      ? 'border-app-brand-border bg-app-brand-soft'
-                                                                    : 'border-app-border hover:border-app-border-strong'
-                                                            } ${
-                                                                step.status === 'FINISHED' ||
-                                                                step.status === 'SKIPPED'
-                                                                    ? 'opacity-70'
-                                                                    : ''
-                                                            }`}
-                                                        >
-                                                            <div className="flex gap-4">
-                                                                <span className="pt-0.5">
-                                                                    {step.status === 'FINISHED' ? (
-                                                                        <CheckCircle2 className="h-5 w-5 text-app-success-solid" />
-                                                                    ) : step.status === 'SKIPPED' ? (
-                                                                        <SkipForward className="h-5 w-5 text-app-danger-solid" />
-                                                                    ) : step.status === 'IN_PROGRESS' ? (
-                                                                        <Clock className="h-5 w-5 text-app-warning-text" />
-                                                                    ) : (
-                                                                        <Circle className="h-5 w-5 text-app-text-disabled" />
-                                                                    )}
-                                                                </span>
-
-                                                                <div className="min-w-0 flex-1">
-                                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                                                        <div className="min-w-0">
-                                                                            {isNextStep && (
-                                                                                <span className="mb-1 inline-flex items-center rounded-full bg-app-brand px-2 py-0.5 text-[11px] font-medium text-app-text-inverse">
-                                                                                    Up next
-                                                                                </span>
-                                                                            )}
-                                                                            <h4 className={`text-sm font-semibold ${
-                                                                                step.status === 'FINISHED' ||
-                                                                                step.status === 'SKIPPED'
-                                                                                    ? 'line-through text-app-text-subtle'
-                                                                                    : 'text-app-text'
-                                                                            }`}>
-                                                                                {step.title}
-                                                                            </h4>
-                                                                            {/* {step.description && (
-                                                                                <p className="mt-1 text-sm text-app-text-muted">
-                                                                                    {step.description}
-                                                                                </p>
-                                                                            )} */}
-                                                                        </div>
-
-                                                                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${getStepStatusStyles(step.status)}`}>
-                                                                            {step.status.replace('_', ' ')}
-                                                                        </span>
-                                                                    </div>
-
-                                                                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-app-text-muted">
-                                                                        <span className="rounded-full bg-app-surface-muted px-2 py-0.5">
-                                                                            {formatMinutes(step.estimatedMinutes)}
-                                                                        </span>
-                                                                        <span className="rounded-full bg-app-surface-muted px-2 py-0.5">
-                                                                            {stepTaskCounts[step.id]
-                                                                                ? `${stepTaskCounts[step.id].done}/${stepTaskCounts[step.id].total} tasks`
-                                                                                : 'Tasks ...'}
-                                                                        </span>
-                                                                        {actualMinutes && (
-                                                                            <span className={`rounded-full px-2 py-0.5 ${
-                                                                                timingDelta !== null && timingDelta > 0
-                                                                                    ? 'bg-app-warning-bg text-app-warning-text'
-                                                                                    : 'bg-app-success-bg text-app-success-text'
-                                                                            }`}>
-                                                                                Actual {formatMinutes(actualMinutes)}
-                                                                                {timingDelta === 0
-                                                                                    ? ' (on time)'
-                                                                                    : timingDelta !== null
-                                                                                      ? ` (${timingDelta > 0 ? '+' : '-'}${formatMinutes(Math.abs(timingDelta))})`
-                                                                                      : ''}
-                                                                            </span>
-                                                                        )}
-                                                                        {skipReason && (
-                                                                            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium ${
-                                                                                step.status === 'SKIPPED'
-                                                                                    ? 'border-app-danger-border bg-app-danger-bg text-app-danger-text'
-                                                                                    : 'border-app-warning-border bg-app-warning-bg text-app-warning-text'
-                                                                            }`}>
-                                                                                <AlertTriangle className="h-3 w-3" />
-                                                                                {step.status === 'SKIPPED'
-                                                                                    ? 'Skipped'
-                                                                                    : 'Skip requested'}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    selectedPhase &&
-                                                                    setStepInsertTarget({
-                                                                        phaseId: selectedPhase.id,
-                                                                        position: index + 1,
-                                                                    })
-                                                                }
-                                                                className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
-                                                                aria-label={`Add step after ${step.title}`}
-                                                                title="Add step here"
-                                                            >
-                                                                <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    <aside className="space-y-4">
-                    <div className="rounded-3xl border border-app-border bg-app-surface p-6">
-                        <h4 className="text-lg font-semibold text-app-text">
+                        <h2 className="text-lg font-semibold text-app-text">
                             Feedback & Skip Requests
-                        </h4>
+                        </h2>
 
                         <div className="mt-4 space-y-3">
                             <div className="flex items-center justify-between gap-3">
@@ -1142,8 +1030,8 @@ export function TeamMemberDetailPage() {
                                 <p className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
                                     Loading feedback...
                                 </p>
-                            ) : feedbackItems.length > 0 ? (
-                                feedbackItems.map((feedback) => {
+                            ) : unreadFeedback.length > 0 ? (
+                                unreadFeedback.map((feedback) => {
                                     const isUnread =
                                         feedback.read !== true && !feedback.readAt;
 
@@ -1224,7 +1112,7 @@ export function TeamMemberDetailPage() {
                                         </div>
                                     );
                                 })
-                            ) : user.hasFeedback ? (
+                            ) : user.hasFeedback && feedbackItems.length === 0 ? (
                                 <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg p-4">
                                     <div className="flex items-start gap-3">
                                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface text-app-warning-text">
@@ -1258,210 +1146,26 @@ export function TeamMemberDetailPage() {
                             )}
                         </div>
                     </div>
-                    <div className="rounded-3xl border border-app-border bg-app-surface p-6">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Skill Assessment
-                        </h2>
-
-                        {skillLevels.length === 0 ? (
-                            <p className="mt-3 text-sm text-app-text-muted">
-                                No completed skill assessment.
-                            </p>
-                        ) : (
-                            <div className="mt-4 space-y-4">
-                                {Object.entries(
-                                    skillLevels.reduce<Record<string, UserSkillLevel[]>>(
-                                        (acc, skill) => {
-                                            const key = skill.roleName;
-                                            if (!acc[key]) acc[key] = [];
-                                            acc[key].push(skill);
-                                            return acc;
-                                        },
-                                        {}
-                                    )
-                                ).map(([roleName, skills]) => (
-                                    <div key={roleName}>
-                                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-app-text-muted">
-                                            {roleName}
-                                        </p>
-
-                                        <div className="space-y-1">
-                                            {skills.map((skill) => {
-                                                const levelDots: Record<string, number> = {
-                                                    BEGINNER: 1,
-                                                    INTERMEDIATE: 2,
-                                                    ADVANCED: 3,
-                                                    EXPERT: 4,
-                                                };
-                                                const filled = levelDots[skill.level] ?? 0;
-
-                                                return (
-                                                    <div
-                                                        key={skill.id}
-                                                        className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface-muted px-3 py-2"
-                                                    >
-                                                        <span className="text-sm font-medium text-app-text">
-                                                            {skill.skillName}
-                                                        </span>
-
-                                                        <div className="flex shrink-0 items-center gap-2">
-                                                            <div className="flex gap-1">
-                                                                {Array.from({ length: 4 }, (_, i) => (
-                                                                    <div
-                                                                        key={i}
-                                                                        className={`h-2 w-2 rounded-full ${i < filled
-                                                                                ? 'bg-app-brand'
-                                                                                : 'bg-app-border'
-                                                                            }`}
-                                                                    />
-                                                                ))}
-                                                            </div>
-
-                                                            <span className="w-24 text-right text-xs text-app-text-muted capitalize">
-                                                                {skill.level.toLowerCase()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <div className="rounded-3xl border border-app-border bg-app-surface p-6">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Gaps
-                        </h2>
-
-                        <div className="mt-4 space-y-4">
-                            <div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <p className="text-sm font-semibold text-app-text">
-                                        Skill gaps
-                                    </p>
-                                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                        skillGaps.length > 0
-                                            ? 'bg-app-warning-bg text-app-warning-text'
-                                            : 'bg-app-success-bg text-app-success-text'
-                                    }`}>
-                                        {skillGaps.length}
-                                    </span>
-                                </div>
-
-                                <div className="mt-2 space-y-2">
-                                    {skillGaps.length === 0 ? (
-                                        <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                                            No low-rated skills found.
-                                        </p>
-                                    ) : (
-                                        skillGaps.slice(0, 3).map((skill) => (
-                                            <div
-                                                key={skill.id}
-                                                className="flex items-center justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3"
-                                            >
-                                                <div className="min-w-0">
-                                                    <p className="truncate text-sm font-medium text-app-text">
-                                                        {skill.skillName}
-                                                    </p>
-                                                    <p className="mt-0.5 text-xs text-app-text-muted">
-                                                        {skill.roleName}
-                                                    </p>
-                                                </div>
-                                                <span className="shrink-0 rounded-full bg-app-warning-bg px-2 py-0.5 text-xs font-medium text-app-warning-text capitalize">
-                                                    {skill.level.toLowerCase()}
-                                                </span>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <p className="text-sm font-semibold text-app-text">
-                                        Knowledge gaps
-                                    </p>
-                                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                        topKnowledgeGaps.length > 0
-                                            ? 'bg-app-warning-bg text-app-warning-text'
-                                            : 'bg-app-success-bg text-app-success-text'
-                                    }`}>
-                                        {topKnowledgeGaps.length}
-                                    </span>
-                                </div>
-
-                                <div className="mt-2 space-y-2">
-                                    {topKnowledgeGaps.length === 0 ? (
-                                        <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                                            No knowledge gaps found.
-                                        </p>
-                                    ) : (
-                                        topKnowledgeGaps.map((gap) => (
-                                            <button
-                                                key={gap.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    void navigate(
-                                                        `/insights/knowledge-gaps/${gap.id}`,
-                                                    )
-                                                }
-                                                className="w-full rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-left transition-colors hover:border-app-brand"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <p className="min-w-0 text-sm font-medium text-app-text">
-                                                        {gap.component}
-                                                    </p>
-                                                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                                                        gap.severity === 'high'
-                                                            ? 'bg-app-danger-bg text-app-danger-text'
-                                                            : gap.severity === 'medium'
-                                                              ? 'bg-app-warning-bg text-app-warning-text'
-                                                              : 'bg-app-surface text-app-text-muted'
-                                                    }`}>
-                                                        {gap.severity}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-1 truncate text-xs text-app-text-muted">
-                                                    {gap.missingTypes.join(', ')}
-                                                </p>
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <MemberGapsPanel
+                        skillLevels={skillLevels}
+                        skillGaps={skillGaps}
+                        knowledgeGaps={topKnowledgeGaps}
+                        onOpenKnowledgeGap={(gapId) => {
+                            void navigate(`/insights/knowledge-gaps/${gapId}`);
+                        }}
+                    />
                     </aside>
                 </div>
             </main>
 
-            {rolesModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <h2 className="text-lg font-semibold text-app-text">
-                                    Manage Roles
-                                </h2>
-
-                                <p className="mt-1 text-sm text-app-text-muted">
-                                    Add or remove roles for {user.firstname}.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setRolesModalOpen(false)}
-                                className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover"
-                                aria-label="Close roles modal"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="mt-6 space-y-2">
+            <Modal
+                isOpen={rolesModalOpen}
+                title="Manage Roles"
+                description={`Add or remove roles for ${user.firstname}.`}
+                closeLabel="Close roles modal"
+                onClose={() => setRolesModalOpen(false)}
+            >
+                        <div className="space-y-2">
                             {user.roles.length > 0 ? (
                                 user.roles.map((role) => (
                                     <div
@@ -1525,677 +1229,78 @@ export function TeamMemberDetailPage() {
                                 All available roles are already assigned.
                             </p>
                         )}
-                    </div>
-                </div>
-            )}
-            {roleToRemove && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-sm rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Remove Role
-                        </h2>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
-                            Are you sure you want to remove the role{' '}
-                            <span className="font-medium text-app-text">
-                                {roleToRemove.name}
-                            </span>{' '}
-                            from {user.firstname}?
-                        </p>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setRoleToRemove(null)}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    void handleRemoveRole(roleToRemove.id);
-                                    setRoleToRemove(null);
-                                }}
-                                disabled={savingRoleId === roleToRemove.id}
-                                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {stepInsertTarget && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-lg rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h2 className="text-lg font-semibold text-app-text">
-                                    Add Custom Step
-                                </h2>
-
-                                <p className="mt-1 text-sm text-app-text-muted">
-                                    Add the project-specific step for the selected slot.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setStepInsertTarget(null)}
-                                disabled={addingStep}
-                                className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                aria-label="Close add step modal"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="mt-5 space-y-3">
-                            <input
-                                value={customStepTitle}
-                                onChange={(event) =>
-                                    setCustomStepTitle(event.target.value)
-                                }
-                                placeholder="Meet your colleagues"
-                                className="w-full rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                            />
-
-                            <textarea
-                                value={customStepDescription}
-                                onChange={(event) =>
-                                    setCustomStepDescription(event.target.value)
-                                }
-                                placeholder="Describe what the member should do."
-                                rows={3}
-                                className="w-full resize-none rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                            />
-
-                            <textarea
-                                value={customStepExpectedOutcome}
-                                onChange={(event) =>
-                                    setCustomStepExpectedOutcome(event.target.value)
-                                }
-                                placeholder="Describe the expected outcome."
-                                rows={2}
-                                className="w-full resize-none rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                            />
-
-                            <label className="block">
-                                <span className="text-xs font-medium text-app-text-muted">
-                                    Estimated minutes
-                                </span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={customStepMinutes}
-                                    onChange={(event) =>
-                                        setCustomStepMinutes(event.target.value)
-                                    }
-                                    className="mt-1 w-32 rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                />
-                            </label>
-
-                            <div className="rounded-2xl border border-app-border bg-app-surface-muted p-3">
-                                <div className="flex items-center justify-between gap-3">
-                                    <p className="text-xs font-semibold text-app-text">
-                                        Tasks
-                                    </p>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setCustomStepTasks((current) => [
-                                                ...current,
-                                                { title: '', description: '' },
-                                            ])
-                                        }
-                                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-app-brand hover:bg-app-brand-soft"
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        Add task
-                                    </button>
-                                </div>
-
-                                <div className="mt-3 space-y-2">
-                                    {customStepTasks.map((task, index) => (
-                                        <div
-                                            key={index}
-                                            className="grid gap-2 rounded-xl border border-app-border bg-app-bg p-2"
-                                        >
-                                            <div className="flex gap-2">
-                                                <input
-                                                    value={task.title}
-                                                    onChange={(event) =>
-                                                        setCustomStepTasks((current) =>
-                                                            current.map((item, itemIndex) =>
-                                                                itemIndex === index
-                                                                    ? {
-                                                                          ...item,
-                                                                          title: event.target.value,
-                                                                      }
-                                                                    : item,
-                                                            ),
-                                                        )
-                                                    }
-                                                    placeholder="Task title"
-                                                    className="min-w-0 flex-1 rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                                />
-                                                {customStepTasks.length > 1 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setCustomStepTasks((current) =>
-                                                                current.filter(
-                                                                    (_, itemIndex) => itemIndex !== index,
-                                                                ),
-                                                            )
-                                                        }
-                                                        className="rounded-lg p-2 text-app-text-muted hover:bg-app-danger-bg hover:text-app-danger-text"
-                                                        aria-label="Remove task row"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <input
-                                                value={task.description}
-                                                onChange={(event) =>
-                                                    setCustomStepTasks((current) =>
-                                                        current.map((item, itemIndex) =>
-                                                            itemIndex === index
-                                                                ? {
-                                                                      ...item,
-                                                                      description: event.target.value,
-                                                                  }
-                                                                : item,
-                                                        ),
-                                                    )
-                                                }
-                                                placeholder="Optional task description"
-                                                className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {onboardingError && (
-                                <p className="text-xs text-app-danger-text">
-                                    {onboardingError}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setStepInsertTarget(null)}
-                                disabled={addingStep}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void handleCreateCustomStep()}
-                                disabled={
-                                    addingStep ||
-                                    customStepTitle.trim().length === 0
-                                }
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-4 py-2 text-sm font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <Plus className="h-4 w-4" />
-                                {addingStep ? 'Adding...' : 'Add step'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            </Modal>
+            <MemberDetailDialogs
+                firstName={user.firstname}
+                roleToRemove={roleToRemove}
+                savingRoleId={savingRoleId}
+                onCancelRoleRemove={() => setRoleToRemove(null)}
+                onConfirmRoleRemove={(role) => {
+                    void handleRemoveRole(role.id);
+                    setRoleToRemove(null);
+                }}
+            />
+            <AddCustomStepModal
+                open={Boolean(stepInsertTarget)}
+                title={customStepTitle}
+                description={customStepDescription}
+                expectedOutcome={customStepExpectedOutcome}
+                estimatedMinutes={customStepMinutes}
+                tasks={customStepTasks}
+                addingStep={addingStep}
+                errorMessage={onboardingError}
+                onTitleChange={setCustomStepTitle}
+                onDescriptionChange={setCustomStepDescription}
+                onExpectedOutcomeChange={setCustomStepExpectedOutcome}
+                onEstimatedMinutesChange={setCustomStepMinutes}
+                onTasksChange={(updater) => setCustomStepTasks(updater)}
+                onClose={() => setStepInsertTarget(null)}
+                onSubmit={() => void handleCreateCustomStep()}
+            />
             {detailStep && (
-                <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-                    <button
-                        type="button"
-                        aria-label="Close step details"
-                        className="hidden flex-1 cursor-default md:block"
-                        onClick={() => setDetailStepId('')}
-                    />
-
-                    <aside className="h-full w-full max-w-xl overflow-y-auto border-l border-app-border bg-app-surface p-6 shadow-2xl">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStepStatusStyles(detailStep.status)}`}>
-                                    {detailStep.status.replace('_', ' ')}
-                                </span>
-
-                                <h2 className="mt-3 text-xl font-semibold text-app-text">
-                                    {detailStep.title}
-                                </h2>
-
-                                {detailStep.description && (
-                                    <p className="mt-2 text-sm text-app-text-muted">
-                                        {detailStep.description}
-                                    </p>
-                                )}
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setDetailStepId('')}
-                                className="rounded-lg p-2 text-app-text-muted hover:bg-app-surface-hover"
-                                aria-label="Close step details"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
-                            <div className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2">
-                                <p className="text-app-text-muted">Estimate</p>
-                                <p className="mt-1 font-semibold text-app-text">
-                                    {formatMinutes(detailStep.estimatedMinutes)}
-                                </p>
-                            </div>
-
-                            <div className="rounded-xl border border-app-border bg-app-surface-muted px-3 py-2">
-                                <p className="text-app-text-muted">Actual</p>
-                                <p className="mt-1 font-semibold text-app-text">
-                                    {detailStepActualMinutes
-                                        ? formatMinutes(detailStepActualMinutes)
-                                        : 'Open'}
-                                </p>
-                            </div>
-
-                            {/* <div className={`rounded-xl border px-3 py-2 ${
-                                detailStepTimingDelta !== null &&
-                                detailStepTimingDelta > 0
-                                    ? 'border-app-warning-border bg-app-warning-bg'
-                                    : 'border-app-success-border bg-app-success-bg'
-                            }`}>
-                                <p className="text-app-text-muted">Delta</p>
-                                <p className={`mt-1 font-semibold ${
-                                    detailStepTimingDelta !== null &&
-                                    detailStepTimingDelta > 0
-                                        ? 'text-app-warning-text'
-                                        : 'text-app-success-text'
-                                }`}>
-                                    {detailStepTimingDelta === null
-                                        ? 'Open'
-                                        : detailStepTimingDelta === 0
-                                          ? 'On time'
-                                          : `${detailStepTimingDelta > 0 ? '+' : '-'}${formatMinutes(
-                                                Math.abs(detailStepTimingDelta),
-                                            )}`}
-                                </p>
-                            </div> */}
-                        </div>
-
-                        <section className="mt-6">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-sm font-semibold text-app-text">
-                                    Tasks
-                                </h3>
-                                <span className="rounded-full bg-app-surface-muted px-2.5 py-1 text-xs text-app-text-muted">
-                                    {detailStepDoneTasks}/{detailStepTasks.length} done
-                                </span>
-                            </div>
-
-                            <div className="mt-3 space-y-2">
-                                {sortedDetailStepTasks.length === 0 ? (
-                                    <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                                        <p>No tasks for this step.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setTaskInsertTarget({
-                                                    stepId: detailStep.id,
-                                                    position: 0,
-                                                })
-                                            }
-                                            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover"
-                                        >
-                                            <Plus className="h-3.5 w-3.5" />
-                                            Add first task
-                                        </button>
-                                    </div>
-                                ) : (
-                                    sortedDetailStepTasks.map((task, index) => (
-                                        <div key={task.id} className="group/task-insert space-y-1">
-                                            {index === 0 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setTaskInsertTarget({
-                                                            stepId: detailStep.id,
-                                                            position: 0,
-                                                        })
-                                                    }
-                                                    className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
-                                                    aria-label={`Add task before ${task.title}`}
-                                                    title="Add task here"
-                                                >
-                                                    <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
-                                                </button>
-                                            )}
-
-                                            {index === 0 &&
-                                                taskInsertTarget?.stepId === detailStep.id &&
-                                                taskInsertTarget.position === 0 && (
-                                                    <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
-                                                        <input
-                                                            value={newTaskTitle}
-                                                            onChange={(event) =>
-                                                                setNewTaskTitle(event.target.value)
-                                                            }
-                                                            placeholder="Task title"
-                                                            className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                                        />
-                                                        <input
-                                                            value={newTaskDescription}
-                                                            onChange={(event) =>
-                                                                setNewTaskDescription(event.target.value)
-                                                            }
-                                                            placeholder="Optional description"
-                                                            className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                                        />
-                                                        <div className="mt-3 flex justify-end gap-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setTaskInsertTarget(null);
-                                                                    setNewTaskTitle('');
-                                                                    setNewTaskDescription('');
-                                                                }}
-                                                                disabled={addingTask}
-                                                                className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => void handleCreateTask()}
-                                                                disabled={addingTask || newTaskTitle.trim().length === 0}
-                                                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                                            >
-                                                                <Plus className="h-3.5 w-3.5" />
-                                                                {addingTask ? 'Adding...' : 'Add task'}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                            <div className="flex items-start justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3">
-                                                <div className="flex min-w-0 gap-3">
-                                                    {task.finished ? (
-                                                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-app-success-solid" />
-                                                    ) : (
-                                                        <Circle className="mt-0.5 h-4 w-4 shrink-0 text-app-text-disabled" />
-                                                    )}
-
-                                                    <div className="min-w-0">
-                                                        <p className={`text-sm font-medium ${
-                                                            task.finished
-                                                                ? 'line-through text-app-text-subtle'
-                                                                : 'text-app-text'
-                                                        }`}>
-                                                            {task.title}
-                                                        </p>
-                                                        {task.description && (
-                                                            <p className="mt-1 text-xs text-app-text-muted">
-                                                                {task.description}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setTaskToDelete(task)}
-                                                    disabled={stepActionId !== null}
-                                                    className="rounded-lg p-1.5 text-app-text-muted transition-colors hover:bg-app-danger-bg hover:text-app-danger-text disabled:cursor-not-allowed disabled:opacity-50"
-                                                    aria-label={`Delete ${task.title}`}
-                                                    title="Delete task"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTaskInsertTarget({
-                                                        stepId: detailStep.id,
-                                                        position: index + 1,
-                                                    })
-                                                }
-                                                className="flex h-4 w-full items-center justify-center border-y border-transparent text-app-text-muted transition-all before:h-px before:flex-1 before:bg-app-border-muted after:h-px after:flex-1 after:bg-app-border-muted hover:text-app-brand"
-                                                aria-label={`Add task after ${task.title}`}
-                                                title="Add task here"
-                                            >
-                                                <Plus className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover/step-insert:opacity-100 group-hover/task-insert:opacity-100" />
-                                            </button>
-
-                                            {taskInsertTarget?.stepId === detailStep.id &&
-                                                taskInsertTarget.position === index + 1 && (
-                                                    <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
-                                                        <input
-                                                            value={newTaskTitle}
-                                                            onChange={(event) =>
-                                                                setNewTaskTitle(event.target.value)
-                                                            }
-                                                            placeholder="Task title"
-                                                            className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                                        />
-                                                        <input
-                                                            value={newTaskDescription}
-                                                            onChange={(event) =>
-                                                                setNewTaskDescription(event.target.value)
-                                                            }
-                                                            placeholder="Optional description"
-                                                            className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                                        />
-                                                        <div className="mt-3 flex justify-end gap-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setTaskInsertTarget(null);
-                                                                    setNewTaskTitle('');
-                                                                    setNewTaskDescription('');
-                                                                }}
-                                                                disabled={addingTask}
-                                                                className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => void handleCreateTask()}
-                                                                disabled={addingTask || newTaskTitle.trim().length === 0}
-                                                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                                            >
-                                                                <Plus className="h-3.5 w-3.5" />
-                                                                {addingTask ? 'Adding...' : 'Add task'}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                        </div>
-                                    ))
-                                )}
-
-                                {taskInsertTarget?.stepId === detailStep.id &&
-                                    sortedDetailStepTasks.length === 0 && (
-                                        <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-3">
-                                            <input
-                                                value={newTaskTitle}
-                                                onChange={(event) =>
-                                                    setNewTaskTitle(event.target.value)
-                                                }
-                                                placeholder="Task title"
-                                                className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                            />
-                                            <input
-                                                value={newTaskDescription}
-                                                onChange={(event) =>
-                                                    setNewTaskDescription(event.target.value)
-                                                }
-                                                placeholder="Optional description"
-                                                className="mt-2 w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
-                                            />
-                                            <div className="mt-3 flex justify-end gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setTaskInsertTarget(null);
-                                                        setNewTaskTitle('');
-                                                        setNewTaskDescription('');
-                                                    }}
-                                                    disabled={addingTask}
-                                                    className="rounded-xl border border-app-border px-3 py-2 text-xs font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void handleCreateTask()}
-                                                    disabled={addingTask || newTaskTitle.trim().length === 0}
-                                                    className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3 py-2 text-xs font-medium text-app-text-inverse hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                    {addingTask ? 'Adding...' : 'Add task'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                            </div>
-                        </section>
-
-                        <section className="mt-6 space-y-3">
-                            <h3 className="text-sm font-semibold text-app-text">
-                                Requests & feedback
-                            </h3>
-
-                            {detailStepSkipReason && (
-                                <div className={`rounded-2xl border px-4 py-3 text-sm ${
-                                    detailStep.status === 'SKIPPED'
-                                        ? 'border-app-danger-border bg-app-danger-bg text-app-danger-text'
-                                        : 'border-app-warning-border bg-app-warning-bg text-app-warning-text'
-                                }`}>
-                                    {detailStepSkipReason}
-                                </div>
-                            )}
-
-                            {detailStepFeedback.length > 0 ? (
-                                detailStepFeedback.map((feedback) => (
-                                    <div
-                                        key={feedback.id}
-                                        className="rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text"
-                                    >
-                                        {feedback.message}
-                                    </div>
-                                ))
-                            ) : (
-                                !detailStepSkipReason && (
-                                    <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                                        No skip request or feedback for this step.
-                                    </p>
-                                )
-                            )}
-                        </section>
-
-                        <div className="mt-6 border-t border-app-border pt-4">
-                            <button
-                                type="button"
-                                onClick={() => setStepToDelete(detailStep)}
-                                disabled={stepActionId !== null}
-                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-app-danger-border bg-app-danger-bg px-4 py-2 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete step
-                            </button>
-                        </div>
-                    </aside>
-                </div>
-            )}
-            {stepToDelete && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-sm rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Delete Step
-                        </h2>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
-                            Are you sure you want to delete{' '}
-                            <span className="font-medium text-app-text">
-                                {stepToDelete.title}
-                            </span>{' '}
-                            from this onboarding path?
-                        </p>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setStepToDelete(null)}
-                                disabled={stepActionId === stepToDelete.id}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void handleDeleteStep(stepToDelete)}
-                                disabled={stepActionId === stepToDelete.id}
-                                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {stepActionId === stepToDelete.id
-                                    ? 'Deleting...'
-                                    : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {taskToDelete && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-sm rounded-3xl border border-app-border bg-app-surface p-6 shadow-xl">
-                        <h2 className="text-lg font-semibold text-app-text">
-                            Delete Task
-                        </h2>
-
-                        <p className="mt-2 text-sm text-app-text-muted">
-                            Are you sure you want to delete{' '}
-                            <span className="font-medium text-app-text">
-                                {taskToDelete.title}
-                            </span>
-                            ?
-                        </p>
-
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setTaskToDelete(null)}
-                                disabled={stepActionId === taskToDelete.stepId}
-                                className="rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void handleDeleteTask(taskToDelete)}
-                                disabled={stepActionId === taskToDelete.stepId}
-                                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {stepActionId === taskToDelete.stepId
-                                    ? 'Deleting...'
-                                    : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <StepDetailsPanel
+                    step={detailStep}
+                    tasks={sortedDetailStepTasks}
+                    doneTaskCount={detailStepDoneTasks}
+                    actualMinutes={detailStepActualMinutes}
+                    feedbackItems={displayedDetailStepFeedback}
+                    skipReason={detailStepSkipReason}
+                    taskInsertTarget={taskInsertTarget}
+                    newTaskTitle={newTaskTitle}
+                    newTaskDescription={newTaskDescription}
+                    addingTask={addingTask}
+                    stepActionId={stepActionId}
+                    stepToDelete={stepToDelete}
+                    taskToDelete={taskToDelete}
+                    onClose={() => setDetailStepId('')}
+                    onRequestDeleteStep={(step: DetailOnboardingStep) =>
+                        setStepToDelete(step)
+                    }
+                    onCancelDeleteStep={() => setStepToDelete(null)}
+                    onConfirmDeleteStep={(step: DetailOnboardingStep) =>
+                        void handleDeleteStep(step)
+                    }
+                    onRequestDeleteTask={(task: OnboardingTaskEndpoint) =>
+                        setTaskToDelete(task)
+                    }
+                    onCancelDeleteTask={() => setTaskToDelete(null)}
+                    onConfirmDeleteTask={(task: OnboardingTaskEndpoint) =>
+                        void handleDeleteTask(task)
+                    }
+                    onTaskInsertTargetChange={setTaskInsertTarget}
+                    onNewTaskTitleChange={setNewTaskTitle}
+                    onNewTaskDescriptionChange={setNewTaskDescription}
+                    onCreateTask={() => void handleCreateTask()}
+                    formatMinutes={formatMinutes}
+                    getStepStatusStyles={getStepStatusStyles}
+                    onReorderTasks={(activeTaskId, overTaskId) =>
+                        void handleReorderTasks(
+                            detailStep.id,
+                            activeTaskId,
+                            overTaskId,
+                        )
+                    }
+                />
             )}
         </div>
 

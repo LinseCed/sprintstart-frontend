@@ -14,7 +14,7 @@ import {
     Terminal,
     X,
 } from 'lucide-react';
-import Avatar from 'boring-avatars';
+import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
@@ -27,6 +27,7 @@ type SidebarNavItem = {
 
 type SidebarContentProps = {
     onNavigate?: () => void;
+    'aria-label'?: string;
 };
 
 const navItems: SidebarNavItem[] = [
@@ -87,7 +88,7 @@ function getNavLinkClass(isActive: boolean): string {
 /**
  * Renders the navigation links and user profile section within the sidebar.
  */
-function SidebarContent({ onNavigate }: SidebarContentProps) {
+function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigation' }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
     const location = useLocation();
     const visibleNavItems = navItems.filter((item) => canAccessRoute(profile, item.path));
@@ -115,7 +116,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                 </h1>
             </div>
 
-            <nav className="flex-1 space-y-[5px] px-[16px] py-[20px]">
+            <nav aria-label={ariaLabel} className="flex-1 space-y-[5px] px-[16px] py-[20px]">
                 {visibleNavItems.map((item) => (
                     <NavLink
                         key={item.path}
@@ -218,11 +219,11 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
                     <div className="mb-4 flex items-center justify-between px-3 py-2">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-surface-muted">
-                                <Avatar 
+                                <UserAvatar
                                     size={32}
-                                    name={profile.profileIcon || profile.username || 'User'}
-                                    variant="beam"
-                                    colors={["#2563eb", "#00beff", "#323232", "#fde68a", "#3b82f6"]}
+                                    profileIcon={profile.profileIcon}
+                                    fallbackName={`${profile.firstName} ${profile.lastName}`.trim()}
+                                    seed={profile.id}
                                 />
                             </div>
 
@@ -285,8 +286,8 @@ export function SideBar() {
 
     return (
         <>
-            <aside className="sticky top-0 hidden h-screen w-[286px] shrink-0 flex-col border-r border-app-border bg-app-bg lg:flex">
-                <SidebarContent />
+            <aside aria-label="Desktop Sidebar" className="sticky top-0 hidden h-screen w-[286px] shrink-0 flex-col border-r border-app-border bg-app-bg lg:flex">
+                <SidebarContent aria-label="Desktop Navigation" />
             </aside>
 
             <header className="fixed left-0 right-0 top-0 z-40 flex h-[64px] items-center justify-between border-b border-app-border bg-app-bg px-[16px] lg:hidden">
@@ -325,12 +326,15 @@ export function SideBar() {
             ) : null}
 
             <aside
+                aria-label="Mobile Sidebar"
+                aria-hidden={!isMobileSidebarOpen}
+                inert={!isMobileSidebarOpen}
                 className={[
                     'fixed bottom-0 left-0 top-0 z-[60] flex w-[286px] flex-col border-r border-app-border bg-app-bg transition-transform duration-300 ease-out lg:hidden',
                     isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
                 ].join(' ')}
             >
-                <SidebarContent onNavigate={closeMobileSidebar} />
+                <SidebarContent aria-label="Mobile Navigation" onNavigate={closeMobileSidebar} />
             </aside>
         </>
     );

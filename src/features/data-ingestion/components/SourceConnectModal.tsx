@@ -1,5 +1,6 @@
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import type { FormEvent } from "react";
+import { Modal } from "../../../components/ui/Modal";
 import type {
     ConnectState,
     SourceConnectMeta,
@@ -24,6 +25,10 @@ type SourceConnectModalProps = {
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
+/**
+ * Modal form for connecting a new data source to SprintStart.
+ * Manages the complex state of selecting a source type (e.g., GitHub) and configuring its connection parameters.
+ */
 export function SourceConnectModal({
     selectedSourceSystem,
     sourceSystems,
@@ -55,32 +60,44 @@ export function SourceConnectModal({
         !hasGithubTokens;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 py-4 sm:items-center">
-            <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-app-border bg-app-surface shadow-xl">
-                <div className="flex items-start justify-between gap-4 border-b border-app-border px-6 py-5">
-                    <div>
-                        <h2 className="text-xl font-bold text-app-text">
-                            Add Data Source
-                        </h2>
-
-                        <p className="mt-1 text-sm text-app-text-muted">
-                            Choose which source type you want to connect to
-                            SprintStart.
-                        </p>
-                    </div>
-
+        <Modal
+            isOpen
+            title="Add Data Source"
+            description="Choose which source type you want to connect to SprintStart."
+            size="lg"
+            isDismissDisabled={isLoading}
+            onClose={onClose}
+            closeLabel="Close source connect modal"
+            footer={
+                <>
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={isLoading}
-                        className="rounded-xl p-2 text-app-text-muted transition hover:bg-app-bg-soft hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60"
-                        aria-label="Close source connect modal"
+                        className="rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm font-semibold text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        <X size={20} />
+                        Cancel
                     </button>
-                </div>
 
-                <form onSubmit={onSubmit} className="space-y-5 px-6 py-6">
+                    <button
+                        type="submit"
+                        form="source-connect-form"
+                        disabled={isSubmitDisabled}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isLoading && (
+                            <RefreshCw size={16} className="animate-spin" />
+                        )}
+                        {isLoading
+                            ? "Connecting..."
+                            : isGithubSelected
+                              ? "Connect Source"
+                              : "Not Available Yet"}
+                    </button>
+                </>
+            }
+        >
+                <form id="source-connect-form" onSubmit={onSubmit} className="space-y-5">
                     <div>
                         <p className="text-sm font-medium text-app-text">
                             Source type
@@ -255,33 +272,7 @@ export function SourceConnectModal({
                         </>
                     )}
 
-                    <div className="flex flex-col-reverse gap-3 border-t border-app-border pt-5 sm:flex-row sm:justify-end">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={isLoading}
-                            className="rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm font-semibold text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitDisabled}
-                            className="flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isLoading && (
-                                <RefreshCw size={16} className="animate-spin" />
-                            )}
-                            {isLoading
-                                ? "Connecting..."
-                                : isGithubSelected
-                                  ? "Connect Source"
-                                  : "Not Available Yet"}
-                        </button>
-                    </div>
                 </form>
-            </div>
-        </div>
+        </Modal>
     );
 }

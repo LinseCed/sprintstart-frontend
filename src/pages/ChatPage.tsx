@@ -1,10 +1,13 @@
-import { Bot, MessageSquareText, Plus, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, ExternalLink, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
+import { useAuth } from "../context/useAuth";
+import { UserAvatar } from "../components/common/UserAvatar.tsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
+import { PageHeader } from "../components/layout/PageHeader.tsx";
 
 import "katex/dist/katex.min.css";
 
@@ -12,6 +15,7 @@ import "katex/dist/katex.min.css";
  * Displays the interface for communication with the chat.
  */
 export function ChatPage() {
+    const { profile } = useAuth();
     const {
         messages,
         chatId,
@@ -30,16 +34,26 @@ export function ChatPage() {
         showBrainrot,
         timestamp
     } = useChat();
+    const hasChatHistory = chats?.length !== 0;
 
     return (
-        <div className="h-screen flex overflow-hidden bg-app-bg text-app-text">
-            {chats?.length !== 0 && (
+        <div
+            className={[
+                "flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen",
+                hasChatHistory ? "" : "app-page-frame",
+            ].filter(Boolean).join(" ")}
+        >
+            {hasChatHistory && (
                 <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
                     <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
                 </aside>
             )}
 
             <aside
+                id="chat-mobile-sidebar"
+                aria-label="Mobile chat navigation"
+                aria-hidden={!sidebarOpen}
+                inert={!sidebarOpen}
                 className={`
                     fixed top-0 left-0 h-full w-64 bg-app-bg
                     border-r border-app-border z-50
@@ -51,7 +65,7 @@ export function ChatPage() {
                 <div className="p-4 flex justify-between items-center">
                     <h2 className="font-bold">Chats</h2>
 
-                    <button onClick={() => setSidebarOpen(false)}>
+                    <button aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
                         <X size={24} />
                     </button>
                 </div>
@@ -60,10 +74,13 @@ export function ChatPage() {
             </aside>
 
             <button
+                aria-label="Toggle sidebar"
+                aria-controls="chat-mobile-sidebar"
+                aria-expanded={sidebarOpen}
                 className="
                     fixed
                     top-4
-                    right-4
+                    right-[var(--app-page-gutter)]
                     z-50
                     md:hidden
                     p-3
@@ -82,12 +99,12 @@ export function ChatPage() {
             </button>
 
             <div className="flex flex-col flex-1 min-w-0">
-                <header className="h-16 border-b border-app-border flex items-center px-6 shrink-0 bg-app-bg/80 backdrop-blur-md">
-                    <div className="flex items-center gap-3">
-                        <Sparkles className="text-app-brand-text" size={20} />
-                        <h1 className="font-bold text-app-text text-lg">AI Assistant</h1>
-                    </div>
-                </header>
+                <PageHeader
+                    icon={Sparkles}
+                    title="AI Assistant"
+                    subtitle="Ask questions about project knowledge, code, documentation and onboarding."
+                    className="shrink-0 border-b border-app-border bg-app-bg/80 px-6 py-4 backdrop-blur-md"
+                />
 
                 <div className="flex-1 overflow-y-auto flex flex-col">
                     {!chatId && (
@@ -128,11 +145,16 @@ export function ChatPage() {
                                 >
                                     <div
                                         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                            isRequest ? "bg-app-brand" : "bg-app-surface-muted"
+                                            isRequest ? "" : "bg-app-surface-muted"
                                         }`}
                                     >
                                         {isRequest ? (
-                                            <User size={16} className="text-white" />
+                                            <UserAvatar
+                                                profileIcon={profile?.profileIcon}
+                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
+                                                seed={profile?.id}
+                                                size={32}
+                                            />
                                         ) : (
                                             <Bot size={16} className="text-app-brand-text" />
                                         )}
@@ -266,10 +288,23 @@ export function ChatPage() {
                     <div className="absolute right-6 bottom-24 w-80 rounded-xl bg-app-surface border border-app-border p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-4">
                         <div className="flex justify-between items-start mb-2">
                             <h3 className="text-sm font-bold text-app-text truncate pr-4">
-                                {selectedCitation.filename}
+                                {selectedCitation.sourceUrl ? (
+                                    <a
+                                        href={selectedCitation.sourceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 hover:underline"
+                                    >
+                                        {selectedCitation.filename}
+                                        <ExternalLink size={12} />
+                                    </a>
+                                ) : (
+                                    selectedCitation.filename
+                                )}
                             </h3>
 
                             <button
+                                aria-label="Close citation"
                                 onClick={() => setSelectedCitation(null)}
                                 className="text-app-text-muted hover:text-app-text transition-colors"
                             >
@@ -277,8 +312,9 @@ export function ChatPage() {
                             </button>
                         </div>
 
-                        <div className="text-xs text-app-text line-clamp-4 leading-relaxed">
-                            {selectedCitation.section_path}
+                        <div className="text-xs text-app-text-muted leading-relaxed">
+                            {selectedCitation.startLine !== undefined && `Line ${selectedCitation.startLine}`}
+                            {selectedCitation.startPage !== undefined && `Page ${selectedCitation.startPage}`}
                         </div>
                     </div>
                 )}
@@ -287,6 +323,7 @@ export function ChatPage() {
                     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
                         <textarea
                             ref={textareaRef}
+                            aria-label="Message"
                             placeholder="Ask anything about the project..."
                             className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
                             value={newRequest}
@@ -307,6 +344,7 @@ export function ChatPage() {
 
                         <button
                             type="submit"
+                            aria-label="Send message"
                             disabled={isThinking || isStreaming || !newRequest.trim()}
                             className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
                         >

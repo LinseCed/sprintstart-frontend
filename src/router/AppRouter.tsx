@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
-import { KnowledgeBasePage } from '../pages/KnowledgeBasePage';
+import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { OnBoardingPage } from '../pages/OnBoardingPage';
 import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
@@ -13,9 +13,9 @@ import { TeamMemberDetailPage } from '../pages/TeamMemberDetailPage.tsx';
 import { PmDashboardPage } from '../pages/PmDashboardPage.tsx';
 import { AdminPage } from '../pages/AdminPage.tsx';
 import { FaqPage } from '../features/faq/components/FaqPage.tsx';
-import { FaqDetailPage } from '../features/faq/components/faqDetailView.tsx';
+import { FaqDetailPage } from '../features/faq/components/FaqDetailPage.tsx';
 import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/KnowledgeGapsPage.tsx';
-import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/knowledgeGapsDetailPage.tsx';
+import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/KnowledgeGapsDetailPage.tsx';
 import { ProfilePage } from '../pages/ProfilePage.tsx';
 
 export function AppRouter() {
