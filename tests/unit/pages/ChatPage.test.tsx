@@ -23,25 +23,40 @@ const mockChatState = {
             content: 'Hi there',
             chat: undefined,
             citations: [
-                { chunk_id: 'c1', filename: 'readme.md', section_path: '/docs/readme.md#setup' },
+                { artifactId: 'c1', filename: 'readme.md' },
             ],
         },
     ],
     chatId: 'chat1',
+    activeChat: { id: 'chat1', userId: 'u1', title: 'Chat 1', createdAt: '' },
     chats: [{ id: 'chat1', userId: 'u1', title: 'Chat 1', createdAt: '' }],
     handleSubmit: mockHandleSubmit,
+    addMessage: vi.fn(),
     isThinking: false,
     isStreaming: false,
+    thinkingState: null,
+    streamingMessageId: null,
     newRequest: '',
     setNewRequest: mockSetNewRequest,
     selectedCitation: null,
     setSelectedCitation: mockSetSelectedCitation,
     sidebarOpen: false,
     setSidebarOpen: vi.fn(),
+    desktopSidebarOpen: true,
+    setDesktopSidebarOpen: vi.fn(),
     textareaRef: { current: null },
     bottomRef: { current: null },
-    showBrainrot: false,
-    timestamp: 0,
+    scrollContainerRef: { current: null },
+    showFilters: false,
+    setShowFilters: vi.fn(),
+    from: '',
+    setFrom: vi.fn(),
+    to: '',
+    setTo: vi.fn(),
+    sourceSystems: [] as const,
+    toggleSourceSystem: vi.fn(),
+    activeFilterCount: 0,
+    clearFilters: vi.fn(),
 };
 
 vi.mock('../../../src/features/chatbot/hooks/useChat', () => ({
@@ -61,8 +76,11 @@ describe('ChatPage', () => {
         expect(screen.getByText('Hi there')).toBeInTheDocument();
     });
 
-    it('renders citation chips for assistant messages with citations', () => {
+    it('renders citation chips for assistant messages with citations', async () => {
+        const user = userEvent.setup();
         render(<MemoryRouter><ChatPage /></MemoryRouter>);
+        const toggleBtn = screen.getByRole('button', { name: /Quellen ·/i });
+        await user.click(toggleBtn);
         expect(screen.getByText(/readme\.md/)).toBeInTheDocument();
     });
 

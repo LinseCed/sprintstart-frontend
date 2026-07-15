@@ -229,6 +229,19 @@
   padding-right: var(--app-page-gutter);
 }
 
+.admin-page-frame {
+  width: 100%;
+  padding-left: clamp(1rem, 4vw, 2rem);
+  padding-right: clamp(1rem, 4vw, 2rem);
+}
+
+@media (min-width: 1280px) {
+  .admin-page-frame {
+    padding-left: var(--app-page-gutter);
+    padding-right: var(--app-page-gutter);
+  }
+}
+
 .app-page-shell {
   width: 100%;
   padding-top: var(--app-page-block-gutter);
@@ -383,6 +396,30 @@
 
 .chat-md-user hr {
   border-top-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Blinking caret shown at the end of an assistant message while tokens are
+   still streaming in. aria-hidden so screen readers don't announce it. */
+.streaming-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background-color: currentColor;
+  animation: streaming-blink 1s steps(2, start) infinite;
+}
+
+@keyframes streaming-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-caret {
+    animation: none;
+  }
 }
 
 html,
