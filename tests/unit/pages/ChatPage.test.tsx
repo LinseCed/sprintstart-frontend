@@ -3,12 +3,19 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ChatPage } from '../../../src/pages/ChatPage';
+import type { ChatMessage } from '../../../src/features/chatbot/types';
 
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({
         profile: { id: 'u1', firstName: 'Test', lastName: 'User', profileIcon: null },
     }),
 }));
+
+vi.mock('../../../src/context/useChatPreferences', () => ({
+    useChatPreferences: vi.fn(),
+}));
+
+import { useChatPreferences } from '../../../src/context/useChatPreferences';
 
 const mockHandleSubmit = vi.fn();
 const mockSetNewRequest = vi.fn();
@@ -26,7 +33,7 @@ const mockChatState = {
                 { artifactId: 'c1', filename: 'readme.md' },
             ],
         },
-    ],
+    ] as ChatMessage[],
     chatId: 'chat1',
     activeChat: { id: 'chat1', userId: 'u1', title: 'Chat 1', createdAt: '' },
     chats: [{ id: 'chat1', userId: 'u1', title: 'Chat 1', createdAt: '' }],
@@ -68,6 +75,20 @@ describe('ChatPage', () => {
         vi.clearAllMocks();
         mockChatState.newRequest = '';
         mockChatState.selectedCitation = null;
+        mockChatState.messages = [
+            { id: 'm1', role: 'USER' as const, content: 'Hello bot', chat: undefined },
+            {
+                id: 'm2',
+                role: 'ASSISTANT' as const,
+                content: 'Hi there',
+                chat: undefined,
+                citations: [{ artifactId: 'c1', filename: 'readme.md' }],
+            },
+        ];
+        vi.mocked(useChatPreferences).mockReturnValue({
+            showThoughtProcess: true,
+            setShowThoughtProcess: vi.fn(),
+        });
     });
 
     it('renders the message list with user and assistant messages', () => {
@@ -96,5 +117,30 @@ describe('ChatPage', () => {
         const sendButton = screen.getByRole('button', { name: 'Send message' });
         await user.click(sendButton);
         expect(mockHandleSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the Thought Process block when an assistant message has reasoning', () => {
+        mockChatState.messages = [
+            ...mockChatState.messages,
+            { id: 'm3', role: 'ASSISTANT' as const, content: 'Final answer', chat: undefined, reasoning: 'Let me think...' },
+        ];
+        render(<MemoryRouter><ChatPage /></MemoryRouter>);
+
+        expect(screen.getAllByText('Thought Process').length).toBeGreaterThan(0);
+        expect(screen.getByText('Let me think...')).toBeInTheDocument();
+    });
+
+    it('hides the Thought Process block when the preference is off', () => {
+        vi.mocked(useChatPreferences).mockReturnValue({
+            showThoughtProcess: false,
+            setShowThoughtProcess: vi.fn(),
+        });
+        mockChatState.messages = [
+            { id: 'm3', role: 'ASSISTANT' as const, content: 'Final answer', chat: undefined, reasoning: 'Let me think...' },
+        ];
+        render(<MemoryRouter><ChatPage /></MemoryRouter>);
+
+        expect(screen.queryByText('Thought Process')).not.toBeInTheDocument();
+        expect(screen.queryByText('Let me think...')).not.toBeInTheDocument();
     });
 });

@@ -11,6 +11,13 @@ vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', username: 'Test', email: 'test@test.com' }, status: 'authenticated' })
 }));
 
+vi.mock('../../../src/context/useChatPreferences', () => ({
+    useChatPreferences: () => ({
+        showThoughtProcess: true,
+        setShowThoughtProcess: vi.fn(),
+    }),
+}));
+
 describe('ChatPage Accessibility', () => {
     it('should not have any a11y violations', async () => {
         const { baseElement } = render(
