@@ -39,6 +39,11 @@ export type PathEdge = {
 export type PathView = {
     nodes: PathNode[];
     edges: PathEdge[];
+
+    /**
+     * The competency graph version this path was projected against.
+     */
+    graphVersion: number;
 };
 
 export type AssessmentChatMessage = {

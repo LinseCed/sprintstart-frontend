@@ -6,6 +6,7 @@ import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { OnBoardingPage } from '../pages/OnBoardingPage';
 import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
+import { CompetencyPathPage } from '../pages/CompetencyPathPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { SkillWizardPage } from '../pages/SkillWizardPage';
@@ -30,6 +31,7 @@ export function AppRouter() {
                 <Route path="/chat/:id" element={<ChatPage />} />
                 <Route path="/onboarding" element={<OnBoardingPage />} />
                 <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
+                <Route path="/onboarding/path" element={<CompetencyPathPage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />

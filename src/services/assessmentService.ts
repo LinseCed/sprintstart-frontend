@@ -45,3 +45,31 @@ export const assessmentService = {
         return await apiClient.fetch<PathView>('/api/v1/onboarding/me/path');
     }
 };
+
+const graphVersionSeenPrefix = 'competency-graph-version-seen';
+
+function getGraphVersionSeenKey(userId: string) {
+    return `${graphVersionSeenPrefix}:${userId}`;
+}
+
+/**
+ * Returns the competency graph version this user last saw their path at, or
+ * `null` if they've never had one recorded (or the stored value is garbage).
+ */
+export function getLastSeenGraphVersion(userId: string): number | null {
+    if (typeof window === 'undefined') return null;
+
+    const value = window.localStorage.getItem(getGraphVersionSeenKey(userId));
+    const parsed = value === null ? NaN : Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Records the competency graph version this user has now seen their path at.
+ */
+export function markGraphVersionSeen(userId: string, version: number): void {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(getGraphVersionSeenKey(userId), String(version));
+}

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { assessmentService } from '../../../src/services/assessmentService';
+import {
+    assessmentService,
+    getLastSeenGraphVersion,
+    markGraphVersionSeen
+} from '../../../src/services/assessmentService';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../unit/setup/vitest.setup';
 
@@ -53,6 +57,7 @@ describe('assessmentService', () => {
                 HttpResponse.json({
                     nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
                     edges: [],
+                    graphVersion: 1,
                 }),
             ),
         );
@@ -63,5 +68,36 @@ describe('assessmentService', () => {
             { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 },
         ]);
         expect(path.edges).toEqual([]);
+        expect(path.graphVersion).toBe(1);
+    });
+});
+
+describe('graph version seen tracking', () => {
+    beforeEach(() => {
+        window.localStorage.clear();
+    });
+
+    it('returns null when nothing has been recorded', () => {
+        expect(getLastSeenGraphVersion('user1')).toBeNull();
+    });
+
+    it('round-trips a stored version', () => {
+        markGraphVersionSeen('user1', 3);
+
+        expect(getLastSeenGraphVersion('user1')).toBe(3);
+    });
+
+    it('keeps versions separate per user', () => {
+        markGraphVersionSeen('user1', 3);
+        markGraphVersionSeen('user2', 7);
+
+        expect(getLastSeenGraphVersion('user1')).toBe(3);
+        expect(getLastSeenGraphVersion('user2')).toBe(7);
+    });
+
+    it('rejects a garbage stored value', () => {
+        window.localStorage.setItem('competency-graph-version-seen:user1', 'not-a-number');
+
+        expect(getLastSeenGraphVersion('user1')).toBeNull();
     });
 });

@@ -5,7 +5,7 @@ import type { PathView } from '../../../../../src/features/skill-assessment/type
 
 describe('AssessmentPathView', () => {
     it('shows a friendly message when there are no nodes', () => {
-        render(<AssessmentPathView path={{ nodes: [], edges: [] }} />);
+        render(<AssessmentPathView path={{ nodes: [], edges: [], graphVersion: 1 }} />);
 
         expect(screen.getByText(/no competencies in your path yet/i)).toBeInTheDocument();
     });
@@ -17,6 +17,7 @@ describe('AssessmentPathView', () => {
                 { key: 'a', label: 'A', kind: 'SKILL', state: 'mastered' },
             ],
             edges: [{ from: 'a', to: 'b' }],
+            graphVersion: 1,
         };
         render(<AssessmentPathView path={path} />);
 
@@ -32,6 +33,7 @@ describe('AssessmentPathView', () => {
                 { key: 'domain-model', label: 'Our domain model', kind: 'CONCEPT', state: 'locked' },
             ],
             edges: [{ from: 'kotlin', to: 'domain-model' }],
+            graphVersion: 1,
         };
         render(<AssessmentPathView path={path} />);
 
@@ -46,6 +48,7 @@ describe('AssessmentPathView', () => {
                 { key: 'c', label: 'C', kind: 'CONTRIBUTION', state: 'available' },
             ],
             edges: [],
+            graphVersion: 1,
         };
         const juniorPath: PathView = {
             nodes: [
@@ -56,6 +59,7 @@ describe('AssessmentPathView', () => {
                 { key: 'e', label: 'E', kind: 'CONTRIBUTION', state: 'locked' },
             ],
             edges: [],
+            graphVersion: 1,
         };
 
         const { unmount } = render(<AssessmentPathView path={seniorPath} />);

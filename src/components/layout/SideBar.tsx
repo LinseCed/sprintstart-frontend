@@ -7,6 +7,7 @@ import {
     ChartColumn,
     Database,
     LogOut,
+    Map,
     Menu,
     MessageSquare,
     Rocket,
@@ -50,6 +51,11 @@ const navItems: SidebarNavItem[] = [
         label: 'OnBoarding',
         path: '/onboarding',
         icon: <Rocket className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    {
+        label: 'My Path',
+        path: '/onboarding/path',
+        icon: <Map className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 
