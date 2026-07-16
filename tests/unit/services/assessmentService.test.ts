@@ -47,11 +47,21 @@ describe('assessmentService', () => {
         expect(result).toEqual({ done: true, question: null });
     });
 
-    it('fetchPath resolves the mock fixture', async () => {
+    it('fetchPath gets the competency path from the backend', async () => {
+        server.use(
+            http.get('/api/v1/onboarding/me/path', () =>
+                HttpResponse.json({
+                    nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+                    edges: [],
+                }),
+            ),
+        );
+
         const path = await assessmentService.fetchPath();
 
-        expect(path.nodes.length).toBeGreaterThan(0);
-        expect(path.nodes[0]).toHaveProperty('key');
-        expect(path.nodes[0]).toHaveProperty('state');
+        expect(path.nodes).toEqual([
+            { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 },
+        ]);
+        expect(path.edges).toEqual([]);
     });
 });
