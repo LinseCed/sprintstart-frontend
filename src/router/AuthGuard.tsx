@@ -94,9 +94,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
         needsSkillAssessment &&
         (!skillAssessmentUserId ||
             getSkillAssessmentPromptState(skillAssessmentUserId) === null) &&
-        location.pathname !== "/skill-wizard"
+        location.pathname !== "/onboarding/assessment"
     ) {
-        return <Navigate to="/skill-wizard" replace />;
+        return <Navigate to="/onboarding/assessment" replace />;
     }
 
     return <>{children}</>;
