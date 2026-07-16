@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Plus } from 'lucide-react';
 import { knowledgeService } from '../services/knowledgeService';
@@ -44,30 +44,26 @@ export function KnowledgeBasePage() {
     // Upload State
     const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
 
+    const fetchArtifacts = useCallback(async () => {
+        if (!projectId) return;
+        setIsLoading(true);
+        try {
+            const data = await knowledgeService.getUnifiedArtifacts(projectId);
+            setArtifacts(data);
+        } catch (error) {
+            console.error("Failed to load artifacts", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [projectId]);
+
     /**
      * Loads the initial batch of unified artifacts from the backend.
      * Depends on the authenticated user's projectId to fetch the correct project scope.
      */
     useEffect(() => {
-        if (!projectId) return;
-
-        let isMounted = true;
-
-        knowledgeService.getUnifiedArtifacts(projectId)
-            .then(data => {
-                if (isMounted) setArtifacts(data);
-            })
-            .catch(error => {
-                console.error("Failed to load artifacts", error);
-            })
-            .finally(() => {
-                if (isMounted) setIsLoading(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [projectId]);
+        void Promise.resolve().then(fetchArtifacts);
+    }, [fetchArtifacts]);
 
     // Derived Filtered List
     const filteredArtifacts = useMemo(() => {
@@ -167,6 +163,8 @@ export function KnowledgeBasePage() {
                                         setActiveTab(tab);
                                         setCurrentPage(1);
                                     }}
+                                    onRefresh={() => void fetchArtifacts()}
+                                    isRefreshing={isLoading}
                                 />
                             </motion.div>
 
