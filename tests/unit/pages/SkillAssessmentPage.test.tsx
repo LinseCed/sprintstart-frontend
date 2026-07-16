@@ -40,6 +40,7 @@ describe('SkillAssessmentPage', () => {
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
             nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered' }],
             edges: [],
+            graphVersion: 1,
         });
 
         const user = userEvent.setup();

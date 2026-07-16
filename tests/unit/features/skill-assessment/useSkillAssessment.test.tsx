@@ -62,6 +62,7 @@ describe('useSkillAssessment', () => {
                 HttpResponse.json({
                     nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
                     edges: [],
+                    graphVersion: 1,
                 }),
             ),
         );
