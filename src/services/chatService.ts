@@ -16,9 +16,11 @@ export async function getChats() {
  * Creates a new chat for a specific user.
  *
  * @param userId The user starting the conversation.
+ * @returns The backend returns only `{ id }` — callers must synthesize the
+ *   remaining `Chat` fields (`title`, `userId`, `createdAt`) client-side.
  */
 export async function createChat(userId: string) {
-    return await apiClient.fetch<Chat>(`/api/v1/chats`, {
+    return await apiClient.fetch<{ id: string }>(`/api/v1/chats`, {
         method: "POST",
         body: JSON.stringify({ userId }),
     });
@@ -28,9 +30,17 @@ export async function createChat(userId: string) {
  * Retrieves all messages from a specific chat.
  *
  * @param chatId The chat the messages belong to.
+ * @note The backend's `ChatMessageResponse` omits `id` — we generate stable
+ *   client-side ids here so React keys and the streaming-message tracking work.
  */
 export async function getMessages(chatId: string) {
-    return await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
+    const response = await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
+    return {
+        messages: response.messages.map((msg) => ({
+            ...msg,
+            id: msg.id ?? crypto.randomUUID(),
+        })),
+    };
 }
 
 /**
@@ -41,9 +51,11 @@ interface ChatEvent {
     name?: string;
     content?: string;
     message?: string;
-    chunk_id?: string;
+    artifact_id?: string;
     filename?: string;
-    section_path?: string;
+    source_url?: string;
+    start_line?: number;
+    start_page?: number;
 }
 
 /**
@@ -88,6 +100,7 @@ export async function streamMessage(
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Accept": "text/event-stream",
             "Authorization": `Bearer ${keycloak.token}`
         },
         body: JSON.stringify({
@@ -142,11 +155,13 @@ export async function streamMessage(
                     break;
 
                 case "citation":
-                    if (event.chunk_id && event.filename) {
+                    if (event.artifact_id && event.filename) {
                         handlers.onCitation({
-                            chunk_id: event.chunk_id,
+                            artifactId: event.artifact_id,
                             filename: event.filename,
-                            section_path: event.section_path ?? ""
+                            sourceUrl: event.source_url,
+                            startLine: event.start_line,
+                            startPage: event.start_page
                         });
                     }
                     break;
