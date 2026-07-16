@@ -214,7 +214,7 @@ describe('AuthGuard', () => {
         });
     });
 
-    it('redirects to /skill-wizard if skill assessment is needed', async () => {
+    it('redirects to /onboarding/assessment if skill assessment is needed', async () => {
         vi.mocked(useAuth).mockReturnValue({
             status: 'authenticated',
             profile: mockProfile,
@@ -248,7 +248,7 @@ describe('AuthGuard', () => {
         render(
             <MemoryRouter initialEntries={['/protected']}>
                 <Routes>
-                    <Route path="/skill-wizard" element={<LocationDisplay />} />
+                    <Route path="/onboarding/assessment" element={<LocationDisplay />} />
                     <Route
                         path="/protected"
                         element={
@@ -262,7 +262,7 @@ describe('AuthGuard', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/skill-wizard');
+            expect(screen.getByTestId('location')).toHaveTextContent('/onboarding/assessment');
         });
     });
 });
