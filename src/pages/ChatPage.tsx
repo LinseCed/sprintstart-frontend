@@ -475,18 +475,18 @@ export function ChatPage() {
                         })}
 
                         {gameActive && isThinking ? (
-                            <div className="flex w-full gap-3" aria-hidden="true">
+                            <div className="flex w-full gap-3" role="status">
                                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-brand-soft shadow-sm ring-1 ring-app-brand-border">
                                     <Bot size={15} className="text-app-brand-text" />
                                 </div>
 
                                 <div className="min-w-0 flex-1">
                                     <DinoGame onExit={() => setGameActive(false)} />
-                                    
+
                                     <div className="mt-2 px-4 py-2.5 rounded-2xl bg-app-surface-muted text-app-text flex items-center gap-1 w-max border border-app-border-muted">
-                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce" />
-                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:150ms]" />
-                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:300ms]" />
+                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce" aria-hidden="true" />
+                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:150ms]" aria-hidden="true" />
+                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:300ms]" aria-hidden="true" />
 
                                         {thinkingState === "retrieve" && (
                                             <span className="italic pl-2 animate-pulse text-sm">Searching knowledge base...</span>
@@ -502,7 +502,7 @@ export function ChatPage() {
                             </div>
                         ) : (
                             isThinking && (
-                                <div className="flex w-full gap-3" aria-hidden="true">
+                                <div className="flex w-full gap-3" role="status">
                                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-brand-soft shadow-sm ring-1 ring-app-brand-border">
                                         <Bot size={15} className="text-app-brand-text" />
                                     </div>
@@ -510,9 +510,9 @@ export function ChatPage() {
                                     <div className="flex flex-col items-start max-w-[85%]">
                                         <div className="px-4 py-2.5 rounded-2xl rounded-tl-sm border border-app-border-muted bg-app-surface-muted text-app-text">
                                             <div className="flex gap-1 items-center">
-                                                <span className="size-2 animate-bounce rounded-full bg-app-brand" />
-                                                <span className="size-2 animate-bounce rounded-full bg-app-brand [animation-delay:150ms]" />
-                                                <span className="size-2 animate-bounce rounded-full bg-app-brand [animation-delay:300ms]" />
+                                                <span className="size-2 animate-bounce rounded-full bg-app-brand" aria-hidden="true" />
+                                                <span className="size-2 animate-bounce rounded-full bg-app-brand [animation-delay:150ms]" aria-hidden="true" />
+                                                <span className="size-2 animate-bounce rounded-full bg-app-brand [animation-delay:300ms]" aria-hidden="true" />
 
                                                 {thinkingState === "retrieve" && (
                                                     <span className="italic pl-2 animate-pulse text-sm">Searching knowledge base...</span>
@@ -737,6 +737,7 @@ export function ChatPage() {
                             <button
                                 type="button"
                                 aria-label="Stop generation"
+                                data-testid="chat-stop-button"
                                 onClick={stopStreaming}
                                 className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-app-danger-border bg-app-danger-solid text-white transition-colors hover:opacity-90"
                             >
