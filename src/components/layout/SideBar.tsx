@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     BookOpen,
@@ -18,6 +18,8 @@ import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
+
+let lastToggleTime = 0;
 
 type SidebarNavItem = {
     label: string;
@@ -98,6 +100,40 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
     const visibleAdminNavItems = adminNavItems.filter((item) =>
         canAccessRoute(profile, item.path),
     );
+
+    const [, setCogwheelClicks] = useState(0);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const handleSettingsClick = (e: React.MouseEvent) => {
+        if (location.pathname === '/profile' || location.pathname === '/profile/') {
+            e.preventDefault();
+            setCogwheelClicks(prev => {
+                const next = prev + 1;
+                if (next >= 3) {
+                    if (Date.now() - lastToggleTime < 2000) {
+                        return 0;
+                    }
+                    lastToggleTime = Date.now();
+                    const isUnlocked = localStorage.getItem('dinoUnlocked') === 'true';
+                    if (isUnlocked) {
+                        localStorage.setItem('dinoUnlocked', 'false');
+                        window.dispatchEvent(new Event('dinoUnlockChanged'));
+                        setToastMsg('you saw nothing... 🫣');
+                    } else {
+                        localStorage.setItem('dinoUnlocked', 'true');
+                        window.dispatchEvent(new Event('dinoUnlockChanged'));
+                        setToastMsg('shh... 🤫 (press Space)');
+                    }
+                    setTimeout(() => setToastMsg(null), 3000);
+                    return 0;
+                }
+                return next;
+            });
+        }
+        if (onNavigate) {
+            onNavigate();
+        }
+    };
 
     const isPmSectionActive =
         location.pathname.startsWith('/pm-dashboard') ||
@@ -239,11 +275,11 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                         </div>
                         <NavLink
                             to="/profile"
-                            onClick={onNavigate}
-                            className={({ isActive }) => 
+                            onClick={handleSettingsClick}
+                            className={({ isActive }) =>
                                 `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                                    isActive 
-                                        ? 'bg-app-surface-hover text-app-brand' 
+                                    isActive
+                                        ? 'bg-app-surface-hover text-app-brand'
                                         : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-text'
                                 }`
                             }
@@ -269,6 +305,12 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                     Logout
                 </button>
             </div>
+
+            {toastMsg && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-app-brand text-white rounded-full shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-4 z-[9999] pointer-events-none">
+                    {toastMsg}
+                </div>
+            )}
         </div>
     );
 }
