@@ -109,6 +109,39 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+// IntersectionObserver polyfill for jsdom (used by the chat auto-scroll logic).
+class MockIntersectionObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords(): IntersectionObserverEntry[] { return []; }
+  readonly root: Element | Document | null = null;
+  readonly rootMargin: string = "";
+  readonly thresholds: ReadonlyArray<number> = [];
+}
+global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+// matchMedia polyfill for jsdom (ThemeProvider listens to prefers-color-scheme
+// changes when the user picks the 'system' theme). Tests can override per-case
+// via Object.defineProperty(window, 'matchMedia', ...) if they need a specific
+// matches value.
+if (!window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }),
+  });
+}
+
 if (!window.HTMLElement.prototype.scrollIntoView) {
     window.HTMLElement.prototype.scrollIntoView = function() {};
 }

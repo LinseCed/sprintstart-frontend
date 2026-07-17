@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { BookText, ChevronDown, ExternalLink } from "lucide-react";
 import type { Citation } from "../types";
+import { getCitationPopoverStyle } from "../utils/popoverPosition";
 
 type MessageCitationsProps = {
     citations: Citation[];
@@ -60,6 +61,35 @@ function formatRanges(prefix: string, numbers: number[]): string[] {
 export function MessageCitations({ citations, onOpenArtifact }: MessageCitationsProps) {
     const [open, setOpen] = useState(false);
     const [activeFile, setActiveFile] = useState<string | null>(null);
+    // E3/E4: anchor rect of the chip that opened the sub-popover, so the
+    // popover can be positioned fixed (viewport-clamped) and dismissed on
+    // outside click / Escape.
+    const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!activeFile) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                setActiveFile(null);
+            }
+        };
+        const onPointerDown = (e: PointerEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+                setActiveFile(null);
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        const id = window.setTimeout(() => {
+            window.addEventListener("pointerdown", onPointerDown);
+        }, 0);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("pointerdown", onPointerDown);
+            window.clearTimeout(id);
+        };
+    }, [activeFile]);
 
     const groups = useMemo<CitationGroup[]>(() => {
         const map = new Map<string, {
@@ -143,10 +173,15 @@ export function MessageCitations({ citations, onOpenArtifact }: MessageCitations
                             <div key={group.filename} className="relative">
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        canExpand &&
-                                        setActiveFile(isActive ? null : group.filename)
-                                    }
+                                    onClick={(e) => {
+                                        if (!canExpand) return;
+                                        if (isActive) {
+                                            setActiveFile(null);
+                                        } else {
+                                            setActiveFile(group.filename);
+                                            setActiveRect(e.currentTarget.getBoundingClientRect());
+                                        }
+                                    }}
                                     className={`flex max-w-[220px] items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] transition-colors ${
                                         isActive
                                             ? "border-app-brand-border bg-app-brand-soft text-app-brand-text"
@@ -161,8 +196,12 @@ export function MessageCitations({ citations, onOpenArtifact }: MessageCitations
                                     )}
                                 </button>
 
-                                {isActive && (
-                                    <div className="absolute left-0 top-full z-10 mt-1 w-max min-w-[150px] max-w-[300px] rounded-md border border-app-border-muted bg-app-bg-soft px-2 py-1.5 shadow-md">
+                                {isActive && activeRect && (
+                                    <div
+                                        ref={popoverRef}
+                                        style={getCitationPopoverStyle(activeRect, 240)}
+                                        className="rounded-md border border-app-border-muted bg-app-bg-soft px-2 py-1.5 shadow-md"
+                                    >
                                         {onOpenArtifact ? (
                                             <button
                                                 type="button"

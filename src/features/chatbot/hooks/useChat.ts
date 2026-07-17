@@ -3,6 +3,15 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ChatContext } from "../../../context/ChatContext";
 
 /**
+ * localStorage key prefix for per-chat draft persistence (E10). Each chat's
+ * in-progress message is stored under `chatDraft.<chatId>` so switching chats
+ * restores the draft and it survives a page refresh. The "new chat" (no
+ * chatId yet) state uses a shared `chatDraft.__new__` key.
+ */
+const DRAFT_KEY = (chatId: string | undefined) =>
+    `chatDraft.${chatId ?? "__new__"}`;
+
+/**
  * Consumes the global {@link ChatContext} and combines it with router params
  * (`chatId`) and component-local UI state (sidebar toggle, DOM refs, scroll
  * behavior). The heavy lifting — message state, streaming, filters — lives in
@@ -91,6 +100,33 @@ export function useChat() {
         void loadMessages(chatId);
     }, [chatId, messagesByChat, loadMessages]);
 
+    // A5: Instead of reading scrollHeight/scrollTop on every token (which
+    // forces a synchronous layout), an IntersectionObserver watches the bottom
+    // anchor. When it's visible the user is "at the bottom" and we auto-scroll
+    // on new content; when it's pushed out of view we stop auto-scrolling and
+    // show a "jump to latest" button (E12).
+    const [isAtBottom, setIsAtBottom] = useState(true);
+
+    useEffect(() => {
+        const anchor = bottomRef.current;
+        const container = scrollContainerRef.current;
+        if (!anchor || !container) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                // The bottom anchor is a zero-height div; "intersecting" means
+                // it's within the scroll viewport → the user is at the bottom.
+                setIsAtBottom(entries[0]?.isIntersecting ?? true);
+            },
+            { root: container, threshold: 0 },
+        );
+        observer.observe(anchor);
+        return () => observer.disconnect();
+    }, [bottomRef, scrollContainerRef]);
+
+    // Auto-scroll: jump to the bottom on chat switch (instant) and when new
+    // messages arrive *if* the user is already near the bottom. No DOM layout
+    // reads here — driven entirely by the IntersectionObserver's `isAtBottom`.
     useEffect(() => {
         const chatChanged = chatId !== prevChatIdRef.current;
         const messageAdded = messages.length > prevMessageCountRef.current;
@@ -98,23 +134,54 @@ export function useChat() {
         prevChatIdRef.current = chatId;
         prevMessageCountRef.current = messages.length;
 
-        if (chatChanged || messageAdded) {
-            bottomRef.current?.scrollIntoView({
-                behavior: chatChanged ? "auto" : "smooth"
-            });
+        if (chatChanged) {
+            bottomRef.current?.scrollIntoView({ behavior: "auto" });
             return;
         }
 
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        const distanceFromBottom =
-            container.scrollHeight - container.scrollTop - container.clientHeight;
-
-        if (distanceFromBottom < 120) {
-            bottomRef.current?.scrollIntoView();
+        if (messageAdded && isAtBottom) {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
         }
-    }, [chatId, messages]);
+    }, [chatId, messages, isAtBottom]);
+
+    const scrollToBottom = useCallback(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
+
+    // E10: Per-chat draft persistence to localStorage. When the user switches
+    // chats, the current draft is saved under the old chatId and the new
+    // chatId's draft is loaded — so in-progress text survives chat switching
+    // and page refreshes. A debounced save keeps localStorage in sync while
+    // the user types.
+    const draftChatIdRef = useRef<string | undefined>(chatId);
+
+    useEffect(() => {
+        const prevChatId = draftChatIdRef.current;
+        if (prevChatId === chatId) return;
+
+        // Save the draft for the chat we're leaving, then load the new one.
+        if (newRequest) {
+            localStorage.setItem(DRAFT_KEY(prevChatId), newRequest);
+        } else {
+            localStorage.removeItem(DRAFT_KEY(prevChatId));
+        }
+
+        draftChatIdRef.current = chatId;
+        const saved = localStorage.getItem(DRAFT_KEY(chatId)) ?? "";
+        setNewRequest(saved);
+    }, [chatId, newRequest, setNewRequest]);
+
+    // Debounced save while the user types (no chat switch).
+    useEffect(() => {
+        const id = setTimeout(() => {
+            if (newRequest) {
+                localStorage.setItem(DRAFT_KEY(chatId), newRequest);
+            } else {
+                localStorage.removeItem(DRAFT_KEY(chatId));
+            }
+        }, 400);
+        return () => clearTimeout(id);
+    }, [newRequest, chatId]);
 
     const addMessage = useCallback((text: string) => {
         return sendMessage(chatId, text, navigate);
@@ -127,12 +194,14 @@ export function useChat() {
 
         void addMessage(newRequest);
         setNewRequest("");
+        // Clear the persisted draft once sent.
+        localStorage.removeItem(DRAFT_KEY(chatId));
 
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
             textareaRef.current.blur();
         }
-    }, [newRequest, addMessage, setNewRequest]);
+    }, [newRequest, addMessage, setNewRequest, chatId]);
 
     return {
         chats: sortedChats,
@@ -167,6 +236,9 @@ export function useChat() {
         textareaRef,
         bottomRef,
         scrollContainerRef,
+
+        isAtBottom,
+        scrollToBottom,
 
         showFilters,
         setShowFilters,

@@ -1,64 +1,29 @@
-import { AlertCircle, Bot, Check, ExternalLink, Filter, MessageSquareText, Plus, Send, Sparkles, Square, X } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { MessageSquareText, Sparkles, X } from "lucide-react";
+import { ArrowDown } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { centralSpringToken } from "../styles/tokens";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
 import { useChatPreferences } from "../context/useChatPreferences";
 import { useAuth } from "../context/useAuth";
-import { UserAvatar } from "../components/common/UserAvatar.tsx";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
 import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
-import { MessageCitations } from "../features/chatbot/components/MessageCitations.tsx";
-import { CopyButton } from "../features/chatbot/components/CopyButton.tsx";
-import { DinoGame } from "../features/chatbot/components/DinoGame.tsx";
-import { linkifyCitations } from "../features/chatbot/markdown/linkifyCitations.ts";
+import { MessageRow } from "../features/chatbot/components/MessageRow.tsx";
+import { ThinkingIndicator } from "../features/chatbot/components/ThinkingIndicator.tsx";
+import { CitationPopover } from "../features/chatbot/components/CitationPopover.tsx";
+import { ChatEmptyState } from "../features/chatbot/components/ChatEmptyState.tsx";
+import { ChatComposer } from "../features/chatbot/components/ChatComposer.tsx";
 import { PageHeader } from "../components/layout/PageHeader.tsx";
-import { SOURCE_SYSTEMS } from "../features/chatbot/types.ts";
 import { ArtifactViewerDrawer } from "../features/knowledge-base/components/ArtifactViewerDrawer.tsx";
+import type { SelectedCitation } from "../context/ChatContext.ts";
 
 import "katex/dist/katex.min.css";
 
-const SUGGESTIONS = [
-    "How do I set up the project locally?",
-    "Explain the onboarding flow",
-    "Where is the authentication handled?"
-];
-
-/**
- * Computes `fixed`-position style for the citation popover so it appears just
- * below the clicked `[N]` superscript, clamped to the viewport. Flips above
- * the citation when there's no room below.
- */
-function getCitationPopoverStyle(rect: DOMRect): React.CSSProperties {
-    const WIDTH = 320;
-    const GAP = 8;
-    const EST_HEIGHT = 120;
-    const MARGIN = 16;
-
-    let top = rect.bottom + GAP;
-    let left = rect.left;
-
-    if (left + WIDTH > window.innerWidth - MARGIN) {
-        left = window.innerWidth - WIDTH - MARGIN;
-    }
-    if (left < MARGIN) left = MARGIN;
-
-    if (top + EST_HEIGHT > window.innerHeight - MARGIN) {
-        const aboveTop = rect.top - EST_HEIGHT - GAP;
-        if (aboveTop >= MARGIN) {
-            top = aboveTop;
-        }
-    }
-
-    return {
-        position: "fixed",
-        top: `${top}px`,
-        left: `${left}px`,
-        width: `${WIDTH}px`,
-        zIndex: 50,
-    };
-}
+type CitationArtifactOpen = {
+    artifactId: string;
+    filename: string;
+    sourceUrl?: string;
+    lines: number[];
+};
 
 /**
  * Displays the interface for communication with the chat.
@@ -95,30 +60,56 @@ export function ChatPage() {
         toggleSourceSystem,
         activeFilterCount,
         clearFilters,
-        scrollContainerRef
+        scrollContainerRef,
+        isAtBottom,
+        scrollToBottom
     } = useChat();
 
     const { showThoughtProcess } = useChatPreferences();
 
     const projectId = profile?.projectIds?.[0] ?? null;
-    const [viewingCitationArtifact, setViewingCitationArtifact] = useState<{
-        artifactId: string;
-        filename: string;
-        sourceUrl?: string;
-        lines: number[];
-    } | null>(null);
+    const [viewingCitationArtifact, setViewingCitationArtifact] =
+        useState<CitationArtifactOpen | null>(null);
 
     // Dino easter egg: while the assistant is thinking, pressing Space drops the
     // AI avatar into a tiny endless runner. Doing nothing leaves the chat untouched.
     const [gameActive, setGameActive] = useState(false);
+    const [isUnlocked, setIsUnlocked] = useState(
+        () => localStorage.getItem("dinoUnlocked") === "true",
+    );
 
-    // Close the game as soon as the answer arrives (and on chat switches).
-    if (gameActive && !isThinking) {
-        setGameActive(false);
+    // Close the game as soon as the answer arrives. Uses React's documented
+    // "adjust state when a value changes" pattern (guarded setState during
+    // render) instead of an effect — avoids cascading renders and the
+    // set-state-in-effect lint rule. See:
+    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+    const [prevIsThinking, setPrevIsThinking] = useState(isThinking);
+    if (prevIsThinking !== isThinking) {
+        setPrevIsThinking(isThinking);
+        if (!isThinking && gameActive) {
+            setGameActive(false);
+        }
     }
 
+    // Keep isUnlocked state perfectly in sync with localStorage and close game if locked
     useEffect(() => {
-        if (!isThinking || gameActive) return;
+        const handleUnlockChange = () => {
+            const unlocked = localStorage.getItem("dinoUnlocked") === "true";
+            setIsUnlocked(unlocked);
+            if (!unlocked) {
+                setGameActive(false);
+            }
+        };
+        window.addEventListener("dinoUnlockChanged", handleUnlockChange);
+        window.addEventListener("storage", handleUnlockChange);
+        return () => {
+            window.removeEventListener("dinoUnlockChanged", handleUnlockChange);
+            window.removeEventListener("storage", handleUnlockChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isThinking || gameActive || !isUnlocked) return;
 
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.code !== "Space") return;
@@ -138,7 +129,7 @@ export function ChatPage() {
 
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [isThinking, gameActive]);
+    }, [isThinking, gameActive, isUnlocked]);
 
     // Focus textarea when opening a new chat (empty state).
     useEffect(() => {
@@ -154,15 +145,52 @@ export function ChatPage() {
         }
     }, [gameActive, bottomRef]);
 
-    const fillSuggestion = (text: string) => {
-        setNewRequest(text);
-        const el = textareaRef.current;
-        if (el) {
-            el.focus();
-            el.style.height = "auto";
-            el.style.height = `${el.scrollHeight}px`;
-        }
-    };
+    // E9: "/" focuses the composer (like Slack/GitHub) when the user isn't
+    // already typing in a field. Escape blurs it to return to the page.
+    useEffect(() => {
+        const isTypingTarget = (el: Element | null) =>
+            el instanceof HTMLElement &&
+            (el.tagName === "TEXTAREA" ||
+                el.tagName === "INPUT" ||
+                el.isContentEditable);
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "/" && !isTypingTarget(document.activeElement)) {
+                e.preventDefault();
+                textareaRef.current?.focus();
+            }
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [textareaRef]);
+
+    const fillSuggestion = useCallback(
+        (text: string) => {
+            setNewRequest(text);
+            const el = textareaRef.current;
+            if (el) {
+                el.focus();
+                el.style.height = "auto";
+                el.style.height = `${el.scrollHeight}px`;
+            }
+        },
+        [setNewRequest, textareaRef],
+    );
+
+    // Stable callbacks for the memoized MessageRow — referential equality
+    // across renders is what lets unchanged rows bail out of re-rendering.
+    const handleCitationClick = useCallback(
+        (citation: SelectedCitation) => setSelectedCitation(citation),
+        [setSelectedCitation],
+    );
+    const handleOpenArtifact = useCallback(
+        (data: CitationArtifactOpen) => setViewingCitationArtifact(data),
+        [],
+    );
+    const profileFallbackName = profile
+        ? `${profile.firstName} ${profile.lastName}`.trim()
+        : "User";
 
     return (
         <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
@@ -193,20 +221,14 @@ export function ChatPage() {
                 aria-label="Toggle sidebar"
                 aria-controls="chat-mobile-sidebar"
                 aria-expanded={sidebarOpen}
-                className="
-                    fixed top-4 left-[var(--app-page-gutter)] z-50 mt-15
-                    rounded-full border border-app-border bg-app-surface
-                    p-3 text-app-text shadow-lg
-                    hover:cursor-pointer hover:bg-app-surface-hover
-                    md:hidden
-                "
+                className="fixed top-4 left-[var(--app-page-gutter)] z-50 mt-15 rounded-full border border-app-border bg-app-surface p-3 text-app-text shadow-lg hover:cursor-pointer hover:bg-app-surface-hover md:hidden"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
             >
                 <MessageSquareText size={24} />
             </button>
 
             {/* Main content column */}
-            <div className="flex min-w-0 flex-1 flex-col">
+            <div className="relative flex min-w-0 flex-1 flex-col">
                 {/* Header: page title + open-sidebar toggle on the right */}
                 <div className="flex shrink-0 items-center gap-2 border-b border-app-border bg-app-bg/80 app-page-frame py-3 backdrop-blur-md">
                     <PageHeader
@@ -228,540 +250,100 @@ export function ChatPage() {
                 </div>
 
                 <div ref={scrollContainerRef} className="flex flex-1 flex-col overflow-y-auto">
-                    {!chatId && (
-                        <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-                            <div className="mb-5 rounded-3xl bg-app-brand-soft p-4 ring-1 ring-app-brand-border">
-                                <Bot className="size-11 text-app-brand-text" />
-                            </div>
-
-                            <h1 className="mb-2 text-2xl font-bold text-app-text">
-                                How can I help you today?
-                            </h1>
-
-                            <p className="mb-6 max-w-md text-sm text-app-text-muted">
-                                Ask anything about your project&apos;s codebase, documentation, or
-                                onboarding process.
-                            </p>
-
-                            <div className="flex max-w-xl flex-wrap justify-center gap-2">
-                                {SUGGESTIONS.map((s) => (
-                                    <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() => fillSuggestion(s)}
-                                        className="rounded-full border border-app-border-muted bg-app-surface px-3.5 py-1.5 text-xs text-app-text-muted transition-colors hover:border-app-brand-border hover:text-app-brand-text"
-                                    >
-                                        {s}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    {!chatId && <ChatEmptyState onPickSuggestion={fillSuggestion} />}
 
                     <div
                         className="app-page-frame flex w-full flex-col gap-8 py-8"
                         aria-live="polite"
                         aria-atomic="false"
                     >
-                        {messages.map((message, index) => {
-                            const isRequest = message.role === "USER";
+                        {/* E1: AnimatePresence wraps dynamically added/removed
+                            message rows so enter/exit animate smoothly (chat
+                            switch, new messages). Per AGENTS.md §11. */}
+                        <AnimatePresence mode="popLayout">
+                            {messages.map((message, index) => (
+                                <motion.div
+                                    key={message.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={centralSpringToken}
+                                >
+                                    <MessageRow
+                                        message={message}
+                                        showDivider={
+                                            index > 0 &&
+                                            messages[index - 1].role === "ASSISTANT" &&
+                                            message.role === "ASSISTANT"
+                                        }
+                                        isThinking={isThinking}
+                                        isStreaming={isStreaming}
+                                        streamingMessageId={streamingMessageId}
+                                        showThoughtProcess={showThoughtProcess}
+                                        profileIcon={profile?.profileIcon ?? undefined}
+                                        profileFallbackName={profileFallbackName}
+                                        profileSeed={profile?.id ?? undefined}
+                                        onCitationClick={handleCitationClick}
+                                        onOpenArtifact={handleOpenArtifact}
+                                    />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
 
-                            // Subtle divider between consecutive assistant turns so long
-                            // answers don't blur together.
-                            const prevAssistant =
-                                index > 0 &&
-                                messages[index - 1].role === "ASSISTANT" &&
-                                message.role === "ASSISTANT";
-
-                            if (
-                                message.role === "ASSISTANT" &&
-                                message.content === "" &&
-                                isThinking
-                            ) {
-                                return null;
-                            }
-
-                            const citations = message.citations ?? [];
-                            const mdContent = isRequest
-                                ? message.content
-                                : linkifyCitations(message.content, citations.length);
-
-                            // Show a blinking caret at the end of the assistant
-                            // message that is currently receiving streamed tokens.
-                            const showStreamingCaret =
-                                !isRequest &&
-                                isStreaming &&
-                                message.id === streamingMessageId;
-
-                            return (
-                                <Fragment key={index}>
-                                    {prevAssistant && (
-                                        <div className="mx-auto w-3/4 border-t border-app-border-muted" />
-                                    )}
-                                    <div
-                                        className={`flex w-full gap-3 ${
-                                            isRequest ? "flex-row-reverse" : "flex-row"
-                                        }`}
-                                    >
-                                    <div
-                                        className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
-                                            isRequest
-                                                ? ""
-                                                : "bg-app-brand-soft shadow-sm ring-1 ring-app-brand-border"
-                                        }`}
-                                    >
-                                        {isRequest ? (
-                                            <UserAvatar
-                                                profileIcon={profile?.profileIcon}
-                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
-                                                seed={profile?.id}
-                                                size={32}
-                                            />
-                                        ) : (
-                                            <Bot size={15} className="text-app-brand-text" />
-                                        )}
-                                    </div>
-
-                                    <div
-                                        className={`flex flex-col ${
-                                            isRequest ? "max-w-[70%] items-end" : "max-w-[85%] items-start"
-                                        }`}
-                                    >
-                                        {!isRequest && showThoughtProcess && (
-                                            <details open={!!message.reasoning} className="mb-2 w-full rounded-2xl rounded-tl-sm border border-app-border-muted bg-app-surface-muted/50 text-sm shadow-sm">
-                                                <summary className="cursor-pointer select-none px-4 py-2 text-app-text-muted hover:text-app-text transition-colors font-medium flex items-center gap-2">
-                                                    <Bot size={14} />
-                                                    Thought Process
-                                                </summary>
-                                                <div className="px-4 pb-3 text-app-text-muted chat-md opacity-80">
-                                                    {message.reasoning ? (
-                                                        <ReactMarkdown
-                                                            remarkPlugins={[remarkGfm, remarkMath]}
-                                                            rehypePlugins={[rehypeKatex]}
-                                                        >
-                                                            {message.reasoning}
-                                                        </ReactMarkdown>
-                                                    ) : (
-                                                        <span className="italic text-sm">No thoughts.</span>
-                                                    )}
-                                                </div>
-                                            </details>
-                                        )}
-
-                                        <div
-                                            className={`chat-md rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                                                isRequest
-                                                    ? "chat-md-user rounded-tr-sm bg-app-brand text-white"
-                                                    : "rounded-tl-sm border border-app-border-muted bg-app-surface-muted text-app-text"
-                                            }`}
-                                        >
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm, remarkMath]}
-                                                rehypePlugins={[rehypeKatex]}
-                                                components={{
-                                                    a({ href, children }: { href?: string; children?: React.ReactNode }) {
-                                                        const match = href
-                                                            ? /^#cite-(\d+)$/.exec(href)
-                                                            : null;
-
-                                                        if (match) {
-                                                            const n = Number(match[1]);
-                                                            const citation = citations[n - 1];
-                                                            return (
-                                                                <sup>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="citation-ref"
-                                                                        title={citation ? citation.filename : `Quelle ${n}`}
-                                                                        onClick={(e) => {
-                                                                            if (citation) {
-                                                                                setSelectedCitation({
-                                                                                    citation,
-                                                                                    rect: e.currentTarget.getBoundingClientRect(),
-                                                                                });
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        {n}
-                                                                    </button>
-                                                                </sup>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <a href={href} target="_blank" rel="noopener noreferrer">
-                                                                {children}
-                                                            </a>
-                                                        );
-                                                    },
-                                                    table: ({ children }) => (
-                                                        <div className="overflow-x-auto">
-                                                            <table className={`w-full border-collapse border-2 my-3 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
-                                                                {children}
-                                                            </table>
-                                                        </div>
-                                                    ),
-                                                    th: ({ children }) => (
-                                                        <th className={`border-2 px-3 py-2 text-left ${isRequest ? "border-app-brand-border bg-app-brand-soft" : "border-app-border-muted bg-app-surface"}`}>
-                                                            {children}
-                                                        </th>
-                                                    ),
-                                                    td: ({ children }) => (
-                                                        <td className={`border-2 px-3 py-2 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
-                                                            {children}
-                                                        </td>
-                                                    ),
-                                                    code({ children, className }: { children?: React.ReactNode; className?: string }) {
-
-                                                        const isBlock = className?.startsWith("language-");
-
-                                                        if (!isBlock) {
-                                                            return (
-                                                                <code className={`px-1 py-0.5 mx-0.5 rounded border ${isRequest ? "bg-app-brand-soft border-app-brand-border" : "bg-app-surface border-app-border-muted"}`}>
-                                                                    {children}
-                                                                </code>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <code className={className}>
-                                                                {children}
-                                                            </code>
-                                                        );
-                                                    },
-                                                    pre(props) {
-                                                        return (
-                                                            <pre
-                                                                className={`
-                                                                    p-3
-                                                                    my-3
-                                                                    rounded-xl
-                                                                    overflow-x-auto
-                                                                    border
-                                                                    ${isRequest ? "bg-app-brand-soft border-app-brand-border" : "bg-app-surface border-app-border-muted"}
-                                                                `}
-                                                            >
-                                                                {props.children}
-                                                            </pre>
-                                                        );
-                                                    }
-                                                }}>
-                                                {mdContent}
-                                            </ReactMarkdown>
-
-                                            {showStreamingCaret && (
-                                                <span
-                                                    className="streaming-caret"
-                                                    aria-hidden="true"
-                                                />
-                                            )}
-
-                                            {!isRequest && citations.length > 0 && (
-                                                <MessageCitations citations={citations} onOpenArtifact={setViewingCitationArtifact} />
-                                            )}
-                                        </div>
-
-                                        {!isRequest && message.error && (
-                                            <div className="flex items-center gap-2 rounded-xl border border-app-danger-border bg-app-danger-bg px-4 py-2.5 text-sm text-app-danger-text">
-                                                <AlertCircle size={14} className="shrink-0" />
-                                                <span>{message.error}</span>
-                                            </div>
-                                        )}
-
-                                        {!isRequest && !showStreamingCaret && message.content !== "" && (
-                                            <CopyButton text={message.content} />
-                                        )}
-                                    </div>
-                                    </div>
-                                </Fragment>
-                            );
-                        })}
-
-                        {gameActive && isThinking ? (
-                            <div className="flex w-full gap-3" role="status">
-                                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-brand-soft shadow-sm ring-1 ring-app-brand-border">
-                                    <Bot size={15} className="text-app-brand-text" />
-                                </div>
-
-                                <div className="min-w-0 flex-1">
-                                    <DinoGame onExit={() => setGameActive(false)} />
-
-                                    <div className="mt-2 px-4 py-2.5 rounded-2xl bg-app-surface-muted text-app-text flex items-center gap-1 w-max border border-app-border-muted">
-                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce" aria-hidden="true" />
-                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:150ms]" aria-hidden="true" />
-                                        <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:300ms]" aria-hidden="true" />
-
-                                        {thinkingState === "retrieve" && (
-                                            <span className="italic pl-2 animate-pulse text-sm">Searching knowledge base...</span>
-                                        )}
-                                        {thinkingState === "synthesis" && (
-                                            <span className="italic pl-2 animate-pulse text-sm">Synthesizing answer...</span>
-                                        )}
-                                        {thinkingState === "grep" && (
-                                            <span className="italic pl-2 animate-pulse text-sm">Scanning documents...</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            isThinking && (
-                                <div className="flex w-full gap-3" role="status">
-                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-brand-soft shadow-sm ring-1 ring-app-brand-border">
-                                        <Bot size={15} className="text-app-brand-text" />
-                                    </div>
-
-                                    <div className="flex flex-col items-start max-w-[85%]">
-                                        <div className="px-4 py-2.5 rounded-2xl rounded-tl-sm border border-app-border-muted bg-app-surface-muted text-app-text">
-                                            <div className="flex gap-1 items-center">
-                                                <span className="size-2 animate-bounce rounded-full bg-app-brand" aria-hidden="true" />
-                                                <span className="size-2 animate-bounce rounded-full bg-app-brand [animation-delay:150ms]" aria-hidden="true" />
-                                                <span className="size-2 animate-bounce rounded-full bg-app-brand [animation-delay:300ms]" aria-hidden="true" />
-
-                                                {thinkingState === "retrieve" && (
-                                                    <span className="italic pl-2 animate-pulse text-sm">Searching knowledge base...</span>
-                                                )}
-
-                                                {thinkingState === "synthesis" && (
-                                                    <span className="italic pl-2 animate-pulse text-sm">Synthesizing answer...</span>
-                                                )}
-
-                                                {thinkingState === "grep" && (
-                                                    <span className="italic pl-2 animate-pulse text-sm">Scanning documents...</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        )}
+                        <ThinkingIndicator
+                            isThinking={isThinking}
+                            gameActive={gameActive}
+                            thinkingState={thinkingState}
+                            onGameExit={() => setGameActive(false)}
+                        />
 
                         <div ref={bottomRef} />
                     </div>
                 </div>
 
                 {selectedCitation && (
-                    <div
-                        style={getCitationPopoverStyle(selectedCitation.rect)}
-                        className="rounded-xl bg-app-surface border border-app-border p-4 shadow-2xl"
-                    >
-                        <div className="flex justify-between items-start mb-2">
-                            <h3 className="text-sm font-bold text-app-text truncate pr-4">
-                                {selectedCitation.citation.filename}
-                            </h3>
+                    <CitationPopover
+                        selected={selectedCitation}
+                        onClose={() => setSelectedCitation(null)}
+                    />
+                )}
 
-                            <button
-                                aria-label="Close citation"
-                                onClick={() => setSelectedCitation(null)}
-                                className="text-app-text-muted hover:text-app-text transition-colors"
-                            >
-                                <Plus size={18} className="rotate-45" />
-                            </button>
-                        </div>
-
-                        <div className="text-xs text-app-text-muted leading-relaxed mb-2">
-                            {selectedCitation.citation.startLine !== undefined && `Line ${selectedCitation.citation.startLine}`}
-                            {selectedCitation.citation.startPage !== undefined && `Page ${selectedCitation.citation.startPage}`}
-                        </div>
-
-                        {selectedCitation.citation.sourceUrl && (
-                            <a
-                                href={selectedCitation.citation.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs font-medium text-app-brand-text hover:underline"
-                            >
-                                Open source
-                                <ExternalLink size={12} />
-                            </a>
-                        )}
+                {/* E12: floating "jump to latest" button — shown when the user
+                     has scrolled up during streaming so they can return quickly. */}
+                {chatId && !isAtBottom && (
+                    <div className="pointer-events-none absolute bottom-28 left-1/2 z-10 -translate-x-1/2">
+                        <button
+                            type="button"
+                            aria-label="Jump to latest message"
+                            data-testid="chat-scroll-to-bottom"
+                            onClick={scrollToBottom}
+                            className="pointer-events-auto flex items-center gap-1 rounded-full border border-app-border bg-app-surface px-3 py-1.5 text-xs font-medium text-app-text shadow-lg transition-colors hover:bg-app-surface-hover"
+                        >
+                            <ArrowDown size={14} />
+                            Latest
+                        </button>
                     </div>
                 )}
 
-                <footer className="shrink-0 border-t border-app-border bg-app-bg app-page-frame py-4">
-                    {showFilters && (
-                        <div className="mb-3">
-                            <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-app-border bg-app-surface-muted/70 backdrop-blur px-4 py-3">
-
-                                <div className="flex flex-col gap-1">
-                                    <label
-                                        htmlFor="filter-from"
-                                        className="text-xs font-medium text-app-text-muted tracking-wide uppercase font-semibold"
-                                    >
-                                        From
-                                    </label>
-
-                                    <input
-                                        id="filter-from"
-                                        type="date"
-                                        max={to || undefined}
-                                        value={from}
-                                        onChange={(e) => setFrom(e.target.value)}
-                                        className="
-                                            h-10 rounded-xl
-                                            border border-app-border
-                                            bg-app-bg
-                                            px-3
-                                            text-sm
-                                            outline-none
-                                            focus:ring-2 focus:ring-app-focus/50
-                                        "
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-1">
-                                    <label
-                                        htmlFor="filter-to"
-                                        className="text-xs font-medium text-app-text-muted tracking-wide uppercase font-semibold"
-                                    >
-                                        To
-                                    </label>
-
-                                    <input
-                                        id="filter-to"
-                                        type="date"
-                                        min={from || undefined}
-                                        value={to}
-                                        onChange={(e) => setTo(e.target.value)}
-                                        className="
-                                            h-10 rounded-xl
-                                            border border-app-border
-                                            bg-app-bg
-                                            px-3
-                                            text-sm
-                                            outline-none
-                                            focus:ring-2 focus:ring-app-focus/50
-                                        "
-                                    />
-                                </div>
-
-                                <div className="h-8 w-px bg-app-border-muted self-center hidden lg:block" />
-
-                                <div className="flex flex-col gap-1 flex-1 min-w-[240px]">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-medium text-app-text-muted tracking-wide uppercase font-semibold">
-                                            Systems
-                                        </span>
-                                        {activeFilterCount > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={clearFilters}
-                                                className="text-xs font-semibold text-app-text-muted hover:text-app-brand transition-colors"
-                                            >
-                                                Clear All
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <div
-                                        role="group"
-                                        aria-label="Source systems"
-                                        className="flex flex-wrap gap-2 min-h-10 items-center"
-                                    >
-                                        {SOURCE_SYSTEMS.map((source) => {
-                                            const selected = sourceSystems.includes(source);
-
-                                            return (
-                                                <button
-                                                    key={source}
-                                                    type="button"
-                                                    aria-pressed={selected}
-                                                    onClick={() => toggleSourceSystem(source)}
-                                                    className={`
-                                                        h-10
-                                                        rounded-full
-                                                        px-4
-                                                        text-xs
-                                                        font-semibold
-                                                        uppercase
-                                                        tracking-wide
-                                                        border
-                                                        transition-colors
-                                                        flex
-                                                        items-center
-                                                        gap-1.5
-                                                        ${
-                                                            selected
-                                                                ? "bg-app-brand text-white border-app-brand"
-                                                                : "bg-app-bg border-app-border text-app-text hover:bg-app-surface"
-                                                        }
-                                                    `}
-                                                >
-                                                    {selected && <Check size={13} />}
-                                                    {source}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <form
-                        onSubmit={handleSubmit}
-                        className="flex items-end gap-2 rounded-2xl border border-app-border-muted bg-app-surface-muted p-2 transition focus-within:border-app-brand-border focus-within:ring-2 focus-within:ring-app-focus/40"
-                    >
-                        <button
-                            type="button"
-                            aria-label="Toggle source filters"
-                            aria-expanded={showFilters}
-                            onClick={() => setShowFilters((v) => !v)}
-                            className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-app-surface border border-app-border-muted text-app-text-muted hover:bg-app-surface-hover hover:text-app-text transition-colors"
-                        >
-                            <Filter size={18} />
-                            {activeFilterCount > 0 && (
-                                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-app-brand text-[10px] font-bold text-white shadow-sm ring-1 ring-app-surface">
-                                    {activeFilterCount}
-                                </span>
-                            )}
-                        </button>
-                        <textarea
-                            ref={textareaRef}
-                            aria-label="Message"
-                            placeholder="Ask anything about the project..."
-                            className="max-h-44 min-h-9 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-1.5 text-sm text-app-text outline-none placeholder:text-app-text-disabled"
-                            value={newRequest}
-                            rows={1}
-                            onChange={(e) => {
-                                setNewRequest(e.currentTarget.value);
-
-                                e.currentTarget.style.height = "auto";
-                                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    e.currentTarget.form?.requestSubmit();
-                                }
-                            }}
-                        />
-
-                        {isThinking || isStreaming ? (
-                            <button
-                                type="button"
-                                aria-label="Stop generation"
-                                data-testid="chat-stop-button"
-                                onClick={stopStreaming}
-                                className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-app-danger-border bg-app-danger-solid text-white transition-colors hover:opacity-90"
-                            >
-                                <Square size={16} className="fill-current" />
-                            </button>
-                        ) : (
-                            <button
-                                type="submit"
-                                aria-label="Send message"
-                                disabled={!newRequest.trim()}
-                                className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-app-brand text-white transition-colors hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                <Send size={18} />
-                            </button>
-                        )}
-                    </form>
-
-                    <p className="mt-2 text-center text-[11px] text-app-text-disabled">
-                        Enter to send · Shift + Enter for a new line
-                    </p>
-                </footer>
+                <ChatComposer
+                    value={newRequest}
+                    onChange={setNewRequest}
+                    onSubmit={handleSubmit}
+                    onStop={stopStreaming}
+                    isBusy={isThinking || isStreaming}
+                    textareaRef={textareaRef}
+                    showFilters={showFilters}
+                    onToggleFilters={() => setShowFilters((v) => !v)}
+                    from={from}
+                    setFrom={setFrom}
+                    to={to}
+                    setTo={setTo}
+                    sourceSystems={sourceSystems}
+                    toggleSourceSystem={toggleSourceSystem}
+                    activeFilterCount={activeFilterCount}
+                    clearFilters={clearFilters}
+                />
             </div>
 
             {/* Desktop chat history sidebar — RIGHT side, always rendered */}
@@ -803,7 +385,7 @@ export function ChatPage() {
                         createdAtSource: null,
                         updatedAtSource: null,
                         contentHash: null,
-                        ingestionRunId: null
+                        ingestionRunId: null,
                     }}
                     onClose={() => setViewingCitationArtifact(null)}
                     projectId={projectId}

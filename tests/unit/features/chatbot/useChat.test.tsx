@@ -327,4 +327,68 @@ describe('useChat', () => {
         expect(aiMsg.content).toBe('partial');
         expect(aiMsg.error).toBeUndefined();
     });
+
+    it('clears isThinking when stopStreaming is called before the first token (B9)', async () => {
+        // Stream that never emits a token — simulates the "thinking" phase.
+        const stream = new ReadableStream({
+            start(_controller) {
+                // intentionally never enqueues or closes
+            },
+        });
+
+        server.use(
+            http.get('/api/v1/chats', () => HttpResponse.json({ chats: [] })),
+            http.get('/api/v1/chats/chat1', () => HttpResponse.json({ messages: [] })),
+            http.get('/api/v1/users/me', () =>
+                HttpResponse.json({
+                    id: 'user1',
+                    authId: 'auth-1',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    firstName: 'Test',
+                    lastName: 'User',
+                    projectRoles: [],
+                    permissionGroup: 'USER',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                }),
+            ),
+            http.post('/api/v1/chats/prompt', () =>
+                new HttpResponse(stream, {
+                    headers: { 'Content-Type': 'text/event-stream' },
+                }),
+            ),
+            http.post('/api/v1/chats', () =>
+                HttpResponse.json({ id: 'newChatId' }),
+            ),
+        );
+
+        const { result } = renderHook(() => useChat(), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.chats).toEqual([]);
+        });
+
+        // Fire addMessage without awaiting — the stream never resolves.
+        // Use synchronous act so the initial state update flushes.
+        act(() => {
+            void result.current.addMessage('hello');
+        });
+
+        // Wait for isThinking to turn on.
+        await waitFor(() => {
+            expect(result.current.isThinking).toBe(true);
+        });
+
+        // Stop before any token arrives.
+        act(() => {
+            result.current.stopStreaming();
+        });
+
+        await waitFor(() => {
+            expect(result.current.isThinking).toBe(false);
+            expect(result.current.isStreaming).toBe(false);
+        });
+    });
 });

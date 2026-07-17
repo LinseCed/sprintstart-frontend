@@ -39,25 +39,40 @@ export async function getMessages(chatId: string) {
     return {
         messages: response.messages.map((msg) => ({
             ...msg,
+            // Generate stable client-side ids so React keys work (backend
+            // omits `id` on ChatMessageResponse).
             id: msg.id ?? crypto.randomUUID(),
+            // G5: coerce null → undefined for optional citation fields so
+            // downstream code only needs `!== undefined` guards, not both.
+            citations: msg.citations?.map((c) => ({
+                ...c,
+                startLine: c.startLine ?? undefined,
+                startPage: c.startPage ?? undefined,
+                sourceUrl: c.sourceUrl ?? undefined,
+            })),
         })),
     };
 }
 
 /**
- * Generic stream event returned by the backend when sending a prompt.
+ * Discriminated union for SSE events returned by the backend when sending a
+ * prompt. Each variant carries exactly the fields its `type` needs, so the
+ * `switch` in {@link streamMessage} is exhaustive and needs no `?.` guards.
  */
-interface ChatEvent {
-    type: "tool_use" | "token" | "reasoning" | "citation" | "done" | "error";
-    name?: string;
-    content?: string;
-    message?: string;
-    artifact_id?: string;
-    filename?: string;
-    source_url?: string;
-    start_line?: number;
-    start_page?: number;
-}
+type ChatEvent =
+    | { type: "tool_use"; name: string }
+    | { type: "token"; content: string }
+    | { type: "reasoning"; content: string }
+    | {
+          type: "citation";
+          artifact_id: string;
+          filename: string;
+          source_url?: string;
+          start_line?: number;
+          start_page?: number;
+      }
+    | { type: "done" }
+    | { type: "error"; message: string };
 
 /**
  * Creates a new prompt and handles the chat response.
@@ -88,7 +103,12 @@ export async function streamMessage(
         }
     } catch (error) {
         console.error('Failed to refresh Keycloak token for stream', error);
-        void keycloak.login();
+        handlers.onError?.("Authentication expired. Please log in again.");
+        return;
+    }
+
+    if (!keycloak.token) {
+        handlers.onError?.("Not authenticated. Please log in again.");
         return;
     }
 
@@ -124,7 +144,8 @@ export async function streamMessage(
     const stream = res.body;
 
     if (!stream) {
-        throw new Error("No response stream");
+        handlers.onError?.("No response stream from server.");
+        return;
     }
 
     try {
@@ -178,6 +199,9 @@ export async function streamMessage(
             handlers.onDone();
             return;
         }
-        throw err;
+        // Network drop or unexpected reader error: surface to the user, don't
+        // re-throw so the provider's catch block never sees a stray error.
+        console.error("Chat stream failed", err);
+        handlers.onError?.(err instanceof Error ? err.message : "Connection lost during streaming.");
     }
 }

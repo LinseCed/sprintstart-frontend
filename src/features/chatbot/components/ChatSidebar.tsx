@@ -64,6 +64,7 @@ export function ChatSidebar({ chats, setSidebarOpen }: ChatSidebarProps) {
             <NavLink
                 to="/chat"
                 state={{ newChat: true }}
+                data-testid="chat-new"
                 className="bg-app-brand rounded-lg hover:bg-app-brand-hover flex justify-center gap-2 items-center text-sm font-semibold p-2.5 text-white transition shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                 onClick={() => setSidebarOpen(false)}
             >
@@ -121,6 +122,7 @@ export function ChatSidebar({ chats, setSidebarOpen }: ChatSidebarProps) {
                                     key={chat.id}
                                     to={`/chat/${chat.id}`}
                                     onClick={() => setSidebarOpen(false)}
+                                    aria-label={chat.title || "Untitled chat"}
                                     className={({ isActive }) => `
                                         group flex flex-col gap-0.5 px-3 py-2 rounded-lg text-sm transition-all
                                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus

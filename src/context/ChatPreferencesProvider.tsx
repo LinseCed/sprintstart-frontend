@@ -9,7 +9,12 @@ const STORAGE_KEY = 'chatPreferences.showThoughtProcess';
  * when nothing has been persisted yet — matching the pre-existing behaviour.
  */
 function getInitialShowThoughtProcess(): boolean {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    let stored: string | null = null;
+    try {
+        stored = window.localStorage.getItem(STORAGE_KEY);
+    } catch (error) {
+        console.warn('Failed to read chat preference', error);
+    }
     if (stored === 'true') return true;
     if (stored === 'false') return false;
     return true;
@@ -27,7 +32,13 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
     );
 
     useEffect(() => {
-        window.localStorage.setItem(STORAGE_KEY, String(showThoughtProcess));
+        try {
+            window.localStorage.setItem(STORAGE_KEY, String(showThoughtProcess));
+        } catch (error) {
+            // Quota exceeded or storage disabled (private mode) — preference
+            // won't survive reload but stays in effect for this session.
+            console.warn('Failed to persist chat preference', error);
+        }
     }, [showThoughtProcess]);
 
     const setShowThoughtProcess = (value: boolean) => {

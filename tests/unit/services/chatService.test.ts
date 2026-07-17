@@ -102,7 +102,7 @@ describe('chatService', () => {
             expect(onError).not.toHaveBeenCalled();
         });
 
-        it('calls login and skips streaming if token refresh fails', async () => {
+        it('calls onError and skips streaming if token refresh fails', async () => {
             let promptRequested = false;
             mockKeycloakInstance.updateToken.mockRejectedValueOnce(new Error('Refresh failed'));
 
@@ -113,15 +113,20 @@ describe('chatService', () => {
                 }),
             );
 
+            const onError = vi.fn();
             await streamMessage('chat1', 'hello', [], '', '', {
                 onToken: vi.fn(),
                 onReasoning: vi.fn(),
                 onCitation: vi.fn(),
                 onToolUse: vi.fn(),
                 onDone: vi.fn(),
+                onError,
             });
 
-            expect(mockKeycloakInstance.login).toHaveBeenCalledOnce();
+            // The service surfaces the auth failure via onError instead of
+            // triggering a login redirect — the UI layer decides how to react.
+            expect(onError).toHaveBeenCalledOnce();
+            expect(mockKeycloakInstance.login).not.toHaveBeenCalled();
             expect(promptRequested).toBe(false);
         });
 
