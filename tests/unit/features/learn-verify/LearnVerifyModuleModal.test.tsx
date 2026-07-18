@@ -91,6 +91,21 @@ describe('LearnVerifyModuleModal', () => {
         expect(await screen.findByRole('checkbox')).toBeInTheDocument();
     });
 
+    it('renders a PR number input for an ARTIFACT check', async () => {
+        vi.mocked(verificationService.fetchVerification).mockResolvedValue({
+            id: 'v1',
+            stepId: 'step1',
+            type: 'ARTIFACT',
+            prompt: 'Ship a fix.',
+            competencyKey: 'kotlin',
+            level: 'beginner'
+        });
+
+        render(<LearnVerifyModuleModal node={node()} path={path()} onClose={vi.fn()} />);
+
+        expect(await screen.findByRole('textbox', { name: /pull request number/i })).toBeInTheDocument();
+    });
+
     it('shows a mastered summary with no Verify form for an already-mastered node', async () => {
         vi.mocked(verificationService.fetchVerification).mockResolvedValue({
             id: 'v1',

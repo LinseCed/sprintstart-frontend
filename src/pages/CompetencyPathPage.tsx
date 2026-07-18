@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, Map, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { AssessmentPathView } from '../features/skill-assessment/components/AssessmentPathView';
+import { PathProgressBar } from '../features/skill-assessment/components/PathProgressBar';
 import { useCompetencyPath } from '../features/skill-assessment/hooks/useCompetencyPath';
 import { LearnVerifyModuleModal } from '../features/learn-verify/components/LearnVerifyModuleModal';
 import type { PathNode } from '../features/skill-assessment/types';
@@ -12,7 +13,7 @@ import type { PathNode } from '../features/skill-assessment/types';
  * behind unmet prerequisites.
  */
 export function CompetencyPathPage() {
-    const { path, isLoading, error, pathUpdated, retry } = useCompetencyPath();
+    const { path, isLoading, error, pathUpdated, justChangedKeys, retry } = useCompetencyPath();
     const [noticeDismissed, setNoticeDismissed] = useState(false);
     const [selectedNode, setSelectedNode] = useState<PathNode | null>(null);
 
@@ -73,12 +74,20 @@ export function CompetencyPathPage() {
                 </div>
             )}
 
+            {!isLoading && path && (
+                <div className="app-page-content mt-6">
+                    <PathProgressBar path={path} />
+                </div>
+            )}
+
             {isLoading ? (
                 <div className="flex items-center justify-center p-16">
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-app-brand border-t-transparent" />
                 </div>
             ) : (
-                path && <AssessmentPathView path={path} onSelectNode={setSelectedNode} />
+                path && (
+                    <AssessmentPathView path={path} justChangedKeys={justChangedKeys} onSelectNode={setSelectedNode} />
+                )
             )}
 
             {selectedNode && path && (

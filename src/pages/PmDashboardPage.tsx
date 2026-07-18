@@ -1,6 +1,7 @@
 import { BriefcaseBusiness } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useAuth } from "../context/useAuth";
+import { CompetencyDashboardWidget } from "../features/competency-dashboard/components/CompetencyDashboardWidget";
 import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
@@ -73,6 +74,7 @@ export function PmDashboardPage() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <FaqWidget />
             <KnowledgeGapWidget />
+            <CompetencyDashboardWidget />
           </div>
         </section>
       </main>

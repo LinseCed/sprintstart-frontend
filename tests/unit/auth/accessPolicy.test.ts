@@ -36,6 +36,13 @@ describe('accessPolicy', () => {
         it('returns false when profile is null', () => {
             expect(canAccessRoute(null, '/chat')).toBe(false);
         });
+
+        it('blocks USER from /insights/competencies but allows PM', () => {
+            const userProfile = createMockProfile(PermissionGroup.USER);
+            const pmProfile = createMockProfile(PermissionGroup.PM);
+            expect(canAccessRoute(userProfile, '/insights/competencies')).toBe(false);
+            expect(canAccessRoute(pmProfile, '/insights/competencies')).toBe(true);
+        });
     });
 
     describe('getDefaultRoute', () => {

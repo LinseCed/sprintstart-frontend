@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../context/useAuth';
 import { assessmentService, getLastSeenGraphVersion, markGraphVersionSeen } from '../../../services/assessmentService';
-import type { PathView } from '../types';
+import type { NodeState, PathView } from '../types';
 
 function toMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
@@ -12,6 +12,12 @@ function toMessage(error: unknown, fallback: string): string {
  * changed since they last saw it (`pathUpdated`), so the page can show a
  * reconciliation notice. The "last seen" version is recorded right after the
  * comparison, so the notice shows once per actual version change.
+ *
+ * Also tracks each node's state across loads to compute `justChangedKeys` --
+ * nodes that flipped state since the previous load (e.g. locked -> available
+ * after a passing submission) -- so the path view can play a one-shot unlock
+ * animation for exactly those nodes rather than the whole list. Empty on the
+ * very first load, since there's no prior state to diff against.
  */
 export function useCompetencyPath() {
     const { profile } = useAuth();
@@ -20,12 +26,27 @@ export function useCompetencyPath() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [pathUpdated, setPathUpdated] = useState(false);
+    const [justChangedKeys, setJustChangedKeys] = useState<Set<string>>(new Set());
+    const previousStatesRef = useRef<Map<string, NodeState> | null>(null);
 
     const load = useCallback(async () => {
         setError(null);
         setIsLoading(true);
         try {
             const result = await assessmentService.fetchPath();
+
+            const previousStates = previousStatesRef.current;
+            const changed = new Set<string>();
+            if (previousStates) {
+                for (const node of result.nodes) {
+                    const previousState = previousStates.get(node.key);
+                    if (previousState && previousState !== node.state) {
+                        changed.add(node.key);
+                    }
+                }
+            }
+            previousStatesRef.current = new Map(result.nodes.map(node => [node.key, node.state]));
+            setJustChangedKeys(changed);
             setPath(result);
 
             if (profileId) {
@@ -46,5 +67,5 @@ export function useCompetencyPath() {
         })();
     }, [load]);
 
-    return { path, isLoading, error, pathUpdated, retry: load };
+    return { path, isLoading, error, pathUpdated, justChangedKeys, retry: load };
 }

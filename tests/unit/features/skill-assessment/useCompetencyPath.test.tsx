@@ -8,9 +8,9 @@ vi.mock('../../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'user1' } }),
 }));
 
-function pathResponse(graphVersion: number) {
+function pathResponse(graphVersion: number, kotlinState: 'locked' | 'available' | 'mastered' = 'mastered') {
     return {
-        nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+        nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: kotlinState, level: 3 }],
         edges: [],
         graphVersion,
     };
@@ -72,6 +72,38 @@ describe('useCompetencyPath', () => {
         await waitFor(() => {
             expect(result.current.pathUpdated).toBe(false);
         });
+    });
+
+    it('reports no just-changed keys on the very first load', async () => {
+        server.use(
+            http.get('/api/v1/onboarding/me/path', () => HttpResponse.json(pathResponse(1))),
+        );
+
+        const { result } = renderHook(() => useCompetencyPath());
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.justChangedKeys.size).toBe(0);
+    });
+
+    it('flags a node whose state changed since the previous load', async () => {
+        let version = 1;
+        server.use(
+            http.get('/api/v1/onboarding/me/path', () =>
+                HttpResponse.json(pathResponse(version, version === 1 ? 'locked' : 'mastered')),
+            ),
+        );
+
+        const { result } = renderHook(() => useCompetencyPath());
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.justChangedKeys.size).toBe(0);
+
+        version = 2;
+        act(() => {
+            void result.current.retry();
+        });
+
+        await waitFor(() => expect(result.current.path?.graphVersion).toBe(2));
+        expect(result.current.justChangedKeys.has('kotlin')).toBe(true);
     });
 
     it('sets an error when the fetch fails, and retry re-attempts it', async () => {

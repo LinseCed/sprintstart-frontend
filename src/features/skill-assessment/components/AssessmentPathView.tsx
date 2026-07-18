@@ -1,3 +1,5 @@
+import { motion, useReducedMotion } from 'framer-motion';
+import { Flag, GitPullRequest } from 'lucide-react';
 import { NodeStatusChip } from './NodeStatusChip';
 import type { PathNode, PathView } from '../types';
 
@@ -9,6 +11,12 @@ type AssessmentPathViewProps = {
      * clickable and never trigger this.
      */
     onSelectNode?: (node: PathNode) => void;
+    /**
+     * Keys of nodes whose state just changed (e.g. unlocked or mastered) since
+     * the previous load -- see `useCompetencyPath`. Drives a one-shot pulse on
+     * exactly those nodes rather than the whole list; empty by default.
+     */
+    justChangedKeys?: Set<string>;
 };
 
 /**
@@ -44,7 +52,9 @@ function orderByPrerequisites(path: PathView): { ordered: PathNode[]; prereqsByK
     return { ordered, prereqsByKey };
 }
 
-export function AssessmentPathView({ path, onSelectNode }: AssessmentPathViewProps) {
+export function AssessmentPathView({ path, onSelectNode, justChangedKeys }: AssessmentPathViewProps) {
+    const reduceMotion = useReducedMotion();
+
     if (path.nodes.length === 0) {
         return (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
@@ -64,11 +74,33 @@ export function AssessmentPathView({ path, onSelectNode }: AssessmentPathViewPro
                 {ordered.map(node => {
                     const prereqs = prereqsByKey.get(node.key) ?? [];
                     const isOpenable = Boolean(node.stepId) && node.state !== 'locked' && onSelectNode;
+                    const isGoal = node.kind === 'CONTRIBUTION';
+                    const isArtifactCheck = node.verificationType === 'ARTIFACT';
+                    const justChanged = !reduceMotion && (justChangedKeys?.has(node.key) ?? false);
 
                     const content = (
                         <>
                             <div className="min-w-0">
-                                <p className="truncate text-sm font-medium text-app-text">{node.label}</p>
+                                <div className="flex items-center gap-1.5">
+                                    {isGoal && (
+                                        <Flag
+                                            className="h-3.5 w-3.5 shrink-0 text-app-brand-text"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    <p className="truncate text-sm font-medium text-app-text">{node.label}</p>
+                                    {isArtifactCheck && (
+                                        <>
+                                            <GitPullRequest
+                                                className="h-3.5 w-3.5 shrink-0 text-app-text-subtle"
+                                                aria-hidden="true"
+                                            />
+                                            <span className="sr-only">Verified via pull request</span>
+                                        </>
+                                    )}
+                                </div>
+                                {/* CONTRIBUTION's "goal" meaning is already conveyed in text via `node.kind` below --
+                                    the Flag icon above is decorative reinforcement, not the only signal. */}
                                 <p className="text-xs text-app-text-subtle">{node.kind}</p>
                                 {prereqs.length > 0 && (
                                     <p className="mt-1 text-xs text-app-text-muted">
@@ -81,22 +113,31 @@ export function AssessmentPathView({ path, onSelectNode }: AssessmentPathViewPro
                         </>
                     );
 
+                    const wrapperClassName = `flex w-full items-center justify-between gap-4 rounded-xl border p-4 transition-colors ${
+                        isGoal
+                            ? 'border-app-brand-border-strong bg-gradient-to-br from-app-brand-soft to-app-surface'
+                            : 'border-app-border bg-app-surface'
+                    }`;
+
                     return (
-                        <li key={node.key}>
+                        <motion.li
+                            key={node.key}
+                            layout={!reduceMotion}
+                            animate={justChanged ? { scale: [1, 1.03, 1] } : { scale: 1 }}
+                            transition={{ duration: 0.6, ease: 'easeOut' }}
+                        >
                             {isOpenable ? (
                                 <button
                                     type="button"
                                     onClick={() => onSelectNode(node)}
-                                    className="flex w-full items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4 text-left transition-colors hover:border-app-border-strong hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                                    className={`${wrapperClassName} text-left hover:border-app-border-strong hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus`}
                                 >
                                     {content}
                                 </button>
                             ) : (
-                                <div className="flex items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4">
-                                    {content}
-                                </div>
+                                <div className={wrapperClassName}>{content}</div>
                             )}
-                        </li>
+                        </motion.li>
                     );
                 })}
             </ul>

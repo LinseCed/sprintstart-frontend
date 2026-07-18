@@ -18,6 +18,7 @@ import { FaqPage } from '../features/faq/components/FaqPage.tsx';
 import { FaqDetailPage } from '../features/faq/components/FaqDetailPage.tsx';
 import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/KnowledgeGapsPage.tsx';
 import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/KnowledgeGapsDetailPage.tsx';
+import { CompetencyDashboardPage } from '../features/competency-dashboard/components/CompetencyDashboardPage.tsx';
 import { ProfilePage } from '../pages/ProfilePage.tsx';
 
 export function AppRouter() {
@@ -43,6 +44,7 @@ export function AppRouter() {
                 <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
                 <Route path="/insights/knowledge-gaps" element={<KnowledgeGapsPage />} />
                 <Route path="/insights/knowledge-gaps/:gapId" element={<KnowledgeGapsDetailPage />} />
+                <Route path="/insights/competencies" element={<CompetencyDashboardPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
             </Routes>
         </AuthGuard>

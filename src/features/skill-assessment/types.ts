@@ -36,6 +36,13 @@ export type PathNode = {
      * module to open.
      */
     stepId?: string | null;
+
+    /**
+     * The grading type of that same step's verification, echoed here so a node
+     * can show an at-a-glance icon (e.g. an artifact-checked milestone) without
+     * an extra per-node fetch. Null under the same condition as `stepId`.
+     */
+    verificationType?: 'KNOWLEDGE' | 'EXACT' | 'ATTEST' | 'ARTIFACT' | null;
 };
 
 export type PathEdge = {
