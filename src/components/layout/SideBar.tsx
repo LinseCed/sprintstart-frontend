@@ -10,6 +10,7 @@ import {
     Map,
     Menu,
     MessageSquare,
+    Network,
     Rocket,
     Settings,
     Terminal,
@@ -69,6 +70,11 @@ const projectManagerNavItems: SidebarNavItem[] = [
         label: 'Data Ingestion',
         path: '/data-ingestion',
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    {
+        label: 'Graph Authoring',
+        path: '/graph-authoring',
+        icon: <Network className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 

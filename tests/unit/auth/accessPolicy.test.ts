@@ -37,6 +37,17 @@ describe('accessPolicy', () => {
             expect(canAccessRoute(null, '/chat')).toBe(false);
         });
 
+        it('blocks USER from /graph-authoring but allows PM, HR, and ADMIN', () => {
+            const userProfile = createMockProfile(PermissionGroup.USER);
+            const pmProfile = createMockProfile(PermissionGroup.PM);
+            const hrProfile = createMockProfile(PermissionGroup.HR);
+            const adminProfile = createMockProfile(PermissionGroup.ADMIN);
+            expect(canAccessRoute(userProfile, '/graph-authoring')).toBe(false);
+            expect(canAccessRoute(pmProfile, '/graph-authoring')).toBe(true);
+            expect(canAccessRoute(hrProfile, '/graph-authoring')).toBe(true);
+            expect(canAccessRoute(adminProfile, '/graph-authoring')).toBe(true);
+        });
+
         it('blocks USER from /insights/competencies but allows PM', () => {
             const userProfile = createMockProfile(PermissionGroup.USER);
             const pmProfile = createMockProfile(PermissionGroup.PM);
