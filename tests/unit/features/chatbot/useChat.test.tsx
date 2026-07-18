@@ -259,19 +259,23 @@ describe('useChat', () => {
 
     it('exposes stopStreaming function that can abort a stream', async () => {
         const encoder = new TextEncoder();
-        // Simulate an abort: the stream enqueues one token, then the next
+        // Simulate an abort: the stream yields one token, then the next
         // read() throws an AbortError. MSW doesn't propagate abort to mock
         // streams, so we simulate the error directly — the behavior is the
         // same as a real abort: chatService catches AbortError → onDone.
+        // The token is enqueued synchronously in start() and the error is
+        // deferred via a macrotask (queueMicrotask would still run before
+        // chatService reads; setTimeout(0) lets MSW forward the chunk
+        // first). A short delay is unavoidable because MSW discards queued
+        // chunks when the source stream errors — the token must be consumed
+        // end-to-end before the error fires.
         const abortError = new Error('aborted');
         abortError.name = 'AbortError';
 
         const stream = new ReadableStream<Uint8Array>({
             start(controller) {
                 controller.enqueue(encoder.encode('data: {"type":"token","content":"partial"}\n\n'));
-                // Error the stream after the first chunk is consumed,
-                // simulating what happens when the AbortSignal fires.
-                setTimeout(() => controller.error(abortError), 10);
+                setTimeout(() => controller.error(abortError), 50);
             },
         });
 
