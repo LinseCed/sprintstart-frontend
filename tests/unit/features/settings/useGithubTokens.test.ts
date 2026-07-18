@@ -48,9 +48,13 @@ describe('useGithubTokens', () => {
     });
 
     it('a slow stale fetch does not overwrite a newer one', async () => {
-        // First call (slow, resolves last) — triggered on mount.
+        // Controllable slow promise: stays pending until we resolve it, so the
+        // mount load stays in-flight and `isRefreshing` is reliably true when
+        // we trigger the second load (avoids a real-timer race in CI where a
+        // setTimeout-based "slow" fetch resolves between waitFor polls).
+        let resolveSlow: (names: string[]) => void = () => {};
         const slow = new Promise<string[]>((resolve) => {
-            setTimeout(() => resolve(['stale']), 50);
+            resolveSlow = resolve;
         });
         vi.mocked(getGithubPatNames)
             .mockReturnValueOnce(slow)
@@ -58,16 +62,17 @@ describe('useGithubTokens', () => {
 
         const { result } = renderHook(() => useGithubTokens());
 
-        // Wait for the hook to be ready, then immediately trigger a second
-        // load that should resolve before the slow first one.
         await waitFor(() => expect(result.current.isRefreshing).toBe(true));
         await act(async () => {
             await result.current.loadTokenNames();
         });
 
         await waitFor(() => expect(result.current.tokenNames).toEqual(['fresh']));
-        // Wait for the slow promise to resolve too — it must not overwrite.
-        await slow;
+        // Resolve the stale fetch — its result must not overwrite the fresh one.
+        await act(async () => {
+            resolveSlow(['stale']);
+            await slow;
+        });
         expect(result.current.tokenNames).toEqual(['fresh']);
     });
 
