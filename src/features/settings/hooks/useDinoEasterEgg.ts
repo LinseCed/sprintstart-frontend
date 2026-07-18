@@ -60,7 +60,19 @@ export function useDinoEasterEgg(): DinoEasterEgg {
         } catch (error) {
             console.warn('Failed to persist dino unlock state', error);
         }
-        window.dispatchEvent(new Event('dinoUnlockChanged'));
+
+        // Update our own state directly (batched with the click handler) rather
+        // than round-tripping through a synchronous `dispatchEvent`, which can
+        // land the listener's setState during a sibling's render cycle (React
+        // 19: "Cannot update a component while rendering a different
+        // component"). Notify external listeners (SideBar, DinoGame) on a
+        // microtask so their setState is deferred past the current render.
+        const nextUnlocked = nextValue === 'true';
+        setIsUnlocked(nextUnlocked);
+        if (!nextUnlocked) setGameActive(false);
+        queueMicrotask(() =>
+            window.dispatchEvent(new Event('dinoUnlockChanged')),
+        );
 
         showToast(
             currentlyUnlocked
