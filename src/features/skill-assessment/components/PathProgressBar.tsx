@@ -16,7 +16,7 @@ export function PathProgressBar({ path, className = '' }: PathProgressBarProps) 
     const total = path.nodes.length;
     if (total === 0) return null;
 
-    const mastered = path.nodes.filter(node => node.state === 'mastered').length;
+    const mastered = path.nodes.filter(node => node.state === 'MASTERED').length;
     const percentage = Math.round((mastered / total) * 100);
 
     return (

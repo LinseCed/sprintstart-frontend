@@ -41,7 +41,7 @@ vi.mock('../../../src/services/verificationService', () => ({
     }
 }));
 
-const node: PathNode = { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'available', stepId: 'step1' };
+const node: PathNode = { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'AVAILABLE', stepId: 'step1' };
 const path: PathView = { nodes: [node], edges: [], graphVersion: 1 };
 
 describe('LearnVerifyModuleModal Accessibility', () => {

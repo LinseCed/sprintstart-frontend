@@ -8,7 +8,7 @@ vi.mock('../../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'user1' } }),
 }));
 
-function pathResponse(graphVersion: number, kotlinState: 'locked' | 'available' | 'mastered' = 'mastered') {
+function pathResponse(graphVersion: number, kotlinState: 'LOCKED' | 'AVAILABLE' | 'MASTERED' = 'MASTERED') {
     return {
         nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: kotlinState, level: 3 }],
         edges: [],
@@ -89,7 +89,7 @@ describe('useCompetencyPath', () => {
         let version = 1;
         server.use(
             http.get('/api/v1/onboarding/me/path', () =>
-                HttpResponse.json(pathResponse(version, version === 1 ? 'locked' : 'mastered')),
+                HttpResponse.json(pathResponse(version, version === 1 ? 'LOCKED' : 'MASTERED')),
             ),
         );
 

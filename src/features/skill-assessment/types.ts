@@ -8,7 +8,7 @@ export type AssessmentAnswerResponse = {
     question?: string | null;
 };
 
-export type NodeState = 'mastered' | 'available' | 'locked';
+export type NodeState = 'MASTERED' | 'AVAILABLE' | 'LOCKED';
 
 export type CompetencyKind =
     | 'SKILL'

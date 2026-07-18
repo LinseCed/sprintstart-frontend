@@ -27,7 +27,7 @@ describe('CompetencyPathPage', () => {
     it('renders the path', async () => {
         vi.mocked(getLastSeenGraphVersion).mockReturnValue(null);
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
             edges: [],
             graphVersion: 1,
         });
@@ -43,7 +43,7 @@ describe('CompetencyPathPage', () => {
     it('shows the reconciliation notice when the graph version changed', async () => {
         vi.mocked(getLastSeenGraphVersion).mockReturnValue(1);
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
             edges: [],
             graphVersion: 2,
         });

@@ -73,3 +73,31 @@ export function markGraphVersionSeen(userId: string, version: number): void {
 
     window.localStorage.setItem(getGraphVersionSeenKey(userId), String(version));
 }
+
+const assessmentCompletedPrefix = 'skill-assessment-completed';
+
+function getAssessmentCompletedKey(userId: string) {
+    return `${assessmentCompletedPrefix}:${userId}`;
+}
+
+/**
+ * Whether this user has ever finished the skill-assessment interview. `GET /me/path` always
+ * succeeds (it projects a path from the current graph + ledger regardless of whether an
+ * assessment was ever taken), so it can't be used to detect "already completed" -- this flag is
+ * the only signal, recorded client-side right when the interview reports `done: true`.
+ */
+export function hasCompletedAssessment(userId: string): boolean {
+    if (typeof window === 'undefined') return false;
+
+    return window.localStorage.getItem(getAssessmentCompletedKey(userId)) === 'true';
+}
+
+/**
+ * Records that this user has finished the skill-assessment interview, so a page refresh lands
+ * back on their path instead of restarting the interview.
+ */
+export function markAssessmentCompleted(userId: string): void {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(getAssessmentCompletedKey(userId), 'true');
+}

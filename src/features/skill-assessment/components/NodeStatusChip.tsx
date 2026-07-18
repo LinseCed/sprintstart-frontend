@@ -8,9 +8,9 @@ type NodeStatusChipProps = {
 };
 
 const STATE_STYLES: Record<NodeState, { icon: typeof CheckCircle2; variant: BadgeVariant; label: string }> = {
-    mastered: { icon: CheckCircle2, variant: 'success', label: 'Mastered' },
-    available: { icon: CircleDot, variant: 'brand', label: 'Available' },
-    locked: { icon: Lock, variant: 'neutral', label: 'Locked' }
+    MASTERED: { icon: CheckCircle2, variant: 'success', label: 'Mastered' },
+    AVAILABLE: { icon: CircleDot, variant: 'brand', label: 'Available' },
+    LOCKED: { icon: Lock, variant: 'neutral', label: 'Locked' }
 };
 
 /**

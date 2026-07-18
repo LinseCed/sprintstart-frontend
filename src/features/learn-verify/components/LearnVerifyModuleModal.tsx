@@ -44,7 +44,7 @@ export function LearnVerifyModuleModal({ node, path, onClose }: LearnVerifyModul
     } = useLearnVerifyModule(node.stepId ?? null);
 
     const verifySectionRef = useRef<HTMLDivElement>(null);
-    const alreadyMastered = node.state === 'mastered';
+    const alreadyMastered = node.state === 'MASTERED';
     const ready = !isLoading && !loadError && step !== null;
 
     const dependents = useMemo(
@@ -109,7 +109,7 @@ export function LearnVerifyModuleModal({ node, path, onClose }: LearnVerifyModul
                     <section>
                         <div className="flex flex-wrap items-center gap-3">
                             <NodeStatusChip state={node.state} />
-                            {node.state === 'available' && (
+                            {node.state === 'AVAILABLE' && (
                                 <span className="text-xs text-app-text-muted">Prerequisites cleared</span>
                             )}
                             {step.estimatedMinutes > 0 && (

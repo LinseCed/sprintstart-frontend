@@ -12,7 +12,7 @@ vi.mock('../../../src/services/assessmentService', () => ({
         startAssessment: vi.fn(),
         answerAssessment: vi.fn(),
         fetchPath: vi.fn().mockResolvedValue({
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
             edges: [],
             graphVersion: 2,
         }),
