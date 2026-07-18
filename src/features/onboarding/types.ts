@@ -63,6 +63,8 @@ export interface OnboardingStepEndpoint {
   completedAt: string | null;
   feedback: OnboardingStepFeedback | null;
   skip: OnboardingStepSkip | null;
+  /** Grounded lesson body (markdown), synthesized by the AI service. Null until synthesized. */
+  content?: string | null;
 }
 
 // Why the backend considers a phase locked (see OnboardingPhaseEndpoint.unlockReason)

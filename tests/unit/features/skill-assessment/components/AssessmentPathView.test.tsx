@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi } from 'vitest';
 import { AssessmentPathView } from '../../../../../src/features/skill-assessment/components/AssessmentPathView';
 import type { PathView } from '../../../../../src/features/skill-assessment/types';
 
@@ -70,5 +71,42 @@ describe('AssessmentPathView', () => {
         const juniorLockedCount = screen.queryAllByText('Locked').length;
 
         expect(seniorLockedCount).toBeLessThan(juniorLockedCount);
+    });
+
+    it('opens a node with a stepId and calls onSelectNode', async () => {
+        const path: PathView = {
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'available', stepId: 'step1' }],
+            edges: [],
+            graphVersion: 1,
+        };
+        const onSelectNode = vi.fn();
+        const user = userEvent.setup();
+        render(<AssessmentPathView path={path} onSelectNode={onSelectNode} />);
+
+        await user.click(screen.getByRole('button', { name: /kotlin/i }));
+
+        expect(onSelectNode).toHaveBeenCalledWith(path.nodes[0]);
+    });
+
+    it('does not make a locked node clickable even if it has a stepId', () => {
+        const path: PathView = {
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'locked', stepId: 'step1' }],
+            edges: [],
+            graphVersion: 1,
+        };
+        render(<AssessmentPathView path={path} onSelectNode={vi.fn()} />);
+
+        expect(screen.queryByRole('button', { name: /kotlin/i })).not.toBeInTheDocument();
+    });
+
+    it('does not make a node without a stepId clickable', () => {
+        const path: PathView = {
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'available' }],
+            edges: [],
+            graphVersion: 1,
+        };
+        render(<AssessmentPathView path={path} onSelectNode={vi.fn()} />);
+
+        expect(screen.queryByRole('button', { name: /kotlin/i })).not.toBeInTheDocument();
     });
 });
