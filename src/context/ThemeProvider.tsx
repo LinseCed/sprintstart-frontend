@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import type { Theme } from './ThemeContext';
 import { ThemeContext } from './ThemeContext';
 
@@ -12,11 +12,19 @@ const STORAGE_KEY = 'theme';
  * chosen by the user and stored.
  */
 function getInitialTheme(): Theme {
-    const storedTheme = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
-        return storedTheme;
+    let stored: string | null = null;
+    try {
+        stored = window.localStorage.getItem(STORAGE_KEY);
+    } catch (error) {
+        // localStorage may be disabled (private mode) or throw on access.
+        console.warn('Failed to read theme preference', error);
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
+        return stored;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
 }
 
 /** Resolves a (possibly 'system') theme to the concrete light/dark mode in effect. */
@@ -27,12 +35,20 @@ function resolveDark(theme: Theme): boolean {
     return theme === 'dark';
 }
 
-/** Applies the resolved light/dark class to <html> and persists the preference. */
+/**
+ * Applies the resolved light/dark class to <html> and persists the preference.
+ * Persistence failures (e.g. quota exceeded, private mode) are warned and
+ * swallowed — the in-memory theme still applies for the current session.
+ */
 function applyTheme(theme: Theme) {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(resolveDark(theme) ? 'dark' : 'light');
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    try {
+        window.localStorage.setItem(STORAGE_KEY, theme);
+    } catch (error) {
+        console.warn('Failed to persist theme preference', error);
+    }
 }
 
 /**
@@ -41,11 +57,16 @@ function applyTheme(theme: Theme) {
  * Supports an explicit 'system' preference that follows the OS
  * `prefers-color-scheme` media query and re-applies when the OS
  * preference changes. The selection is persisted to localStorage.
+ *
+ * The resolved `.light`/`.dark` class is applied synchronously in a
+ * `useLayoutEffect` so the correct palette is on <html> before the browser
+ * paints — avoiding a flash of the wrong theme on first load.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
 
-    useEffect(() => {
+    // Sync before paint to avoid a FOUC of the default light palette.
+    useLayoutEffect(() => {
         applyTheme(theme);
     }, [theme]);
 
