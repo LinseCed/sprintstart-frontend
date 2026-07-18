@@ -3,6 +3,7 @@ import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
+import { GraphAuthoringPage } from '../pages/GraphAuthoringPage.tsx';
 import { OnBoardingPage } from '../pages/OnBoardingPage';
 import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
@@ -36,6 +37,7 @@ export function AppRouter() {
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
+                <Route path="/graph-authoring" element={<GraphAuthoringPage />} />
                 <Route path="/team-management" element={<TeamManagementPage />} />
                 <Route path="/team/:userId" element={<TeamMemberDetailPage />} />
                 <Route path="/pm-dashboard" element={<PmDashboardPage />} />

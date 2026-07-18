@@ -13,6 +13,7 @@ export type AppRoute =
     | '/onboarding/assessment'
     | '/onboarding/path'
     | '/data-ingestion'
+    | '/graph-authoring'
     | '/admin'
     | '/pm-dashboard'
     | '/team-management'
@@ -48,6 +49,7 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.ADMIN,
     ],
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/graph-authoring': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/admin': [PermissionGroup.HR, PermissionGroup.ADMIN],
     '/pm-dashboard': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/team-management': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
