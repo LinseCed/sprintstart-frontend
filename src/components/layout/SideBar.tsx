@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     BookOpen,
@@ -101,34 +101,40 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
         canAccessRoute(profile, item.path),
     );
 
-    const [, setCogwheelClicks] = useState(0);
+    const cogwheelClicksRef = useRef(0);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
     const handleSettingsClick = (e: React.MouseEvent) => {
         if (location.pathname === '/profile' || location.pathname === '/profile/') {
             e.preventDefault();
-            setCogwheelClicks(prev => {
-                const next = prev + 1;
-                if (next >= 3) {
-                    if (Date.now() - lastToggleTime < 2000) {
-                        return 0;
-                    }
-                    lastToggleTime = Date.now();
-                    const isUnlocked = localStorage.getItem('dinoUnlocked') === 'true';
-                    if (isUnlocked) {
-                        localStorage.setItem('dinoUnlocked', 'false');
-                        window.dispatchEvent(new Event('dinoUnlockChanged'));
-                        setToastMsg('you saw nothing... 🫣');
-                    } else {
-                        localStorage.setItem('dinoUnlocked', 'true');
-                        window.dispatchEvent(new Event('dinoUnlockChanged'));
-                        setToastMsg('shh... 🤫 (press Space)');
-                    }
-                    setTimeout(() => setToastMsg(null), 3000);
-                    return 0;
+            const next = cogwheelClicksRef.current + 1;
+            if (next >= 3) {
+                cogwheelClicksRef.current = 0;
+                if (Date.now() - lastToggleTime < 2000) {
+                    if (onNavigate) onNavigate();
+                    return;
                 }
-                return next;
-            });
+                lastToggleTime = Date.now();
+                const isUnlocked = localStorage.getItem('dinoUnlocked') === 'true';
+                if (isUnlocked) {
+                    localStorage.setItem('dinoUnlocked', 'false');
+                    setToastMsg('you saw nothing... 🫣');
+                } else {
+                    localStorage.setItem('dinoUnlocked', 'true');
+                    setToastMsg('shh... 🤫 (press Space)');
+                }
+                // Defer the external notification past the current render so
+                // listeners' setState (useDinoEasterEgg, DinoGame) doesn't
+                // fire during this component's render cycle (React 19:
+                // "Cannot update a component while rendering a different
+                // component").
+                queueMicrotask(() =>
+                    window.dispatchEvent(new Event('dinoUnlockChanged')),
+                );
+                setTimeout(() => setToastMsg(null), 3000);
+            } else {
+                cogwheelClicksRef.current = next;
+            }
         }
         if (onNavigate) {
             onNavigate();
