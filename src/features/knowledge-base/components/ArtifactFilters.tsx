@@ -53,6 +53,8 @@ export function ArtifactFilters({
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="w-full pl-9 pr-12 py-2 bg-app-surface border border-app-border rounded-lg text-app-text focus:outline-none focus:ring-2 focus:ring-app-brand/20 focus:border-app-brand"
+                    data-testid="kb-search-input"
+                    aria-label="Search knowledge base"
                 />
                 {onRefresh && (
                     <button
@@ -81,6 +83,7 @@ export function ArtifactFilters({
                         }`}
                         aria-selected={activeTab === tab.id}
                         role="tab"
+                        data-testid={`kb-tab-${tab.id.toLowerCase()}`}
                     >
                         {activeTab === tab.id && (
                             <motion.div

@@ -6,26 +6,25 @@ import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../featur
 
 /**
  * SSE event shape emitted by the artifact summary streaming endpoint.
+ *
+ * Discriminated union on `type` so the dispatcher can narrow without per-field
+ * `undefined` checks, and callers get exhaustiveness checking.
  */
-interface SummaryStreamEvent {
-    type: 'token' | 'citation' | 'done' | 'error' | 'stage';
-    content?: string;
-    message?: string;
-    name?: string;
-    detail?: string;
-    artifactId?: string;
-    filename?: string;
-    sourceUrl?: string | null;
-}
+type SummaryStreamEvent =
+    | { type: 'stage'; name: string; detail: string }
+    | { type: 'token'; content: string }
+    | { type: 'citation'; artifactId: string; filename: string; sourceUrl: string | null }
+    | { type: 'done' }
+    | { type: 'error'; message: string };
 
 /**
- * Service responsible for managing the knowledge base unified artifacts.
+ * Per-file upload result returned by the backend batch upload endpoint.
  */
-interface UploadResponseItem {
+type UploadResponseItem = {
     filename: string;
-    status: string;
+    status: 'success' | 'failed';
     error?: string;
-}
+};
 
 export const knowledgeService = {
     /**
@@ -215,25 +214,19 @@ export const knowledgeService = {
             for await (const event of parseSSEStream<SummaryStreamEvent>(stream)) {
                 switch (event.type) {
                     case 'stage':
-                        if (event.name && event.detail) {
-                            handlers.onStage?.(event.name, event.detail);
-                        }
+                        handlers.onStage?.(event.name, event.detail);
                         break;
 
                     case 'token':
-                        if (event.content !== undefined) {
-                            handlers.onToken(event.content);
-                        }
+                        handlers.onToken(event.content);
                         break;
 
                     case 'citation':
-                        if (event.artifactId && event.filename) {
-                            handlers.onCitation({
-                                artifactId: event.artifactId,
-                                filename: event.filename,
-                                sourceUrl: event.sourceUrl ?? null,
-                            });
-                        }
+                        handlers.onCitation({
+                            artifactId: event.artifactId,
+                            filename: event.filename,
+                            sourceUrl: event.sourceUrl,
+                        });
                         break;
 
                     case 'done':
@@ -241,7 +234,7 @@ export const knowledgeService = {
                         return;
 
                     case 'error': {
-                        const message = event.message ?? 'Unknown error';
+                        const message = event.message;
                         handlers.onError?.(message);
                         throw new Error(message);
                     }
