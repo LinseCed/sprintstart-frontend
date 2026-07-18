@@ -3,6 +3,12 @@ import type { PathNode, PathView } from '../types';
 
 type AssessmentPathViewProps = {
     path: PathView;
+    /**
+     * Called when a node with a configured step is opened. Locked nodes and
+     * nodes with no `stepId` (no learn-verify module wired up yet) are not
+     * clickable and never trigger this.
+     */
+    onSelectNode?: (node: PathNode) => void;
 };
 
 /**
@@ -38,7 +44,7 @@ function orderByPrerequisites(path: PathView): { ordered: PathNode[]; prereqsByK
     return { ordered, prereqsByKey };
 }
 
-export function AssessmentPathView({ path }: AssessmentPathViewProps) {
+export function AssessmentPathView({ path, onSelectNode }: AssessmentPathViewProps) {
     if (path.nodes.length === 0) {
         return (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
@@ -57,12 +63,10 @@ export function AssessmentPathView({ path }: AssessmentPathViewProps) {
             <ul className="flex flex-col gap-3">
                 {ordered.map(node => {
                     const prereqs = prereqsByKey.get(node.key) ?? [];
+                    const isOpenable = Boolean(node.stepId) && node.state !== 'locked' && onSelectNode;
 
-                    return (
-                        <li
-                            key={node.key}
-                            className="flex items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4"
-                        >
+                    const content = (
+                        <>
                             <div className="min-w-0">
                                 <p className="truncate text-sm font-medium text-app-text">{node.label}</p>
                                 <p className="text-xs text-app-text-subtle">{node.kind}</p>
@@ -74,6 +78,24 @@ export function AssessmentPathView({ path }: AssessmentPathViewProps) {
                             </div>
 
                             <NodeStatusChip state={node.state} className="shrink-0" />
+                        </>
+                    );
+
+                    return (
+                        <li key={node.key}>
+                            {isOpenable ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onSelectNode(node)}
+                                    className="flex w-full items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4 text-left transition-colors hover:border-app-border-strong hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                                >
+                                    {content}
+                                </button>
+                            ) : (
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4">
+                                    {content}
+                                </div>
+                            )}
                         </li>
                     );
                 })}

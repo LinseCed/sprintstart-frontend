@@ -29,6 +29,13 @@ export type PathNode = {
      * 0..4 proficiency level, when the node has been assessed/verified.
      */
     level?: number;
+
+    /**
+     * The onboarding step configured to teach/verify this competency, if any.
+     * Null when no step has been wired up yet -- such nodes have no learn-verify
+     * module to open.
+     */
+    stepId?: string | null;
 };
 
 export type PathEdge = {

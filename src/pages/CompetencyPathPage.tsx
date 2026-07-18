@@ -3,6 +3,8 @@ import { AlertCircle, Map, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { AssessmentPathView } from '../features/skill-assessment/components/AssessmentPathView';
 import { useCompetencyPath } from '../features/skill-assessment/hooks/useCompetencyPath';
+import { LearnVerifyModuleModal } from '../features/learn-verify/components/LearnVerifyModuleModal';
+import type { PathNode } from '../features/skill-assessment/types';
 
 /**
  * A persistent, revisitable view of the authenticated user's competency path
@@ -12,6 +14,14 @@ import { useCompetencyPath } from '../features/skill-assessment/hooks/useCompete
 export function CompetencyPathPage() {
     const { path, isLoading, error, pathUpdated, retry } = useCompetencyPath();
     const [noticeDismissed, setNoticeDismissed] = useState(false);
+    const [selectedNode, setSelectedNode] = useState<PathNode | null>(null);
+
+    const closeModule = ({ submittedAttempt }: { submittedAttempt: boolean; passed: boolean }) => {
+        setSelectedNode(null);
+        if (submittedAttempt) {
+            void retry();
+        }
+    };
 
     if (error) {
         return (
@@ -68,7 +78,11 @@ export function CompetencyPathPage() {
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-app-brand border-t-transparent" />
                 </div>
             ) : (
-                path && <AssessmentPathView path={path} />
+                path && <AssessmentPathView path={path} onSelectNode={setSelectedNode} />
+            )}
+
+            {selectedNode && path && (
+                <LearnVerifyModuleModal node={selectedNode} path={path} onClose={closeModule} />
             )}
         </div>
     );
