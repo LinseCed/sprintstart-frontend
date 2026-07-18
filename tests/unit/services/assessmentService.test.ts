@@ -55,7 +55,7 @@ describe('assessmentService', () => {
         server.use(
             http.get('/api/v1/onboarding/me/path', () =>
                 HttpResponse.json({
-                    nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+                    nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
                     edges: [],
                     graphVersion: 1,
                 }),
@@ -65,7 +65,7 @@ describe('assessmentService', () => {
         const path = await assessmentService.fetchPath();
 
         expect(path.nodes).toEqual([
-            { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 },
+            { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 },
         ]);
         expect(path.edges).toEqual([]);
         expect(path.graphVersion).toBe(1);

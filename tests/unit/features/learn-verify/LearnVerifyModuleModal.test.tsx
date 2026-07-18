@@ -40,12 +40,12 @@ const mockStep = {
 };
 
 function node(overrides: Partial<PathNode> = {}): PathNode {
-    return { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'available', stepId: 'step1', ...overrides };
+    return { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'AVAILABLE', stepId: 'step1', ...overrides };
 }
 
 function path(overrides: Partial<PathView> = {}): PathView {
     return {
-        nodes: [node(), { key: 'domain-model', label: 'Domain Model', kind: 'CONCEPT', state: 'locked' }],
+        nodes: [node(), { key: 'domain-model', label: 'Domain Model', kind: 'CONCEPT', state: 'LOCKED' }],
         edges: [{ from: 'kotlin', to: 'domain-model' }],
         graphVersion: 1,
         ...overrides
@@ -117,7 +117,7 @@ describe('LearnVerifyModuleModal', () => {
         });
 
         render(
-            <LearnVerifyModuleModal node={node({ state: 'mastered' })} path={path()} onClose={vi.fn()} />
+            <LearnVerifyModuleModal node={node({ state: 'MASTERED' })} path={path()} onClose={vi.fn()} />
         );
 
         expect(await screen.findByText(/already mastered/i)).toBeInTheDocument();

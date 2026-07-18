@@ -73,7 +73,7 @@ export function AssessmentPathView({ path, onSelectNode, justChangedKeys }: Asse
             <ul className="flex flex-col gap-3">
                 {ordered.map(node => {
                     const prereqs = prereqsByKey.get(node.key) ?? [];
-                    const isOpenable = Boolean(node.stepId) && node.state !== 'locked' && onSelectNode;
+                    const isOpenable = Boolean(node.stepId) && node.state !== 'LOCKED' && onSelectNode;
                     const isGoal = node.kind === 'CONTRIBUTION';
                     const isArtifactCheck = node.verificationType === 'ARTIFACT';
                     const justChanged = !reduceMotion && (justChangedKeys?.has(node.key) ?? false);

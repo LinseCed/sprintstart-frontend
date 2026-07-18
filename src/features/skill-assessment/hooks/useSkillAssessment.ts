@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { assessmentService } from '../../../services/assessmentService';
+import { useAuth } from '../../../context/useAuth';
+import { assessmentService, hasCompletedAssessment, markAssessmentCompleted } from '../../../services/assessmentService';
 import type { AssessmentChatMessage, PathView } from '../types';
 
 type Phase = 'chat' | 'path';
@@ -19,6 +20,8 @@ function toMessage(error: unknown, fallback: string): string {
  * after a successful final answer retries the fetch, not the answer submission.
  */
 export function useSkillAssessment() {
+    const { profile, status } = useAuth();
+    const profileId = profile?.id;
     const [phase, setPhase] = useState<Phase>('chat');
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<AssessmentChatMessage[]>([]);
@@ -49,6 +52,7 @@ export function useSkillAssessment() {
             try {
                 const response = await assessmentService.answerAssessment(currentSessionId, answer);
                 if (response.done) {
+                    if (profileId) markAssessmentCompleted(profileId);
                     await loadPath();
                 } else if (response.question) {
                     const question = response.question;
@@ -63,7 +67,7 @@ export function useSkillAssessment() {
                 setIsThinking(false);
             }
         },
-        [loadPath]
+        [loadPath, profileId]
     );
 
     const start = useCallback(async () => {
@@ -82,12 +86,20 @@ export function useSkillAssessment() {
     }, []);
 
     useEffect(() => {
+        // Wait for the profile to resolve so a completed-assessment check isn't skipped on a
+        // still-loading profileId, which would restart the interview every refresh.
+        if (status === 'loading') return;
+
         void (async () => {
-            await start();
+            if (profileId && hasCompletedAssessment(profileId)) {
+                await loadPath();
+            } else {
+                await start();
+            }
         })();
-        // Runs once on mount; `start` is stable (no deps) so this is safe to omit.
+        // `start`/`loadPath` are stable (empty/loadPath-only deps) so it's safe to omit them here.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [status, profileId]);
 
     const submitAnswer = useCallback(
         (answer: string) => {

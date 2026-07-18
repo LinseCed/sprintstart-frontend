@@ -4,9 +4,31 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../setup/vitest.setup';
 import { useSkillAssessment } from '../../../../src/features/skill-assessment/hooks/useSkillAssessment';
 
+// window.localStorage is non-functional in this sandbox's Node/Vitest combination (not just
+// .clear() -- .setItem()/.removeItem() throw too, matching the `--localstorage-file` warning
+// printed on every run). Fake the completed-flag store in memory instead of touching real
+// localStorage, so these tests actually exercise the resume-vs-restart branch.
+const completedStore = new Map<string, boolean>();
+
+vi.mock('../../../../src/context/useAuth', () => ({
+    useAuth: () => ({ profile: { id: 'user1' }, status: 'authenticated' }),
+}));
+
+vi.mock('../../../../src/services/assessmentService', async () => {
+    const actual = await vi.importActual<typeof import('../../../../src/services/assessmentService')>(
+        '../../../../src/services/assessmentService',
+    );
+    return {
+        ...actual,
+        hasCompletedAssessment: (userId: string) => completedStore.get(userId) ?? false,
+        markAssessmentCompleted: (userId: string) => completedStore.set(userId, true),
+    };
+});
+
 describe('useSkillAssessment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        completedStore.clear();
     });
 
     it('starts a session on mount and shows the first question', async () => {
@@ -50,7 +72,7 @@ describe('useSkillAssessment', () => {
         expect(result.current.phase).toBe('chat');
     });
 
-    it('transitions to the path phase and loads the path when the turn is done', async () => {
+    it('transitions to the path phase, loads the path, and records completion when the turn is done', async () => {
         server.use(
             http.post('/api/v1/onboarding/me/assessment/start', () =>
                 HttpResponse.json({ sessionId: 'session1', question: 'Q1' }),
@@ -60,7 +82,7 @@ describe('useSkillAssessment', () => {
             ),
             http.get('/api/v1/onboarding/me/path', () =>
                 HttpResponse.json({
-                    nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered', level: 3 }],
+                    nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
                     edges: [],
                     graphVersion: 1,
                 }),
@@ -78,6 +100,33 @@ describe('useSkillAssessment', () => {
             expect(result.current.phase).toBe('path');
         });
         expect(result.current.path?.nodes.length).toBeGreaterThan(0);
+        expect(completedStore.get('user1')).toBe(true);
+    });
+
+    it('skips the interview and loads the path directly when already completed', async () => {
+        completedStore.set('user1', true);
+        let startCalled = false;
+        server.use(
+            http.post('/api/v1/onboarding/me/assessment/start', () => {
+                startCalled = true;
+                return HttpResponse.json({ sessionId: 'session1', question: 'Q1' });
+            }),
+            http.get('/api/v1/onboarding/me/path', () =>
+                HttpResponse.json({
+                    nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
+                    edges: [],
+                    graphVersion: 1,
+                }),
+            ),
+        );
+
+        const { result } = renderHook(() => useSkillAssessment());
+
+        await waitFor(() => {
+            expect(result.current.phase).toBe('path');
+        });
+        expect(startCalled).toBe(false);
+        expect(result.current.messages).toEqual([]);
     });
 
     it('sets an error when starting fails, and retry re-attempts it', async () => {

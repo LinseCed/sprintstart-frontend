@@ -3,12 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SkillAssessmentPage } from '../../../src/pages/SkillAssessmentPage';
 
+vi.mock('../../../src/context/useAuth', () => ({
+    useAuth: () => ({ profile: { id: 'user1' }, status: 'authenticated' }),
+}));
+
 vi.mock('../../../src/services/assessmentService', () => ({
     assessmentService: {
         startAssessment: vi.fn(),
         answerAssessment: vi.fn(),
         fetchPath: vi.fn(),
     },
+    hasCompletedAssessment: vi.fn().mockReturnValue(false),
+    markAssessmentCompleted: vi.fn(),
 }));
 
 import { assessmentService } from '../../../src/services/assessmentService';
@@ -38,7 +44,7 @@ describe('SkillAssessmentPage', () => {
         });
         vi.mocked(assessmentService.answerAssessment).mockResolvedValue({ done: true, question: null });
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered' }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED' }],
             edges: [],
             graphVersion: 1,
         });

@@ -14,8 +14,8 @@ describe('AssessmentPathView', () => {
     it('orders nodes so prerequisites render before what they unlock', () => {
         const path: PathView = {
             nodes: [
-                { key: 'b', label: 'B', kind: 'SKILL', state: 'locked' },
-                { key: 'a', label: 'A', kind: 'SKILL', state: 'mastered' },
+                { key: 'b', label: 'B', kind: 'SKILL', state: 'LOCKED' },
+                { key: 'a', label: 'A', kind: 'SKILL', state: 'MASTERED' },
             ],
             edges: [{ from: 'a', to: 'b' }],
             graphVersion: 1,
@@ -30,8 +30,8 @@ describe('AssessmentPathView', () => {
     it('shows a node\'s direct prerequisites', () => {
         const path: PathView = {
             nodes: [
-                { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'mastered' },
-                { key: 'domain-model', label: 'Our domain model', kind: 'CONCEPT', state: 'locked' },
+                { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED' },
+                { key: 'domain-model', label: 'Our domain model', kind: 'CONCEPT', state: 'LOCKED' },
             ],
             edges: [{ from: 'kotlin', to: 'domain-model' }],
             graphVersion: 1,
@@ -44,20 +44,20 @@ describe('AssessmentPathView', () => {
     it('renders a visibly shorter/more-mastered list for a senior-like path than a junior-like one', () => {
         const seniorPath: PathView = {
             nodes: [
-                { key: 'a', label: 'A', kind: 'SKILL', state: 'mastered' },
-                { key: 'b', label: 'B', kind: 'SKILL', state: 'mastered' },
-                { key: 'c', label: 'C', kind: 'CONTRIBUTION', state: 'available' },
+                { key: 'a', label: 'A', kind: 'SKILL', state: 'MASTERED' },
+                { key: 'b', label: 'B', kind: 'SKILL', state: 'MASTERED' },
+                { key: 'c', label: 'C', kind: 'CONTRIBUTION', state: 'AVAILABLE' },
             ],
             edges: [],
             graphVersion: 1,
         };
         const juniorPath: PathView = {
             nodes: [
-                { key: 'a', label: 'A', kind: 'SKILL', state: 'available' },
-                { key: 'b', label: 'B', kind: 'SKILL', state: 'locked' },
-                { key: 'c', label: 'C', kind: 'SKILL', state: 'locked' },
-                { key: 'd', label: 'D', kind: 'CONCEPT', state: 'locked' },
-                { key: 'e', label: 'E', kind: 'CONTRIBUTION', state: 'locked' },
+                { key: 'a', label: 'A', kind: 'SKILL', state: 'AVAILABLE' },
+                { key: 'b', label: 'B', kind: 'SKILL', state: 'LOCKED' },
+                { key: 'c', label: 'C', kind: 'SKILL', state: 'LOCKED' },
+                { key: 'd', label: 'D', kind: 'CONCEPT', state: 'LOCKED' },
+                { key: 'e', label: 'E', kind: 'CONTRIBUTION', state: 'LOCKED' },
             ],
             edges: [],
             graphVersion: 1,
@@ -75,7 +75,7 @@ describe('AssessmentPathView', () => {
 
     it('opens a node with a stepId and calls onSelectNode', async () => {
         const path: PathView = {
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'available', stepId: 'step1' }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'AVAILABLE', stepId: 'step1' }],
             edges: [],
             graphVersion: 1,
         };
@@ -90,7 +90,7 @@ describe('AssessmentPathView', () => {
 
     it('does not make a locked node clickable even if it has a stepId', () => {
         const path: PathView = {
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'locked', stepId: 'step1' }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'LOCKED', stepId: 'step1' }],
             edges: [],
             graphVersion: 1,
         };
@@ -101,7 +101,7 @@ describe('AssessmentPathView', () => {
 
     it('does not make a node without a stepId clickable', () => {
         const path: PathView = {
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'available' }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'AVAILABLE' }],
             edges: [],
             graphVersion: 1,
         };

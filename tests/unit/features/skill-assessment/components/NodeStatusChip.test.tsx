@@ -4,17 +4,17 @@ import { NodeStatusChip } from '../../../../../src/features/skill-assessment/com
 
 describe('NodeStatusChip', () => {
     it('renders the mastered state with its label', () => {
-        render(<NodeStatusChip state="mastered" />);
+        render(<NodeStatusChip state="MASTERED" />);
         expect(screen.getByText('Mastered')).toBeInTheDocument();
     });
 
     it('renders the available state with its label', () => {
-        render(<NodeStatusChip state="available" />);
+        render(<NodeStatusChip state="AVAILABLE" />);
         expect(screen.getByText('Available')).toBeInTheDocument();
     });
 
     it('renders the locked state with its label', () => {
-        render(<NodeStatusChip state="locked" />);
+        render(<NodeStatusChip state="LOCKED" />);
         expect(screen.getByText('Locked')).toBeInTheDocument();
     });
 });
