@@ -17,7 +17,8 @@ export type AppRoute =
     | '/pm-dashboard'
     | '/team-management'
     | '/insights/faq'
-    | '/insights/knowledge-gaps';
+    | '/insights/knowledge-gaps'
+    | '/insights/competencies';
 
 const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     '/': [PermissionGroup.USER, PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
@@ -52,6 +53,7 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     '/team-management': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/faq': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/knowledge-gaps': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/insights/competencies': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
 };
 
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {

@@ -20,6 +20,10 @@ vi.mock('../../../src/features/knowledge-gaps/components/KnowledgeGapWidget', ()
     KnowledgeGapWidget: () => <div data-testid="knowledge-gap-widget">Knowledge Gaps</div>,
 }));
 
+vi.mock('../../../src/features/competency-dashboard/components/CompetencyDashboardWidget', () => ({
+    CompetencyDashboardWidget: () => <div data-testid="competency-dashboard-widget">Competency Dashboard</div>,
+}));
+
 describe('PmDashboardPage Accessibility', () => {
     it('should not have any a11y violations', async () => {
         const { baseElement } = render(

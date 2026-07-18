@@ -14,7 +14,8 @@ const inputClassName =
 /**
  * Type-specific answer input for a Verify zone: free text for `KNOWLEDGE`, a
  * single-line exact answer for `EXACT`, a self-confirmation checkbox for
- * `ATTEST`. All three funnel into the same `answer` string the hook submits.
+ * `ATTEST`, a PR number for `ARTIFACT`. All four funnel into the same `answer`
+ * string the hook submits.
  */
 export function VerifyInput({ type, answer, onAnswerChange, disabled = false }: VerifyInputProps) {
     if (type === 'KNOWLEDGE') {
@@ -42,6 +43,26 @@ export function VerifyInput({ type, answer, onAnswerChange, disabled = false }: 
                 className={inputClassName}
                 aria-label="Your answer"
             />
+        );
+    }
+
+    if (type === 'ARTIFACT') {
+        return (
+            <div className="space-y-2">
+                <p className="text-xs text-app-text-muted">
+                    Open a PR that addresses this task on the linked repository, then enter its number below.
+                </p>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={answer}
+                    disabled={disabled}
+                    onChange={event => onAnswerChange(event.target.value)}
+                    placeholder="PR number, e.g. 42"
+                    className={inputClassName}
+                    aria-label="Pull request number"
+                />
+            </div>
         );
     }
 

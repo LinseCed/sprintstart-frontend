@@ -19,6 +19,10 @@ vi.mock('../../../src/features/knowledge-gaps/components/KnowledgeGapWidget', ()
     KnowledgeGapWidget: () => <div data-testid="knowledge-gap-widget">Knowledge Gaps</div>,
 }));
 
+vi.mock('../../../src/features/competency-dashboard/components/CompetencyDashboardWidget', () => ({
+    CompetencyDashboardWidget: () => <div data-testid="competency-dashboard-widget">Competency Dashboard</div>,
+}));
+
 describe('PmDashboardPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -44,5 +48,10 @@ describe('PmDashboardPage', () => {
     it('composes the KnowledgeGapWidget in the Insights section', () => {
         render(<MemoryRouter><PmDashboardPage /></MemoryRouter>);
         expect(screen.getByTestId('knowledge-gap-widget')).toBeInTheDocument();
+    });
+
+    it('composes the CompetencyDashboardWidget in the Insights section', () => {
+        render(<MemoryRouter><PmDashboardPage /></MemoryRouter>);
+        expect(screen.getByTestId('competency-dashboard-widget')).toBeInTheDocument();
     });
 });

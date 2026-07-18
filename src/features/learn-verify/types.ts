@@ -1,6 +1,6 @@
 import type { StepStatus } from '../onboarding/types';
 
-export type VerificationType = 'KNOWLEDGE' | 'EXACT' | 'ATTEST';
+export type VerificationType = 'KNOWLEDGE' | 'EXACT' | 'ATTEST' | 'ARTIFACT';
 
 /**
  * A step's verification config, as returned by
