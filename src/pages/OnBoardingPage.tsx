@@ -68,12 +68,13 @@ function ProgressBar({ value, max }: ProgressBarProps) {
  * is done, so a reload never drops the user back to phase 1.
  */
 function findActivePhaseIndex(path: OnboardingPathEndpoint): number {
-  const index = path.phases.findIndex((phase) =>
+  const phases = path.phases ?? [];
+  const index = phases.findIndex((phase) =>
     phase.steps.some(
       (step) => step.status !== "FINISHED" && step.status !== "SKIPPED",
     ),
   );
-  return index === -1 ? Math.max(0, path.phases.length - 1) : index;
+  return index === -1 ? Math.max(0, phases.length - 1) : index;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ export function OnBoardingPage() {
     // Passing the last phase's check completes the whole journey -> celebrate.
     const wasFinalPhase =
       !!checkPhase &&
-      OnBoardingPathEndpoint?.phases.at(-1)?.id === checkPhase.id;
+      (OnBoardingPathEndpoint?.phases ?? []).at(-1)?.id === checkPhase.id;
     setCheckPhase(null);
     if (passed && wasFinalPhase) setCelebrate(true);
     if (submittedAttempt) void refreshPath();
@@ -177,8 +178,12 @@ export function OnBoardingPage() {
     void loadOnBoardingPath();
   }, []);
 
-  const currentPhase =
-    OnBoardingPathEndpoint?.phases[selectedPhaseIndex] ?? null;
+  // Never trust the fetched/streamed path to always include phases -- a missing or
+  // malformed response (e.g. nothing ingested yet to generate a baseline from) must
+  // degrade to the empty state below, not crash the whole page (no error boundary
+  // wraps this route).
+  const phases = OnBoardingPathEndpoint?.phases ?? [];
+  const currentPhase = phases[selectedPhaseIndex] ?? null;
 
   // Helper function for phase progress
   const getPhaseProgress = (phase: OnboardingPhaseEndpoint) => {
@@ -196,7 +201,7 @@ export function OnBoardingPage() {
   };
 
   // Total progress across all phases
-  const totalProgress = OnBoardingPathEndpoint?.phases.reduce(
+  const totalProgress = phases.reduce(
     (acc, phase) => {
       const p = getPhaseProgress(phase);
       return {
@@ -205,7 +210,7 @@ export function OnBoardingPage() {
       };
     },
     { completed: 0, total: 0 },
-  ) ?? { completed: 0, total: 0 };
+  );
 
   const totalPercentage =
     totalProgress.total > 0
@@ -215,7 +220,7 @@ export function OnBoardingPage() {
   // Recommended next step (first not-yet-finished/skipped step across all
   // unlocked phases). Steps in locked phases can never be recommended.
   const recommendedStep =
-    OnBoardingPathEndpoint?.phases
+    phases
       .filter((phase) => !phase.locked)
       .flatMap((phase) => phase.steps)
       .find((step) => step.status !== "FINISHED" && step.status !== "SKIPPED") ?? null;
@@ -223,7 +228,7 @@ export function OnBoardingPage() {
   // First unlocked phase whose required knowledge check is still open while all
   // of its steps are already done — the check is what blocks the next phase.
   const pendingCheckPhase =
-    OnBoardingPathEndpoint?.phases.find(
+    phases.find(
       (phase) =>
         !phase.locked &&
         phase.checkSummary?.required &&
@@ -337,8 +342,7 @@ export function OnBoardingPage() {
   const allStepsDone = currentPhase.steps.every(
     (step) => step.status === "FINISHED" || step.status === "SKIPPED",
   );
-  const isFinalPhase =
-    OnBoardingPathEndpoint.phases.at(-1)?.id === currentPhase.id;
+  const isFinalPhase = phases.at(-1)?.id === currentPhase.id;
 
   // ── RENDER: SUCCESS STATE ──────────────────────────────────
   return (
@@ -381,7 +385,7 @@ export function OnBoardingPage() {
 
           {/* Phase tabs */}
           <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            {OnBoardingPathEndpoint.phases.map((phase, index) => {
+            {phases.map((phase, index) => {
               const progress = getPhaseProgress(phase);
               const isSelected = selectedPhaseIndex === index;
 

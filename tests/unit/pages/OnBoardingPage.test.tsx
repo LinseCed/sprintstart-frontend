@@ -163,4 +163,26 @@ describe('OnBoardingPage', () => {
         expect(screen.getAllByText('33%').length).toBeGreaterThan(0);
         expect(screen.getByText('1/3 Tasks')).toBeInTheDocument();
     });
+
+    it('renders the empty state instead of crashing when the fetched path has no phases', async () => {
+        server.use(
+            http.get('/api/v1/onboarding/me/path', () =>
+                HttpResponse.json({
+                    id: 'path1',
+                    userId: 'user1',
+                    createdAt: new Date().toISOString(),
+                }),
+            ),
+        );
+
+        render(
+            <MemoryRouter>
+                <OnBoardingPage />
+            </MemoryRouter>,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('No onboarding path found.')).toBeInTheDocument();
+        });
+    });
 });
