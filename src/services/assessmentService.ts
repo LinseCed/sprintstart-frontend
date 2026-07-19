@@ -50,12 +50,19 @@ export const assessmentService = {
     },
 
     /**
-     * Returns the authenticated user's personalized competency path: nodes
-     * (mastered/available/locked) and their prerequisite/related edges,
+     * Returns the authenticated user's personalized competency path for one
+     * project: nodes (mastered/available/locked) and their prerequisite edges,
      * projected from the competency graph and the user's progress ledger.
+     *
+     * Onboarding is per-project (the competency graph and ledger are global, but
+     * each project is onboarded independently), so `projectId` is required. A
+     * `404` means the user has no path for that project yet — the caller should
+     * kick off generation (personalize) rather than treat it as an error.
      */
-    async fetchPath(): Promise<PathView> {
-        return await apiClient.fetch<PathView>('/api/v1/onboarding/me/path');
+    async fetchPath(projectId: string): Promise<PathView> {
+        return await apiClient.fetch<PathView>(
+            `/api/v1/onboarding/me/path?projectId=${encodeURIComponent(projectId)}`
+        );
     }
 };
 

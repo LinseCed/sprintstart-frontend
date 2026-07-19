@@ -74,6 +74,31 @@ describe('onboardingService', () => {
         expect(handlers.onError).not.toHaveBeenCalled();
     });
 
+    it('personalizePath scopes generation to the given project via query param', async () => {
+        let seenProjectId: string | null = null;
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                controller.close();
+            },
+        });
+        server.use(
+            http.post('/api/v1/onboarding/me/path/personalize', ({ request }) => {
+                seenProjectId = new URL(request.url).searchParams.get('projectId');
+                return new HttpResponse(stream, {
+                    headers: { 'Content-Type': 'text/event-stream' },
+                });
+            }),
+        );
+
+        const handlers = { onStage: vi.fn(), onPath: vi.fn(), onDone: vi.fn(), onError: vi.fn() };
+        await onboardingService.personalizePath(handlers, 'proj-9');
+
+        expect(seenProjectId).toBe('proj-9');
+        expect(handlers.onDone).toHaveBeenCalled();
+    });
+
     it('skipStep posts a skip request', async () => {
         server.use(
             http.post('/api/v1/onboarding/me/steps/step1/skips', async ({ request }) => {

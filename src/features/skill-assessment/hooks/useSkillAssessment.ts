@@ -15,11 +15,20 @@ function toMessage(error: unknown, fallback: string): string {
  * session on mount, drives the turn-based chat loop against the backend, and
  * transitions to the personalized path once the interviewer is done.
  *
+ * The interview itself is a one-time, **global** placement (it writes the global
+ * competency ledger); `projectId` only scopes the path *preview* shown once it
+ * finishes -- onboarding paths are per-project. When no project is selected
+ * (e.g. a hire not yet in any project), the preview is skipped rather than
+ * fetched, since there is no project to project a path against.
+ *
  * Failed calls are tracked via `pendingAction` (not derived from `phase`/`path`)
  * so `retry()` re-runs exactly the call that failed -- e.g. a failed path fetch
  * after a successful final answer retries the fetch, not the answer submission.
+ *
+ * @param projectId The project whose path to preview after placement, or
+ *   `undefined`/empty when none is selected.
  */
-export function useSkillAssessment() {
+export function useSkillAssessment(projectId: string | undefined) {
     const { profile, status } = useAuth();
     const profileId = profile?.id;
     const [phase, setPhase] = useState<Phase>('chat');
@@ -35,14 +44,20 @@ export function useSkillAssessment() {
     const loadPath = useCallback(async () => {
         pendingActionRef.current = 'path';
         setError(null);
+        // Placement is done; without a selected project there's no per-project path
+        // to preview, so just leave the chat with nothing more to show.
+        if (!projectId) {
+            setPhase('path');
+            return;
+        }
         try {
-            const view = await assessmentService.fetchPath();
+            const view = await assessmentService.fetchPath(projectId);
             setPath(view);
             setPhase('path');
         } catch (err) {
             setError(toMessage(err, 'Could not load your path.'));
         }
-    }, []);
+    }, [projectId]);
 
     const sendAnswer = useCallback(
         async (currentSessionId: string, answer: string) => {

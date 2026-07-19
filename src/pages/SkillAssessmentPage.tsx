@@ -4,6 +4,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { SkillAssessmentChat } from '../features/skill-assessment/components/SkillAssessmentChat';
 import { AssessmentPathView } from '../features/skill-assessment/components/AssessmentPathView';
 import { useSkillAssessment } from '../features/skill-assessment/hooks/useSkillAssessment';
+import { useProjectSelection } from '../features/projects/useProjectSelection';
 import { useAuth } from '../context/useAuth';
 import { snoozeAssessmentGate } from '../services/assessmentService';
 
@@ -18,7 +19,11 @@ import { snoozeAssessmentGate } from '../services/assessmentService';
  * so coming back resumes where the interview left off.
  */
 export function SkillAssessmentPage() {
-    const { phase, messages, isThinking, error, path, submitAnswer, retry } = useSkillAssessment();
+    // The interview is global; the selected project only scopes the path preview
+    // shown once it finishes (onboarding paths are per-project).
+    const { selectedProjectId } = useProjectSelection();
+    const { phase, messages, isThinking, error, path, submitAnswer, retry } =
+        useSkillAssessment(selectedProjectId);
     const { profile } = useAuth();
     const navigate = useNavigate();
 

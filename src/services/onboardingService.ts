@@ -27,10 +27,19 @@ export const onboardingService = {
     },
 
     /**
-     * Triggers AI generation of the current user's onboarding path and streams
-     * progress over SSE. Replaces any existing path once the `path` event arrives.
+     * Triggers AI generation of the current user's onboarding path for a project
+     * and streams progress over SSE. Replaces any existing path for that project
+     * once the `path` event arrives.
+     *
+     * Onboarding is per-project, so pass the `projectId` of the project being
+     * onboarded. It is optional only for backward compatibility with the legacy
+     * phases view (which #22 retires); the backend requires it, so a call without
+     * a `projectId` will fail against the current backend.
      */
-    async personalizePath(handlers: OnboardingPersonalizeHandlers): Promise<void> {
+    async personalizePath(
+        handlers: OnboardingPersonalizeHandlers,
+        projectId?: string,
+    ): Promise<void> {
         try {
             if (keycloak.authenticated) {
                 await keycloak.updateToken(30);
@@ -41,7 +50,10 @@ export const onboardingService = {
             return;
         }
 
-        const res = await fetch(`/api/v1/onboarding/me/path/personalize`, {
+        const personalizeUrl = projectId
+            ? `/api/v1/onboarding/me/path/personalize?projectId=${encodeURIComponent(projectId)}`
+            : `/api/v1/onboarding/me/path/personalize`;
+        const res = await fetch(personalizeUrl, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${keycloak.token}`,

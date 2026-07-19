@@ -51,19 +51,22 @@ describe('assessmentService', () => {
         expect(result).toEqual({ done: true, question: null });
     });
 
-    it('fetchPath gets the competency path from the backend', async () => {
+    it('fetchPath gets the competency path for the given project from the backend', async () => {
+        let seenProjectId: string | null = null;
         server.use(
-            http.get('/api/v1/onboarding/me/path', () =>
-                HttpResponse.json({
+            http.get('/api/v1/onboarding/me/path', ({ request }) => {
+                seenProjectId = new URL(request.url).searchParams.get('projectId');
+                return HttpResponse.json({
                     nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 }],
                     edges: [],
                     graphVersion: 1,
-                }),
-            ),
+                });
+            }),
         );
 
-        const path = await assessmentService.fetchPath();
+        const path = await assessmentService.fetchPath('proj-7');
 
+        expect(seenProjectId).toBe('proj-7');
         expect(path.nodes).toEqual([
             { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 },
         ]);

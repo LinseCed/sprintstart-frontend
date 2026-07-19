@@ -38,7 +38,7 @@ describe('useSkillAssessment', () => {
             ),
         );
 
-        const { result } = renderHook(() => useSkillAssessment());
+        const { result } = renderHook(() => useSkillAssessment('proj1'));
 
         await waitFor(() => {
             expect(result.current.messages).toEqual([
@@ -59,7 +59,7 @@ describe('useSkillAssessment', () => {
             ),
         );
 
-        const { result } = renderHook(() => useSkillAssessment());
+        const { result } = renderHook(() => useSkillAssessment('proj1'));
         await waitFor(() => expect(result.current.messages).toHaveLength(1));
 
         act(() => {
@@ -89,7 +89,7 @@ describe('useSkillAssessment', () => {
             ),
         );
 
-        const { result } = renderHook(() => useSkillAssessment());
+        const { result } = renderHook(() => useSkillAssessment('proj1'));
         await waitFor(() => expect(result.current.messages).toHaveLength(1));
 
         act(() => {
@@ -120,7 +120,7 @@ describe('useSkillAssessment', () => {
             ),
         );
 
-        const { result } = renderHook(() => useSkillAssessment());
+        const { result } = renderHook(() => useSkillAssessment('proj1'));
 
         await waitFor(() => {
             expect(result.current.phase).toBe('path');
@@ -141,7 +141,7 @@ describe('useSkillAssessment', () => {
             }),
         );
 
-        const { result } = renderHook(() => useSkillAssessment());
+        const { result } = renderHook(() => useSkillAssessment('proj1'));
 
         await waitFor(() => {
             expect(result.current.error).not.toBeNull();

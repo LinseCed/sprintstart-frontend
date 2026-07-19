@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../context/useAuth';
 import { assessmentService, getLastSeenGraphVersion, markGraphVersionSeen } from '../../../services/assessmentService';
+import { ApiError } from '../../../services/apiClient';
 import type { NodeState, PathView } from '../types';
 
 function toMessage(error: unknown, fallback: string): string {
@@ -8,32 +9,51 @@ function toMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * Loads the authenticated user's competency path and flags whether the graph
- * changed since they last saw it (`pathUpdated`), so the page can show a
- * reconciliation notice. The "last seen" version is recorded right after the
- * comparison, so the notice shows once per actual version change.
+ * Loads the authenticated user's competency path for the selected project and
+ * flags whether the graph changed since they last saw it (`pathUpdated`), so the
+ * page can show a reconciliation notice. The "last seen" version is recorded
+ * right after the comparison, so the notice shows once per actual version change.
  *
  * Also tracks each node's state across loads to compute `justChangedKeys` --
  * nodes that flipped state since the previous load (e.g. locked -> available
  * after a passing submission) -- so the path view can play a one-shot unlock
  * animation for exactly those nodes rather than the whole list. Empty on the
  * very first load, since there's no prior state to diff against.
+ *
+ * Onboarding is per-project: pass the selected `projectId`. Changing it reloads
+ * the path for that project, resetting the state diff (a different project is a
+ * different graph, so cross-project state changes must not animate). A `404`
+ * from the backend means "no path for this project yet" and is surfaced as
+ * `notFound` (not `error`), so the page can offer to generate one.
+ *
+ * @param projectId The project whose path to load, or `undefined`/empty when no
+ *   project is selected yet (the hook then stays idle instead of fetching).
  */
-export function useCompetencyPath() {
+export function useCompetencyPath(projectId: string | undefined) {
     const { profile } = useAuth();
     const profileId = profile?.id;
     const [path, setPath] = useState<PathView | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [notFound, setNotFound] = useState(false);
     const [pathUpdated, setPathUpdated] = useState(false);
     const [justChangedKeys, setJustChangedKeys] = useState<Set<string>>(new Set());
     const previousStatesRef = useRef<Map<string, NodeState> | null>(null);
 
     const load = useCallback(async () => {
+        if (!projectId) {
+            setPath(null);
+            setError(null);
+            setNotFound(false);
+            setIsLoading(false);
+            return;
+        }
+
         setError(null);
+        setNotFound(false);
         setIsLoading(true);
         try {
-            const result = await assessmentService.fetchPath();
+            const result = await assessmentService.fetchPath(projectId);
 
             const previousStates = previousStatesRef.current;
             const changed = new Set<string>();
@@ -55,11 +75,23 @@ export function useCompetencyPath() {
                 markGraphVersionSeen(profileId, result.graphVersion);
             }
         } catch (err) {
-            setError(toMessage(err, 'Could not load your path.'));
+            if (err instanceof ApiError && err.status === 404) {
+                // No path for this project yet -- not an error, a "generate one" prompt.
+                setPath(null);
+                setNotFound(true);
+            } else {
+                setError(toMessage(err, 'Could not load your path.'));
+            }
         } finally {
             setIsLoading(false);
         }
-    }, [profileId]);
+    }, [projectId, profileId]);
+
+    // Switching projects loads a different graph, so the prior per-node state
+    // must not leak into the next project's unlock animation.
+    useEffect(() => {
+        previousStatesRef.current = null;
+    }, [projectId]);
 
     useEffect(() => {
         void (async () => {
@@ -67,5 +99,5 @@ export function useCompetencyPath() {
         })();
     }, [load]);
 
-    return { path, isLoading, error, pathUpdated, justChangedKeys, retry: load };
+    return { path, isLoading, error, notFound, pathUpdated, justChangedKeys, retry: load };
 }
