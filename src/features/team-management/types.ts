@@ -23,7 +23,6 @@ export type TeamOverviewUser = {
         name: string;
     };
     roles: ProjectRole[];
-    skills: Skill[];
     progressPercentage: number;
     currentPhase: {
         id: string;
@@ -44,12 +43,6 @@ export type ProjectRole = {
     description: string;
 };
 
-export type SkillLevel =
-    | 'BEGINNER'
-    | 'INTERMEDIATE'
-    | 'ADVANCED'
-    | 'EXPERT';
-
 export type SkillStatus = 'ACTIVE' | 'RETIRED';
 
 export type Skill = {
@@ -57,18 +50,11 @@ export type Skill = {
     name: string;
     roleIds: string[];
     status: SkillStatus;
-    level?: SkillLevel;
 };
 
 export function isSkillLinkedToRole(skill: Skill, roleId: string): boolean {
     return skill.roleIds.includes(roleId);
 }
-
- export type UserSkillAssessment = {
-     userId: string;
-     skillId: string;
-     level: SkillLevel;
- };
 
 export type TeamOverviewFilters = {
     roleId: string;

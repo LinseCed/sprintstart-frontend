@@ -25,7 +25,6 @@ import {
     getProjectRoles,
     getTeamMember,
     unassignProjectRoleFromUser,
-    getUserSkillLevels,
     acceptOnboardingSkipRequest,
     denyOnboardingSkipRequest,
     getUserOnboardingFeedback,
@@ -39,8 +38,9 @@ import {
     updateOnboardingStep,
     updateOnboardingTask,
     type OnboardingFeedback,
-    type UserSkillLevel,
 } from '../services/teamManagementService';
+import { competencyDashboardService } from '../services/competencyDashboardService';
+import type { UserCompetencyState } from '../features/competency-dashboard/types';
 
 type DetailOnboardingStep = OnboardingStepEndpoint & {
     startedAt?: string | null;
@@ -122,7 +122,7 @@ export function TeamMemberDetailPage() {
     const [rolesModalOpen, setRolesModalOpen] = useState(false);
     const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
     const [roleToRemove, setRoleToRemove] = useState<ProjectRole | null>(null);
-    const [skillLevels, setSkillLevels] = useState<UserSkillLevel[]>([]);
+    const [competencies, setCompetencies] = useState<UserCompetencyState[]>([]);
     const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([]);
     const [feedbackItems, setFeedbackItems] = useState<OnboardingFeedback[]>([]);
     const [onboardingPath, setOnboardingPath] =
@@ -180,10 +180,10 @@ export function TeamMemberDetailPage() {
 
             setLoadingFeedback(true);
 
-            const [memberData, rolesData, skills, path, knowledgeGapOverview] = await Promise.all([
+            const [memberData, rolesData, memberCompetencies, path, knowledgeGapOverview] = await Promise.all([
                 getTeamMember(userId),
                 getProjectRoles(),
-                getUserSkillLevels(userId),
+                competencyDashboardService.fetchUserCompetencies(userId).catch(() => []),
                 getUserOnboardingPath(userId),
                 knowledgeGapService.fetchKnowledgeGaps(),
             ]);
@@ -200,7 +200,7 @@ export function TeamMemberDetailPage() {
 
             setUser(memberData);
             setAvailableRoles(rolesData);
-            setSkillLevels(skills);
+            setCompetencies(memberCompetencies);
             setKnowledgeGaps(knowledgeGapOverview.gaps);
             setFeedbackItems(feedback);
             setOnboardingPath(path);
@@ -798,8 +798,10 @@ export function TeamMemberDetailPage() {
                 },
             ];
     const detailStepSkipReason = detailStep?.skip?.reason || '';
-    const skillGaps = skillLevels.filter(
-        (skill) => skill.level === 'BEGINNER' || skill.level === 'INTERMEDIATE',
+    // Levels 1..2 (beginner/intermediate) are gaps; level 0 means "not yet
+    // placed" and is not shown as a gap.
+    const competencyGaps = competencies.filter(
+        (competency) => competency.level === 1 || competency.level === 2,
     );
     const severityOrder: Record<string, number> = {
         high: 0,
@@ -1147,8 +1149,8 @@ export function TeamMemberDetailPage() {
                         </div>
                     </div>
                     <MemberGapsPanel
-                        skillLevels={skillLevels}
-                        skillGaps={skillGaps}
+                        competencies={competencies}
+                        competencyGaps={competencyGaps}
                         knowledgeGaps={topKnowledgeGaps}
                         onOpenKnowledgeGap={(gapId) => {
                             void navigate(`/insights/knowledge-gaps/${gapId}`);

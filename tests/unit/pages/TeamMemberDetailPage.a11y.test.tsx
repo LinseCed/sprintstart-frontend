@@ -17,13 +17,18 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+vi.mock('../../../src/services/competencyDashboardService', () => ({
+    competencyDashboardService: {
+        fetchUserCompetencies: vi.fn().mockResolvedValue([]),
+    },
+}));
+
 vi.mock('../../../src/services/teamManagementService', () => ({
     getTeamMember: vi.fn().mockResolvedValue({
         userId: 'user1',
         firstname: 'Alice',
         lastname: 'Smith',
         roles: [{ id: 'role1', name: 'Backend', description: 'Backend developer' }],
-        skills: [],
         progressPercentage: 0.5,
         currentPhase: { id: 'p1', title: 'Phase 1' },
         currentStep: {
@@ -38,7 +43,6 @@ vi.mock('../../../src/services/teamManagementService', () => ({
     getProjectRoles: vi.fn().mockResolvedValue([
         { id: 'role1', name: 'Backend', description: 'Backend developer' },
     ]),
-    getUserSkillLevels: vi.fn().mockResolvedValue([]),
     getUserOnboardingPath: vi.fn().mockResolvedValue({
         id: 'path1',
         userId: 'user1',

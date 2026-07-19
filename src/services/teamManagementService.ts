@@ -5,7 +5,6 @@ import type {
   ProjectRole,
   Skill,
   TeamOverviewUser,
-  SkillLevel,
   SkillStatus,
 } from "../features/team-management/types";
 import type {
@@ -450,13 +449,6 @@ type SkillResponseDto = {
   };
 };
 
-type SkillAssessmentResponseDto = {
-  id?: string;
-  userId: string;
-  skillId: string;
-  level: SkillLevel;
-};
-
 function toSkill(skill: SkillResponseDto): Skill {
   const legacyRoleIds = skill.projectRole?.id
     ? [skill.projectRole.id]
@@ -642,140 +634,5 @@ export async function deleteSkill(skillId: string): Promise<void> {
     mockSkills = mockSkills.map((skill) =>
       skill.id === skillId ? { ...skill, status: "RETIRED" } : skill,
     );
-  }
-}
-
-// Removed mock role functions
-
-export type CreateSkillAssessmentRequest = {
-  userId: string;
-  skillId: string;
-  level: SkillLevel;
-};
-
-let mockSkillAssessments: CreateSkillAssessmentRequest[] = [];
-
-const skillAssessmentPromptStatePrefix = "skill-assessment-prompt-state";
-
-export type SkillAssessmentPromptState = "dismissed" | "completed";
-
-function getSkillAssessmentPromptStateKey(userId: string) {
-  return `${skillAssessmentPromptStatePrefix}:${userId}`;
-}
-
-export function getSkillAssessmentPromptState(
-  userId: string,
-): SkillAssessmentPromptState | null {
-  if (typeof window === "undefined") return null;
-
-  const value = window.localStorage.getItem(
-    getSkillAssessmentPromptStateKey(userId),
-  );
-
-  return value === "dismissed" || value === "completed" ? value : null;
-}
-
-export function markSkillAssessmentPromptDismissed(userId: string): void {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.setItem(
-    getSkillAssessmentPromptStateKey(userId),
-    "dismissed",
-  );
-}
-
-export function markSkillAssessmentPromptCompleted(userId: string): void {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.setItem(
-    getSkillAssessmentPromptStateKey(userId),
-    "completed",
-  );
-}
-
-export async function hasCompletedSkillAssessment(
-  userId: string,
-): Promise<boolean> {
-  try {
-    const response =
-      await apiClient.fetch<SkillAssessmentResponseDto[]>("/api/v1/me/skills");
-
-    return response.length > 0;
-  } catch {
-    return mockSkillAssessments.some(
-      (assessment) => assessment.userId === userId,
-    );
-  }
-}
-
-export async function saveUserSkillAssessments(
-  assessments: CreateSkillAssessmentRequest[],
-): Promise<void> {
-  try {
-    for (const assessment of assessments) {
-      await apiClient.fetch("/api/v1/me/skill/assess", {
-        method: "POST",
-        body: JSON.stringify({
-          skillId: assessment.skillId,
-          level: assessment.level,
-        }),
-      });
-    }
-  } catch {
-    mockSkillAssessments = mockSkillAssessments.filter(
-      (assessment) =>
-        !assessments.some(
-          (incoming) =>
-            incoming.userId === assessment.userId &&
-            incoming.skillId === assessment.skillId,
-        ),
-    );
-
-    mockSkillAssessments = [...mockSkillAssessments, ...assessments];
-  }
-}
-
-export type UserSkillLevel = {
-  id: string;
-  skillId: string;
-  skillName: string;
-  roleName: string;
-  level: SkillLevel;
-};
-
-async function getCompletedSkillAssessments(
-  userId: string,
-): Promise<SkillAssessmentResponseDto[]> {
-  return await apiClient.fetch<SkillAssessmentResponseDto[]>(
-    `/api/v1/admin/users/${userId}/skill-assessments/completed`,
-  );
-}
-
-export async function getUserSkillLevels(
-  userId: string,
-): Promise<UserSkillLevel[]> {
-  try {
-    const [assessments, skills, roles] = await Promise.all([
-      getCompletedSkillAssessments(userId),
-      getSkills(),
-      getProjectRoles(),
-    ]);
-
-    return assessments.map((assessment) => {
-      const skill = skills.find((s) => s.id === assessment.skillId);
-      const roleNames = roles
-        .filter((role) => skill?.roleIds.includes(role.id))
-        .map((role) => role.name);
-
-      return {
-        id: `${userId}-${assessment.skillId}`,
-        skillId: assessment.skillId,
-        skillName: skill?.name ?? "Unknown skill",
-        roleName: roleNames.length > 0 ? roleNames.join(", ") : "Unknown role",
-        level: assessment.level,
-      };
-    });
-  } catch {
-    return [];
   }
 }

@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import type {
     CompetencyAggregate,
     PagedResponse,
+    UserCompetencyState,
     UserCompetencySummary
 } from '../features/competency-dashboard/types';
 
@@ -43,6 +44,17 @@ export const competencyDashboardService = {
     ): Promise<PagedResponse<UserCompetencySummary>> {
         return await apiClient.fetch<PagedResponse<UserCompetencySummary>>(
             `/api/v1/onboarding/dashboard/users${buildQuery(params)}`
+        );
+    },
+
+    /**
+     * One user's full competency ledger, labeled -- the per-member view for
+     * the team member detail page, replacing the retired per-user skill
+     * assessments.
+     */
+    async fetchUserCompetencies(userId: string): Promise<UserCompetencyState[]> {
+        return await apiClient.fetch<UserCompetencyState[]>(
+            `/api/v1/onboarding/dashboard/users/${userId}`
         );
     }
 };

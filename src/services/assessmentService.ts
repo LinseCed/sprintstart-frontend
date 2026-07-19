@@ -7,6 +7,19 @@ import type {
 
 export const assessmentService = {
     /**
+     * Whether the authenticated user has ever completed a skill assessment.
+     *
+     * This is the source of truth for the "needs assessment" gate -- a
+     * COMPLETED assessment session on the backend, not the retired
+     * self-reported skill-wizard data.
+     */
+    async fetchAssessmentStatus(): Promise<{ completed: boolean }> {
+        return await apiClient.fetch<{ completed: boolean }>(
+            '/api/v1/onboarding/me/assessment/status'
+        );
+    },
+
+    /**
      * Starts the authenticated user's skill-assessment interview, or resumes it
      * if one is already in progress.
      */

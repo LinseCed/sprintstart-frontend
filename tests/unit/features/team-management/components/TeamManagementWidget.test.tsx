@@ -20,7 +20,6 @@ function createUser(overrides: Partial<TeamOverviewUser> = {}): TeamOverviewUser
         firstname: 'Alice',
         lastname: 'Smith',
         roles: [],
-        skills: [],
         progressPercentage: 0.5,
         currentPhase: { id: 'p1', title: 'Phase 1' },
         currentStep: { id: 's1', title: 'Setup', startedAt: '2026-07-01T00:00:00Z', skip: null },
