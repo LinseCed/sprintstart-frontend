@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthGuard } from '../../../src/router/AuthGuard';
 import { useAuth } from '../../../src/context/useAuth';
-import { assessmentService } from '../../../src/services/assessmentService';
+import {
+    assessmentService,
+    isAssessmentGateSnoozed,
+} from '../../../src/services/assessmentService';
 import { PermissionGroup, type UserProfile } from '../../../src/services/types';
 
 vi.mock('../../../src/context/useAuth', () => ({
@@ -14,6 +17,7 @@ vi.mock('../../../src/services/assessmentService', () => ({
     assessmentService: {
         fetchAssessmentStatus: vi.fn(),
     },
+    isAssessmentGateSnoozed: vi.fn(),
 }));
 
 function LocationDisplay() {
@@ -72,6 +76,7 @@ describe('AuthGuard', () => {
         vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
             completed: true,
         });
+        vi.mocked(isAssessmentGateSnoozed).mockReturnValue(false);
     });
 
     it('renders loading spinner when status is loading', () => {
@@ -155,6 +160,21 @@ describe('AuthGuard', () => {
 
     it('never gates non-USER permission groups on the assessment', async () => {
         authenticatedAs({ ...mockProfile, permissionGroup: PermissionGroup.PM });
+
+        renderGuarded();
+
+        await waitFor(() => {
+            expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+        });
+        expect(assessmentService.fetchAssessmentStatus).not.toHaveBeenCalled();
+    });
+
+    it('does not redirect while the assessment gate is snoozed', async () => {
+        authenticatedAs(mockProfile);
+        vi.mocked(isAssessmentGateSnoozed).mockReturnValue(true);
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
+            completed: false,
+        });
 
         renderGuarded();
 

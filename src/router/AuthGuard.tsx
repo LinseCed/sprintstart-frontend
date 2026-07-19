@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { assessmentService } from "../services/assessmentService";
+import { assessmentService, isAssessmentGateSnoozed } from "../services/assessmentService";
 
 interface AuthGuardProps {
     children: ReactNode;
@@ -25,7 +25,8 @@ interface LocationState {
  * open, the status is re-checked on navigation so finishing the chat
  * releases the gate without a reload; once completed, no further checks are
  * made for the session. A failed status check fails open rather than
- * trapping the user in the assessment page.
+ * trapping the user in the assessment page, and "Skip for now" on the
+ * assessment page snoozes the gate for 24 hours (client-side, per user).
  */
 export function AuthGuard({ children }: AuthGuardProps) {
     const { status, profile } = useAuth();
@@ -49,7 +50,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 return;
             }
 
-            if (permissionGroup !== "USER" || completedRef.current) {
+            if (
+                permissionGroup !== "USER" ||
+                completedRef.current ||
+                isAssessmentGateSnoozed(profileId)
+            ) {
                 setNeedsSkillAssessment(false);
                 setCheckingSkillAssessment(false);
                 return;
@@ -95,9 +100,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
         return <Navigate to={from} replace />;
     }
 
+    // The snooze is re-read at render time (not just in the effect) so that "Skip for now" on
+    // the assessment page takes effect on the very next navigation, before the effect has had a
+    // chance to recompute the stale needsSkillAssessment state.
     if (
         status === "authenticated" &&
         needsSkillAssessment &&
+        !(profileId && isAssessmentGateSnoozed(profileId)) &&
         location.pathname !== "/onboarding/assessment"
     ) {
         return <Navigate to="/onboarding/assessment" replace />;

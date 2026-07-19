@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { axe } from 'vitest-axe';
+import { MemoryRouter } from 'react-router-dom';
 import { SkillAssessmentPage } from '../../../src/pages/SkillAssessmentPage';
 
 vi.mock('../../../src/context/useAuth', () => ({
@@ -15,14 +16,17 @@ vi.mock('../../../src/services/assessmentService', () => ({
     },
     hasCompletedAssessment: vi.fn().mockReturnValue(false),
     markAssessmentCompleted: vi.fn(),
+    snoozeAssessmentGate: vi.fn(),
 }));
 
 describe('SkillAssessmentPage Accessibility', () => {
     it('should not have any a11y violations', async () => {
         const { baseElement } = render(
-            <main>
-                <SkillAssessmentPage />
-            </main>,
+            <MemoryRouter>
+                <main>
+                    <SkillAssessmentPage />
+                </main>
+            </MemoryRouter>,
         );
 
         await waitFor(() => {
