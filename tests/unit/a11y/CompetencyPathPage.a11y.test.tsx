@@ -21,6 +21,22 @@ vi.mock('../../../src/services/assessmentService', () => ({
     markGraphVersionSeen: vi.fn(),
 }));
 
+vi.mock('../../../src/features/projects/useProjectSelection', () => ({
+    useProjectSelection: () => ({
+        projects: [{ id: 'proj1', name: 'Project One' }],
+        selectedProject: { id: 'proj1', name: 'Project One' },
+        selectedProjectId: 'proj1',
+        isLoading: false,
+        errorMessage: null,
+        setSelectedProjectId: vi.fn(),
+        reloadProjects: vi.fn(),
+    }),
+}));
+
+vi.mock('../../../src/services/onboardingService', () => ({
+    onboardingService: { personalizePath: vi.fn() },
+}));
+
 describe('CompetencyPathPage Accessibility', () => {
     it('should not have any a11y violations', async () => {
         const { baseElement } = render(

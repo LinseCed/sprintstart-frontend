@@ -19,6 +19,18 @@ vi.mock('../../../src/services/assessmentService', () => ({
     snoozeAssessmentGate: vi.fn(),
 }));
 
+vi.mock('../../../src/features/projects/useProjectSelection', () => ({
+    useProjectSelection: () => ({
+        projects: [{ id: 'proj1', name: 'Project One' }],
+        selectedProject: { id: 'proj1', name: 'Project One' },
+        selectedProjectId: 'proj1',
+        isLoading: false,
+        errorMessage: null,
+        setSelectedProjectId: vi.fn(),
+        reloadProjects: vi.fn(),
+    }),
+}));
+
 import {
     assessmentService,
     snoozeAssessmentGate,

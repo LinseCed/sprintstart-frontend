@@ -27,7 +27,7 @@ describe('useCompetencyPath', () => {
             http.get('/api/v1/onboarding/me/path', () => HttpResponse.json(pathResponse(1))),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.path?.graphVersion).toBe(1);
@@ -39,7 +39,7 @@ describe('useCompetencyPath', () => {
             http.get('/api/v1/onboarding/me/path', () => HttpResponse.json(pathResponse(1))),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.pathUpdated).toBe(false);
@@ -51,7 +51,7 @@ describe('useCompetencyPath', () => {
             http.get('/api/v1/onboarding/me/path', () => HttpResponse.json(pathResponse(2))),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
 
         await waitFor(() => expect(result.current.pathUpdated).toBe(true));
     });
@@ -62,7 +62,7 @@ describe('useCompetencyPath', () => {
             http.get('/api/v1/onboarding/me/path', () => HttpResponse.json(pathResponse(2))),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
         await waitFor(() => expect(result.current.pathUpdated).toBe(true));
 
         act(() => {
@@ -79,7 +79,7 @@ describe('useCompetencyPath', () => {
             http.get('/api/v1/onboarding/me/path', () => HttpResponse.json(pathResponse(1))),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.justChangedKeys.size).toBe(0);
@@ -93,7 +93,7 @@ describe('useCompetencyPath', () => {
             ),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.justChangedKeys.size).toBe(0);
 
@@ -106,6 +106,51 @@ describe('useCompetencyPath', () => {
         expect(result.current.justChangedKeys.has('kotlin')).toBe(true);
     });
 
+    it('surfaces a 404 as notFound rather than an error', async () => {
+        server.use(
+            http.get('/api/v1/onboarding/me/path', () => new HttpResponse(null, { status: 404 })),
+        );
+
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.notFound).toBe(true);
+        expect(result.current.error).toBeNull();
+        expect(result.current.path).toBeNull();
+    });
+
+    it('stays idle and does not fetch when no project is selected', async () => {
+        let requested = false;
+        server.use(
+            http.get('/api/v1/onboarding/me/path', () => {
+                requested = true;
+                return HttpResponse.json(pathResponse(1));
+            }),
+        );
+
+        const { result } = renderHook(() => useCompetencyPath(undefined));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.path).toBeNull();
+        expect(result.current.error).toBeNull();
+        expect(requested).toBe(false);
+    });
+
+    it('passes the selected project id as a query param', async () => {
+        let seenProjectId: string | null = null;
+        server.use(
+            http.get('/api/v1/onboarding/me/path', ({ request }) => {
+                seenProjectId = new URL(request.url).searchParams.get('projectId');
+                return HttpResponse.json(pathResponse(1));
+            }),
+        );
+
+        const { result } = renderHook(() => useCompetencyPath('proj-42'));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(seenProjectId).toBe('proj-42');
+    });
+
     it('sets an error when the fetch fails, and retry re-attempts it', async () => {
         let attempts = 0;
         server.use(
@@ -116,7 +161,7 @@ describe('useCompetencyPath', () => {
             }),
         );
 
-        const { result } = renderHook(() => useCompetencyPath());
+        const { result } = renderHook(() => useCompetencyPath('proj1'));
         await waitFor(() => expect(result.current.error).not.toBeNull());
 
         act(() => {

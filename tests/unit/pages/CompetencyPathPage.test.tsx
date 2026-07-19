@@ -17,7 +17,26 @@ vi.mock('../../../src/services/assessmentService', () => ({
     markGraphVersionSeen: vi.fn(),
 }));
 
+const setSelectedProjectId = vi.fn();
+vi.mock('../../../src/features/projects/useProjectSelection', () => ({
+    useProjectSelection: () => ({
+        projects: [{ id: 'proj1', name: 'Project One' }],
+        selectedProject: { id: 'proj1', name: 'Project One' },
+        selectedProjectId: 'proj1',
+        isLoading: false,
+        errorMessage: null,
+        setSelectedProjectId,
+        reloadProjects: vi.fn(),
+    }),
+}));
+
+vi.mock('../../../src/services/onboardingService', () => ({
+    onboardingService: { personalizePath: vi.fn() },
+}));
+
 import { assessmentService, getLastSeenGraphVersion } from '../../../src/services/assessmentService';
+import { onboardingService } from '../../../src/services/onboardingService';
+import { ApiError } from '../../../src/services/apiClient';
 
 describe('CompetencyPathPage', () => {
     beforeEach(() => {
@@ -78,5 +97,22 @@ describe('CompetencyPathPage', () => {
         await waitFor(() => {
             expect(screen.getByText(/no competencies in your path yet/i)).toBeInTheDocument();
         });
+    });
+
+    it('kicks off generation for the selected project when it has no path yet', async () => {
+        vi.mocked(getLastSeenGraphVersion).mockReturnValue(null);
+        vi.mocked(assessmentService.fetchPath).mockRejectedValue(new ApiError(404, 'no path'));
+        // Never resolves the SSE, so the page stays in the generating state.
+        vi.mocked(onboardingService.personalizePath).mockReturnValue(new Promise(() => {}));
+
+        render(<CompetencyPathPage />);
+
+        await waitFor(() => {
+            expect(onboardingService.personalizePath).toHaveBeenCalledWith(
+                expect.any(Object),
+                'proj1',
+            );
+        });
+        expect(screen.getByText(/building your path for this project/i)).toBeInTheDocument();
     });
 });
