@@ -3,20 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthGuard } from '../../../src/router/AuthGuard';
 import { useAuth } from '../../../src/context/useAuth';
-import * as teamManagementService from '../../../src/services/teamManagementService';
-import { http, HttpResponse } from 'msw';
-import { server } from '../../unit/setup/vitest.setup';
+import { assessmentService } from '../../../src/services/assessmentService';
 import { PermissionGroup, type UserProfile } from '../../../src/services/types';
 
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: vi.fn(),
 }));
 
-vi.mock('../../../src/services/teamManagementService', () => ({
-    getMyTeamOverview: vi.fn(),
-    hasCompletedSkillAssessment: vi.fn(),
-    getSkills: vi.fn(),
-    getSkillAssessmentPromptState: vi.fn(),
+vi.mock('../../../src/services/assessmentService', () => ({
+    assessmentService: {
+        fetchAssessmentStatus: vi.fn(),
+    },
 }));
 
 function LocationDisplay() {
@@ -39,24 +36,42 @@ const mockProfile: UserProfile = {
     hasCompletedOnboarding: true,
 };
 
+function authenticatedAs(profile: UserProfile | null) {
+    vi.mocked(useAuth).mockReturnValue({
+        status: 'authenticated',
+        profile,
+        login: vi.fn(),
+        logout: vi.fn(),
+        refetchProfile: vi.fn(),
+    });
+}
+
+function renderGuarded(initialPath = '/protected') {
+    return render(
+        <MemoryRouter initialEntries={[initialPath]}>
+            <Routes>
+                <Route path="/" element={<LocationDisplay />} />
+                <Route path="/login" element={<LocationDisplay />} />
+                <Route path="/onboarding/assessment" element={<LocationDisplay />} />
+                <Route
+                    path="/protected"
+                    element={
+                        <AuthGuard>
+                            <div data-testid="protected-content">Protected Content</div>
+                        </AuthGuard>
+                    }
+                />
+            </Routes>
+        </MemoryRouter>,
+    );
+}
+
 describe('AuthGuard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(teamManagementService.hasCompletedSkillAssessment).mockResolvedValue(true);
-        vi.mocked(teamManagementService.getMyTeamOverview).mockResolvedValue({
-            userId: 'user1',
-            firstname: 'Test',
-            lastname: 'User',
-            project: { id: 'proj1', name: 'Test Project' },
-            roles: [],
-            skills: [],
-            progressPercentage: 50,
-            currentPhase: { id: 'phase1', title: 'Phase 1' },
-            currentStep: null,
-            hasFeedback: false,
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
+            completed: true,
         });
-        vi.mocked(teamManagementService.getSkills).mockResolvedValue([]);
-        vi.mocked(teamManagementService.getSkillAssessmentPromptState).mockReturnValue(null);
     });
 
     it('renders loading spinner when status is loading', () => {
@@ -68,23 +83,10 @@ describe('AuthGuard', () => {
             refetchProfile: vi.fn(),
         });
 
-        const { container } = render(
-            <MemoryRouter initialEntries={['/protected']}>
-                <Routes>
-                    <Route
-                        path="/protected"
-                        element={
-                            <AuthGuard>
-                                <div>Protected</div>
-                            </AuthGuard>
-                        }
-                    />
-                </Routes>
-            </MemoryRouter>,
-        );
+        const { container } = renderGuarded();
 
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();
-        expect(screen.queryByText('Protected')).not.toBeInTheDocument();
+        expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 
     it('redirects to /login if unauthenticated and not on /login', async () => {
@@ -96,21 +98,7 @@ describe('AuthGuard', () => {
             refetchProfile: vi.fn(),
         });
 
-        render(
-            <MemoryRouter initialEntries={['/protected']}>
-                <Routes>
-                    <Route path="/login" element={<LocationDisplay />} />
-                    <Route
-                        path="/protected"
-                        element={
-                            <AuthGuard>
-                                <LocationDisplay />
-                            </AuthGuard>
-                        }
-                    />
-                </Routes>
-            </MemoryRouter>,
-        );
+        renderGuarded();
 
         await waitFor(() => {
             expect(screen.getByTestId('location')).toHaveTextContent('/login');
@@ -118,32 +106,7 @@ describe('AuthGuard', () => {
     });
 
     it('redirects to / if authenticated and on /login', async () => {
-        vi.mocked(useAuth).mockReturnValue({
-            status: 'authenticated',
-            profile: mockProfile,
-            login: vi.fn(),
-            logout: vi.fn(),
-            refetchProfile: vi.fn(),
-        });
-
-        server.use(
-            http.get('/api/v1/onboarding/team-overview', () =>
-                HttpResponse.json({
-                    users: [
-                        {
-                            userId: 'user1',
-                            firstname: 'Test',
-                            lastname: 'User',
-                            email: 'test@example.com',
-                            roles: [],
-                            progressPercentage: 50,
-                            currentStep: null,
-                            skills: [],
-                        },
-                    ],
-                }),
-            ),
-        );
+        authenticatedAs(mockProfile);
 
         render(
             <MemoryRouter initialEntries={['/login']}>
@@ -166,103 +129,51 @@ describe('AuthGuard', () => {
         });
     });
 
-    it('renders children when authenticated and no skill assessment needed', async () => {
-        vi.mocked(useAuth).mockReturnValue({
-            status: 'authenticated',
-            profile: mockProfile,
-            login: vi.fn(),
-            logout: vi.fn(),
-            refetchProfile: vi.fn(),
-        });
+    it('renders children when the assessment is already completed', async () => {
+        authenticatedAs(mockProfile);
 
-        server.use(
-            http.get('/api/v1/onboarding/team-overview', () =>
-                HttpResponse.json({
-                    users: [
-                        {
-                            userId: 'user1',
-                            firstname: 'Test',
-                            lastname: 'User',
-                            email: 'test@example.com',
-                            roles: [],
-                            progressPercentage: 50,
-                            currentStep: null,
-                            skills: [],
-                        },
-                    ],
-                }),
-            ),
-        );
-
-        render(
-            <MemoryRouter initialEntries={['/protected']}>
-                <Routes>
-                    <Route
-                        path="/protected"
-                        element={
-                            <AuthGuard>
-                                <div data-testid="protected-content">Protected Content</div>
-                            </AuthGuard>
-                        }
-                    />
-                </Routes>
-            </MemoryRouter>,
-        );
+        renderGuarded();
 
         await waitFor(() => {
             expect(screen.getByTestId('protected-content')).toBeInTheDocument();
         });
+        expect(assessmentService.fetchAssessmentStatus).toHaveBeenCalled();
     });
 
-    it('redirects to /onboarding/assessment if skill assessment is needed', async () => {
-        vi.mocked(useAuth).mockReturnValue({
-            status: 'authenticated',
-            profile: mockProfile,
-            login: vi.fn(),
-            logout: vi.fn(),
-            refetchProfile: vi.fn(),
+    it('redirects a USER to /onboarding/assessment when no completed assessment exists', async () => {
+        authenticatedAs(mockProfile);
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
+            completed: false,
         });
 
-        vi.mocked(teamManagementService.getMyTeamOverview).mockResolvedValue({
-            userId: 'user1',
-            firstname: 'Test',
-            lastname: 'User',
-            project: { id: 'proj1', name: 'Test Project' },
-            roles: [{ id: 'role1', name: 'Developer', description: 'Developer role' }],
-            skills: [],
-            progressPercentage: 50,
-            currentPhase: { id: 'phase1', title: 'Phase 1' },
-            currentStep: null,
-            hasFeedback: false,
-        });
-        vi.mocked(teamManagementService.hasCompletedSkillAssessment).mockResolvedValue(false);
-        vi.mocked(teamManagementService.getSkills).mockResolvedValue([
-            {
-                id: 'skill1',
-                roleIds: ['role1'],
-                name: 'Typescript',
-                status: 'ACTIVE',
-            },
-        ]);
-
-        render(
-            <MemoryRouter initialEntries={['/protected']}>
-                <Routes>
-                    <Route path="/onboarding/assessment" element={<LocationDisplay />} />
-                    <Route
-                        path="/protected"
-                        element={
-                            <AuthGuard>
-                                <div data-testid="protected-content">Protected Content</div>
-                            </AuthGuard>
-                        }
-                    />
-                </Routes>
-            </MemoryRouter>,
-        );
+        renderGuarded();
 
         await waitFor(() => {
             expect(screen.getByTestId('location')).toHaveTextContent('/onboarding/assessment');
+        });
+    });
+
+    it('never gates non-USER permission groups on the assessment', async () => {
+        authenticatedAs({ ...mockProfile, permissionGroup: PermissionGroup.PM });
+
+        renderGuarded();
+
+        await waitFor(() => {
+            expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+        });
+        expect(assessmentService.fetchAssessmentStatus).not.toHaveBeenCalled();
+    });
+
+    it('fails open when the status check errors instead of trapping the user', async () => {
+        authenticatedAs(mockProfile);
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockRejectedValue(
+            new Error('backend down'),
+        );
+
+        renderGuarded();
+
+        await waitFor(() => {
+            expect(screen.getByTestId('protected-content')).toBeInTheDocument();
         });
     });
 });

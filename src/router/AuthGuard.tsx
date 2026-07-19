@@ -1,14 +1,8 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { isSkillLinkedToRole } from "../features/team-management/types";
-import {
-    getSkillAssessmentPromptState,
-    getMyTeamOverview,
-    hasCompletedSkillAssessment,
-    getSkills,
-} from "../services/teamManagementService";
+import { assessmentService } from "../services/assessmentService";
 
 interface AuthGuardProps {
     children: ReactNode;
@@ -20,53 +14,67 @@ interface LocationState {
     };
 }
 
+/**
+ * Route guard for authentication and the skill-assessment intake gate.
+ *
+ * Unauthenticated visitors are sent to the login page. Authenticated `USER`s
+ * who have never completed the adaptive skill assessment are sent to
+ * `/onboarding/assessment` until a completed session exists on the backend
+ * (`GET /me/assessment/status`) -- the store the assessment chat actually
+ * writes, replacing the retired skill-wizard heuristics. While the gate is
+ * open, the status is re-checked on navigation so finishing the chat
+ * releases the gate without a reload; once completed, no further checks are
+ * made for the session. A failed status check fails open rather than
+ * trapping the user in the assessment page.
+ */
 export function AuthGuard({ children }: AuthGuardProps) {
     const { status, profile } = useAuth();
     const location = useLocation();
 
     const [needsSkillAssessment, setNeedsSkillAssessment] = useState(false);
-    const [skillAssessmentUserId, setSkillAssessmentUserId] = useState<string | null>(null);
     const [checkingSkillAssessment, setCheckingSkillAssessment] = useState(false);
+    const completedRef = useRef(false);
+
+    const profileId = profile?.id;
+    const permissionGroup = profile?.permissionGroup;
 
     useEffect(() => {
-        async function checkSkillAssessment() {
-            if (status !== "authenticated" || !profile?.id) {
+        let cancelled = false;
+
+        const checkSkillAssessment = async () => {
+            if (status !== "authenticated" || !profileId) {
+                completedRef.current = false;
                 setNeedsSkillAssessment(false);
-                setSkillAssessmentUserId(null);
+                setCheckingSkillAssessment(false);
+                return;
+            }
+
+            if (permissionGroup !== "USER" || completedRef.current) {
+                setNeedsSkillAssessment(false);
                 setCheckingSkillAssessment(false);
                 return;
             }
 
             setCheckingSkillAssessment(true);
-
-            const teamMember = await getMyTeamOverview();
-            const completed = await hasCompletedSkillAssessment(teamMember.userId);
-            const promptState = getSkillAssessmentPromptState(teamMember.userId);
-            const allSkills = await getSkills();
-
-            const hasSkillsForRoles =
-                !!teamMember &&
-                teamMember.roles.some((role) =>
-                    allSkills.some(
-                        (skill) =>
-                            skill.status === "ACTIVE" &&
-                            isSkillLinkedToRole(skill, role.id),
-                    ),
-                );
-
-            setSkillAssessmentUserId(teamMember.userId);
-            setNeedsSkillAssessment(
-                !!teamMember &&
-                    hasSkillsForRoles &&
-                    !completed &&
-                    promptState === null,
-            );
-
-            setCheckingSkillAssessment(false);
-        }
+            try {
+                const { completed } = await assessmentService.fetchAssessmentStatus();
+                if (cancelled) return;
+                completedRef.current = completed;
+                setNeedsSkillAssessment(!completed);
+            } catch {
+                if (cancelled) return;
+                setNeedsSkillAssessment(false);
+            } finally {
+                if (!cancelled) setCheckingSkillAssessment(false);
+            }
+        };
 
         void checkSkillAssessment();
-    }, [status, profile?.id]);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [status, profileId, permissionGroup, location.pathname]);
 
     if (status === "loading" || checkingSkillAssessment) {
         return (
@@ -89,11 +97,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     if (
         status === "authenticated" &&
-        profile?.id &&
-        !checkingSkillAssessment &&
         needsSkillAssessment &&
-        (!skillAssessmentUserId ||
-            getSkillAssessmentPromptState(skillAssessmentUserId) === null) &&
         location.pathname !== "/onboarding/assessment"
     ) {
         return <Navigate to="/onboarding/assessment" replace />;

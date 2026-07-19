@@ -10,7 +10,6 @@ import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
 import { CompetencyPathPage } from '../pages/CompetencyPathPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
-import { SkillWizardPage } from '../pages/SkillWizardPage';
 import { TeamManagementPage } from '../pages/TeamManagementPage.tsx';
 import { TeamMemberDetailPage } from '../pages/TeamMemberDetailPage.tsx';
 import { PmDashboardPage } from '../pages/PmDashboardPage.tsx';
@@ -27,7 +26,6 @@ export function AppRouter() {
         <AuthGuard>
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/skill-wizard" element={<SkillWizardPage />} />
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />

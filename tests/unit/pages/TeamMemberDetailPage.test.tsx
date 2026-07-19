@@ -22,7 +22,7 @@ vi.mock('react-router-dom', async () => {
 const {
     mockGetTeamMember,
     mockGetProjectRoles,
-    mockGetUserSkillLevels,
+    mockFetchUserCompetencies,
     mockGetUserOnboardingPath,
     mockGetUserOnboardingFeedback,
     mockGetOnboardingTasksByStep,
@@ -33,7 +33,7 @@ const {
 } = vi.hoisted(() => ({
     mockGetTeamMember: vi.fn(),
     mockGetProjectRoles: vi.fn(),
-    mockGetUserSkillLevels: vi.fn(),
+    mockFetchUserCompetencies: vi.fn(),
     mockGetUserOnboardingPath: vi.fn(),
     mockGetUserOnboardingFeedback: vi.fn(),
     mockGetOnboardingTasksByStep: vi.fn(),
@@ -43,10 +43,15 @@ const {
     mockDenyOnboardingSkipRequest: vi.fn(),
 }));
 
+vi.mock('../../../src/services/competencyDashboardService', () => ({
+    competencyDashboardService: {
+        fetchUserCompetencies: mockFetchUserCompetencies,
+    },
+}));
+
 vi.mock('../../../src/services/teamManagementService', () => ({
     getTeamMember: mockGetTeamMember,
     getProjectRoles: mockGetProjectRoles,
-    getUserSkillLevels: mockGetUserSkillLevels,
     getUserOnboardingPath: mockGetUserOnboardingPath,
     getUserOnboardingFeedback: mockGetUserOnboardingFeedback,
     getOnboardingTasksByStep: mockGetOnboardingTasksByStep,
@@ -105,7 +110,6 @@ function createMockUser(overrides: Partial<TeamOverviewUser> = {}): TeamOverview
         firstname: 'Alice',
         lastname: 'Smith',
         roles: [{ id: 'role1', name: 'Backend', description: 'Backend developer' }],
-        skills: [],
         progressPercentage: 0.5,
         currentPhase: { id: 'p1', title: 'Phase 1' },
         currentStep: {
@@ -130,7 +134,7 @@ describe('TeamMemberDetailPage', () => {
         vi.clearAllMocks();
         mockGetTeamMember.mockResolvedValue(createMockUser());
         mockGetProjectRoles.mockResolvedValue(mockRoles);
-        mockGetUserSkillLevels.mockResolvedValue([]);
+        mockFetchUserCompetencies.mockResolvedValue([]);
         mockGetUserOnboardingPath.mockResolvedValue({
             id: 'path1',
             userId: 'user1',

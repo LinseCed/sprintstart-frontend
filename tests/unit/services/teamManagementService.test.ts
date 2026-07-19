@@ -13,8 +13,6 @@ import {
     getSkillsByRoleId,
     updateRoleSkills,
     reactivateSkill,
-    getUserSkillLevels,
-    saveUserSkillAssessments,
 } from '../../../src/services/teamManagementService';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../unit/setup/vitest.setup';
@@ -267,72 +265,5 @@ describe('teamManagementService', () => {
         await deleteSkill('skill1');
 
         expect(captured).toBe(true);
-    });
-
-    it('saveUserSkillAssessments posts to current-user assessment endpoint', async () => {
-        const capturedSkillIds: string[] = [];
-        server.use(
-            http.post('/api/v1/me/skill/assess', async ({ request }) => {
-                const body = (await request.json()) as { skillId: string };
-                capturedSkillIds.push(body.skillId);
-                return HttpResponse.json({
-                    id: `assessment-${body.skillId}`,
-                    userId: 'user1',
-                    skillId: body.skillId,
-                    level: 'ADVANCED',
-                });
-            }),
-        );
-
-        await saveUserSkillAssessments([
-            { userId: 'user1', skillId: 'skill1', level: 'ADVANCED' },
-        ]);
-
-        expect(capturedSkillIds).toEqual(['skill1']);
-    });
-
-    it('getUserSkillLevels reads cross-user assessments from admin endpoint', async () => {
-        server.use(
-            http.get(
-                '/api/v1/admin/users/user1/skill-assessments/completed',
-                () =>
-                    HttpResponse.json([
-                        {
-                            id: 'assessment1',
-                            userId: 'user1',
-                            skillId: 'skill1',
-                            level: 'INTERMEDIATE',
-                        },
-                    ]),
-            ),
-            http.get('/api/v1/skills', () =>
-                HttpResponse.json([
-                    {
-                        id: 'skill1',
-                        name: 'TypeScript',
-                        roleIds: ['role1', 'role2'],
-                        status: 'ACTIVE',
-                    },
-                ]),
-            ),
-            http.get('/api/v1/projectRoles', () =>
-                HttpResponse.json([
-                    { id: 'role1', name: 'Frontend' },
-                    { id: 'role2', name: 'Backend' },
-                ]),
-            ),
-        );
-
-        const levels = await getUserSkillLevels('user1');
-
-        expect(levels).toEqual([
-            {
-                id: 'user1-skill1',
-                skillId: 'skill1',
-                skillName: 'TypeScript',
-                roleName: 'Frontend, Backend',
-                level: 'INTERMEDIATE',
-            },
-        ]);
     });
 });

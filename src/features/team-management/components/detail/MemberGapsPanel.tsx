@@ -1,60 +1,82 @@
 import type { KnowledgeGap } from '../../../knowledge-gaps/types';
-import type { UserSkillLevel } from '../../../../services/teamManagementService';
+import type {
+    CompetencySource,
+    UserCompetencyState,
+} from '../../../competency-dashboard/types';
 
 type MemberGapsPanelProps = {
-    skillLevels: UserSkillLevel[];
-    skillGaps: UserSkillLevel[];
+    competencies: UserCompetencyState[];
+    competencyGaps: UserCompetencyState[];
     knowledgeGaps: KnowledgeGap[];
     onOpenKnowledgeGap: (gapId: string) => void;
 };
 
-const LEVEL_DOTS: Record<string, number> = {
-    BEGINNER: 1,
-    INTERMEDIATE: 2,
-    ADVANCED: 3,
-    EXPERT: 4,
+const LEVEL_NAMES: Record<number, string> = {
+    1: 'beginner',
+    2: 'intermediate',
+    3: 'advanced',
+    4: 'expert',
 };
 
+const SOURCE_LABELS: Record<CompetencySource, string> = {
+    VERIFIED: 'Verified',
+    ASSESSED: 'Assessed',
+    DECLARED: 'Declared',
+};
+
+const SOURCE_ORDER: CompetencySource[] = ['VERIFIED', 'ASSESSED', 'DECLARED'];
+
+/**
+ * Sidebar panel showing a member's competency ledger and their gaps.
+ *
+ * Competencies come from the durable ledger (`GET /dashboard/users/{userId}`),
+ * grouped by how each entry was earned -- a VERIFIED competency (passed check)
+ * is a materially stronger signal than an ASSESSED (chat placement) or
+ * DECLARED one. Level-0 entries (not yet placed) are hidden from the ledger
+ * list, and gaps are the level 1..2 entries the page computes.
+ */
 export function MemberGapsPanel({
-    skillLevels,
-    skillGaps,
+    competencies,
+    competencyGaps,
     knowledgeGaps,
     onOpenKnowledgeGap,
 }: MemberGapsPanelProps) {
-    const skillsByRole = skillLevels.reduce<Record<string, UserSkillLevel[]>>(
-        (acc, skill) => {
-            const key = skill.roleName;
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(skill);
-            return acc;
-        },
-        {},
+    const placedCompetencies = competencies.filter(
+        (competency) => competency.level > 0,
     );
+    const competenciesBySource = placedCompetencies.reduce<
+        Partial<Record<CompetencySource, UserCompetencyState[]>>
+    >((acc, competency) => {
+        (acc[competency.source] ??= []).push(competency);
+        return acc;
+    }, {});
 
     return (
         <>
             <div className="rounded-3xl border border-app-border bg-app-surface p-6">
                 <h2 className="text-lg font-semibold text-app-text">
-                    Skill Assessment
+                    Competencies
                 </h2>
 
-                {skillLevels.length === 0 ? (
+                {placedCompetencies.length === 0 ? (
                     <p className="mt-3 text-sm text-app-text-muted">
-                        No completed skill assessment.
+                        No placed competencies yet.
                     </p>
                 ) : (
                     <div className="mt-4 space-y-4">
-                        {Object.entries(skillsByRole).map(([roleName, skills]) => (
-                            <div key={roleName}>
+                        {SOURCE_ORDER.filter(
+                            (source) => competenciesBySource[source]?.length,
+                        ).map((source) => (
+                            <div key={source}>
                                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-app-text-muted">
-                                    {roleName}
+                                    {SOURCE_LABELS[source]}
                                 </p>
 
                                 <div className="space-y-1">
-                                    {skills.map((skill) => (
-                                        <SkillAssessmentRow
-                                            key={skill.id}
-                                            skill={skill}
+                                    {competenciesBySource[source]?.map((competency) => (
+                                        <CompetencyRow
+                                            key={competency.competencyKey}
+                                            competency={competency}
                                         />
                                     ))}
                                 </div>
@@ -70,7 +92,7 @@ export function MemberGapsPanel({
                 </h2>
 
                 <div className="mt-4 space-y-4">
-                    <SkillGapsSection skillGaps={skillGaps} />
+                    <CompetencyGapsSection competencyGaps={competencyGaps} />
 
                     <KnowledgeGapsSection
                         knowledgeGaps={knowledgeGaps}
@@ -82,13 +104,11 @@ export function MemberGapsPanel({
     );
 }
 
-function SkillAssessmentRow({ skill }: { skill: UserSkillLevel }) {
-    const filled = LEVEL_DOTS[skill.level] ?? 0;
-
+function CompetencyRow({ competency }: { competency: UserCompetencyState }) {
     return (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface-muted px-3 py-2">
             <span className="text-sm font-medium text-app-text">
-                {skill.skillName}
+                {competency.label}
             </span>
 
             <div className="flex shrink-0 items-center gap-2">
@@ -97,51 +117,55 @@ function SkillAssessmentRow({ skill }: { skill: UserSkillLevel }) {
                         <div
                             key={index}
                             className={`h-2 w-2 rounded-full ${
-                                index < filled ? 'bg-app-brand' : 'bg-app-border'
+                                index < competency.level ? 'bg-app-brand' : 'bg-app-border'
                             }`}
                         />
                     ))}
                 </div>
 
                 <span className="w-24 text-right text-xs text-app-text-muted capitalize">
-                    {skill.level.toLowerCase()}
+                    {LEVEL_NAMES[competency.level] ?? 'unknown'}
                 </span>
             </div>
         </div>
     );
 }
 
-function SkillGapsSection({ skillGaps }: { skillGaps: UserSkillLevel[] }) {
+function CompetencyGapsSection({
+    competencyGaps,
+}: {
+    competencyGaps: UserCompetencyState[];
+}) {
     return (
         <div>
             <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-app-text">
-                    Skill gaps
+                    Competency gaps
                 </p>
-                <GapCountBadge count={skillGaps.length} />
+                <GapCountBadge count={competencyGaps.length} />
             </div>
 
             <div className="mt-2 space-y-2">
-                {skillGaps.length === 0 ? (
+                {competencyGaps.length === 0 ? (
                     <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                        No low-rated skills found.
+                        No low-rated competencies found.
                     </p>
                 ) : (
-                    skillGaps.slice(0, 3).map((skill) => (
+                    competencyGaps.slice(0, 3).map((competency) => (
                         <div
-                            key={skill.id}
+                            key={competency.competencyKey}
                             className="flex items-center justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3"
                         >
                             <div className="min-w-0">
                                 <p className="truncate text-sm font-medium text-app-text">
-                                    {skill.skillName}
+                                    {competency.label}
                                 </p>
                                 <p className="mt-0.5 text-xs text-app-text-muted">
-                                    {skill.roleName}
+                                    {SOURCE_LABELS[competency.source]}
                                 </p>
                             </div>
                             <span className="shrink-0 rounded-full bg-app-warning-bg px-2 py-0.5 text-xs font-medium text-app-warning-text capitalize">
-                                {skill.level.toLowerCase()}
+                                {LEVEL_NAMES[competency.level] ?? 'unknown'}
                             </span>
                         </div>
                     ))
