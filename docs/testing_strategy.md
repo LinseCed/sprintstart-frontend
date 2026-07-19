@@ -25,7 +25,7 @@ replaces the previous `mocking_strategy.md`, which described a Playwright + axio
 **What we do NOT use:**
 - ❌ Playwright (the old `mocking_strategy.md` claimed we did — it was wrong)
 - ❌ axios-mock-adapter (the old doc showed `axios.get` — the codebase uses native `fetch` via `apiClient`)
-- ❌ `cross-env` (the old doc claimed mock mode is activated via `cross-env VITE_USE_MOCK_MODE=true vite` — actually it's activated via `.env.development`)
+- ❌ `cross-env` (the old doc claimed mock mode is activated via `cross-env VITE_USE_MOCK_MODE=true vite` — actually it's activated via the `VITE_USE_MOCK_MODE` env var, which a dev can set in `.env.development`; see §8)
 
 ---
 
@@ -176,9 +176,13 @@ The MSW server intercepts native `fetch()` calls (including those made by
 ## 8. Mock mode (`VITE_USE_MOCK_MODE`)
 
 The codebase has a service-layer mock mode activated by the **environment
-variable** `VITE_USE_MOCK_MODE=true`. It is **not** controlled by `cross-env` on
-the command line — it's set via `.env.development` (which ships with
-`VITE_USE_MOCK_MODE=true`).
+variable** `VITE_USE_MOCK_MODE=true`.
+
+> [!NOTE]
+> Mock mode is **opt-in**. The repo no longer ships a `.env.development` that
+> sets it by default — a fresh clone's `npm run dev` will attempt to call the
+> real backend at `127.0.0.1:8080` and Keycloak at `127.0.0.1:8081`. To enable
+> mock mode, see "Enabling mock mode" below.
 
 ### How it works
 
@@ -204,15 +208,39 @@ During local development or automated unit/a11y testing, backend components
 the dev server and tests run without a live backend, returning mock DTOs from
 `src/mocks/` instead of making real HTTP calls.
 
-### Per-run overrides
+### Enabling mock mode
 
-- **Disable mock mode locally:** create `.env.local` with
-  `VITE_USE_MOCK_MODE=false` (Vite merges `.env.local` over `.env.development`).
-- **Disable for a single command:** prefix with the env var (PowerShell):
+Pick whichever fits your workflow:
+
+- **Per-dev persistent (recommended):** create `.env.development` (gitignored)
+  in the repo root with one line:
+  ```env
+  VITE_USE_MOCK_MODE=true
+  ```
+  Vite auto-loads `.env.development` in `npm run dev` (mode = development), so
+  mock mode stays on for every `npm run dev` without re-typing.
+- **Per-shell (one-off):** set the env var before starting the dev server:
+  ```powershell
+  $env:VITE_USE_MOCK_MODE = "true"; npm run dev
+  ```
+  ```bash
+  VITE_USE_MOCK_MODE=true npm run dev
+  ```
+- **Per-project (shared with your team):** add the line to `.env` (also
+  gitignored) if you want it applied in every Vite mode, not just development.
+
+### Disabling mock mode
+
+- If you've set it in `.env.development` / `.env`, edit the file to
+  `VITE_USE_MOCK_MODE=false` (or delete the file).
+- For a single command, prefix with `false`:
   `$env:VITE_USE_MOCK_MODE = "false"; npm run dev`
-- **In tests:** MSW is the preferred HTTP mocking layer (it intercepts at the
-  `fetch` level, so service code runs unchanged). Mock mode is mostly relevant
-  for `npm run dev` and `npm run storybook`.
+
+### In tests
+
+MSW is the preferred HTTP mocking layer (it intercepts at the `fetch` level, so
+service code runs unchanged). Mock mode is mostly relevant for `npm run dev`
+and `npm run storybook`.
 
 ---
 

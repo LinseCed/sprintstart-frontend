@@ -168,18 +168,25 @@ VITE_GITHUB_PAT=ghp_yor_token
 VITE_KB_PROJECT_ID=00000000-0000-0000-0000-00000000000x
 ```
 
-Additional env vars that ship in `.env.development` (no action needed — Vite
-loads it automatically in dev mode):
+### Mock mode (optional)
+
+`npm run dev` on a fresh clone will attempt to call the real backend at
+`127.0.0.1:8080` and Keycloak at `127.0.0.1:8081`. If those aren't running
+locally, enable **mock mode** to make the dev server return mock DTOs from
+`src/mocks/` instead of making real HTTP calls.
+
+Create a `.env.development` file (gitignored) in the repo root with one line:
 
 ```env
-# Activates service-layer mock mode (returns mock DTOs instead of calling the backend)
 VITE_USE_MOCK_MODE=true
 ```
 
-To disable mock mode locally, create `.env.local` with
-`VITE_USE_MOCK_MODE=false` (Vite merges `.env.local` over `.env.development`).
-See [docs/testing_strategy.md](./docs/testing_strategy.md) for the full mock-mode
-description.
+Vite auto-loads `.env.development` in `npm run dev` (mode = development), so
+mock mode stays on for every `npm run dev` without re-typing. To disable it,
+delete the file or set `VITE_USE_MOCK_MODE=false`.
+
+For one-off use and other options (PowerShell / bash / `.env`), see
+[docs/testing_strategy.md §8](./docs/testing_strategy.md#8-mock-mode-vite_use_mock_mode).
 
 ### Development
 
