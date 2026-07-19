@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { SkillAssessmentPage } from '../../../src/pages/SkillAssessmentPage';
 
 vi.mock('../../../src/context/useAuth', () => ({
@@ -15,9 +16,29 @@ vi.mock('../../../src/services/assessmentService', () => ({
     },
     hasCompletedAssessment: vi.fn().mockReturnValue(false),
     markAssessmentCompleted: vi.fn(),
+    snoozeAssessmentGate: vi.fn(),
 }));
 
-import { assessmentService } from '../../../src/services/assessmentService';
+import {
+    assessmentService,
+    snoozeAssessmentGate,
+} from '../../../src/services/assessmentService';
+
+function LocationDisplay() {
+    const location = useLocation();
+    return <div data-testid="location">{location.pathname}</div>;
+}
+
+function renderPage() {
+    return render(
+        <MemoryRouter initialEntries={['/onboarding/assessment']}>
+            <Routes>
+                <Route path="/" element={<LocationDisplay />} />
+                <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
+            </Routes>
+        </MemoryRouter>,
+    );
+}
 
 describe('SkillAssessmentPage', () => {
     beforeEach(() => {
@@ -30,7 +51,7 @@ describe('SkillAssessmentPage', () => {
             question: 'Walk me through a recent PR.',
         });
 
-        render(<SkillAssessmentPage />);
+        renderPage();
 
         await waitFor(() => {
             expect(screen.getByText('Walk me through a recent PR.')).toBeInTheDocument();
@@ -50,7 +71,7 @@ describe('SkillAssessmentPage', () => {
         });
 
         const user = userEvent.setup();
-        render(<SkillAssessmentPage />);
+        renderPage();
 
         await waitFor(() => expect(screen.getByText('Q1')).toBeInTheDocument());
 
@@ -69,7 +90,7 @@ describe('SkillAssessmentPage', () => {
             .mockResolvedValueOnce({ sessionId: 'session1', question: 'Q1' });
 
         const user = userEvent.setup();
-        render(<SkillAssessmentPage />);
+        renderPage();
 
         await waitFor(() => {
             expect(screen.getByText('Something went wrong')).toBeInTheDocument();
@@ -79,6 +100,25 @@ describe('SkillAssessmentPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Q1')).toBeInTheDocument();
+        });
+    });
+
+    it('skip for now snoozes the gate and returns to the dashboard', async () => {
+        vi.mocked(assessmentService.startAssessment).mockResolvedValue({
+            sessionId: 'session1',
+            question: 'Q1',
+        });
+
+        const user = userEvent.setup();
+        renderPage();
+
+        await waitFor(() => expect(screen.getByText('Q1')).toBeInTheDocument());
+
+        await user.click(screen.getByRole('button', { name: 'Skip for now' }));
+
+        expect(snoozeAssessmentGate).toHaveBeenCalledWith('user1');
+        await waitFor(() => {
+            expect(screen.getByTestId('location')).toHaveTextContent('/');
         });
     });
 });

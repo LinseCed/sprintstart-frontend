@@ -1,16 +1,31 @@
 import { AlertCircle, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { SkillAssessmentChat } from '../features/skill-assessment/components/SkillAssessmentChat';
 import { AssessmentPathView } from '../features/skill-assessment/components/AssessmentPathView';
 import { useSkillAssessment } from '../features/skill-assessment/hooks/useSkillAssessment';
+import { useAuth } from '../context/useAuth';
+import { snoozeAssessmentGate } from '../services/assessmentService';
 
 /**
  * The new front door for onboarding: a conversational skill-chat interview
  * that places the hire on the competency graph, then transitions in place to
  * their personalized path once the interviewer is done.
+ *
+ * "Skip for now" snoozes the AuthGuard's assessment gate for 24 hours and
+ * returns to the dashboard -- an escape hatch, not a dismissal; the gate
+ * resumes once the snooze expires. The in-progress session is left as-is,
+ * so coming back resumes where the interview left off.
  */
 export function SkillAssessmentPage() {
     const { phase, messages, isThinking, error, path, submitAnswer, retry } = useSkillAssessment();
+    const { profile } = useAuth();
+    const navigate = useNavigate();
+
+    const skipForNow = () => {
+        if (profile?.id) snoozeAssessmentGate(profile.id);
+        void navigate('/');
+    };
 
     if (error) {
         return (
@@ -35,15 +50,26 @@ export function SkillAssessmentPage() {
     return (
         <div className="flex min-h-screen flex-col bg-app-bg">
             <div className="shrink-0 border-b border-app-border bg-app-bg/80 px-6 py-4 backdrop-blur-md">
-                <PageHeader
-                    icon={Sparkles}
-                    title={phase === 'chat' ? "Let's get to know your skills" : 'Your personalized path'}
-                    subtitle={
-                        phase === 'chat'
-                            ? "A few quick questions so we can tailor onboarding to what you already know."
-                            : 'Nodes you already have covered are marked mastered; everything else unlocks as you go.'
-                    }
-                />
+                <div className="flex items-start justify-between gap-4">
+                    <PageHeader
+                        icon={Sparkles}
+                        title={phase === 'chat' ? "Let's get to know your skills" : 'Your personalized path'}
+                        subtitle={
+                            phase === 'chat'
+                                ? "A few quick questions so we can tailor onboarding to what you already know."
+                                : 'Nodes you already have covered are marked mastered; everything else unlocks as you go.'
+                        }
+                    />
+                    {phase === 'chat' && (
+                        <button
+                            type="button"
+                            onClick={skipForNow}
+                            className="shrink-0 rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text-muted transition-colors hover:border-app-brand hover:text-app-text"
+                        >
+                            Skip for now
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="flex flex-1 flex-col overflow-hidden">
