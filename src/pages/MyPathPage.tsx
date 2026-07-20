@@ -20,6 +20,9 @@ import { CompetencyGraph } from '../features/my-path/components/CompetencyGraph'
 import { NodeDetailPanel } from '../features/my-path/components/NodeDetailPanel';
 import { SkillsRail } from '../features/my-path/components/SkillsRail';
 import { useMyCompetencies } from '../features/my-path/hooks/useMyCompetencies';
+import { GoalBanner } from '../features/my-path/components/GoalBanner';
+import { GoalPicker } from '../features/my-path/components/GoalPicker';
+import { useGoalSelection } from '../features/my-path/hooks/useGoalSelection';
 import type { PathNode, PathView } from '../features/skill-assessment/types';
 
 /** Navigation state a passing module hands back so the map knows what to celebrate. */
@@ -82,6 +85,17 @@ export function MyPathPage() {
         error: competenciesError
     } = useMyCompetencies();
 
+    const {
+        matches,
+        isLoading: matchesLoading,
+        isClaiming,
+        error: goalError,
+        loadMatches,
+        claim: claimGoal,
+        clear: clearGoal
+    } = useGoalSelection(selectedProjectId, retry);
+
+    const [isPickingGoal, setIsPickingGoal] = useState(false);
     const [noticeDismissed, setNoticeDismissed] = useState(false);
     const [view, setView] = useState<'map' | 'list'>('map');
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -268,7 +282,15 @@ export function MyPathPage() {
             )}
 
             {!isLoading && path && (
-                <div className="app-page-content mt-4 shrink-0">
+                <div className="app-page-content mt-4 shrink-0 space-y-3">
+                    {/* The destination first: the premise is that onboarding ends in shipping
+                        something, so the page should say what that something is. */}
+                    <GoalBanner
+                        goal={path.goal}
+                        onFocusGoal={handleFocusSkill}
+                        onChooseGoal={() => setIsPickingGoal(true)}
+                        isBusy={isClaiming}
+                    />
                     <PathProgressBar path={path} />
                 </div>
             )}
@@ -327,6 +349,20 @@ export function MyPathPage() {
                         )}
                     </div>
                 )
+            )}
+
+            {isPickingGoal && (
+                <GoalPicker
+                    matches={matches}
+                    currentGoal={path?.goal}
+                    isLoading={matchesLoading}
+                    isClaiming={isClaiming}
+                    error={goalError}
+                    onLoad={loadMatches}
+                    onClaim={claimGoal}
+                    onClear={clearGoal}
+                    onClose={() => setIsPickingGoal(false)}
+                />
             )}
         </div>
     );

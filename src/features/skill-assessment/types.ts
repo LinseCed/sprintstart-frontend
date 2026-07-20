@@ -1,3 +1,4 @@
+import type { PathGoal } from '../starter-work/types';
 export type AssessmentStartResponse = {
     sessionId: string;
     question: string;
@@ -54,6 +55,15 @@ export type PathEdge = {
 export type PathView = {
     nodes: PathNode[];
     edges: PathEdge[];
+
+    /**
+     * The contribution this path aims at, or null when the hire hasn't claimed one.
+     *
+     * Read from the payload, never inferred by scanning for `kind === 'CONTRIBUTION'`: a path can
+     * carry more than one contribution node (a project's baseline may select some), and only the
+     * named one is theirs.
+     */
+    goal?: PathGoal | null;
 
     /**
      * The competency graph version this path was projected against.
