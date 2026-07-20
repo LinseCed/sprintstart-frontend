@@ -6,14 +6,14 @@ import {
     MarkerType,
     ReactFlow,
     useReactFlow,
-    type Connection,
     type Edge,
     type NodeMouseHandler
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { CompetencyGraphNode, type CompetencyFlowNode } from './CompetencyGraphNode';
-import { chainFor, liveEdgeIds } from '../graphLayout';
-import { useForceLayout } from '../hooks/useForceLayout';
+import { chainFor } from '../../competency-graph/layout';
+import { useForceLayout } from '../../competency-graph/useForceLayout';
+import { liveEdgeIds } from '../pathGraph';
 import type { UnlockSequence } from '../hooks/useUnlockSequence';
 import type { PathNode, PathView } from '../../skill-assessment/types';
 
@@ -32,13 +32,6 @@ type CompetencyGraphProps = {
     justChangedKeys?: Set<string>;
     /** The unlock payoff currently playing, if a module was just passed. */
     unlock?: UnlockSequence;
-    /**
-     * Whether nodes expose connection handles, so a PM can drag one onto another
-     * to declare a prerequisite. Off for hires -- the graph is theirs to read.
-     */
-    canConnect?: boolean;
-    /** Called with (prerequisite, dependent) when such a drag completes. */
-    onConnectNodes?: (fromKey: string, toKey: string) => void;
 };
 
 const nodeTypes = { competency: CompetencyGraphNode };
@@ -87,6 +80,9 @@ function CameraController({
  * All of it is suppressed under `prefers-reduced-motion`, and none of it is the
  * only way through: `AssessmentPathView` renders the same data as a
  * topologically ordered list (see the "List view" toggle on the page).
+ *
+ * Read-only by design. Editing the graph is a different job with a different
+ * audience, and it lives in the competency studio (`/graph-studio`).
  */
 export function CompetencyGraph({
     path,
@@ -94,9 +90,7 @@ export function CompetencyGraph({
     focusedKey = null,
     onSelectNode,
     justChangedKeys,
-    unlock,
-    canConnect = false,
-    onConnectNodes
+    unlock
 }: CompetencyGraphProps) {
     const reduceMotion = useReducedMotion() ?? false;
     const animate = !reduceMotion;
@@ -196,18 +190,6 @@ export function CompetencyGraph({
 
     const handleNodeLeave = useCallback(() => setHoveredKey(null), []);
 
-    // Dragging one node onto another is the map's natural way to say "this comes
-    // first". It is an addition to the panel's select-based editor, never the only
-    // way -- a drag is not a gesture everyone can make, and the list view has no
-    // canvas to make it on.
-    const handleConnect = useCallback(
-        (connection: Connection) => {
-            if (!connection.source || !connection.target) return;
-            onConnectNodes?.(connection.source, connection.target);
-        },
-        [onConnectNodes]
-    );
-
     return (
         <div
             className="h-full w-full"
@@ -223,12 +205,10 @@ export function CompetencyGraph({
                 onNodeMouseEnter={handleNodeEnter}
                 onNodeMouseLeave={handleNodeLeave}
                 onPaneClick={() => onSelectNode(null)}
-                onConnect={handleConnect}
                 // Positions are derived from the layout on every render, so a
                 // dragged node would be pulled back under the pointer on the next
                 // one. Reading the graph is panning and zooming, not rearranging.
                 nodesDraggable={false}
-                nodesConnectable={canConnect}
                 edgesFocusable={false}
                 fitView
                 proOptions={{ hideAttribution: false }}

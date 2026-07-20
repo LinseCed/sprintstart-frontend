@@ -1,5 +1,17 @@
 import dagre from 'dagre';
-import type { PathView } from '../skill-assessment/types';
+
+/**
+ * The minimum a graph has to look like to be laid out or walked.
+ *
+ * Structural on purpose: the hire's projected path and the PM's live graph are different shapes
+ * with different meanings (one carries per-user state, the other carries authoring fields), but
+ * the geometry and the traversal are identical. Typing against the intersection keeps one
+ * implementation instead of two that drift.
+ */
+export type GraphShape = {
+    nodes: readonly { key: string }[];
+    edges: readonly { from: string; to: string }[];
+};
 
 /**
  * Fixed node box used both for the dagre layout and the rendered card, so the
@@ -25,7 +37,7 @@ export type NodePosition = { x: number; y: number };
  * happen, but a missing entry would otherwise crash the render) fall back to the
  * origin.
  */
-export function layoutPath(path: PathView): Map<string, NodePosition> {
+export function layoutPath(path: GraphShape): Map<string, NodePosition> {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR', ranksep: 96, nodesep: 28, marginx: 24, marginy: 24 });
     graph.setDefaultEdgeLabel(() => ({}));
@@ -56,7 +68,7 @@ export function layoutPath(path: PathView): Map<string, NodePosition> {
 }
 
 /** Direct prerequisite keys per node key, for "why is this locked" explanations. */
-export function prerequisitesByKey(path: PathView): Map<string, string[]> {
+export function prerequisitesByKey(path: GraphShape): Map<string, string[]> {
     const prereqs = new Map<string, string[]>();
     for (const edge of path.edges) {
         prereqs.set(edge.to, [...(prereqs.get(edge.to) ?? []), edge.from]);
@@ -76,7 +88,7 @@ export function prerequisitesByKey(path: PathView): Map<string, string[]> {
  * Walks iteratively and tracks visited keys, so a cycle the backend somehow let
  * through can't hang the render.
  */
-export function chainFor(path: PathView, key: string): Set<string> {
+export function chainFor(path: GraphShape, key: string): Set<string> {
     const forward = new Map<string, string[]>();
     const backward = new Map<string, string[]>();
     for (const edge of path.edges) {
@@ -99,22 +111,4 @@ export function chainFor(path: PathView, key: string): Set<string> {
     return chain;
 }
 
-/**
- * Edges along which "power" is currently flowing: a mastered competency feeding
- * one that is now available to start.
- *
- * Deliberately narrow. Animating every edge would be ambient noise; animating
- * only these makes the motion mean "this is reaching the next thing you can do".
- *
- * @returns Edge ids in the `from->to` form the graph uses.
- */
-export function liveEdgeIds(path: PathView): Set<string> {
-    const stateByKey = new Map(path.nodes.map(node => [node.key, node.state]));
-    const live = new Set<string>();
-    for (const edge of path.edges) {
-        if (stateByKey.get(edge.from) === 'MASTERED' && stateByKey.get(edge.to) === 'AVAILABLE') {
-            live.add(`${edge.from}->${edge.to}`);
-        }
-    }
-    return live;
-}
+

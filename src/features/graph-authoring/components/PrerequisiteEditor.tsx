@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Loader2, Plus, X } from 'lucide-react';
-import type { PathNode, PathView } from '../../skill-assessment/types';
+import type { LiveCompetency, LiveGraph } from '../types';
 
 type PrerequisiteEditorProps = {
-    node: PathNode;
-    path: PathView;
+    competency: LiveCompetency;
+    graph: LiveGraph;
     isSaving: boolean;
     error: string | null;
     onClearError: () => void;
@@ -13,22 +13,21 @@ type PrerequisiteEditorProps = {
 };
 
 /**
- * Add and remove this node's prerequisites, by name.
+ * Add and remove this competency's prerequisites, by name.
  *
- * The map has a natural gesture for this (drag one node onto another), but a drag is not a path
- * everyone can take, and the list view has no canvas to drag on at all. This is the equivalent
- * that works everywhere: a select of candidate nodes and an × on each existing link. It lives in
- * the detail panel, so map and list users get the same affordance.
+ * The canvas has a natural gesture for this (drag one node onto another), but a drag is not a
+ * path everyone can take. This is the equivalent that works everywhere: a select of candidate
+ * nodes and an × on each existing link.
  *
- * Candidates exclude the node itself and anything already linked. They deliberately do *not*
- * exclude nodes that would form a cycle: working that out here would duplicate the backend's
- * traversal and could disagree with it. The backend rejects the cycle and names both ends, and
- * that message is shown right here — which is the "fail visibly at the point of the gesture" this
- * needs, without a second implementation of the rule that could drift.
+ * Candidates exclude the competency itself and anything already linked. They deliberately do
+ * *not* exclude nodes that would form a cycle: working that out here would duplicate the
+ * backend's traversal and could disagree with it. The backend rejects the cycle and names both
+ * ends, and that message is shown right here — which is the "fail visibly at the point of the
+ * gesture" this needs, without a second implementation of the rule that could drift.
  */
 export function PrerequisiteEditor({
-    node,
-    path,
+    competency,
+    graph,
     isSaving,
     error,
     onClearError,
@@ -39,36 +38,34 @@ export function PrerequisiteEditor({
 
     const prerequisites = useMemo(
         () =>
-            path.edges
-                .filter(edge => edge.to === node.key)
-                .map(edge => path.nodes.find(candidate => candidate.key === edge.from))
-                .filter((candidate): candidate is PathNode => candidate !== undefined),
-        [path, node.key]
+            graph.edges
+                .filter(edge => edge.toKey === competency.key)
+                .map(edge => graph.competencies.find(candidate => candidate.key === edge.fromKey))
+                .filter((candidate): candidate is LiveCompetency => candidate !== undefined),
+        [graph, competency.key]
     );
 
     const candidates = useMemo(() => {
         const taken = new Set(prerequisites.map(prerequisite => prerequisite.key));
-        return path.nodes
-            .filter(candidate => candidate.key !== node.key && !taken.has(candidate.key))
+        return graph.competencies
+            .filter(candidate => candidate.key !== competency.key && !taken.has(candidate.key))
             .sort((a, b) => a.label.localeCompare(b.label));
-    }, [path.nodes, prerequisites, node.key]);
+    }, [graph.competencies, prerequisites, competency.key]);
 
     const handleAdd = async () => {
         if (!pendingKey) return;
-        const added = await onAdd(pendingKey, node.key);
+        const added = await onAdd(pendingKey, competency.key);
         if (added) setPendingKey('');
     };
 
     return (
-        <section aria-label={`Prerequisites for ${node.label}`} className="space-y-2">
+        <section aria-label={`Prerequisites for ${competency.label}`} className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
                 Prerequisites
             </h3>
 
             {prerequisites.length === 0 ? (
-                <p className="text-xs text-app-text-subtle">
-                    None — this is a starting point.
-                </p>
+                <p className="text-xs text-app-text-subtle">None — this is a starting point.</p>
             ) : (
                 <ul className="space-y-1">
                     {prerequisites.map(prerequisite => (
@@ -83,7 +80,7 @@ export function PrerequisiteEditor({
                                 type="button"
                                 disabled={isSaving}
                                 aria-label={`Remove ${prerequisite.label} as a prerequisite`}
-                                onClick={() => void onRemove(prerequisite.key, node.key)}
+                                onClick={() => void onRemove(prerequisite.key, competency.key)}
                                 className="shrink-0 rounded-md p-1 text-app-text-muted transition-colors hover:bg-app-danger-bg hover:text-app-danger-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -96,7 +93,7 @@ export function PrerequisiteEditor({
             {candidates.length > 0 && (
                 <div className="flex items-center gap-2">
                     <label className="sr-only" htmlFor="add-prerequisite">
-                        Add a prerequisite for {node.label}
+                        Add a prerequisite for {competency.label}
                     </label>
                     <select
                         id="add-prerequisite"

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ApiError } from '../../../services/apiClient';
 import { competencyGraphService } from '../../../services/competencyGraphService';
-import type { EdgeKind, UpdateCompetencyInput } from '../../graph-authoring/types';
+import type { EdgeKind, UpdateCompetencyInput } from '../types';
 
 /**
  * Turns a failed graph write into something a PM can act on, at the point of the gesture.
@@ -32,11 +32,10 @@ function toEditingError(error: unknown, fallback: string): string {
 }
 
 /**
- * The write half of PM graph authoring, used from wherever a PM notices the problem -- the node
- * detail panel on `/my-path` today.
+ * The write half of PM graph authoring, used from the studio's node inspector.
  *
- * Deliberately holds no graph state of its own. The map already owns the path and reloads it, so
- * duplicating nodes/edges here would give two sources of truth that drift. This owns only the
+ * Deliberately holds no graph state of its own. The studio already owns the live graph and
+ * reloads it, so duplicating nodes/edges here would give two sources of truth that drift. This owns only the
  * in-flight flag and the last error, and each mutation resolves to whether it succeeded so the
  * caller can decide what to refresh.
  *

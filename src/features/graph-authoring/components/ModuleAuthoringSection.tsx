@@ -1,11 +1,11 @@
 import { FilePlus2, Loader2, Pencil, Sparkles } from 'lucide-react';
-import type { PathNode } from '../../skill-assessment/types';
-import type { PendingModule } from '../hooks/useModuleAuthoring';
+import type { LiveCompetency } from '../types';
+import type { ModuleReadiness } from '../hooks/useModuleAuthoring';
 
 type ModuleAuthoringSectionProps = {
-    node: PathNode;
-    /** A DRAFT/PROPOSED module already in flight for this competency, if any. */
-    pending: PendingModule | null;
+    competency: LiveCompetency;
+    /** What already exists for this competency in the selected project. */
+    readiness: ModuleReadiness;
     isBusy: boolean;
     error: string | null;
     /** Opens the module editor for an existing module (active, draft, or proposed). */
@@ -22,31 +22,38 @@ type ModuleAuthoringSectionProps = {
  * module it loads by id -- had no way in. This is that missing door.
  *
  * Three states, because a competency is in exactly one of them:
- * - an ACTIVE module exists (the node carries its id) -> edit it;
+ * - an ACTIVE module exists -> edit it;
  * - a DRAFT/PROPOSED is in flight -> continue it, rather than minting a duplicate version;
  * - nothing yet -> create one, blank or AI-drafted from the project's corpus.
+ *
+ * Modules are per project while the competency itself is global, so everything here is scoped to
+ * the project selected in the studio.
  */
 export function ModuleAuthoringSection({
-    node,
-    pending,
+    competency,
+    readiness,
     isBusy,
     error,
     onOpenModule,
     onCreate
 }: ModuleAuthoringSectionProps) {
+    const { activeModuleId, pending } = readiness;
+
     return (
-        <section aria-label={`Module for ${node.label}`} className="space-y-2">
+        <section aria-label={`Module for ${competency.label}`} className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
                 Learn-verify module
             </h3>
 
-            {node.moduleId ? (
+            {activeModuleId ? (
                 <>
-                    <p className="text-xs text-app-text-muted">A module is published for this competency.</p>
+                    <p className="text-xs text-app-text-muted">
+                        A module is published for this competency.
+                    </p>
                     <button
                         type="button"
                         data-testid="author-edit-module"
-                        onClick={() => onOpenModule(node.moduleId as string)}
+                        onClick={() => onOpenModule(activeModuleId)}
                         className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     >
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -73,8 +80,8 @@ export function ModuleAuthoringSection({
             ) : (
                 <>
                     <p className="text-xs text-app-text-muted">
-                        Nothing published yet. Draft a module so this node has something to teach and a
-                        check to unlock it.
+                        Nothing published yet. Draft a module so this node has something to teach and
+                        a check to unlock it.
                     </p>
                     <div className="flex flex-col gap-2">
                         <button

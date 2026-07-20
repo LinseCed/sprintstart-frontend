@@ -13,7 +13,7 @@ import {
     Users,
     Wrench
 } from 'lucide-react';
-import { NODE_HEIGHT, NODE_WIDTH } from '../graphLayout';
+import { NODE_HEIGHT, NODE_WIDTH } from '../../competency-graph/layout';
 import type { CompetencyKind, NodeState, PathNode } from '../../skill-assessment/types';
 
 const KIND_ICONS: Record<CompetencyKind, typeof Wrench> = {

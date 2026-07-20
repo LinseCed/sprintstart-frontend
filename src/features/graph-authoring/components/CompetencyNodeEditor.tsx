@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2, Lock, Trash2 } from 'lucide-react';
 import { competencyGraphService } from '../../../services/competencyGraphService';
-import type { CompetencyKind, LiveCompetency } from '../../graph-authoring/types';
+import type { CompetencyKind, LiveCompetency } from '../types';
 
 const KINDS: CompetencyKind[] = [
     'SKILL',
@@ -20,19 +20,22 @@ const LEVEL_LABELS: Record<number, string> = {
     4: '4 · expert'
 };
 
+/** Everything this form can change about a competency. The key is not among them. */
+export type CompetencyEditInput = {
+    label: string;
+    description: string;
+    kind: CompetencyKind;
+    targetLevel: number;
+    invariant: boolean;
+};
+
 type CompetencyNodeEditorProps = {
     competencyKey: string;
     isSaving: boolean;
     /** The last write error, rendered in place rather than as a toast. */
     error: string | null;
     onClearError: () => void;
-    onSave: (input: {
-        label: string;
-        description: string;
-        kind: CompetencyKind;
-        targetLevel: number;
-        invariant: boolean;
-    }) => Promise<boolean>;
+    onSave: (input: CompetencyEditInput) => Promise<boolean>;
     onDelete: () => Promise<boolean>;
     onCancel: () => void;
 };

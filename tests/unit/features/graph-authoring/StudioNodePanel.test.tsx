@@ -1,51 +1,111 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NodeDetailPanel } from '../../../../src/features/my-path/components/NodeDetailPanel';
+import { StudioNodePanel } from '../../../../src/features/graph-authoring/components/StudioNodePanel';
+import { useGraphEditing } from '../../../../src/features/graph-authoring/hooks/useGraphEditing';
 import { competencyGraphService } from '../../../../src/services/competencyGraphService';
-import { competencyModuleService } from '../../../../src/services/competencyModuleService';
 import { ApiError } from '../../../../src/services/apiClient';
-import type { PathView } from '../../../../src/features/skill-assessment/types';
+import type {
+    CompetencyProposal,
+    LiveGraph
+} from '../../../../src/features/graph-authoring/types';
 
-const permissionGroup = vi.hoisted(() => ({ current: 'PM' }));
-
-vi.mock('../../../../src/context/useAuth', () => ({
-    useAuth: () => ({ profile: { id: 'u1', permissionGroup: permissionGroup.current } })
-}));
-
-const path: PathView = {
+const graph: LiveGraph = {
     graphVersion: 4,
-    nodes: [
-        { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED', level: 3 },
-        { key: 'spring', label: 'Spring', kind: 'SKILL', state: 'AVAILABLE' },
-        { key: 'testing', label: 'Testing', kind: 'SKILL', state: 'LOCKED' }
+    competencies: [
+        {
+            key: 'kotlin',
+            label: 'Kotlin',
+            description: null,
+            kind: 'SKILL',
+            targetLevel: 2,
+            invariant: false,
+            repoRef: null
+        },
+        {
+            key: 'spring',
+            label: 'Spring',
+            description: 'How we wire the backend',
+            kind: 'SKILL',
+            targetLevel: 2,
+            invariant: false,
+            repoRef: null
+        },
+        {
+            key: 'testing',
+            label: 'Testing',
+            description: null,
+            kind: 'SKILL',
+            targetLevel: 2,
+            invariant: false,
+            repoRef: null
+        }
     ],
-    edges: [{ from: 'kotlin', to: 'spring' }]
+    edges: [{ fromKey: 'kotlin', toKey: 'spring', kind: 'PREREQUISITE' }]
 };
 
-function renderPanel(nodeKey = 'spring', onGraphChanged = vi.fn()) {
-    const node = path.nodes.find(candidate => candidate.key === nodeKey)!;
-    return render(
-        <NodeDetailPanel
-            node={node}
-            path={path}
-            source={null}
-            onStartModule={vi.fn()}
-            onEditModule={vi.fn()}
+/**
+ * Wires the panel to the real write hook, exactly as the studio page does, so
+ * these assertions are about the endpoints actually called rather than about
+ * callbacks the test itself supplied.
+ */
+function Harness({
+    nodeKey = 'spring',
+    onGraphChanged,
+    proposal = null
+}: {
+    nodeKey?: string;
+    onGraphChanged: () => void;
+    proposal?: CompetencyProposal | null;
+}) {
+    const editing = useGraphEditing(onGraphChanged);
+    const competency = proposal
+        ? {
+              key: proposal.key,
+              label: proposal.label,
+              description: proposal.description,
+              kind: proposal.kind,
+              targetLevel: 0,
+              invariant: false,
+              repoRef: proposal.repoRef
+          }
+        : graph.competencies.find(candidate => candidate.key === nodeKey)!;
+
+    return (
+        <StudioNodePanel
+            competency={competency}
+            graph={graph}
+            proposal={proposal}
+            readiness={{ activeModuleId: null, pending: null }}
+            canAuthorModules
+            isSaving={editing.isSaving}
+            editError={editing.error}
+            onClearEditError={editing.clearError}
+            onSave={input => editing.updateCompetency(competency.key, input)}
+            onDelete={() => editing.deleteCompetency(competency.key)}
+            onAddPrerequisite={editing.addPrerequisite}
+            onRemovePrerequisite={editing.removePrerequisite}
             onSelectKey={vi.fn()}
             onClose={vi.fn()}
-            onGraphChanged={onGraphChanged}
+            moduleReadinessProps={{
+                isBusy: false,
+                error: null,
+                onOpenModule: vi.fn(),
+                onCreate: vi.fn()
+            }}
+            onApproveProposal={vi.fn()}
+            onRejectProposal={vi.fn()}
         />
     );
 }
 
-describe('NodeDetailPanel graph authoring', () => {
+function renderPanel(onGraphChanged = vi.fn()) {
+    render(<Harness onGraphChanged={onGraphChanged} />);
+}
+
+describe('StudioNodePanel', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        permissionGroup.current = 'PM';
-        vi.spyOn(competencyModuleService, 'fetchModule').mockResolvedValue({
-            pages: []
-        } as unknown as Awaited<ReturnType<typeof competencyModuleService.fetchModule>>);
         vi.spyOn(competencyGraphService, 'fetchCompetency').mockResolvedValue({
             key: 'spring',
             label: 'Spring',
@@ -57,43 +117,15 @@ describe('NodeDetailPanel graph authoring', () => {
         });
     });
 
-    describe('permissions', () => {
-        it('offers no authoring affordances to a plain hire', () => {
-            permissionGroup.current = 'USER';
-            renderPanel();
-
-            expect(screen.queryByTestId('edit-competency')).not.toBeInTheDocument();
-            expect(screen.queryByLabelText(/prerequisites for/i)).not.toBeInTheDocument();
-        });
-
-        it('offers none to HR either, which reviews proposals but does not author', () => {
-            permissionGroup.current = 'HR';
-            renderPanel();
-
-            expect(screen.queryByTestId('edit-competency')).not.toBeInTheDocument();
-        });
-
-        it('offers them to a PM', () => {
-            renderPanel();
-
-            expect(screen.getByTestId('edit-competency')).toBeInTheDocument();
-            expect(screen.getByLabelText(/prerequisites for spring/i)).toBeInTheDocument();
-        });
-    });
-
     describe('editing a node', () => {
-        it('seeds the form from the competency record, not the projected node', async () => {
+        it('seeds the form from the competency record', async () => {
             const user = userEvent.setup();
             renderPanel();
 
             await user.click(screen.getByTestId('edit-competency'));
 
-            // `description` and `targetLevel` exist only on the record -- the path
-            // does not carry them, so this is what proves the fetch is used.
             await waitFor(() =>
-                expect(screen.getByLabelText('Description')).toHaveValue(
-                    'How we wire the backend'
-                )
+                expect(screen.getByLabelText('Description')).toHaveValue('How we wire the backend')
             );
             expect(screen.getByLabelText('Bar to meet')).toHaveValue('2');
         });
@@ -113,18 +145,16 @@ describe('NodeDetailPanel graph authoring', () => {
         it('sends the edit to the competency endpoint and reloads the graph', async () => {
             const user = userEvent.setup();
             const onGraphChanged = vi.fn();
-            const update = vi
-                .spyOn(competencyGraphService, 'updateCompetency')
-                .mockResolvedValue({
-                    key: 'spring',
-                    label: 'Spring Boot',
-                    description: 'How we wire the backend',
-                    kind: 'SKILL',
-                    targetLevel: 2,
-                    invariant: false,
-                    repoRef: null
-                });
-            renderPanel('spring', onGraphChanged);
+            const update = vi.spyOn(competencyGraphService, 'updateCompetency').mockResolvedValue({
+                key: 'spring',
+                label: 'Spring Boot',
+                description: 'How we wire the backend',
+                kind: 'SKILL',
+                targetLevel: 2,
+                invariant: false,
+                repoRef: null
+            });
+            renderPanel(onGraphChanged);
 
             await user.click(screen.getByTestId('edit-competency'));
             const labelField = await screen.findByLabelText('Name');
@@ -202,9 +232,7 @@ describe('NodeDetailPanel graph authoring', () => {
         it('lists existing prerequisites and offers the rest as candidates', () => {
             renderPanel();
 
-            expect(
-                screen.getByLabelText('Remove Kotlin as a prerequisite')
-            ).toBeInTheDocument();
+            expect(screen.getByLabelText('Remove Kotlin as a prerequisite')).toBeInTheDocument();
             // Kotlin is already linked and Spring is the node itself, so only
             // Testing is offerable.
             const select = screen.getByLabelText(/add a prerequisite for spring/i);
@@ -253,6 +281,29 @@ describe('NodeDetailPanel graph authoring', () => {
             renderPanel();
 
             expect(screen.getByText(/at their next session/i)).toBeInTheDocument();
+        });
+    });
+
+    describe('a selected proposal', () => {
+        const proposal: CompetencyProposal = {
+            id: 'p1',
+            key: 'jpa-persistence',
+            label: 'JPA persistence',
+            description: 'How entities are mapped here',
+            kind: 'CONCEPT',
+            repoRef: null,
+            status: 'PROPOSED'
+        };
+
+        it('offers approve and reject instead of an editor', () => {
+            render(<Harness onGraphChanged={vi.fn()} proposal={proposal} />);
+
+            expect(screen.getByTestId('studio-approve-proposal')).toBeInTheDocument();
+            expect(screen.getByTestId('studio-reject-proposal')).toBeInTheDocument();
+            // There is no live row to edit yet, so editing it would have nothing
+            // to write to.
+            expect(screen.queryByTestId('edit-competency')).not.toBeInTheDocument();
+            expect(screen.queryByLabelText(/add a prerequisite/i)).not.toBeInTheDocument();
         });
     });
 });
