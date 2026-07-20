@@ -1,41 +1,40 @@
-import { useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import {
     AlertCircle,
     ArrowLeft,
     ArrowRight,
     CheckCircle2,
-    Clock,
     Lightbulb,
     Loader2,
     XCircle
 } from 'lucide-react';
-import { ModuleStepper } from '../features/my-path/components/ModuleStepper';
+import { ModulePageView } from '../features/competency-module/components/ModulePageView';
+import { ModuleStepper } from '../features/competency-module/components/ModuleStepper';
+import { useCompetencyModule } from '../features/competency-module/hooks/useCompetencyModule';
 import { VerifyInput } from '../features/learn-verify/components/VerifyInput';
-import { useLearnVerifyModule } from '../features/learn-verify/hooks/useLearnVerifyModule';
-import { resolveModulePages } from '../features/my-path/modulePages';
 
 /**
  * A single competency module, full-screen and focused: the graph is deliberately
  * gone while you work through it.
  *
- * Everything the page needs hangs off the `:stepId` in the URL, so a refresh or
- * a shared deep link lands in the same place -- including the current page,
- * which lives in `?page=` rather than component state. On a passing check the
- * user returns to the map with the earned competency key in navigation state, so
- * the map can pulse exactly what just changed.
+ * The module is **shared** -- one per competency and project, read by everybody
+ * who needs it. Nothing on this page is private to the reader except their own
+ * attempts.
  *
- * Reached from `MyPathPage`'s node detail panel (`/my-path/module/:stepId`).
+ * Everything the page needs hangs off the `:moduleId` in the URL, so a refresh or
+ * a shared deep link lands in the same place -- including the current page, which
+ * lives in `?page=<pageId>`. By id rather than index, so a link survives a PM
+ * reordering the module; an index would silently point at different content after
+ * an edit. On a passing check the user returns to the map with the earned
+ * competency key in navigation state, so the map can pulse exactly what changed.
  */
 export function MyPathModulePage() {
-    const { stepId } = useParams<{ stepId: string }>();
+    const { moduleId } = useParams<{ moduleId: string }>();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const {
-        step,
+        module,
         verification,
         isLoading,
         loadError,
@@ -47,29 +46,23 @@ export function MyPathModulePage() {
         submitError,
         gradingUnavailable,
         submit
-    } = useLearnVerifyModule(stepId ?? null);
+    } = useCompetencyModule(moduleId ?? null);
 
-    const pages = useMemo(
-        () => (step ? resolveModulePages(step, verification) : []),
-        [step, verification]
-    );
+    const pages = module?.pages ?? [];
+    const requestedPageId = searchParams.get('page');
+    const activePage = pages.find(page => page.id === requestedPageId) ?? pages[0] ?? null;
 
-    const requestedPage = Number(searchParams.get('page') ?? '0');
-    const activeIndex =
-        Number.isInteger(requestedPage) && requestedPage >= 0 && requestedPage < pages.length
-            ? requestedPage
-            : 0;
-    const activePage = pages[activeIndex];
-
-    const goToPage = (index: number) => {
+    const goToPage = (pageId: string) => {
         const next = new URLSearchParams(searchParams);
-        next.set('page', String(index));
+        next.set('page', pageId);
         setSearchParams(next, { replace: true });
     };
 
     const backToMap = (unlockedKey?: string) => {
         void navigate('/my-path', unlockedKey ? { state: { unlockedKey } } : undefined);
     };
+
+    const isVerifyPage = activePage?.kind === 'VERIFY';
 
     return (
         <div className="flex min-h-screen flex-col bg-app-bg">
@@ -84,18 +77,23 @@ export function MyPathModulePage() {
                             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                             Back to your path
                         </button>
-                        {step && step.estimatedMinutes > 0 && (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-app-text-muted">
-                                <Clock className="h-3.5 w-3.5" aria-hidden="true" />~
-                                {step.estimatedMinutes} min
-                            </span>
-                        )}
                     </div>
 
-                    {step && <h1 className="text-xl font-semibold text-app-text">{step.title}</h1>}
+                    {module && (
+                        <div>
+                            <h1 className="text-xl font-semibold text-app-text">{module.title}</h1>
+                            {module.summary && (
+                                <p className="mt-1 text-sm text-app-text-muted">{module.summary}</p>
+                            )}
+                        </div>
+                    )}
 
                     {pages.length > 0 && (
-                        <ModuleStepper pages={pages} activeIndex={activeIndex} onSelect={goToPage} />
+                        <ModuleStepper
+                            pages={pages}
+                            activePageId={activePage?.id ?? null}
+                            onSelect={goToPage}
+                        />
                     )}
                 </div>
             </header>
@@ -115,50 +113,17 @@ export function MyPathModulePage() {
                     </div>
                 )}
 
-                {!isLoading && !loadError && step && pages.length === 0 && (
+                {!isLoading && !loadError && module && pages.length === 0 && (
                     <p className="py-16 text-center text-sm text-app-text-muted">
-                        This module has no content yet -- check back once it&apos;s been generated.
+                        This module has no pages yet.
                     </p>
                 )}
 
-                {!isLoading && !loadError && step && activePage?.kind === 'LESSON' && (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {activePage.content ?? step.content ?? ''}
-                        </ReactMarkdown>
-                        {step.resources.length > 0 && (
-                            <ul>
-                                {step.resources.map(resource => (
-                                    <li key={resource.id}>
-                                        <a href={resource.url} target="_blank" rel="noreferrer">
-                                            {resource.title}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+                {!isLoading && !loadError && activePage && !isVerifyPage && (
+                    <ModulePageView page={activePage} />
                 )}
 
-                {!isLoading && !loadError && step && activePage?.kind === 'TASK' && (
-                    <ul className="space-y-3">
-                        {step.tasks.map(task => (
-                            <li
-                                key={task.id}
-                                className="rounded-xl border border-app-border bg-app-surface p-4"
-                            >
-                                <p className="text-sm font-medium text-app-text">{task.title}</p>
-                                {task.description && (
-                                    <p className="mt-1 text-sm text-app-text-muted">
-                                        {task.description}
-                                    </p>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-
-                {!isLoading && !loadError && activePage?.kind === 'VERIFY' && (
+                {!isLoading && !loadError && isVerifyPage && (
                     <div className="max-w-2xl space-y-4">
                         {passed ? (
                             <div

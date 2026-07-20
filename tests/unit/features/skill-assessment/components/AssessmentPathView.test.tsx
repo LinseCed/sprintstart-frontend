@@ -75,7 +75,7 @@ describe('AssessmentPathView', () => {
 
     it('opens a node with a stepId and calls onSelectNode', async () => {
         const path: PathView = {
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'AVAILABLE', stepId: 'step1' }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'AVAILABLE', moduleId: 'step1' }],
             edges: [],
             graphVersion: 1,
         };
@@ -90,7 +90,7 @@ describe('AssessmentPathView', () => {
 
     it('does not make a locked node clickable even if it has a stepId', () => {
         const path: PathView = {
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'LOCKED', stepId: 'step1' }],
+            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'LOCKED', moduleId: 'step1' }],
             edges: [],
             graphVersion: 1,
         };

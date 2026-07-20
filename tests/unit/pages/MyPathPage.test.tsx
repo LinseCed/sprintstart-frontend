@@ -131,7 +131,7 @@ describe('MyPathPage', () => {
                     label: 'Kotlin',
                     kind: 'SKILL',
                     state: 'AVAILABLE',
-                    stepId: 'step1',
+                    moduleId: 'step1',
                 },
             ],
             edges: [],
@@ -156,8 +156,8 @@ describe('MyPathPage', () => {
         vi.mocked(getLastSeenGraphVersion).mockReturnValue(null);
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
             nodes: [
-                { key: 'basics', label: 'Basics', kind: 'SKILL', state: 'AVAILABLE', stepId: 's0' },
-                { key: 'advanced', label: 'Advanced', kind: 'SKILL', state: 'LOCKED', stepId: 's1' },
+                { key: 'basics', label: 'Basics', kind: 'SKILL', state: 'AVAILABLE', moduleId: 's0' },
+                { key: 'advanced', label: 'Advanced', kind: 'SKILL', state: 'LOCKED', moduleId: 's1' },
             ],
             edges: [{ from: 'basics', to: 'advanced' }],
             graphVersion: 1,

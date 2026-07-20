@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Clock, Flag, GitPullRequest, Layers, Lock, X } from 'lucide-react';
+import { ArrowRight, Flag, GitPullRequest, Layers, Lock, Pencil, X } from 'lucide-react';
 import { NodeStatusChip } from '../../skill-assessment/components/NodeStatusChip';
-import { onboardingService } from '../../../services/onboardingService';
+import { competencyModuleService } from '../../../services/competencyModuleService';
+import { useAuth } from '../../../context/useAuth';
+import { PermissionGroup } from '../../../services/types';
 import type { PathNode, PathView } from '../../skill-assessment/types';
 import type { CompetencySource } from '../../competency-dashboard/types';
 
@@ -10,8 +12,10 @@ type NodeDetailPanelProps = {
     path: PathView;
     /** The ledger source for this node, when the user holds it. */
     source?: CompetencySource | null;
-    /** Opens the focused module route for this node's step. */
-    onStartModule: (stepId: string) => void;
+    /** Opens the focused module route for this node's module. */
+    onStartModule: (moduleId: string) => void;
+    /** Opens the authoring surface for this node's module (PM/admin only). */
+    onEditModule: (moduleId: string) => void;
     /** Jumps the graph selection to another node (used by the blocker links). */
     onSelectKey: (key: string) => void;
     onClose: () => void;
@@ -36,44 +40,43 @@ export function NodeDetailPanel({
     path,
     source,
     onStartModule,
+    onEditModule,
     onSelectKey,
     onClose
 }: NodeDetailPanelProps) {
-    const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
+    const { profile } = useAuth();
+    const canAuthor =
+        profile?.permissionGroup === PermissionGroup.PM ||
+        profile?.permissionGroup === PermissionGroup.ADMIN;
     const [pageCount, setPageCount] = useState<number | null>(null);
 
-    // The module's shape (how long, how many pages) lives on the step, not on the
-    // projected node -- fetched lazily so opening the panel is the only cost.
+    // How many pages the module has lives on the module, not on the projected
+    // node -- fetched lazily so opening the panel is the only cost.
     useEffect(() => {
-        const stepId = node.stepId;
+        const moduleId = node.moduleId;
         let cancelled = false;
 
         // Deferred off the effect body so switching nodes doesn't cascade renders.
         void Promise.resolve().then(async () => {
             if (cancelled) return;
-            if (!stepId) {
-                setEstimatedMinutes(null);
+            if (!moduleId) {
                 setPageCount(null);
                 return;
             }
             try {
-                const step = await onboardingService.fetchStep(stepId);
+                const module = await competencyModuleService.fetchModule(moduleId);
                 if (cancelled) return;
-                setEstimatedMinutes(step.estimatedMinutes);
-                setPageCount(step.pages?.length ?? null);
+                setPageCount(module.pages.length);
             } catch {
-                // A missing estimate is cosmetic; the panel still works without it.
-                if (!cancelled) {
-                    setEstimatedMinutes(null);
-                    setPageCount(null);
-                }
+                // A missing count is cosmetic; the panel still works without it.
+                if (!cancelled) setPageCount(null);
             }
         });
 
         return () => {
             cancelled = true;
         };
-    }, [node.stepId]);
+    }, [node.moduleId]);
 
     const prerequisites = path.edges
         .filter(edge => edge.to === node.key)
@@ -85,7 +88,7 @@ export function NodeDetailPanel({
         .map(edge => path.nodes.find(candidate => candidate.key === edge.to)?.label ?? edge.to);
 
     const isGoal = node.kind === 'CONTRIBUTION';
-    const canStart = Boolean(node.stepId) && node.state !== 'LOCKED';
+    const canStart = Boolean(node.moduleId) && node.state !== 'LOCKED';
 
     return (
         <aside
@@ -174,11 +177,6 @@ export function NodeDetailPanel({
             )}
 
             <section className="flex flex-wrap items-center gap-3 text-xs text-app-text-muted">
-                {estimatedMinutes !== null && estimatedMinutes > 0 && (
-                    <span className="inline-flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" aria-hidden="true" />~{estimatedMinutes} min
-                    </span>
-                )}
                 {pageCount !== null && pageCount > 0 && (
                     <span className="inline-flex items-center gap-1.5">
                         <Layers className="h-3.5 w-3.5" aria-hidden="true" />
@@ -197,17 +195,29 @@ export function NodeDetailPanel({
                 <button
                     type="button"
                     data-testid="start-module"
-                    onClick={() => onStartModule(node.stepId as string)}
+                    onClick={() => onStartModule(node.moduleId as string)}
                     className="rounded-xl bg-app-brand px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                 >
                     {node.state === 'MASTERED' ? 'Review this module' : 'Start module'}
                 </button>
             ) : (
                 <p className="text-xs text-app-text-subtle">
-                    {node.stepId
+                    {node.moduleId
                         ? 'Clear the prerequisites above to open this module.'
-                        : 'No module is wired up for this competency yet.'}
+                        : 'Nothing has been published for this competency yet.'}
                 </p>
+            )}
+
+            {canAuthor && node.moduleId && (
+                <button
+                    type="button"
+                    data-testid="edit-module"
+                    onClick={() => onEditModule(node.moduleId as string)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    Edit this module
+                </button>
             )}
         </aside>
     );

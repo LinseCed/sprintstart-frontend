@@ -20,6 +20,7 @@ import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/Knowled
 import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/KnowledgeGapsDetailPage.tsx';
 import { CompetencyDashboardPage } from '../features/competency-dashboard/components/CompetencyDashboardPage.tsx';
 import { ProfilePage } from '../pages/ProfilePage.tsx';
+import { ModuleEditorPage } from '../pages/ModuleEditorPage.tsx';
 
 /**
  * Sends an old per-step journey link to the module that replaced it.
@@ -48,7 +49,8 @@ export function AppRouter() {
                 <Route path="/onboarding/path" element={<Navigate to="/my-path" replace />} />
                 <Route path="/onboarding/:stepId" element={<StepRedirect />} />
                 <Route path="/my-path" element={<MyPathPage />} />
-                <Route path="/my-path/module/:stepId" element={<MyPathModulePage />} />
+                <Route path="/my-path/module/:moduleId" element={<MyPathModulePage />} />
+                <Route path="/competency-modules/:moduleId" element={<ModuleEditorPage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
                 <Route path="/graph-authoring" element={<GraphAuthoringPage />} />
