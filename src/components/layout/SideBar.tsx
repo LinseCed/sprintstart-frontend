@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     BookOpen,
@@ -18,8 +18,6 @@ import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
-
-let lastToggleTime = 0;
 
 type SidebarNavItem = {
     label: string;
@@ -100,46 +98,6 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
     const visibleAdminNavItems = adminNavItems.filter((item) =>
         canAccessRoute(profile, item.path),
     );
-
-    const cogwheelClicksRef = useRef(0);
-    const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-    const handleSettingsClick = (e: React.MouseEvent) => {
-        if (location.pathname === '/profile' || location.pathname === '/profile/') {
-            e.preventDefault();
-            const next = cogwheelClicksRef.current + 1;
-            if (next >= 3) {
-                cogwheelClicksRef.current = 0;
-                if (Date.now() - lastToggleTime < 2000) {
-                    if (onNavigate) onNavigate();
-                    return;
-                }
-                lastToggleTime = Date.now();
-                const isUnlocked = localStorage.getItem('dinoUnlocked') === 'true';
-                if (isUnlocked) {
-                    localStorage.setItem('dinoUnlocked', 'false');
-                    setToastMsg('you saw nothing... 🫣');
-                } else {
-                    localStorage.setItem('dinoUnlocked', 'true');
-                    setToastMsg('shh... 🤫 (press Space)');
-                }
-                // Defer the external notification past the current render so
-                // listeners' setState (useDinoEasterEgg, DinoGame) doesn't
-                // fire during this component's render cycle (React 19:
-                // "Cannot update a component while rendering a different
-                // component").
-                queueMicrotask(() =>
-                    window.dispatchEvent(new Event('dinoUnlockChanged')),
-                );
-                setTimeout(() => setToastMsg(null), 3000);
-            } else {
-                cogwheelClicksRef.current = next;
-            }
-        }
-        if (onNavigate) {
-            onNavigate();
-        }
-    };
 
     const isPmSectionActive =
         location.pathname.startsWith('/pm-dashboard') ||
@@ -280,8 +238,8 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                             </div>
                         </div>
                         <NavLink
-                            to="/profile"
-                            onClick={handleSettingsClick}
+                            to="/settings"
+                            onClick={onNavigate}
                             className={({ isActive }) =>
                                 `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                                     isActive
@@ -289,8 +247,8 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                                         : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-text'
                                 }`
                             }
-                            title="Profile Settings"
-                            aria-label="Profile Settings"
+                            title="Settings"
+                            aria-label="Settings"
                         >
                             <Settings className="h-4 w-4" />
                         </NavLink>
@@ -311,12 +269,6 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                     Logout
                 </button>
             </div>
-
-            {toastMsg && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-app-brand text-white rounded-full shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-4 z-[9999] pointer-events-none">
-                    {toastMsg}
-                </div>
-            )}
         </div>
     );
 }

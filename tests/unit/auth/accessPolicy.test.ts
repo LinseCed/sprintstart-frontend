@@ -67,5 +67,27 @@ describe('accessPolicy', () => {
         it('returns null for unknown routes', () => {
             expect(getMatchingProtectedRoute('/unknown-route')).toBeNull();
         });
+
+        it('matches /settings and /profile paths', () => {
+            expect(getMatchingProtectedRoute('/settings')).toBe('/settings');
+            expect(getMatchingProtectedRoute('/profile')).toBe('/profile');
+        });
+    });
+
+    describe('/settings and /profile permissions', () => {
+        const ALL_GROUPS: PermissionGroup[] = [
+            PermissionGroup.USER,
+            PermissionGroup.PM,
+            PermissionGroup.HR,
+            PermissionGroup.ADMIN,
+        ];
+
+        it('allows every group to access /settings and /profile', () => {
+            for (const group of ALL_GROUPS) {
+                const profile = createMockProfile(group);
+                expect(canAccessRoute(profile, '/settings')).toBe(true);
+                expect(canAccessRoute(profile, '/profile')).toBe(true);
+            }
+        });
     });
 });
