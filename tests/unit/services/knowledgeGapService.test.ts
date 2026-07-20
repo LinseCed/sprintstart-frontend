@@ -24,25 +24,22 @@ describe('knowledgeGapService', () => {
             expect(result).toEqual(overview);
         });
 
-        it('returns mock fallback data on non-404 errors', async () => {
+        it('propagates a server error instead of inventing gaps', async () => {
             server.use(
                 http.get('/api/v1/insights/knowledge-gaps', () => HttpResponse.json({}, { status: 500 })),
             );
 
-            const result = await knowledgeGapService.fetchKnowledgeGaps();
-
-            expect(result).toBeDefined();
-            expect(result.gaps).toBeInstanceOf(Array);
+            await expect(knowledgeGapService.fetchKnowledgeGaps()).rejects.toThrow();
         });
 
-        it('returns mock fallback data silently on 404', async () => {
+        it('propagates a 404 rather than showing fabricated gaps for an empty result', async () => {
+            // The old fallback fired on any error including 404, so a genuinely empty backend
+            // showed mock gaps. The page renders a real empty state instead.
             server.use(
                 http.get('/api/v1/insights/knowledge-gaps', () => new HttpResponse(null, { status: 404 })),
             );
 
-            const result = await knowledgeGapService.fetchKnowledgeGaps();
-
-            expect(result).toBeDefined();
+            await expect(knowledgeGapService.fetchKnowledgeGaps()).rejects.toThrow();
         });
     });
 
@@ -58,26 +55,20 @@ describe('knowledgeGapService', () => {
             expect(result).toEqual(detail);
         });
 
-        it('returns mock fallback data on 404', async () => {
+        it('propagates a 404 instead of returning a fixture', async () => {
             server.use(
                 http.get('/api/v1/insights/knowledge-gaps/missing', () => new HttpResponse(null, { status: 404 })),
             );
 
-            const result = await knowledgeGapService.fetchKnowledgeGap('missing');
-
-            expect(result).toBeDefined();
-            expect(result.id).toBeDefined();
+            await expect(knowledgeGapService.fetchKnowledgeGap('missing')).rejects.toThrow();
         });
 
-        it('returns mock fallback data on 500 errors', async () => {
+        it('propagates a server error instead of returning a fixture', async () => {
             server.use(
                 http.get('/api/v1/insights/knowledge-gaps/g2', () => HttpResponse.json({}, { status: 500 })),
             );
 
-            const result = await knowledgeGapService.fetchKnowledgeGap('g2');
-
-            expect(result).toBeDefined();
-            expect(result.id).toBeDefined();
+            await expect(knowledgeGapService.fetchKnowledgeGap('g2')).rejects.toThrow();
         });
     });
 });
