@@ -238,17 +238,17 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                             </div>
                         </div>
                         <NavLink
-                            to="/profile"
+                            to="/settings"
                             onClick={onNavigate}
-                            className={({ isActive }) => 
+                            className={({ isActive }) =>
                                 `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                                    isActive 
-                                        ? 'bg-app-surface-hover text-app-brand' 
+                                    isActive
+                                        ? 'bg-app-surface-hover text-app-brand'
                                         : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-text'
                                 }`
                             }
-                            title="Profile Settings"
-                            aria-label="Profile Settings"
+                            title="Settings"
+                            aria-label="Settings"
                         >
                             <Settings className="h-4 w-4" />
                         </NavLink>

@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
@@ -12,11 +12,11 @@ import { TeamManagementPage } from '../pages/TeamManagementPage.tsx';
 import { TeamMemberDetailPage } from '../pages/TeamMemberDetailPage.tsx';
 import { PmDashboardPage } from '../pages/PmDashboardPage.tsx';
 import { AdminPage } from '../pages/AdminPage.tsx';
+import { SettingsPage } from '../pages/SettingsPage.tsx';
 import { FaqPage } from '../features/faq/components/FaqPage.tsx';
 import { FaqDetailPage } from '../features/faq/components/FaqDetailPage.tsx';
 import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/KnowledgeGapsPage.tsx';
 import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/KnowledgeGapsDetailPage.tsx';
-import { ProfilePage } from '../pages/ProfilePage.tsx';
 
 export function AppRouter() {
     return (
@@ -39,7 +39,8 @@ export function AppRouter() {
                 <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
                 <Route path="/insights/knowledge-gaps" element={<KnowledgeGapsPage />} />
                 <Route path="/insights/knowledge-gaps/:gapId" element={<KnowledgeGapsDetailPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<Navigate to="/settings" replace />} />
             </Routes>
         </AuthGuard>
     );

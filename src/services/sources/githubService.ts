@@ -88,8 +88,17 @@ export async function connectGithubRepository(
   );
 }
 
-export async function getGithubPatNames(): Promise<string[]> {
-  return apiClient.fetch<string[]>("/api/v1/github/pat");
+/**
+ * Fetches the list of stored GitHub PAT names (without the secret value).
+ *
+ * Accepts an optional `AbortSignal` so callers can cancel a stale in-flight
+ * request (e.g. when a newer fetch is triggered before the previous one
+ * resolves); the underlying `apiClient.fetch` passes it through to `fetch`.
+ */
+export async function getGithubPatNames(
+    signal?: AbortSignal,
+): Promise<string[]> {
+    return apiClient.fetch<string[]>("/api/v1/github/pat", { signal });
 }
 
 export async function addGithubPat(name: string, token: string): Promise<void> {
