@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../context/useAuth';
 import { assessmentService, getLastSeenGraphVersion, markGraphVersionSeen } from '../../../services/assessmentService';
-import { ApiError } from '../../../services/apiClient';
 import type { NodeState, PathView } from '../types';
 
 function toMessage(error: unknown, fallback: string): string {
@@ -22,9 +21,12 @@ function toMessage(error: unknown, fallback: string): string {
  *
  * Onboarding is per-project: pass the selected `projectId`. Changing it reloads
  * the path for that project, resetting the state diff (a different project is a
- * different graph, so cross-project state changes must not animate). A `404`
- * from the backend means "no path for this project yet" and is surfaced as
- * `notFound` (not `error`), so the page can offer to generate one.
+ * different graph, so cross-project state changes must not animate).
+ *
+ * There is nothing to generate. The path is derived on every read from the
+ * competency graph, the project's baseline and the user's ledger, so an empty
+ * path is a real answer -- the project's baseline selects nothing visible yet --
+ * rather than a 404 to recover from.
  *
  * @param projectId The project whose path to load, or `undefined`/empty when no
  *   project is selected yet (the hook then stays idle instead of fetching).
@@ -35,7 +37,6 @@ export function useCompetencyPath(projectId: string | undefined) {
     const [path, setPath] = useState<PathView | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [notFound, setNotFound] = useState(false);
     const [pathUpdated, setPathUpdated] = useState(false);
     const [justChangedKeys, setJustChangedKeys] = useState<Set<string>>(new Set());
     const previousStatesRef = useRef<Map<string, NodeState> | null>(null);
@@ -44,13 +45,11 @@ export function useCompetencyPath(projectId: string | undefined) {
         if (!projectId) {
             setPath(null);
             setError(null);
-            setNotFound(false);
-            setIsLoading(false);
+                setIsLoading(false);
             return;
         }
 
         setError(null);
-        setNotFound(false);
         setIsLoading(true);
         try {
             const result = await assessmentService.fetchPath(projectId);
@@ -75,13 +74,7 @@ export function useCompetencyPath(projectId: string | undefined) {
                 markGraphVersionSeen(profileId, result.graphVersion);
             }
         } catch (err) {
-            if (err instanceof ApiError && err.status === 404) {
-                // No path for this project yet -- not an error, a "generate one" prompt.
-                setPath(null);
-                setNotFound(true);
-            } else {
-                setError(toMessage(err, 'Could not load your path.'));
-            }
+            setError(toMessage(err, 'Could not load your path.'));
         } finally {
             setIsLoading(false);
         }
@@ -99,5 +92,5 @@ export function useCompetencyPath(projectId: string | undefined) {
         })();
     }, [load]);
 
-    return { path, isLoading, error, notFound, pathUpdated, justChangedKeys, retry: load };
+    return { path, isLoading, error, pathUpdated, justChangedKeys, retry: load };
 }
