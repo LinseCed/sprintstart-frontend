@@ -20,6 +20,8 @@ describe('AccountForm', () => {
         enabled: true,
         profileIcon: null,
         hasCompletedOnboarding: true,
+        githubLogin: null,
+        githubLoginSource: null,
     };
 
     it('renders user information in inputs', () => {
@@ -29,6 +31,38 @@ describe('AccountForm', () => {
         expect(screen.getByDisplayValue('Doe')).toBeInTheDocument();
         expect(screen.getByDisplayValue('john@example.com')).toBeInTheDocument();
         expect(screen.getByText('johndoe')).toBeInTheDocument();
+    });
+
+    it('lets a user declare the GitHub account their pull requests come from', async () => {
+        const user = userEvent.setup();
+        const onUpdateMock = vi.fn();
+
+        render(<AccountForm profile={mockUser} onUpdate={onUpdateMock} />);
+
+        await user.type(screen.getByLabelText('GitHub Username'), 'octocat');
+        await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+        await waitFor(() => {
+            expect(onUpdateMock).toHaveBeenCalledWith(
+                expect.objectContaining({ githubLogin: 'octocat' }),
+            );
+        });
+    });
+
+    it('clears the link when the username is emptied', async () => {
+        const user = userEvent.setup();
+        const onUpdateMock = vi.fn();
+
+        render(
+            <AccountForm profile={{ ...mockUser, githubLogin: 'octocat' }} onUpdate={onUpdateMock} />,
+        );
+
+        await user.clear(screen.getByLabelText('GitHub Username'));
+        await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+        await waitFor(() => {
+            expect(onUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ githubLogin: '' }));
+        });
     });
 
     it('submits form and calls onUpdate', async () => {
@@ -51,6 +85,8 @@ describe('AccountForm', () => {
                     enabled: true,
                     profileIcon: null,
                     hasCompletedOnboarding: true,
+                    githubLogin: null,
+                    githubLoginSource: null,
                 });
             }),
         );
