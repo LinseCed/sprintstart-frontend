@@ -100,6 +100,19 @@ export function getAvailableProjects(
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/**
+ * Resolves each user's assigned projects from their `projectIds`.
+ *
+ * `projectIds` is the source of truth: the backend's user payload carries ids only, so
+ * `AdminUser.projects` is always empty as it arrives and has to be resolved against the loaded
+ * project list. Reading `user.projects` here instead -- as this did -- meant a user's projects
+ * rendered as none no matter what was assigned, which looked exactly like the assignment never
+ * saving even though it had.
+ *
+ * An id with no matching project is kept with the id as its name rather than dropped: a project
+ * the current user cannot see is still an assignment, and silently hiding it would understate
+ * someone's access.
+ */
 export function enrichUsersWithProjectNames(
   users: AdminUser[],
   projects: ProjectSummary[],
@@ -110,8 +123,8 @@ export function enrichUsersWithProjectNames(
 
   return users.map((user) => ({
     ...user,
-    projects: user.projects.map(
-      (project) => projectsById.get(project.id) ?? project,
+    projects: user.projectIds.map(
+      (projectId) => projectsById.get(projectId) ?? { id: projectId, name: projectId },
     ),
   }));
 }

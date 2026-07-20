@@ -13,7 +13,7 @@ describe('TeamManagementPage', () => {
 
     it('renders loading state initially', () => {
         server.use(
-            http.get('/api/v1/onboarding/team-overview', () => {
+            http.get('/api/v1/onboarding/dashboard/users', () => {
                 return new Promise<never>(() => {});
             }),
         );
@@ -61,7 +61,7 @@ describe('TeamManagementPage', () => {
         });
     });
 
-    it('sorts members by progress', async () => {
+    it('sorts members by how many competencies they hold', async () => {
         const user = userEvent.setup();
         render(
             <MemoryRouter>
@@ -74,11 +74,12 @@ describe('TeamManagementPage', () => {
         });
 
         const selects = screen.getAllByRole('combobox');
-        await user.selectOptions(selects[1], 'LOWEST_PROGRESS');
+        await user.selectOptions(selects[1], 'FEWEST_COMPETENCIES');
 
         await waitFor(() => {
             const nameElements = screen.getAllByText(/(Bob Jones|Alice Smith)/);
             const textContent = nameElements.map((el) => el.textContent);
+            // Bob holds none, Alice holds one -- fewest first.
             expect(textContent).toEqual(['Bob Jones', 'Alice Smith']);
         });
     });

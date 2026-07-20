@@ -1,6 +1,5 @@
 import { apiClient } from "./apiClient";
-import teamOverviewMock from "../mocks/teamOverviewMock.json";
-import skillsMock from "../mocks/skillsMock.json";
+import { competencyDashboardService } from "./competencyDashboardService";
 import type {
   ProjectRole,
   Skill,
@@ -8,80 +7,56 @@ import type {
   SkillStatus,
 } from "../features/team-management/types";
 
-let mockUsers = teamOverviewMock.users as TeamOverviewUser[];
-
-let mockProjectRoles: ProjectRole[] = Array.from(
-  new Map(
-    mockUsers.flatMap((user) => user.roles).map((role) => [role.id, role]),
-  ).values(),
-);
-
-type LegacySkill = {
-  id: string;
-  name: string;
-  roleId?: string;
-  roleIds?: string[];
-  status?: SkillStatus;
-};
-
-function normalizeSkill(skill: LegacySkill): Skill {
-  const roleIds = skill.roleIds ?? (skill.roleId ? [skill.roleId] : []);
-
-  return {
-    id: skill.id,
-    name: skill.name,
-    roleIds,
-    status: skill.status ?? "ACTIVE",
-  };
-}
-
-let mockSkills = (skillsMock.skills as LegacySkill[]).map(normalizeSkill);
-
+/**
+ * The team, each member with their competency ledger.
+ *
+ * Reads `GET /onboarding/dashboard/users`. The old `/onboarding/team-overview` this used to call
+ * was deleted with the per-user step tree (backend#53) and had been 404ing ever since -- which
+ * was invisible because this function used to `catch` and return a bundled fixture of thirteen
+ * invented people. Errors now propagate so a broken call looks broken.
+ */
 export async function getTeamOverview(
   roleId?: string,
-  sortBy?: string,
+  _sortBy?: string,
   projectIds?: string[],
 ): Promise<TeamOverviewUser[]> {
+  const page = await competencyDashboardService.fetchUserCompetencySummaries({
+    roleIds: roleId && roleId !== "all" ? [roleId] : undefined,
+    projectIds,
+    size: 100,
+  });
+
+  const users: TeamOverviewUser[] = page.content.map((summary) => ({
+    userId: summary.userId,
+    firstname: summary.firstname,
+    lastname: summary.lastname,
+    profileIcon: summary.profileIcon,
+    roles: summary.roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      description: "",
+    })),
+    projects: summary.projects,
+    competencies: summary.competencies,
+    hasFeedback: false,
+  }));
+
+  // Unread feedback is a separate endpoint; a failure there must not blank the team list, so it
+  // degrades to "no feedback flags" rather than taking the page down with it.
   try {
-    const params = new URLSearchParams();
-    if (roleId && roleId !== "all") params.append("roleIds", roleId);
-    projectIds?.forEach((projectId) => params.append("projectIds", projectId));
-    if (sortBy) params.append("sortBy", sortBy);
-    params.append("size", "100");
-
-    const query = params.toString();
-    const url = `/api/v1/onboarding/team-overview${query ? `?${query}` : ""}`;
-
-    const response = await apiClient.fetch<{ content: TeamOverviewUser[] }>(
-      url,
+    const feedback = await getAllOnboardingFeedback();
+    const withUnread = new Set(
+      feedback
+        .filter((item) => item.read !== true && !item.readAt)
+        .map((item) => item.userId)
+        .filter((userId): userId is string => Boolean(userId)),
     );
-
-    const users = response.content.map((user) => ({
+    return users.map((user) => ({
       ...user,
-      roles: user.roles.map((role: ProjectRole & { roleId?: string }) => ({
-        ...role,
-        id: role.id || role.roleId || "",
-      })),
+      hasFeedback: withUnread.has(user.userId),
     }));
-
-    try {
-      const feedback = await getAllOnboardingFeedback();
-      const usersWithUnreadFeedback = new Set(
-        feedback
-          .filter((item) => item.read !== true && !item.readAt)
-          .map((item) => item.userId)
-          .filter((userId): userId is string => Boolean(userId)),
-      );
-
-      return users.map((user) => ({
-        ...user,
-        hasFeedback: usersWithUnreadFeedback.has(user.userId),
-      }));
-    } catch {
-      return users;
-    }
   } catch {
-    return mockUsers;
+    return users;
   }
 }
 
@@ -93,118 +68,47 @@ export async function getTeamMember(
   return users.find((user) => user.userId === userId);
 }
 
-export async function getMyTeamOverview(): Promise<TeamOverviewUser> {
-  try {
-    const user = await apiClient.fetch<TeamOverviewUser>(
-      "/api/v1/onboarding/me/team-overview",
-    );
-    return {
-      ...user,
-      roles: user.roles.map((role: ProjectRole & { roleId?: string }) => ({
-        ...role,
-        id: role.id || role.roleId || "",
-      })),
-    };
-  } catch {
-    // Fallback to finding the first user in mock for development
-    return mockUsers[0];
-  }
-}
+
 
 export async function getProjectRoles(): Promise<ProjectRole[]> {
-  try {
-    const response = await apiClient.fetch<
-      { projectRoles?: ProjectRole[] } | ProjectRole[]
-    >("/api/v1/projectRoles");
+  const response = await apiClient.fetch<
+    { projectRoles?: ProjectRole[] } | ProjectRole[]
+  >("/api/v1/projectRoles");
 
-    return Array.isArray(response) ? response : (response.projectRoles ?? []);
-  } catch {
-    return mockProjectRoles;
-  }
+  return Array.isArray(response) ? response : (response.projectRoles ?? []);
 }
 
 export async function createProjectRole(
-  name: string,
-  description: string,
+name: string,
+description: string,
 ): Promise<ProjectRole> {
-  try {
-    return await apiClient.fetch<ProjectRole>("/api/v1/projectRoles", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        description,
-      }),
-    });
-  } catch {
-    const newRole: ProjectRole = {
-      id: `mock-role-${Date.now()}`,
-      name,
-      description,
-    };
-
-    mockProjectRoles = [...mockProjectRoles, newRole];
-
-    return newRole;
-  }
+// No fallback: silently "creating" a role in memory reported success for a write that never
+// reached the server, so the role vanished on reload.
+return await apiClient.fetch<ProjectRole>("/api/v1/projectRoles", {
+  method: "POST",
+  body: JSON.stringify({ name, description }),
+});
 }
 
 export async function assignProjectRoleToUser(
-  userId: string,
-  roleId: string,
+userId: string,
+roleId: string,
 ): Promise<void> {
-  try {
-    await apiClient.fetch(`/api/v1/users/${userId}/project-roles`, {
-      method: "POST",
-      body: JSON.stringify({
-        roleId: roleId,
-      }),
-    });
-
-    return;
-  } catch {
-    const role = mockProjectRoles.find(
-      (projectRole) => projectRole.id === roleId,
-    );
-
-    if (!role) return;
-
-    mockUsers = mockUsers.map((user) => {
-      if (user.userId !== userId) return user;
-
-      const alreadyAssigned = user.roles.some(
-        (userRole) => userRole.id === roleId,
-      );
-
-      if (alreadyAssigned) return user;
-
-      return {
-        ...user,
-        roles: [...user.roles, role],
-      };
-    });
-  }
+  await apiClient.fetch(`/api/v1/users/${userId}/project-roles`, {
+    method: "POST",
+    body: JSON.stringify({ roleId }),
+  });
 }
 
 export async function unassignProjectRoleFromUser(
   userId: string,
   roleId: string,
 ): Promise<void> {
-  try {
-    await apiClient.fetch(`/api/v1/users/${userId}/project-roles/${roleId}`, {
-      method: "DELETE",
-    });
+  await apiClient.fetch(`/api/v1/users/${userId}/project-roles/${roleId}`, {
+    method: "DELETE",
+  });
 
-    return;
-  } catch {
-    mockUsers = mockUsers.map((user) => {
-      if (user.userId !== userId) return user;
-
-      return {
-        ...user,
-        roles: user.roles.filter((role) => role.id !== roleId),
-      };
-    });
-  }
+  return;
 }
 
 export type OnboardingFeedback = {
@@ -286,14 +190,10 @@ function toSkill(skill: SkillResponseDto): Skill {
 }
 
 export async function getSkills(): Promise<Skill[]> {
-  try {
-    const response =
-      await apiClient.fetch<SkillResponseDto[]>("/api/v1/skills");
+  const response =
+    await apiClient.fetch<SkillResponseDto[]>("/api/v1/skills");
 
-    return response.map(toSkill);
-  } catch {
-    return mockSkills;
-  }
+  return response.map(toSkill);
 }
 
 export async function getSkillById(skillId: string): Promise<Skill> {
@@ -342,118 +242,62 @@ export async function updateRoleSkills(
   return response.map(toSkill);
 }
 
+/**
+ * Re-adds a previously deleted skill.
+ *
+ * `_skillId` is unused: the server has no reactivate endpoint, so this re-creates the skill by
+ * name. Only the removed mock branch ever read the id. Kept in the signature because callers pass
+ * it and a server-side reactivate would need it.
+ */
 export async function reactivateSkill(
-  skillId: string,
+  _skillId: string,
   name: string,
   roleIds: string[],
 ): Promise<Skill> {
-  try {
-    const response = await apiClient.fetch<SkillResponseDto>(
-      "/api/v1/admin/skills",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          name,
-          roleIds,
-        }),
-      },
-    );
-
-    return toSkill(response);
-  } catch {
-    mockSkills = mockSkills.map((s) =>
-      s.id === skillId ? { ...s, status: "ACTIVE" as const } : s,
-    );
-
-    return (
-      mockSkills.find((s) => s.id === skillId) ?? {
-        id: skillId,
+  const response = await apiClient.fetch<SkillResponseDto>(
+    "/api/v1/admin/skills",
+    {
+      method: "POST",
+      body: JSON.stringify({
         name,
         roleIds,
-        status: "ACTIVE",
-      }
-    );
-  }
+      }),
+    },
+  );
+
+  return toSkill(response);
 }
 
 export async function createSkill(
   name: string,
   roleIds: string[],
 ): Promise<Skill> {
-  try {
-    const response = await apiClient.fetch<SkillResponseDto>(
-      "/api/v1/admin/skills",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          name,
-          roleIds,
-        }),
-      },
-    );
+  const response = await apiClient.fetch<SkillResponseDto>(
+    "/api/v1/admin/skills",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        roleIds,
+      }),
+    },
+  );
 
-    return toSkill(response);
-  } catch {
-    const existing = mockSkills.find(
-      (s) =>
-        s.name.toLowerCase() === name.toLowerCase() && s.status === "RETIRED",
-    );
-
-    if (existing) {
-      const reactivated: Skill = { ...existing, roleIds, status: "ACTIVE" };
-
-      mockSkills = mockSkills.map((s) =>
-        s.id === existing.id ? reactivated : s,
-      );
-
-      return reactivated;
-    }
-
-    const newSkill: Skill = {
-      id: `mock-skill-${Date.now()}`,
-      name,
-      roleIds,
-      status: "ACTIVE",
-    };
-
-    mockSkills = [...mockSkills, newSkill];
-
-    return newSkill;
-  }
+  return toSkill(response);
 }
 
 export async function deleteProjectRole(roleId: string): Promise<void> {
-  try {
-    await apiClient.fetch(`/api/v1/projectRoles/${roleId}`, {
-      method: "DELETE",
-    });
+  await apiClient.fetch(`/api/v1/projectRoles/${roleId}`, {
+    method: "DELETE",
+  });
 
-    return;
-  } catch {
-    mockProjectRoles = mockProjectRoles.filter((role) => role.id !== roleId);
-
-    mockSkills = mockSkills.map((skill) => ({
-      ...skill,
-      roleIds: skill.roleIds.filter((linkedRoleId) => linkedRoleId !== roleId),
-    }));
-
-    mockUsers = mockUsers.map((user) => ({
-      ...user,
-      roles: user.roles.filter((role) => role.id !== roleId),
-    }));
-  }
+  return;
 }
 
 export async function deleteSkill(skillId: string): Promise<void> {
-  try {
-    await apiClient.fetch(`/api/v1/admin/skills/${skillId}`, {
-      method: "DELETE",
-    });
+  await apiClient.fetch(`/api/v1/admin/skills/${skillId}`, {
+    method: "DELETE",
+  });
 
-    return;
-  } catch {
-    mockSkills = mockSkills.map((skill) =>
-      skill.id === skillId ? { ...skill, status: "RETIRED" } : skill,
-    );
-  }
+  return;
 }

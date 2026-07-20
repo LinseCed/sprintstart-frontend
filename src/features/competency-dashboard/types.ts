@@ -38,6 +38,11 @@ export type UserCompetencySummary = {
     userId: string;
     firstname: string;
     lastname: string;
+    profileIcon: string | null;
+    /** Echoed because the endpoint already filters by `roleIds` -- a client that can narrow by
+     *  role should be able to say which role somebody holds. */
+    roles: { id: string; name: string }[];
+    projects: { id: string; name: string }[];
     competencies: UserCompetencyState[];
 };
 

@@ -15,15 +15,16 @@ vi.mock('../../../src/services/teamManagementService', () => ({
             firstname: 'Alice',
             lastname: 'Smith',
             roles: [{ id: 'r1', name: 'Developer', description: '' }],
-            progressPercentage: 0.5,
-            project: { id: 'p1', name: 'SprintStart' },
-            currentPhase: { id: 'phase1', title: 'Phase 1' },
-            currentStep: {
-                id: 's1',
-                title: 'Setup environment',
-                startedAt: '2026-07-01T00:00:00.000Z',
-                skip: null
-            },
+            projects: [{ id: 'p1', name: 'SprintStart' }],
+            competencies: [
+                {
+                    competencyKey: 'kotlin',
+                    label: 'Kotlin',
+                    level: 3,
+                    source: 'VERIFIED',
+                    updatedAt: '2026-07-01T00:00:00.000Z'
+                }
+            ],
             hasFeedback: false
         },
         {
@@ -31,10 +32,8 @@ vi.mock('../../../src/services/teamManagementService', () => ({
             firstname: 'Bob',
             lastname: 'Jones',
             roles: [],
-            progressPercentage: 0.2,
-            project: { id: 'p1', name: 'SprintStart' },
-            currentPhase: { id: 'phase1', title: 'Phase 1' },
-            currentStep: null,
+            projects: [{ id: 'p1', name: 'SprintStart' }],
+            competencies: [],
             hasFeedback: true
         }
     ])

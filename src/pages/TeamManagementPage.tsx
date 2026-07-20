@@ -19,7 +19,7 @@ export function TeamManagementPage() {
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<TeamOverviewFilters>({
         roleId: 'all',
-        sortBy: 'LONGEST_STEP',
+        sortBy: 'FEWEST_COMPETENCIES',
     });
     const [rolesModalOpen, setRolesModalOpen] = useState(false);
 
@@ -45,27 +45,27 @@ export function TeamManagementPage() {
             );
         });
 
-        const getStartedAtTime = (user: TeamOverviewUser) => {
-            if (!user.currentStep?.startedAt) {
-                return 0;
-            }
+        // A competency counts as held at the default bar; see TeamMemberCard for why the
+        // per-node bar isn't available on this endpoint.
+        const heldCount = (user: TeamOverviewUser) =>
+            user.competencies.filter((entry) => entry.level >= 2).length;
 
-            return new Date(user.currentStep.startedAt).getTime();
-        };
+        const lastActivity = (user: TeamOverviewUser) =>
+            user.competencies.reduce(
+                (latest, entry) => Math.max(latest, new Date(entry.updatedAt).getTime()),
+                0
+            );
 
         result.sort((a, b) => {
             switch (filters.sortBy) {
-                case 'LONGEST_STEP':
-                    return getStartedAtTime(a) - getStartedAtTime(b);
+                case 'MOST_COMPETENCIES':
+                    return heldCount(b) - heldCount(a);
 
-                case 'SHORTEST_STEP':
-                    return getStartedAtTime(b) - getStartedAtTime(a);
+                case 'FEWEST_COMPETENCIES':
+                    return heldCount(a) - heldCount(b);
 
-                case 'HIGHEST_PROGRESS':
-                    return b.progressPercentage - a.progressPercentage;
-
-                case 'LOWEST_PROGRESS':
-                    return a.progressPercentage - b.progressPercentage;
+                case 'RECENTLY_ACTIVE':
+                    return lastActivity(b) - lastActivity(a);
 
                 default:
                     return 0;
@@ -98,7 +98,7 @@ export function TeamManagementPage() {
                     <PageHeader
                         icon={Users}
                         title="Team Management"
-                        subtitle="Monitor onboarding progress across team members and manage project roles."
+                        subtitle="See what each team member can actually do, and manage project roles."
                         actions={
                             <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft px-4 py-2 text-right">
                                 <div className="text-3xl font-bold text-app-brand">

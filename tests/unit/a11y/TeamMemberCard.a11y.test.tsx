@@ -14,15 +14,16 @@ const user: TeamOverviewUser = {
     firstname: 'Alice',
     lastname: 'Smith',
     roles: [{ id: 'r1', name: 'Developer', description: '' }],
-    progressPercentage: 0.5,
-    project: { id: 'p1', name: 'SprintStart' },
-    currentPhase: { id: 'phase1', title: 'Phase 1' },
-    currentStep: {
-        id: 's1',
-        title: 'Setup environment',
-        startedAt: '2026-07-01T00:00:00.000Z',
-        skip: null
-    },
+    competencies: [
+        {
+            competencyKey: 'kotlin',
+            label: 'Kotlin',
+            level: 3,
+            source: 'VERIFIED' as const,
+            updatedAt: '2026-07-01T00:00:00Z'
+        }
+    ],
+    projects: [{ id: 'p1', name: 'SprintStart' }],
     hasFeedback: false
 };
 

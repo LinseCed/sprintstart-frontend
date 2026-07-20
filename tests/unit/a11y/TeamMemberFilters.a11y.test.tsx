@@ -12,7 +12,7 @@ const roles: ProjectRole[] = [
 
 const filters: TeamOverviewFilters = {
     roleId: 'all',
-    sortBy: 'LONGEST_STEP'
+    sortBy: 'FEWEST_COMPETENCIES'
 };
 
 describe('TeamMemberFilters Accessibility', () => {

@@ -11,6 +11,7 @@ import {
     getProjectSourcesCount,
     getUserEditFormState,
     getDraftDisplayName,
+    enrichUsersWithProjectNames,
 } from '../../../../src/features/admin/data';
 import type { AdminUser, UserEditFormState } from '../../../../src/features/admin/types';
 
@@ -34,6 +35,51 @@ function createAdminUser(overrides: Partial<AdminUser> = {}): AdminUser {
 }
 
 describe('admin data helpers', () => {
+    describe('enrichUsersWithProjectNames', () => {
+        const projects = [
+            { id: 'p1', name: 'Apollo' },
+            { id: 'p2', name: 'Gemini' },
+        ];
+
+        it('resolves assigned projects from projectIds', () => {
+            // The backend returns ids only, so `projects` arrives empty and must be resolved
+            // from `projectIds`. Reading `projects` here made every assignment render as none,
+            // which looked exactly like the save had failed.
+            const [user] = enrichUsersWithProjectNames(
+                [createAdminUser({ projectIds: ['p1'], projects: [] })],
+                projects,
+            );
+
+            expect(user.projects).toEqual([{ id: 'p1', name: 'Apollo' }]);
+        });
+
+        it('resolves several assignments', () => {
+            const [user] = enrichUsersWithProjectNames(
+                [createAdminUser({ projectIds: ['p2', 'p1'] })],
+                projects,
+            );
+
+            expect(user.projects.map((project) => project.name)).toEqual(['Gemini', 'Apollo']);
+        });
+
+        it('keeps an id with no matching project rather than dropping it', () => {
+            // A project the current admin cannot see is still an assignment; hiding it would
+            // understate someone's access.
+            const [user] = enrichUsersWithProjectNames(
+                [createAdminUser({ projectIds: ['unknown'] })],
+                projects,
+            );
+
+            expect(user.projects).toEqual([{ id: 'unknown', name: 'unknown' }]);
+        });
+
+        it('leaves a user with no assignments empty', () => {
+            const [user] = enrichUsersWithProjectNames([createAdminUser()], projects);
+
+            expect(user.projects).toEqual([]);
+        });
+    });
+
     describe('constants', () => {
         it('exports a page size of 8', () => {
             expect(PAGE_SIZE).toBe(8);
