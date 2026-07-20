@@ -1,11 +1,9 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { GraphAuthoringPage } from '../pages/GraphAuthoringPage.tsx';
-import { OnBoardingPage } from '../pages/OnBoardingPage';
-import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
 import { MyPathPage } from '../pages/MyPathPage';
 import { MyPathModulePage } from '../pages/MyPathModulePage';
@@ -22,6 +20,16 @@ import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/K
 import { CompetencyDashboardPage } from '../features/competency-dashboard/components/CompetencyDashboardPage.tsx';
 import { ProfilePage } from '../pages/ProfilePage.tsx';
 
+/**
+ * Sends an old per-step journey link to the module that replaced it.
+ *
+ * `<Navigate>` cannot interpolate a route param, so the redirect needs a component.
+ */
+function StepRedirect() {
+    const { stepId } = useParams<{ stepId: string }>();
+    return <Navigate to={`/my-path/module/${stepId ?? ''}`} replace />;
+}
+
 export function AppRouter() {
     return (
         <AuthGuard>
@@ -30,15 +38,17 @@ export function AppRouter() {
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />
-                <Route path="/onboarding" element={<OnBoardingPage />} />
                 <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
-                {/* The competency path moved out from under /onboarding to its own top-level
-                    route; kept as a redirect so existing links and bookmarks still land. */}
+                {/* The phased journey is retired: a hire's path is the competency graph, and the
+                    phases view had no self-serve backend left (GET /me/path returns the competency
+                    PathView, and the phases payload is PM-only). These keep old links landing
+                    somewhere real instead of 400ing. */}
+                <Route path="/onboarding" element={<Navigate to="/my-path" replace />} />
                 <Route path="/onboarding/path" element={<Navigate to="/my-path" replace />} />
+                <Route path="/onboarding/:stepId" element={<StepRedirect />} />
                 <Route path="/my-path" element={<MyPathPage />} />
                 <Route path="/my-path/module/:stepId" element={<MyPathModulePage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
-                <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
                 <Route path="/graph-authoring" element={<GraphAuthoringPage />} />
                 <Route path="/team-management" element={<TeamManagementPage />} />
