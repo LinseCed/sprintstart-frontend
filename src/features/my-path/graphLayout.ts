@@ -63,3 +63,58 @@ export function prerequisitesByKey(path: PathView): Map<string, string[]> {
     }
     return prereqs;
 }
+
+/**
+ * Every node connected to `key` by a chain of prerequisites, in either
+ * direction: everything it transitively depends on, and everything that
+ * transitively depends on it. `key` itself is included.
+ *
+ * This is what a node *costs* and what it *buys*, which is the thing a static
+ * DAG drawing hides -- with the chain lit and everything else dimmed, the graph
+ * reads as a tree of consequence instead of a picture of boxes.
+ *
+ * Walks iteratively and tracks visited keys, so a cycle the backend somehow let
+ * through can't hang the render.
+ */
+export function chainFor(path: PathView, key: string): Set<string> {
+    const forward = new Map<string, string[]>();
+    const backward = new Map<string, string[]>();
+    for (const edge of path.edges) {
+        forward.set(edge.from, [...(forward.get(edge.from) ?? []), edge.to]);
+        backward.set(edge.to, [...(backward.get(edge.to) ?? []), edge.from]);
+    }
+
+    const chain = new Set<string>([key]);
+    for (const adjacency of [forward, backward]) {
+        const stack = [key];
+        while (stack.length > 0) {
+            const current = stack.pop() as string;
+            for (const next of adjacency.get(current) ?? []) {
+                if (chain.has(next)) continue;
+                chain.add(next);
+                stack.push(next);
+            }
+        }
+    }
+    return chain;
+}
+
+/**
+ * Edges along which "power" is currently flowing: a mastered competency feeding
+ * one that is now available to start.
+ *
+ * Deliberately narrow. Animating every edge would be ambient noise; animating
+ * only these makes the motion mean "this is reaching the next thing you can do".
+ *
+ * @returns Edge ids in the `from->to` form the graph uses.
+ */
+export function liveEdgeIds(path: PathView): Set<string> {
+    const stateByKey = new Map(path.nodes.map(node => [node.key, node.state]));
+    const live = new Set<string>();
+    for (const edge of path.edges) {
+        if (stateByKey.get(edge.from) === 'MASTERED' && stateByKey.get(edge.to) === 'AVAILABLE') {
+            live.add(`${edge.from}->${edge.to}`);
+        }
+    }
+    return live;
+}

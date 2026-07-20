@@ -1,0 +1,86 @@
+import { describe, expect, it } from 'vitest';
+import { chainFor, liveEdgeIds } from '../../../../src/features/my-path/graphLayout';
+import type { NodeState, PathNode, PathView } from '../../../../src/features/skill-assessment/types';
+
+function node(key: string, state: NodeState = 'LOCKED'): PathNode {
+    return { key, label: key, kind: 'SKILL', state };
+}
+
+function path(nodes: PathNode[], edges: { from: string; to: string }[]): PathView {
+    return { nodes, edges, graphVersion: 1 };
+}
+
+describe('chainFor', () => {
+    it('includes everything the node depends on and everything depending on it', () => {
+        const view = path(
+            [node('a'), node('b'), node('c'), node('d')],
+            [
+                { from: 'a', to: 'b' },
+                { from: 'b', to: 'c' }
+            ]
+        );
+
+        // `d` is unrelated, so it must stay outside the chain -- that is what
+        // makes the dimming mean something.
+        expect(chainFor(view, 'b')).toEqual(new Set(['a', 'b', 'c']));
+    });
+
+    it('walks transitively in both directions, not just to direct neighbours', () => {
+        const view = path(
+            [node('root'), node('mid'), node('leaf')],
+            [
+                { from: 'root', to: 'mid' },
+                { from: 'mid', to: 'leaf' }
+            ]
+        );
+
+        expect(chainFor(view, 'leaf')).toEqual(new Set(['root', 'mid', 'leaf']));
+    });
+
+    it('terminates on a cycle instead of hanging the render', () => {
+        const view = path(
+            [node('a'), node('b')],
+            [
+                { from: 'a', to: 'b' },
+                { from: 'b', to: 'a' }
+            ]
+        );
+
+        expect(chainFor(view, 'a')).toEqual(new Set(['a', 'b']));
+    });
+
+    it('returns just the node itself when it is connected to nothing', () => {
+        const view = path([node('lonely'), node('other')], []);
+
+        expect(chainFor(view, 'lonely')).toEqual(new Set(['lonely']));
+    });
+});
+
+describe('liveEdgeIds', () => {
+    it('only counts an edge feeding an available node from a mastered one', () => {
+        const view = path(
+            [
+                node('done', 'MASTERED'),
+                node('next', 'AVAILABLE'),
+                node('later', 'LOCKED'),
+                node('other', 'AVAILABLE')
+            ],
+            [
+                { from: 'done', to: 'next' },
+                { from: 'done', to: 'later' },
+                { from: 'other', to: 'later' }
+            ]
+        );
+
+        expect(liveEdgeIds(view)).toEqual(new Set(['done->next']));
+    });
+
+    it('is empty when nothing has been mastered yet', () => {
+        const view = path(
+            [node('a', 'AVAILABLE'), node('b', 'LOCKED')],
+            [{ from: 'a', to: 'b' }]
+        );
+
+        expect(liveEdgeIds(view)).toEqual(new Set());
+    });
+});

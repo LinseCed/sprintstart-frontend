@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import {
     Background,
     Controls,
@@ -11,7 +12,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { CompetencyGraphNode, type CompetencyFlowNode } from './CompetencyGraphNode';
-import { layoutPath } from '../graphLayout';
+import { chainFor, liveEdgeIds } from '../graphLayout';
+import { useForceLayout } from '../hooks/useForceLayout';
+import type { UnlockSequence } from '../hooks/useUnlockSequence';
 import type { PathNode, PathView } from '../../skill-assessment/types';
 
 type CompetencyGraphProps = {
@@ -27,6 +30,8 @@ type CompetencyGraphProps = {
     onSelectNode: (node: PathNode | null) => void;
     /** Nodes whose state changed since the previous load; pulsed once. */
     justChangedKeys?: Set<string>;
+    /** The unlock payoff currently playing, if a module was just passed. */
+    unlock?: UnlockSequence;
     /**
      * Whether nodes expose connection handles, so a PM can drag one onto another
      * to declare a prerequisite. Off for hires -- the graph is theirs to read.
@@ -39,17 +44,26 @@ type CompetencyGraphProps = {
 const nodeTypes = { competency: CompetencyGraphNode };
 
 /**
- * Pans the viewport to a node focused from outside the graph (the skills rail).
- * Lives inside `<ReactFlow>` because `useReactFlow` needs its context; it renders
- * nothing.
+ * Eases the viewport to a node focused from outside the graph (the skills rail),
+ * or to the node an unlock sequence is about to celebrate. Lives inside
+ * `<ReactFlow>` because `useReactFlow` needs its context; it renders nothing.
  */
-function FocusOnNode({ focusedKey }: { focusedKey: string | null }) {
+function CameraController({
+    focusedKey,
+    unlockFocusKey,
+    animate
+}: {
+    focusedKey: string | null;
+    unlockFocusKey: string | null;
+    animate: boolean;
+}) {
     const { fitView } = useReactFlow();
+    const target = unlockFocusKey ?? focusedKey;
 
     useEffect(() => {
-        if (!focusedKey) return;
-        void fitView({ nodes: [{ id: focusedKey }], maxZoom: 1.2, duration: 400 });
-    }, [focusedKey, fitView]);
+        if (!target) return;
+        void fitView({ nodes: [{ id: target }], maxZoom: 1.2, duration: animate ? 600 : 0 });
+    }, [target, fitView, animate]);
 
     return null;
 }
@@ -58,14 +72,22 @@ function FocusOnNode({ focusedKey }: { focusedKey: string | null }) {
  * The competency graph as an interactive node-link DAG (React Flow + dagre
  * layered layout): prerequisites flow left-to-right into what they unlock.
  *
- * Selecting a node dims every edge not incident to it, so a dense graph can be
- * read one node at a time. The layout is recomputed only when the graph's shape
- * changes -- selection is styling, and re-laying out on every click would make
- * nodes jump.
+ * Three things make it read as a tree you climb rather than a printed diagram:
  *
- * This is a visual affordance, not the only way through: `AssessmentPathView`
- * renders the same data as a topologically ordered list for screen readers and
- * anyone who prefers it (see the "List view" toggle on the page).
+ * - **A physics layer over the layout, not instead of it.** Dagre still fixes
+ *   the tiers ({@link useForceLayout} pins each node to its column); the
+ *   simulation only resolves overlap and lets a dragged node tug its neighbours
+ *   and settle back.
+ * - **The prerequisite chain lights up.** Hovering or selecting a node dims
+ *   everything outside its full ancestor/dependent chain, so you can see what a
+ *   node costs and what it buys. Hover is the pointer affordance; selection is
+ *   the keyboard-reachable equivalent of the same thing.
+ * - **Live edges carry the charge.** Only mastered → available edges animate, so
+ *   the motion means "power is reaching the next thing you can do".
+ *
+ * All of it is suppressed under `prefers-reduced-motion`, and none of it is the
+ * only way through: `AssessmentPathView` renders the same data as a
+ * topologically ordered list (see the "List view" toggle on the page).
  */
 export function CompetencyGraph({
     path,
@@ -73,64 +95,107 @@ export function CompetencyGraph({
     focusedKey = null,
     onSelectNode,
     justChangedKeys,
+    unlock,
     canConnect = false,
     onConnectNodes
 }: CompetencyGraphProps) {
-    // Positions depend only on the graph's shape; the node/edge arrays below
-    // rebuild on selection, but the layout itself must stay stable.
-    const positions = useMemo(() => layoutPath(path), [path]);
+    const reduceMotion = useReducedMotion() ?? false;
+    const animate = !reduceMotion;
 
-    const neighbourKeys = useMemo(() => {
-        if (!selectedKey) return null;
-        const neighbours = new Set<string>([selectedKey]);
-        for (const edge of path.edges) {
-            if (edge.from === selectedKey) neighbours.add(edge.to);
-            if (edge.to === selectedKey) neighbours.add(edge.from);
-        }
-        return neighbours;
-    }, [path.edges, selectedKey]);
+    const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+    const { positions, isLive, onDragStart, onDrag, onDragStop } = useForceLayout(path, animate);
+
+    // Hover is transient and pointer-only, so selection has to light the same
+    // chain -- otherwise this reading of the graph is unavailable by keyboard.
+    const chainKey = hoveredKey ?? selectedKey;
+    const chainKeys = useMemo(
+        () => (chainKey ? chainFor(path, chainKey) : null),
+        [path, chainKey]
+    );
+
+    const liveEdges = useMemo(() => liveEdgeIds(path), [path]);
+
+    const unlockStage = unlock?.stage ?? 'idle';
+    const unlockedKey = unlock?.unlockedKey ?? null;
+    const unlockDependents = unlock?.dependentKeys;
 
     const nodes = useMemo<CompetencyFlowNode[]>(
         () =>
-            path.nodes.map(node => ({
-                id: node.key,
-                type: 'competency' as const,
-                position: positions.get(node.key) ?? { x: 0, y: 0 },
-                data: {
-                    node,
-                    selected: node.key === selectedKey,
-                    dimmed: neighbourKeys !== null && !neighbourKeys.has(node.key),
-                    justChanged: justChangedKeys?.has(node.key) ?? false,
-                    highlighted: node.key === focusedKey
-                },
-                // Node-level interaction is handled by React Flow's own click/keyboard
-                // handling on the wrapper, so the card itself stays non-interactive.
-                ariaLabel: `${node.label}, ${node.kind.toLowerCase()}, ${node.state.toLowerCase()}`
-            })),
-        [path.nodes, positions, selectedKey, neighbourKeys, justChangedKeys, focusedKey]
+            path.nodes.map(node => {
+                const unlockRole =
+                    unlockStage === 'flip' && node.key === unlockedKey
+                        ? ('flip' as const)
+                        : unlockStage === 'pop' && unlockDependents?.has(node.key)
+                          ? ('pop' as const)
+                          : null;
+                return {
+                    id: node.key,
+                    type: 'competency' as const,
+                    position: positions.get(node.key) ?? { x: 0, y: 0 },
+                    data: {
+                        node,
+                        selected: node.key === selectedKey,
+                        dimmed: chainKeys !== null && !chainKeys.has(node.key),
+                        justChanged: justChangedKeys?.has(node.key) ?? false,
+                        highlighted: node.key === focusedKey,
+                        unlockRole,
+                        animate
+                    },
+                    // Node-level interaction is handled by React Flow's own click/keyboard
+                    // handling on the wrapper, so the card itself stays non-interactive.
+                    ariaLabel: `${node.label}, ${node.kind.toLowerCase()}, ${node.state.toLowerCase()}`
+                };
+            }),
+        [
+            path.nodes,
+            positions,
+            selectedKey,
+            chainKeys,
+            justChangedKeys,
+            focusedKey,
+            unlockStage,
+            unlockedKey,
+            unlockDependents,
+            animate
+        ]
     );
 
     const edges = useMemo<Edge[]>(
         () =>
             path.edges.map(edge => {
-                const incident =
-                    selectedKey === null || edge.from === selectedKey || edge.to === selectedKey;
+                const id = `${edge.from}->${edge.to}`;
+                const inChain =
+                    chainKeys === null || (chainKeys.has(edge.from) && chainKeys.has(edge.to));
+                // During `travel` the charge runs outward from the node just
+                // earned, so those edges animate whatever their steady state is.
+                const carryingUnlock = unlockStage === 'travel' && edge.from === unlockedKey;
                 return {
-                    id: `${edge.from}->${edge.to}`,
+                    id,
                     source: edge.from,
                     target: edge.to,
                     markerEnd: { type: MarkerType.ArrowClosed },
-                    style: { opacity: incident ? 1 : 0.15 },
-                    animated: false
+                    style: {
+                        opacity: inChain ? 1 : 0.12,
+                        strokeWidth: carryingUnlock ? 3 : inChain && chainKeys !== null ? 2 : 1
+                    },
+                    animated: animate && (carryingUnlock || liveEdges.has(id))
                 };
             }),
-        [path.edges, selectedKey]
+        [path.edges, chainKeys, liveEdges, unlockStage, unlockedKey, animate]
     );
 
     const handleNodeClick = useCallback<NodeMouseHandler<CompetencyFlowNode>>(
         (_event, node) => onSelectNode(node.data.node),
         [onSelectNode]
     );
+
+    const handleNodeEnter = useCallback<NodeMouseHandler<CompetencyFlowNode>>(
+        (_event, node) => setHoveredKey(node.id),
+        []
+    );
+
+    const handleNodeLeave = useCallback(() => setHoveredKey(null), []);
 
     // Dragging one node onto another is the map's natural way to say "this comes
     // first". It is an addition to the panel's select-based editor, never the only
@@ -156,9 +221,16 @@ export function CompetencyGraph({
                 edges={edges}
                 nodeTypes={nodeTypes}
                 onNodeClick={handleNodeClick}
+                onNodeMouseEnter={handleNodeEnter}
+                onNodeMouseLeave={handleNodeLeave}
                 onPaneClick={() => onSelectNode(null)}
                 onConnect={handleConnect}
-                nodesDraggable={false}
+                // Dragging is part of the physics feel; with the simulation off
+                // there is nothing to spring back, so nodes stay put instead.
+                nodesDraggable={isLive}
+                onNodeDragStart={(_event, node) => onDragStart(node.id, node.position)}
+                onNodeDrag={(_event, node) => onDrag(node.id, node.position)}
+                onNodeDragStop={(_event, node) => onDragStop(node.id)}
                 nodesConnectable={canConnect}
                 edgesFocusable={false}
                 fitView
@@ -166,7 +238,11 @@ export function CompetencyGraph({
             >
                 <Background />
                 <Controls showInteractive={false} />
-                <FocusOnNode focusedKey={focusedKey} />
+                <CameraController
+                    focusedKey={focusedKey}
+                    unlockFocusKey={unlockStage === 'focus' ? unlockedKey : null}
+                    animate={animate}
+                />
             </ReactFlow>
         </div>
     );
