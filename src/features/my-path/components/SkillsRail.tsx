@@ -1,4 +1,4 @@
-import { AlertCircle, BadgeCheck, Globe2, Sparkles } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Globe2, Sparkles, TrendingUp } from 'lucide-react';
 import type { CompetencySource } from '../../competency-dashboard/types';
 import type { MyCompetency } from '../types';
 
@@ -25,11 +25,16 @@ function SkillRow({
     competency: MyCompetency;
     onFocusKey?: (key: string) => void;
 }) {
+    // A row below its bar reads as progress, not possession: show the distance to go rather
+    // than a bare level, which is indistinguishable from a held skill at a glance.
+    const isHeld = competency.level >= competency.targetLevel;
     const body = (
         <>
             <span className="min-w-0 flex-1 truncate">{competency.label}</span>
             <span className="shrink-0 text-xs text-app-text-subtle">
-                L{competency.level} · {SOURCE_LABELS[competency.source]}
+                {isHeld
+                    ? `L${competency.level} · ${SOURCE_LABELS[competency.source]}`
+                    : `L${competency.level} of ${competency.targetLevel}`}
             </span>
         </>
     );
@@ -64,7 +69,13 @@ function SkillRow({
  * on-graph group is clickable.
  */
 export function SkillsRail({ competencies, isLoading, error, graphKeys, onFocusKey }: SkillsRailProps) {
-    const held = competencies.filter(competency => competency.level > 0);
+    // "Your skills" must mean skills they actually hold. A ledger entry below the competency's
+    // target level is progress toward it -- listing it here alongside proven skills is what let a
+    // beginner placement read as a held skill.
+    const held = competencies.filter(competency => competency.level >= competency.targetLevel);
+    const inProgress = competencies.filter(
+        competency => competency.level > 0 && competency.level < competency.targetLevel
+    );
     const onGraph = held.filter(competency => graphKeys.has(competency.competencyKey));
     const transferable = held.filter(competency => !graphKeys.has(competency.competencyKey));
 
@@ -88,7 +99,7 @@ export function SkillsRail({ competencies, isLoading, error, graphKeys, onFocusK
                 </p>
             )}
 
-            {!isLoading && !error && held.length === 0 && (
+            {!isLoading && !error && held.length === 0 && inProgress.length === 0 && (
                 <p className="text-sm text-app-text-muted">
                     Nothing on your ledger yet. Passing a check adds your first entry.
                 </p>
@@ -121,6 +132,26 @@ export function SkillsRail({ competencies, isLoading, error, graphKeys, onFocusK
                     <ul className="space-y-0.5">
                         {transferable.map(competency => (
                             <SkillRow key={competency.competencyKey} competency={competency} />
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {inProgress.length > 0 && (
+                <section className="mt-5">
+                    <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
+                        <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+                        In progress
+                    </h3>
+                    <ul className="space-y-0.5">
+                        {inProgress.map(competency => (
+                            <SkillRow
+                                key={competency.competencyKey}
+                                competency={competency}
+                                onFocusKey={
+                                    graphKeys.has(competency.competencyKey) ? onFocusKey : undefined
+                                }
+                            />
                         ))}
                     </ul>
                 </section>
