@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export type KnowledgeTab = 'ALL' | 'UPLOADS' | 'PR' | 'ISSUES' | 'FILES' | 'COMMITS';
@@ -14,6 +14,10 @@ export interface ArtifactFiltersProps {
     activeTab: KnowledgeTab;
     /** Fired when the user picks a different artifact-type tab. Resets pagination in the parent. */
     onTabChange: (tab: KnowledgeTab) => void;
+    /** Fired when the user clicks the refresh button. */
+    onRefresh?: () => void;
+    /** Whether a refresh is currently in progress. */
+    isRefreshing?: boolean;
 }
 
 const TABS: { id: KnowledgeTab; label: string }[] = [
@@ -36,6 +40,8 @@ export function ArtifactFilters({
     onSearchChange,
     activeTab,
     onTabChange,
+    onRefresh,
+    isRefreshing,
 }: ArtifactFiltersProps) {
     return (
         <div className="flex flex-col gap-6 mb-6">
@@ -46,8 +52,21 @@ export function ArtifactFilters({
                     placeholder="Search knowledge base..."
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-app-surface border border-app-border rounded-lg text-app-text focus:outline-none focus:ring-2 focus:ring-app-brand/20 focus:border-app-brand"
+                    className="w-full pl-9 pr-12 py-2 bg-app-surface border border-app-border rounded-lg text-app-text focus:outline-none focus:ring-2 focus:ring-app-brand/20 focus:border-app-brand"
+                    data-testid="kb-search-input"
+                    aria-label="Search knowledge base"
                 />
+                {onRefresh && (
+                    <button
+                        onClick={onRefresh}
+                        disabled={isRefreshing}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface-hover rounded-md transition-colors disabled:opacity-50"
+                        title="Refresh Knowledge Base"
+                        aria-label="Refresh knowledge base"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-app-brand' : ''}`} />
+                    </button>
+                )}
             </div>
             
             <div 
@@ -64,6 +83,7 @@ export function ArtifactFilters({
                         }`}
                         aria-selected={activeTab === tab.id}
                         role="tab"
+                        data-testid={`kb-tab-${tab.id.toLowerCase()}`}
                     >
                         {activeTab === tab.id && (
                             <motion.div

@@ -1,30 +1,30 @@
 import { apiClient, ApiError } from './apiClient';
+import { parseSSEStream } from './sse';
 import { userService } from './userService';
 import keycloak from '../config/keycloak';
 import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../features/knowledge-base/types';
 
 /**
  * SSE event shape emitted by the artifact summary streaming endpoint.
+ *
+ * Discriminated union on `type` so the dispatcher can narrow without per-field
+ * `undefined` checks, and callers get exhaustiveness checking.
  */
-interface SummaryStreamEvent {
-    type: 'token' | 'citation' | 'done' | 'error' | 'stage';
-    content?: string;
-    message?: string;
-    name?: string;
-    detail?: string;
-    artifactId?: string;
-    filename?: string;
-    sourceUrl?: string | null;
-}
+type SummaryStreamEvent =
+    | { type: 'stage'; name: string; detail: string }
+    | { type: 'token'; content: string }
+    | { type: 'citation'; artifactId: string; filename: string; sourceUrl: string | null }
+    | { type: 'done' }
+    | { type: 'error'; message: string };
 
 /**
- * Service responsible for managing the knowledge base unified artifacts.
+ * Per-file upload result returned by the backend batch upload endpoint.
  */
-interface UploadResponseItem {
+type UploadResponseItem = {
     filename: string;
-    status: string;
+    status: 'success' | 'failed';
     error?: string;
-}
+};
 
 export const knowledgeService = {
     /**
@@ -205,64 +205,38 @@ export const knowledgeService = {
             throw new ApiError(response.status, errorBody || response.statusText);
         }
 
-        const reader = response.body?.getReader();
-        if (!reader) {
+        const stream = response.body;
+        if (!stream) {
             throw new Error('No response stream');
         }
 
-        const decoder = new TextDecoder();
-        let buffer = '';
-
         try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
+            for await (const event of parseSSEStream<SummaryStreamEvent>(stream)) {
+                switch (event.type) {
+                    case 'stage':
+                        handlers.onStage?.(event.name, event.detail);
+                        break;
 
-                buffer += decoder.decode(value, { stream: true });
+                    case 'token':
+                        handlers.onToken(event.content);
+                        break;
 
-                const lines = buffer.split('\n');
-                buffer = lines.pop() ?? '';
+                    case 'citation':
+                        handlers.onCitation({
+                            artifactId: event.artifactId,
+                            filename: event.filename,
+                            sourceUrl: event.sourceUrl,
+                        });
+                        break;
 
-                for (const line of lines) {
-                    if (!line.startsWith('data:')) continue;
+                    case 'done':
+                        handlers.onDone();
+                        return;
 
-                    const payload = line.replace('data:', '').trim();
-                    if (!payload) continue;
-
-                    const event = JSON.parse(payload) as SummaryStreamEvent;
-
-                    switch (event.type) {
-                        case 'stage':
-                            if (event.name && event.detail) {
-                                handlers.onStage?.(event.name, event.detail);
-                            }
-                            break;
-
-                        case 'token':
-                            if (event.content !== undefined) {
-                                handlers.onToken(event.content);
-                            }
-                            break;
-
-                        case 'citation':
-                            if (event.artifactId && event.filename) {
-                                handlers.onCitation({
-                                    artifactId: event.artifactId,
-                                    filename: event.filename,
-                                    sourceUrl: event.sourceUrl ?? null,
-                                });
-                            }
-                            break;
-
-                        case 'done':
-                            handlers.onDone();
-                            return;
-
-                        case 'error': {
-                            const message = event.message ?? 'Unknown error';
-                            handlers.onError?.(message);
-                            throw new Error(message);
-                        }
+                    case 'error': {
+                        const message = event.message;
+                        handlers.onError?.(message);
+                        throw new Error(message);
                     }
                 }
             }
