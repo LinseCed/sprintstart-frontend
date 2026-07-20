@@ -18,6 +18,8 @@ React SPA, feature-first architecture, with Keycloak SSO and a Framer Motion ani
 - **React 19**, **React Router v7**, **TypeScript**
 - **Tailwind CSS v4** (semantic design tokens, see §7)
 - **Framer Motion 12** (centralized spring tokens, `<AnimatePresence>` for exits)
+- **React Flow (`@xyflow/react`) + dagre** — only for the competency graph on `/my-path`; it always
+  ships with an accessible list-view alternative of the same data (`AssessmentPathView`)
 - **Vite 8**, **Keycloakify** (custom Keycloak login theme)
 - **Vitest** + **Testing Library** for unit tests (see §5)
 
@@ -46,7 +48,7 @@ Copy `.env.example` → `.env` and point Keycloak at the right IAM instance befo
 
 Feature-first: domain code lives in `features/<name>/`; only genuinely shared code goes in the top-level folders.
 
-- `features/<name>/` — self-contained domains (`components/`, optional `hooks/`, `types.ts`). E.g. `admin`, `chatbot`, `onboarding`, `knowledge-base`, `data-ingestion`, `team-management`, `faq`, `knowledge-gaps`.
+- `features/<name>/` — self-contained domains (`components/`, optional `hooks/`, `types.ts`). E.g. `admin`, `chatbot`, `onboarding`, `my-path`, `knowledge-base`, `data-ingestion`, `team-management`, `faq`, `knowledge-gaps`.
 - `components/` — shared UI: `common/` (app-level controls), `layout/` (shell, sidebar, drawers), `ui/` (low-level primitives).
 - `pages/` — route-level page views (one per user-facing flow).
 - `router/` — React Router v7 config + `AuthGuard`.

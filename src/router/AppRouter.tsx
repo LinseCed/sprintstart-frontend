@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
@@ -7,7 +7,8 @@ import { GraphAuthoringPage } from '../pages/GraphAuthoringPage.tsx';
 import { OnBoardingPage } from '../pages/OnBoardingPage';
 import { OnBoardingItemPage } from '../features/onboarding/components/OnBoardingItemPage';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
-import { CompetencyPathPage } from '../pages/CompetencyPathPage';
+import { MyPathPage } from '../pages/MyPathPage';
+import { MyPathModulePage } from '../pages/MyPathModulePage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { TeamManagementPage } from '../pages/TeamManagementPage.tsx';
@@ -31,7 +32,11 @@ export function AppRouter() {
                 <Route path="/chat/:id" element={<ChatPage />} />
                 <Route path="/onboarding" element={<OnBoardingPage />} />
                 <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
-                <Route path="/onboarding/path" element={<CompetencyPathPage />} />
+                {/* The competency path moved out from under /onboarding to its own top-level
+                    route; kept as a redirect so existing links and bookmarks still land. */}
+                <Route path="/onboarding/path" element={<Navigate to="/my-path" replace />} />
+                <Route path="/my-path" element={<MyPathPage />} />
+                <Route path="/my-path/module/:stepId" element={<MyPathModulePage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/onboarding/:stepId" element={<OnBoardingItemPage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />

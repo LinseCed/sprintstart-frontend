@@ -10,6 +10,8 @@
 //  Backend
 // ============================================================
 
+import type { StepPage } from "../my-path/types";
+
 
 // ─── Onboarding Path List (GET /onboarding/paths) ───────────────────────────
 
@@ -65,6 +67,13 @@ export interface OnboardingStepEndpoint {
   skip: OnboardingStepSkip | null;
   /** Grounded lesson body (markdown), synthesized by the AI service. Null until synthesized. */
   content?: string | null;
+  /**
+   * The step rendered as an ordered stepper (Learn -> Practice -> Verify), derived
+   * server-side from `content`, `tasks` and the configured verification. Optional
+   * because only the step-detail endpoint populates it; empty for steps with no
+   * lesson, tasks or check.
+   */
+  pages?: StepPage[];
 }
 
 // Why the backend considers a phase locked (see OnboardingPhaseEndpoint.unlockReason)

@@ -11,7 +11,7 @@ export type AppRoute =
     | '/knowledge-base'
     | '/onboarding'
     | '/onboarding/assessment'
-    | '/onboarding/path'
+    | '/my-path'
     | '/data-ingestion'
     | '/graph-authoring'
     | '/admin'
@@ -42,7 +42,7 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.HR,
         PermissionGroup.ADMIN,
     ],
-    '/onboarding/path': [
+    '/my-path': [
         PermissionGroup.USER,
         PermissionGroup.PM,
         PermissionGroup.HR,
@@ -61,6 +61,8 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/chat': ['/chat/'],
     '/onboarding': ['/onboarding/'],
+    // The focused module route (/my-path/module/:stepId) sits under the map's permissions.
+    '/my-path': ['/my-path/'],
     '/team-management': ['/team/'],
     '/insights/faq': ['/insights/faq/'],
     '/insights/knowledge-gaps': ['/insights/knowledge-gaps/'],

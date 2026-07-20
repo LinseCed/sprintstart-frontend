@@ -55,7 +55,7 @@ const navItems: SidebarNavItem[] = [
     },
     {
         label: 'My Path',
-        path: '/onboarding/path',
+        path: '/my-path',
         icon: <Map className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
