@@ -3,6 +3,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useAuth } from "../context/useAuth";
 import { CompetencyDashboardWidget } from "../features/competency-dashboard/components/CompetencyDashboardWidget";
 import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
+import { AttentionWidget } from "../features/human-loop/components/AttentionWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { ProjectSelect } from "../features/projects/components/ProjectSelect";
@@ -60,7 +61,10 @@ export function PmDashboardPage() {
             </p>
           </div>
 
-          <TeamManagementWidget projectId={selectedProjectId} />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
+            <TeamManagementWidget projectId={selectedProjectId} />
+            <AttentionWidget projectId={selectedProjectId} />
+          </div>
         </section>
 
         <section className="rounded-3xl border border-app-border bg-app-bg p-4 shadow-sm">

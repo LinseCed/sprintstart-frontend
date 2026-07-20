@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMessages, streamMessage } from "../../../services/buddyService";
+import { onOpenAiBuddy } from "../aiBuddyBus";
 import type { BuddyMessageView } from "../types";
 
 /**
@@ -41,6 +42,17 @@ export function useBuddy() {
 
     const toggleOpen = useCallback(() => {
         setIsOpen(prev => !prev);
+    }, []);
+
+    useEffect(() => {
+        /**
+         * Lets other surfaces (e.g. the human buddy card) open the AI buddy and
+         * hand it a draft to help the hire word their question to a person.
+         */
+        return onOpenAiBuddy(({ draft: seed }) => {
+            setIsOpen(true);
+            if (seed) setDraft(seed);
+        });
     }, []);
 
     /**
