@@ -4,6 +4,7 @@ import { useAuth } from "../context/useAuth";
 import { CompetencyDashboardWidget } from "../features/competency-dashboard/components/CompetencyDashboardWidget";
 import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
 import { AttentionWidget } from "../features/human-loop/components/AttentionWidget";
+import { OnboardingMetricsWidget } from "../features/onboarding-metrics/components/OnboardingMetricsWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { ProjectSelect } from "../features/projects/components/ProjectSelect";
@@ -71,11 +72,12 @@ export function PmDashboardPage() {
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-app-text">Insights</h2>
             <p className="text-sm text-app-text-muted">
-              Frequently asked questions and onboarding knowledge gaps.
+              Onboarding metrics, recurring questions and knowledge gaps.
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <OnboardingMetricsWidget projectId={selectedProjectId} />
             <FaqWidget />
             <KnowledgeGapWidget />
             <CompetencyDashboardWidget />

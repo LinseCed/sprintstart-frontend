@@ -20,6 +20,7 @@ import { FaqDetailPage } from '../features/faq/components/FaqDetailPage.tsx';
 import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/KnowledgeGapsPage.tsx';
 import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/KnowledgeGapsDetailPage.tsx';
 import { CompetencyDashboardPage } from '../features/competency-dashboard/components/CompetencyDashboardPage.tsx';
+import { OnboardingMetricsPage } from '../features/onboarding-metrics/components/OnboardingMetricsPage.tsx';
 import { ProfilePage } from '../pages/ProfilePage.tsx';
 import { ModuleEditorPage } from '../pages/ModuleEditorPage.tsx';
 
@@ -68,6 +69,7 @@ export function AppRouter() {
                 <Route path="/insights/knowledge-gaps" element={<KnowledgeGapsPage />} />
                 <Route path="/insights/knowledge-gaps/:gapId" element={<KnowledgeGapsDetailPage />} />
                 <Route path="/insights/competencies" element={<CompetencyDashboardPage />} />
+                <Route path="/insights/onboarding" element={<OnboardingMetricsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
             </Routes>
         </AuthGuard>
