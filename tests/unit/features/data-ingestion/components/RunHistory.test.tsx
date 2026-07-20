@@ -137,18 +137,21 @@ describe('RunHistory', () => {
         expect(screen.getByText('In progress')).toBeInTheDocument();
     });
 
-    it('shows an Indexing badge alongside Success when the AI sync is still pending', () => {
+    it('reports a still-indexing run as indexing, never as a plain success', () => {
         const runs: IngestionRun[] = [
             createMockRun({ status: 'COMPLETED', aiSyncStatus: 'PENDING' }),
         ];
 
         render(<RunHistory runs={runs} />);
 
-        expect(screen.getByText('Success')).toBeInTheDocument();
         expect(screen.getByText('Indexing...')).toBeInTheDocument();
+        expect(screen.queryByText('Success')).not.toBeInTheDocument();
+        expect(
+            screen.getByText('Fetched; not searchable until indexing finishes'),
+        ).toBeInTheDocument();
     });
 
-    it('shows an Indexing failed badge when the AI sync failed', () => {
+    it('reports a failed AI sync as the run status, with its reason spelled out', () => {
         const runs: IngestionRun[] = [
             createMockRun({
                 status: 'COMPLETED',
@@ -160,17 +163,37 @@ describe('RunHistory', () => {
         render(<RunHistory runs={runs} />);
 
         expect(screen.getByText('Indexing failed')).toBeInTheDocument();
+        // The success badge must not survive next to the failure -- that pairing is
+        // exactly what made an indexing failure read as a footnote.
+        expect(screen.queryByText('Success')).not.toBeInTheDocument();
+        expect(
+            screen.getByText('Fetched, but nothing reached the search index'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('AI service unreachable')).toBeInTheDocument();
     });
 
-    it('hides the AI sync badge when it is not applicable', () => {
+    it('says nothing about indexing when it does not apply to the run', () => {
         const runs: IngestionRun[] = [
             createMockRun({ status: 'FAILED', aiSyncStatus: 'NOT_APPLICABLE' }),
         ];
 
         render(<RunHistory runs={runs} />);
 
+        expect(screen.getByText('Failed')).toBeInTheDocument();
         expect(screen.queryByText('Indexing...')).not.toBeInTheDocument();
-        expect(screen.queryByText('Indexed')).not.toBeInTheDocument();
         expect(screen.queryByText('Indexing failed')).not.toBeInTheDocument();
+    });
+
+    it('keeps a failed fetch as the headline even when indexing succeeded', () => {
+        const runs: IngestionRun[] = [
+            createMockRun({ status: 'PARTIAL', aiSyncStatus: 'SUCCEEDED' }),
+        ];
+
+        render(<RunHistory runs={runs} />);
+
+        expect(screen.getByText('Partial')).toBeInTheDocument();
+        expect(
+            screen.getByText('Fetch incomplete; what was fetched is indexed'),
+        ).toBeInTheDocument();
     });
 });

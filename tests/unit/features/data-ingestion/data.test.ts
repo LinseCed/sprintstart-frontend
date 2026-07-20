@@ -9,6 +9,7 @@ import {
     getSourceStatusLabel,
     getRunStatusLabel,
     getRunStatusTone,
+    getEffectiveRunStatus,
     isRunInProgress,
     getSourceLabel,
     formatDateTime,
@@ -83,6 +84,12 @@ describe('data-ingestion data helpers', () => {
         it('returns connected for a clean completed run', () => {
             expect(getSourceStatus(false, false, 'COMPLETED')).toBe('connected');
         });
+
+        it('does not read as connected while the latest run is unindexed', () => {
+            expect(getSourceStatus(false, false, 'COMPLETED', 'FAILED')).toBe('warning');
+            expect(getSourceStatus(false, false, 'COMPLETED', 'PENDING')).toBe('running');
+            expect(getSourceStatus(false, false, 'COMPLETED', 'SUCCEEDED')).toBe('connected');
+        });
     });
 
     describe('getSourceStatusLabel', () => {
@@ -109,6 +116,57 @@ describe('data-ingestion data helpers', () => {
 
         it('defaults to Connected for a clean connected status without errors', () => {
             expect(getSourceStatusLabel(false, false, 'COMPLETED')).toBe('Synced');
+        });
+
+        it('does not claim Synced while the latest run is unindexed', () => {
+            expect(getSourceStatusLabel(false, false, 'COMPLETED', 'FAILED')).toBe(
+                'Indexing failed',
+            );
+            expect(getSourceStatusLabel(false, false, 'COMPLETED', 'PENDING')).toBe(
+                'Indexing...',
+            );
+            expect(getSourceStatusLabel(false, false, 'COMPLETED', 'SUCCEEDED')).toBe('Synced');
+        });
+    });
+
+    describe('getEffectiveRunStatus', () => {
+        it('only reports success when both fetch and indexing succeeded', () => {
+            expect(
+                getEffectiveRunStatus({ status: 'COMPLETED', aiSyncStatus: 'SUCCEEDED' }),
+            ).toMatchObject({ label: 'Success', tone: 'success' });
+        });
+
+        it('reports a completed-but-unindexed run as a failure, not a success', () => {
+            expect(
+                getEffectiveRunStatus({ status: 'COMPLETED', aiSyncStatus: 'FAILED' }),
+            ).toMatchObject({ label: 'Indexing failed', tone: 'warning' });
+        });
+
+        it('reports a completed-but-pending run as still running', () => {
+            expect(
+                getEffectiveRunStatus({ status: 'COMPLETED', aiSyncStatus: 'PENDING' }),
+            ).toMatchObject({ label: 'Indexing...', tone: 'running' });
+        });
+
+        it('treats a run with no indexing phase as a plain success', () => {
+            expect(
+                getEffectiveRunStatus({ status: 'COMPLETED', aiSyncStatus: 'NOT_APPLICABLE' }),
+            ).toEqual({ label: 'Success', tone: 'success', detail: null });
+        });
+
+        it('lets the fetch phase win when it is the one that failed', () => {
+            expect(
+                getEffectiveRunStatus({ status: 'FAILED', aiSyncStatus: 'SUCCEEDED' }),
+            ).toMatchObject({ label: 'Failed', tone: 'warning' });
+            expect(
+                getEffectiveRunStatus({ status: 'PARTIAL', aiSyncStatus: 'FAILED' }),
+            ).toMatchObject({ label: 'Partial', tone: 'warning' });
+        });
+
+        it('reports an in-flight run as running whatever indexing says', () => {
+            expect(
+                getEffectiveRunStatus({ status: 'RUNNING', aiSyncStatus: 'NOT_APPLICABLE' }),
+            ).toMatchObject({ label: 'Running', tone: 'running' });
         });
     });
 
