@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Flag, GitPullRequest, Layers, Lock, Pencil, SlidersHorizontal, X } from 'lucide-react';
+import {
+    ArrowRight,
+    ExternalLink,
+    Flag,
+    GitPullRequest,
+    Layers,
+    Lock,
+    Pencil,
+    SlidersHorizontal,
+    X
+} from 'lucide-react';
 import { NodeStatusChip } from '../../skill-assessment/components/NodeStatusChip';
 import { CompetencyNodeEditor } from './CompetencyNodeEditor';
 import { PrerequisiteEditor } from './PrerequisiteEditor';
@@ -107,7 +117,11 @@ export function NodeDetailPanel({
         .filter(edge => edge.from === node.key)
         .map(edge => path.nodes.find(candidate => candidate.key === edge.to)?.label ?? edge.to);
 
-    const isGoal = node.kind === 'CONTRIBUTION';
+    // Named by the payload, never inferred from `kind`: a path can carry several
+    // contribution nodes (a baseline may select some) and only this one is theirs.
+    const goal = path.goal ?? null;
+    const isGoal = goal?.competencyKey === node.key;
+    const isContribution = node.kind === 'CONTRIBUTION';
     const canStart = Boolean(node.moduleId) && node.state !== 'LOCKED';
 
     return (
@@ -123,7 +137,11 @@ export function NodeDetailPanel({
                         <h2 className="truncate text-base font-semibold text-app-text">{node.label}</h2>
                     </div>
                     <p className="text-xs text-app-text-subtle">
-                        {isGoal ? 'Goal · contribution' : node.kind.toLowerCase()}
+                        {isGoal
+                            ? 'Your goal · contribution'
+                            : isContribution
+                              ? 'contribution'
+                              : node.kind.toLowerCase()}
                     </p>
                 </div>
                 <button
@@ -193,6 +211,38 @@ export function NodeDetailPanel({
                         Unlocks
                     </h3>
                     <p className="text-sm text-app-text-muted">{unlocks.join(', ')}</p>
+                </section>
+            )}
+
+            {/* The goal node is the only one where the "module" is a real piece of work in a
+                real repository, so it shows the actual task rather than lesson metadata. */}
+            {isGoal && goal && (
+                <section
+                    data-testid="goal-task-detail"
+                    className="space-y-2 rounded-2xl border border-app-brand-border bg-app-brand-soft p-3"
+                >
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-app-brand-text">
+                        The task
+                    </h3>
+                    {goal.summary && <p className="text-sm text-app-text">{goal.summary}</p>}
+                    <p className="text-xs text-app-text-muted">
+                        {goal.isReachable
+                            ? 'You have everything this needs. Ship it as a pull request — that is what gets checked.'
+                            : `${goal.remainingCount} ${
+                                  goal.remainingCount === 1 ? 'prerequisite' : 'prerequisites'
+                              } to clear before you start.`}
+                    </p>
+                    {goal.sourceUrl && (
+                        <a
+                            href={goal.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-app-brand-text hover:underline"
+                        >
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                            Open the issue
+                        </a>
+                    )}
                 </section>
             )}
 

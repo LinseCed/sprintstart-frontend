@@ -20,6 +20,9 @@ import { CompetencyGraph } from '../features/my-path/components/CompetencyGraph'
 import { NodeDetailPanel } from '../features/my-path/components/NodeDetailPanel';
 import { SkillsRail } from '../features/my-path/components/SkillsRail';
 import { useMyCompetencies } from '../features/my-path/hooks/useMyCompetencies';
+import { GoalBanner } from '../features/my-path/components/GoalBanner';
+import { GoalPicker } from '../features/my-path/components/GoalPicker';
+import { useGoalSelection } from '../features/my-path/hooks/useGoalSelection';
 import { useGraphEditing } from '../features/my-path/hooks/useGraphEditing';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
@@ -94,6 +97,16 @@ export function MyPathPage() {
         error: competenciesError
     } = useMyCompetencies();
 
+    const {
+        matches,
+        isLoading: matchesLoading,
+        isClaiming,
+        error: goalError,
+        loadMatches,
+        claim: claimGoal,
+        clear: clearGoal
+    } = useGoalSelection(selectedProjectId, retry);
+
     // The map's drag-to-connect shares the panel's write path, so a cycle rejected
     // by either is explained the same way.
     const {
@@ -103,6 +116,7 @@ export function MyPathPage() {
         addPrerequisite
     } = useGraphEditing(retry);
 
+    const [isPickingGoal, setIsPickingGoal] = useState(false);
     const [noticeDismissed, setNoticeDismissed] = useState(false);
     const [view, setView] = useState<'map' | 'list'>('map');
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -310,7 +324,15 @@ export function MyPathPage() {
             )}
 
             {!isLoading && path && (
-                <div className="app-page-content mt-4 shrink-0">
+                <div className="app-page-content mt-4 shrink-0 space-y-3">
+                    {/* The destination first: the premise is that onboarding ends in shipping
+                        something, so the page should say what that something is. */}
+                    <GoalBanner
+                        goal={path.goal}
+                        onFocusGoal={handleFocusSkill}
+                        onChooseGoal={() => setIsPickingGoal(true)}
+                        isBusy={isClaiming}
+                    />
                     <PathProgressBar path={path} />
                 </div>
             )}
@@ -377,6 +399,20 @@ export function MyPathPage() {
                         )}
                     </div>
                 )
+            )}
+
+            {isPickingGoal && (
+                <GoalPicker
+                    matches={matches}
+                    currentGoal={path?.goal}
+                    isLoading={matchesLoading}
+                    isClaiming={isClaiming}
+                    error={goalError}
+                    onLoad={loadMatches}
+                    onClaim={claimGoal}
+                    onClear={clearGoal}
+                    onClose={() => setIsPickingGoal(false)}
+                />
             )}
         </div>
     );

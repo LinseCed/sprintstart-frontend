@@ -14,6 +14,7 @@ import {
     Network,
     Rocket,
     Settings,
+    Target,
     Terminal,
     X,
 } from 'lucide-react';
@@ -78,6 +79,11 @@ const projectManagerNavItems: SidebarNavItem[] = [
         label: 'Onboarding Baseline',
         path: '/onboarding-baseline',
         icon: <ClipboardList className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    {
+        label: 'Starter Work',
+        path: '/starter-work',
+        icon: <Target className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 
