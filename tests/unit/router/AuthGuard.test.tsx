@@ -147,7 +147,36 @@ describe('AuthGuard', () => {
         expect(assessmentService.fetchAssessmentStatus).toHaveBeenCalled();
     });
 
-    it('redirects a USER to /onboarding/assessment when no completed assessment exists', async () => {
+    it('sends an un-assessed USER from the landing route to their first week, not the assessment', async () => {
+        authenticatedAs(mockProfile);
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
+            completed: false,
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <AuthGuard>
+                                <div data-testid="protected-content">Dashboard</div>
+                            </AuthGuard>
+                        }
+                    />
+                    <Route path="/first-week" element={<LocationDisplay />} />
+                    <Route path="/onboarding/assessment" element={<LocationDisplay />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('location')).toHaveTextContent('/first-week');
+        });
+    });
+
+    it('does not redirect an un-assessed USER away from a non-landing route', async () => {
+        // The assessment is optional: it only shapes the day-one landing, never traps.
         authenticatedAs(mockProfile);
         vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
             completed: false,
@@ -156,7 +185,7 @@ describe('AuthGuard', () => {
         renderGuarded();
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/onboarding/assessment');
+            expect(screen.getByTestId('protected-content')).toBeInTheDocument();
         });
     });
 
