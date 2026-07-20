@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useEffect, useRef, type ReactNode } from "react";
 
 type ModalSize = "sm" | "md" | "lg" | "xl";
@@ -127,7 +128,11 @@ export function Modal({
 
     if (!isOpen) return null;
 
-    return (
+    // Rendered into <body> so the dialog is never trapped inside an ancestor's
+    // stacking context. Callers sit anywhere in the tree -- the sidebar's
+    // `position: sticky` wrapper, for one, creates a stacking context that would
+    // otherwise cap the overlay below page content that uses a positive z-index.
+    return createPortal(
         <div
             className={`fixed inset-x-0 top-0 h-screen ${zIndexClassName} flex items-center justify-center bg-app-overlay p-4 backdrop-blur-md`}
         >
@@ -198,6 +203,7 @@ export function Modal({
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

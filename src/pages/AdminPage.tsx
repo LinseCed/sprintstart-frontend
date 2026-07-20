@@ -30,6 +30,8 @@ import { TokensTab } from "../features/admin/components/TokensTab";
 import { UserDetailsDrawer } from "../features/admin/components/UserDetailsDrawer";
 import { UsersTab } from "../features/admin/components/UsersTab";
 import { useAdminData } from "../features/admin/hooks/useAdminData";
+import { useAuth } from "../context/useAuth";
+import { useProjectContext } from "../features/projects/useProjectContext";
 import type {
   AdminProjectDetails,
   AdminTab,
@@ -42,6 +44,8 @@ import { projectService } from "../services/projectService";
 
 export function AdminPage() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  const { reloadProjects } = useProjectContext();
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
     new Set(),
@@ -142,6 +146,8 @@ export function AdminPage() {
       });
 
       setProjects(await projectService.getProjects());
+      // Keep the global project switcher in sync with the new project.
+      void reloadProjects();
       closeCreateModal();
     } catch (error) {
       setCreateProjectError(
@@ -150,7 +156,13 @@ export function AdminPage() {
     } finally {
       setIsCreatingProject(false);
     }
-  }, [closeCreateModal, newProjectDescription, newProjectName, setProjects]);
+  }, [
+    closeCreateModal,
+    newProjectDescription,
+    newProjectName,
+    reloadProjects,
+    setProjects,
+  ]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds((current) => {
@@ -344,6 +356,19 @@ export function AdminPage() {
     setSelectedProject(project);
     setIsDrawerOpen(true);
   };
+
+  const handleProjectDeleted = useCallback(
+    (projectId: string) => {
+      setProjects((currentProjects) =>
+        currentProjects.filter((project) => project.id !== projectId),
+      );
+      setSelectedProject(null);
+      // The deleted project may have been the globally selected one; the
+      // provider heals the selection when it reloads.
+      void reloadProjects();
+    },
+    [reloadProjects, setProjects, setSelectedProject],
+  );
 
   const handleProjectUpdated = useCallback(
     (updatedProject: AdminProjectDetails) => {
@@ -603,13 +628,18 @@ export function AdminPage() {
       )}
 
       {selectedProject && (
+        // Keyed by project so every switch remounts the drawer with fresh
+        // state instead of carrying the previous project's async results over.
         <ProjectDetailsDrawer
+          key={selectedProject.id}
           project={selectedProject}
           availableUsers={users}
           isOpen={isDrawerOpen}
+          canManageLifecycle={profile?.permissionGroup === "ADMIN"}
           onClose={closeDetails}
           onOpenSourceDetails={openSourceDetails}
           onProjectUpdated={handleProjectUpdated}
+          onProjectDeleted={handleProjectDeleted}
         />
       )}
 

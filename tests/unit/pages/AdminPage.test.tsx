@@ -6,6 +6,11 @@ import { AdminPage } from '../../../src/pages/AdminPage';
 import type { AdminUser, ProjectSummary } from '../../../src/services/adminUserService';
 import type { AdminProject, ProjectSource, ProjectUserSummary } from '../../../src/services/projectService';
 
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue } = await import('../setup/projectContext');
+    return { useProjectContext: () => createProjectContextValue() };
+});
+
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'admin1', firstName: 'Admin', lastName: 'User' } }),
 }));
