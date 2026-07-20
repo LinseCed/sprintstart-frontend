@@ -48,8 +48,12 @@ function storeProjectId(projectId: string) {
 function toSelectableProject(
   project: AdminProject,
   isManaged: boolean,
+  counts: { memberCount: number | null; sourceCount: number | null } = {
+    memberCount: null,
+    sourceCount: null,
+  },
 ): SelectableProject {
-  return { ...project, isManaged };
+  return { ...project, isManaged, ...counts };
 }
 
 /** Managed projects first, then alphabetically within each group. */
@@ -72,7 +76,10 @@ async function loadAdminProjects(
 ): Promise<SelectableProject[]> {
   const projects = await projectService.getProjects();
   return projects.map((project) =>
-    toSelectableProject(project, canManageEverything),
+    toSelectableProject(project, canManageEverything, {
+      memberCount: project.users.length,
+      sourceCount: project.sources.length,
+    }),
   );
 }
 
@@ -103,6 +110,7 @@ async function loadManagerProjects(): Promise<SelectableProject[]> {
         users: [],
       },
       true,
+      { memberCount: project.memberCount, sourceCount: null },
     ),
   );
 

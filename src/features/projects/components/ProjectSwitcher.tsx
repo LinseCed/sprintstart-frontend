@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronsUpDown, FolderKanban } from "lucide-react";
 import { useProjectContext } from "../useProjectContext";
-import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover";
+import { ProjectSwitcherModal } from "./ProjectSwitcherModal";
 
 type ProjectSwitcherProps = {
   className?: string;
@@ -11,9 +11,8 @@ type ProjectSwitcherProps = {
  * Global project switcher shown in the sidebar footer.
  *
  * Renders nothing for permission groups that do not get a switcher, so the
- * sidebar layout is unaffected for those users. Opens with a click or with
- * Cmd/Ctrl+K, and returns focus to the trigger on close so keyboard users are
- * never stranded.
+ * sidebar layout is unaffected for those users. Opens a modal picker on click
+ * or with Cmd/Ctrl+K; focus trapping and restoration are handled by `Modal`.
  */
 export function ProjectSwitcher({ className = "" }: ProjectSwitcherProps) {
   const {
@@ -27,14 +26,6 @@ export function ProjectSwitcher({ className = "" }: ProjectSwitcherProps) {
   } = useProjectContext();
 
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const listboxId = useId();
-
-  const close = useCallback(() => {
-    setIsOpen(false);
-    triggerRef.current?.focus();
-  }, []);
 
   // Cmd/Ctrl+K opens the switcher from anywhere.
   useEffect(() => {
@@ -53,27 +44,13 @@ export function ProjectSwitcher({ className = "" }: ProjectSwitcherProps) {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [isSwitcherEnabled]);
 
-  // Close when interacting outside the switcher.
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => window.removeEventListener("pointerdown", handlePointerDown);
-  }, [isOpen]);
-
   if (!isSwitcherEnabled) {
     return null;
   }
 
   const handleSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    close();
+    setIsOpen(false);
   };
 
   const triggerLabel = selectedProject?.name ?? "Select a project";
@@ -84,19 +61,17 @@ export function ProjectSwitcher({ className = "" }: ProjectSwitcherProps) {
       : "Member";
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div className={className}>
       <button
-        ref={triggerRef}
         type="button"
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={isOpen}
-        aria-controls={isOpen ? listboxId : undefined}
         aria-label={`Switch project. Current project: ${triggerLabel}`}
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex h-[48px] w-full items-center gap-[10px] rounded-[8px] border border-app-border bg-app-bg px-[10px] text-left transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+        onClick={() => setIsOpen(true)}
+        className="group flex h-[52px] w-full items-center gap-[10px] rounded-xl border border-app-border bg-app-surface px-[10px] text-left transition-all hover:border-app-border-strong hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-app-brand-soft">
-          <FolderKanban className="h-4 w-4 text-app-brand" />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-app-brand-soft transition-colors group-hover:bg-app-brand group-hover:text-white">
+          <FolderKanban className="h-[18px] w-[18px] text-app-brand transition-colors group-hover:text-white" />
         </span>
 
         <span className="flex min-w-0 flex-col">
@@ -109,20 +84,18 @@ export function ProjectSwitcher({ className = "" }: ProjectSwitcherProps) {
           </span>
         </span>
 
-        <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 text-app-text-muted" />
+        <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 text-app-text-muted transition-colors group-hover:text-app-text" />
       </button>
 
-      {isOpen ? (
-        <ProjectSwitcherPopover
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          isLoading={isLoading}
-          errorMessage={errorMessage}
-          listboxId={listboxId}
-          onSelect={handleSelect}
-          onClose={close}
-        />
-      ) : null}
+      <ProjectSwitcherModal
+        isOpen={isOpen}
+        projects={projects}
+        selectedProjectId={selectedProjectId}
+        isLoading={isLoading}
+        errorMessage={errorMessage}
+        onSelect={handleSelect}
+        onClose={() => setIsOpen(false)}
+      />
     </div>
   );
 }

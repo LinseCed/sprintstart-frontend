@@ -38,6 +38,8 @@ export function createSelectableProject(
         sources: [],
         users: [],
         isManaged: true,
+        memberCount: 3,
+        sourceCount: 2,
         ...overrides,
     };
 }

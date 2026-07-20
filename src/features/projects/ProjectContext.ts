@@ -11,6 +11,15 @@ import type { AdminProject } from "../../services/projectService";
  */
 export type SelectableProject = AdminProject & {
   isManaged: boolean;
+  /**
+   * Member and source counts shown on the switcher cards.
+   *
+   * `null` means "not known at this access level" rather than zero — the
+   * self-service project listing a plain member gets does not carry counts, and
+   * rendering a confident "0 members" there would be wrong.
+   */
+  memberCount: number | null;
+  sourceCount: number | null;
 };
 
 export type ProjectContextValue = {

@@ -23,12 +23,30 @@ vi.mock('../../../../src/features/projects/useProjectContext', () => ({
     useProjectContext: () => contextValue
 }));
 
-function project(id: string, name: string, isManaged: boolean): SelectableProject {
-    return { id, name, description: '', manager: null, sources: [], users: [], isManaged };
+function project(
+    id: string,
+    name: string,
+    isManaged: boolean,
+    overrides: Partial<SelectableProject> = {}
+): SelectableProject {
+    return {
+        id,
+        name,
+        description: '',
+        manager: null,
+        sources: [],
+        users: [],
+        isManaged,
+        memberCount: 3,
+        sourceCount: 2,
+        ...overrides
+    };
 }
 
 const managed = project('p1', 'Apollo', true);
 const member = project('p2', 'Borealis', false);
+
+const triggerName = /Current project: Apollo/;
 
 describe('ProjectSwitcher', () => {
     beforeEach(() => {
@@ -56,33 +74,62 @@ describe('ProjectSwitcher', () => {
         const { baseElement } = render(
             <nav aria-label="Sidebar">
                 <ProjectSwitcher />
-            </nav>,
+            </nav>
         );
 
-        const trigger = screen.getByRole('button', { name: /Current project: Apollo/ });
+        const trigger = screen.getByRole('button', { name: triggerName });
         expect(trigger).toHaveAttribute('aria-expanded', 'false');
-        expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+        expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
 
         await user.click(trigger);
 
         expect(trigger).toHaveAttribute('aria-expanded', 'true');
-        expect(screen.getByRole('listbox', { name: 'Projects' })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Switch project' })).toBeInTheDocument();
         expect(await axe(baseElement)).toHaveNoViolations();
+    });
+
+    it('shows member and source counts on the project cards', async () => {
+        const user = userEvent.setup();
+        contextValue.projects = [
+            project('p1', 'Apollo', true, { memberCount: 1, sourceCount: 4 })
+        ];
+
+        render(<ProjectSwitcher />);
+        await user.click(screen.getByRole('button', { name: triggerName }));
+
+        const card = screen.getByRole('option', { name: /Apollo/ });
+        expect(within(card).getByText('1 member')).toBeInTheDocument();
+        expect(within(card).getByText('4 sources')).toBeInTheDocument();
+    });
+
+    it('omits counts that are unknown at the current access level', async () => {
+        const user = userEvent.setup();
+        contextValue.projects = [
+            project('p2', 'Borealis', false, { memberCount: null, sourceCount: null })
+        ];
+        contextValue.selectedProjectId = 'p2';
+
+        render(<ProjectSwitcher />);
+        await user.click(screen.getByRole('button', { name: /Current project: Apollo/ }));
+
+        const card = screen.getByRole('option', { name: /Borealis/ });
+        expect(within(card).queryByText(/member/)).not.toBeInTheDocument();
+        expect(within(card).queryByText(/source/)).not.toBeInTheDocument();
     });
 
     it('marks the selected project and groups managed projects separately', async () => {
         const user = userEvent.setup();
         render(<ProjectSwitcher />);
 
-        await user.click(screen.getByRole('button', { name: /Current project: Apollo/ }));
+        await user.click(screen.getByRole('button', { name: triggerName }));
 
         expect(screen.getByRole('option', { name: /Apollo/ })).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByRole('option', { name: /Borealis/ })).toHaveAttribute('aria-selected', 'false');
 
-        // "Managed by you" also appears as the trigger's hint, so scope the
-        // group-header assertions to the listbox.
+        // "Managed by you" also labels the trigger and the card badge, so scope
+        // the group-header assertions to the listbox.
         const listbox = screen.getByRole('listbox', { name: 'Projects' });
-        expect(within(listbox).getByText('Managed by you')).toBeInTheDocument();
+        expect(within(listbox).getAllByText('Managed by you').length).toBeGreaterThan(0);
         expect(within(listbox).getByText('Member of')).toBeInTheDocument();
     });
 
@@ -90,45 +137,61 @@ describe('ProjectSwitcher', () => {
         const user = userEvent.setup();
         render(<ProjectSwitcher />);
 
-        await user.click(screen.getByRole('button', { name: /Current project: Apollo/ }));
-        await user.type(screen.getByRole('combobox', { name: 'Search projects' }), 'bore');
+        await user.click(screen.getByRole('button', { name: triggerName }));
+        await user.type(screen.getByRole('searchbox', { name: 'Search projects' }), 'bore');
 
         expect(screen.queryByRole('option', { name: /Apollo/ })).not.toBeInTheDocument();
         expect(screen.getByRole('option', { name: /Borealis/ })).toBeInTheDocument();
     });
 
-    it('selects a project with the keyboard', async () => {
+    it('selects the only remaining match when confirming from the search field', async () => {
         const user = userEvent.setup();
         render(<ProjectSwitcher />);
 
-        await user.click(screen.getByRole('button', { name: /Current project: Apollo/ }));
-        await user.keyboard('{ArrowDown}{Enter}');
+        await user.click(screen.getByRole('button', { name: triggerName }));
+        await user.type(
+            screen.getByRole('searchbox', { name: 'Search projects' }),
+            'bore{Enter}'
+        );
 
         expect(setSelectedProjectId).toHaveBeenCalledWith('p2');
+    });
+
+    it('selects a project by clicking its card', async () => {
+        const user = userEvent.setup();
+        render(<ProjectSwitcher />);
+
+        await user.click(screen.getByRole('button', { name: triggerName }));
+        await user.click(screen.getByRole('option', { name: /Borealis/ }));
+
+        expect(setSelectedProjectId).toHaveBeenCalledWith('p2');
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
     });
 
     it('closes on Escape and returns focus to the trigger', async () => {
         const user = userEvent.setup();
         render(<ProjectSwitcher />);
 
-        const trigger = screen.getByRole('button', { name: /Current project: Apollo/ });
+        const trigger = screen.getByRole('button', { name: triggerName });
         await user.click(trigger);
         await user.keyboard('{Escape}');
 
         await waitFor(() => {
-            expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
         expect(trigger).toHaveFocus();
         expect(trigger).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('surfaces a loading state instead of an empty list', async () => {
+    it('surfaces a loading state instead of an empty grid', async () => {
         const user = userEvent.setup();
         contextValue.isLoading = true;
         contextValue.projects = [];
 
         render(<ProjectSwitcher />);
-        await user.click(screen.getByRole('button', { name: /Current project: Apollo/ }));
+        await user.click(screen.getByRole('button', { name: triggerName }));
 
         expect(screen.getByText('Loading projects...')).toBeInTheDocument();
     });
