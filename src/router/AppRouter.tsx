@@ -4,6 +4,7 @@ import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { GraphAuthoringPage } from '../pages/GraphAuthoringPage.tsx';
+import { BlueprintAuthoringPage } from '../pages/BlueprintAuthoringPage.tsx';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
 import { MyPathPage } from '../pages/MyPathPage';
 import { MyPathModulePage } from '../pages/MyPathModulePage';
@@ -51,6 +52,7 @@ export function AppRouter() {
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
                 <Route path="/graph-authoring" element={<GraphAuthoringPage />} />
+                <Route path="/onboarding-baseline" element={<BlueprintAuthoringPage />} />
                 <Route path="/team-management" element={<TeamManagementPage />} />
                 <Route path="/team/:userId" element={<TeamMemberDetailPage />} />
                 <Route path="/pm-dashboard" element={<PmDashboardPage />} />

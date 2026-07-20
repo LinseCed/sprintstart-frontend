@@ -5,6 +5,7 @@ import {
     BookOpen,
     Briefcase,
     ChartColumn,
+    ClipboardList,
     Database,
     LogOut,
     Map,
@@ -72,6 +73,11 @@ const projectManagerNavItems: SidebarNavItem[] = [
         label: 'Graph Authoring',
         path: '/graph-authoring',
         icon: <Network className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    {
+        label: 'Onboarding Baseline',
+        path: '/onboarding-baseline',
+        icon: <ClipboardList className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 
