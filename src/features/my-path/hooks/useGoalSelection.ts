@@ -9,9 +9,9 @@ function toMessage(error: unknown, fallback: string): string {
 /**
  * The hire's side of goal-setting: fetching their ranked candidate tasks and claiming one.
  *
- * Matches are fetched lazily, only when the picker is actually opened. Ranking is an AI call, so
- * loading it alongside the path would put a model round trip on every visit to a page most people
- * open to look at the graph.
+ * Matches are still fetched lazily, though the reason has changed: ranking is deterministic and
+ * local since backend#74, so this is no longer a model round trip — it is simply a list nobody
+ * needs until they are actually choosing.
  */
 export function useGoalSelection(projectId: string | undefined, onGoalChanged: () => void | Promise<void>) {
     const [matches, setMatches] = useState<RankedStarterWorkTask[]>([]);
@@ -20,16 +20,20 @@ export function useGoalSelection(projectId: string | undefined, onGoalChanged: (
     const [error, setError] = useState<string | null>(null);
 
     const loadMatches = useCallback(async () => {
+        if (!projectId) {
+            setMatches([]);
+            return;
+        }
         setIsLoading(true);
         setError(null);
         try {
-            setMatches(await starterWorkService.fetchMyMatches());
+            setMatches(await starterWorkService.fetchMyMatches(projectId));
         } catch (err) {
             setError(toMessage(err, 'Could not load your matches.'));
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [projectId]);
 
     const claim = useCallback(
         async (taskId: string): Promise<boolean> => {

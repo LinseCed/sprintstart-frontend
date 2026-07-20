@@ -2,13 +2,13 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
     CheckCircle2,
+    Circle,
     CircleDot,
     ClipboardCheck,
     Flag,
     GitPullRequest,
     Heart,
     Lightbulb,
-    Lock,
     Shield,
     Users,
     Wrench
@@ -37,23 +37,24 @@ const STATE_STYLES: Record<
 > = {
     MASTERED: {
         icon: CheckCircle2,
-        label: 'Mastered',
+        label: 'Shown',
         className: 'border-app-success-border bg-app-success-bg text-app-success-text',
         // Settled and saturated: a slow glow, no movement.
         motionClassName: 'animate-node-glow'
     },
     AVAILABLE: {
         icon: CircleDot,
-        label: 'Available',
+        label: 'Within reach',
         className: 'border-app-brand-border-strong bg-app-surface text-app-brand-text',
-        // The only state that asks for attention -- this is your move.
         motionClassName: 'animate-node-breathe'
     },
     LOCKED: {
-        icon: Lock,
-        label: 'Locked',
-        // Desaturated and slightly smaller, so the frontier stands out from what
-        // is still out of reach without hiding anything.
+        icon: Circle,
+        // Not "Locked". This graph is a record of what somebody has shown, not a curriculum with
+        // gates -- nothing on the ramp is withheld until a node clears, so a padlock would claim a
+        // restriction that does not exist. The backend still calls the state LOCKED; retiring that
+        // is slice 5 (backend#76), and until then the wording here is the honest part.
+        label: 'Not shown yet',
         className: 'border-app-border bg-app-surface-muted text-app-text-subtle saturate-50',
         motionClassName: ''
     }

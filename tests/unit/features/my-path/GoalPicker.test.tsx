@@ -15,8 +15,10 @@ const match: RankedStarterWorkTask = {
         competencyKeys: ['kotlin', 'auth'],
         status: 'APPROVED'
     },
-    score: 0.82,
-    matchedCompetencyKeys: ['kotlin']
+    score: 40,
+    matchedCompetencyKeys: ['kotlin'],
+    taskType: 'BUG',
+    reasons: ['uses kotlin, which you have already shown']
 };
 
 const currentGoal: PathGoal = {

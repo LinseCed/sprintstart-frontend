@@ -41,13 +41,18 @@ export const starterWorkService = {
     },
 
     /**
-     * The approved pool ranked against the authenticated hire's ledger.
+     * The approved pool ranked for the authenticated hire on one project.
      *
-     * Ranking is an AI call, so this is deliberately not folded into the path read -- it's
-     * fetched only when a hire is actually choosing.
+     * Ranking is deterministic and local since backend#74 — no AI call — and every entry carries
+     * the `reasons` it was suggested. Project-scoped because two of the signals (prior involvement
+     * and how fast a repository answers pull requests) only mean anything inside one project.
+     *
+     * @param projectId The project to rank the pool for.
      */
-    async fetchMyMatches(): Promise<RankedStarterWorkTask[]> {
-        return await apiClient.fetch<RankedStarterWorkTask[]>(`${BASE_URL}/me/matches`);
+    async fetchMyMatches(projectId: string): Promise<RankedStarterWorkTask[]> {
+        return await apiClient.fetch<RankedStarterWorkTask[]>(
+            `${BASE_URL}/me/matches?projectId=${encodeURIComponent(projectId)}`
+        );
     },
 
     /** Claims an approved task as this hire's goal for a project, replacing any previous one. */

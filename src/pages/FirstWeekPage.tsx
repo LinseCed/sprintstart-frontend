@@ -9,6 +9,8 @@ import { TaskZeroStep } from '../features/first-week/components/TaskZeroStep';
 import { useFirstWeek } from '../features/first-week/hooks/useFirstWeek';
 import { OrientationPanel } from '../features/orientation/components/OrientationPanel';
 import { useOrientation } from '../features/orientation/hooks/useOrientation';
+import { RampSection } from '../features/ramp/components/RampSection';
+import { useRamp } from '../features/ramp/hooks/useRamp';
 import { BuddyCard } from '../features/human-loop/components/BuddyCard';
 import { firstWeekService } from '../services/firstWeekService';
 
@@ -44,6 +46,15 @@ export function FirstWeekPage() {
         error: orientationError,
         reload: reloadOrientation
     } = useOrientation(selectedProjectId);
+    const {
+        ramp,
+        isLoading: rampLoading,
+        error: rampError,
+        reload: reloadRamp
+    } = useRamp(selectedProjectId);
+    // Past the mechanics: the ramp leads, and the setup steps become history rather than the page.
+    const pastFirstWeek = ramp !== null && ramp.stage !== 'TASK_ZERO';
+
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isHandingBack, setIsHandingBack] = useState(false);
 
@@ -133,6 +144,21 @@ export function FirstWeekPage() {
                     </div>
                 ) : (
                     <div className="space-y-4">
+                        {/*
+                         * Once somebody has merged something, the ramp *is* their home and the
+                         * first-week steps are history — so it moves above them rather than being
+                         * a section further down the page. Before that it sits underneath, because
+                         * a hire who cannot run the project yet does not need a task list.
+                         */}
+                        {pastFirstWeek && (
+                            <RampSection
+                                projectId={selectedProjectId}
+                                ramp={ramp}
+                                isLoading={rampLoading}
+                                error={rampError}
+                                onChanged={() => void reloadRamp()}
+                            />
+                        )}
                         <EnvironmentStep
                             environment={environment}
                             onRefresh={() => void handleRefresh()}
@@ -164,6 +190,15 @@ export function FirstWeekPage() {
                             </div>
                             {selectedProjectId && <BuddyCard projectId={selectedProjectId} />}
                         </div>
+                        {!pastFirstWeek && selectedProjectId && (
+                            <RampSection
+                                projectId={selectedProjectId}
+                                ramp={ramp}
+                                isLoading={rampLoading}
+                                error={rampError}
+                                onChanged={() => void reloadRamp()}
+                            />
+                        )}
                     </div>
                 )}
             </main>
