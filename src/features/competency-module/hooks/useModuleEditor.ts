@@ -97,6 +97,34 @@ export function useModuleEditor(moduleId: string | null) {
             act(() => competencyModuleService.approve(moduleId as string), 'Could not publish this module.'),
 
         reject: () =>
-            act(() => competencyModuleService.reject(moduleId as string), 'Could not archive this module.')
+            act(() => competencyModuleService.reject(moduleId as string), 'Could not archive this module.'),
+
+        /**
+         * Opens an editable copy of a published (or archived) module as a new DRAFT.
+         *
+         * A live version is read-only -- it is the record of what hires were taught -- so editing
+         * one means branching a new version from it. Returns the new module's id so the caller can
+         * navigate to it; without this, "Start a new version" is prose with no way to act on it.
+         */
+        startNewVersion: async (): Promise<string | null> => {
+            if (!module) return null;
+            setIsSaving(true);
+            setError(null);
+            try {
+                const draft = await competencyModuleService.createVersion({
+                    competencyKey: module.competencyKey,
+                    projectId: module.projectId,
+                    title: module.title,
+                    summary: module.summary ?? undefined,
+                    copyFromActive: true
+                });
+                return draft.id;
+            } catch (err) {
+                setError(toMessage(err, 'Could not start a new version.'));
+                return null;
+            } finally {
+                setIsSaving(false);
+            }
+        }
     };
 }

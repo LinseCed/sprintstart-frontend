@@ -6,19 +6,20 @@ import {
     GitPullRequest,
     Layers,
     Lock,
-    Pencil,
     SlidersHorizontal,
     X
 } from 'lucide-react';
 import { NodeStatusChip } from '../../skill-assessment/components/NodeStatusChip';
 import { CompetencyNodeEditor } from './CompetencyNodeEditor';
 import { PrerequisiteEditor } from './PrerequisiteEditor';
+import { ModuleAuthoringSection } from './ModuleAuthoringSection';
 import { useGraphEditing } from '../hooks/useGraphEditing';
 import { competencyModuleService } from '../../../services/competencyModuleService';
 import { useAuth } from '../../../context/useAuth';
 import { PermissionGroup } from '../../../services/types';
 import type { PathNode, PathView } from '../../skill-assessment/types';
 import type { CompetencySource } from '../../competency-dashboard/types';
+import type { PendingModule } from '../hooks/useModuleAuthoring';
 
 type NodeDetailPanelProps = {
     node: PathNode;
@@ -34,6 +35,14 @@ type NodeDetailPanelProps = {
     onClose: () => void;
     /** Reloads the path after a PM changes the graph. */
     onGraphChanged: () => void | Promise<void>;
+    /** A DRAFT/PROPOSED module in flight for this competency, if any (PM/admin only). */
+    pendingModule?: PendingModule | null;
+    /** Whether a module create/draft is in flight. */
+    isCreatingModule?: boolean;
+    /** The last module-authoring error. */
+    moduleError?: string | null;
+    /** Creates a module for this node, then opens the editor on the result. */
+    onCreateModule?: (mode: 'blank' | 'ai') => void;
 };
 
 const SOURCE_LABELS: Record<CompetencySource, string> = {
@@ -58,7 +67,11 @@ export function NodeDetailPanel({
     onEditModule,
     onSelectKey,
     onClose,
-    onGraphChanged
+    onGraphChanged,
+    pendingModule = null,
+    isCreatingModule = false,
+    moduleError = null,
+    onCreateModule
 }: NodeDetailPanelProps) {
     const { profile } = useAuth();
     const canAuthor =
@@ -278,26 +291,25 @@ export function NodeDetailPanel({
                 </p>
             )}
 
-            {canAuthor && node.moduleId && (
-                <button
-                    type="button"
-                    data-testid="edit-module"
-                    onClick={() => onEditModule(node.moduleId as string)}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                >
-                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    Edit this module
-                </button>
-            )}
-
             {/* Authoring lives below the hire's view, not instead of it: this page has one
                 audience by default and PMs get extra tools, rather than a second graph page
                 that would drift from this one. */}
             {canAuthor && (
-                <div className="mt-2 space-y-3 border-t border-app-border pt-4">
+                <div className="mt-2 space-y-4 border-t border-app-border pt-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
                         Authoring
                     </p>
+
+                    {onCreateModule && (
+                        <ModuleAuthoringSection
+                            node={node}
+                            pending={pendingModule}
+                            isBusy={isCreatingModule}
+                            error={moduleError}
+                            onOpenModule={onEditModule}
+                            onCreate={onCreateModule}
+                        />
+                    )}
 
                     {isEditing ? (
                         <CompetencyNodeEditor
