@@ -26,18 +26,21 @@ export async function getTeamOverview(
     size: 100,
   });
 
+  // roles/projects/profileIcon are an additive part of the contract (backend#63). Guard every
+  // one: a backend that predates that change omits them, and crashing the whole team list over a
+  // missing label -- when the names still render fine -- is a worse failure than degrading.
   const users: TeamOverviewUser[] = page.content.map((summary) => ({
     userId: summary.userId,
     firstname: summary.firstname,
     lastname: summary.lastname,
-    profileIcon: summary.profileIcon,
-    roles: summary.roles.map((role) => ({
+    profileIcon: summary.profileIcon ?? null,
+    roles: (summary.roles ?? []).map((role) => ({
       id: role.id,
       name: role.name,
       description: "",
     })),
-    projects: summary.projects,
-    competencies: summary.competencies,
+    projects: summary.projects ?? [],
+    competencies: summary.competencies ?? [],
     hasFeedback: false,
   }));
 

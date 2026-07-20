@@ -34,6 +34,35 @@ describe('teamManagementService', () => {
         expect(member?.userId).toBe('user1');
     });
 
+    it('does not crash when the backend omits roles/projects/icon', async () => {
+        // roles/projects/profileIcon are additive (backend#63). A backend that predates it omits
+        // them; the team list must still render the people, degraded, rather than throwing and
+        // showing nobody -- which is the regression that made the PM overview look empty.
+        server.use(
+            http.get('/api/v1/onboarding/dashboard/users', () =>
+                HttpResponse.json({
+                    content: [
+                        { userId: 'u9', firstname: 'Grace', lastname: 'Hopper', competencies: [] },
+                    ],
+                    totalElements: 1,
+                    totalPages: 1,
+                    number: 0,
+                    size: 100,
+                    first: true,
+                    last: true,
+                }),
+            ),
+        );
+
+        const overview = await getTeamOverview();
+
+        expect(overview).toHaveLength(1);
+        expect(overview[0].firstname).toBe('Grace');
+        expect(overview[0].roles).toEqual([]);
+        expect(overview[0].projects).toEqual([]);
+        expect(overview[0].profileIcon).toBeNull();
+    });
+
     it('getProjectRoles returns project roles', async () => {
         server.use(
             http.get('/api/v1/projectRoles', () =>

@@ -38,11 +38,14 @@ export type UserCompetencySummary = {
     userId: string;
     firstname: string;
     lastname: string;
-    profileIcon: string | null;
-    /** Echoed because the endpoint already filters by `roleIds` -- a client that can narrow by
-     *  role should be able to say which role somebody holds. */
-    roles: { id: string; name: string }[];
-    projects: { id: string; name: string }[];
+    /**
+     * Identity for a team list: role, project, avatar. Optional because they are an additive part
+     * of the contract (backend#63) -- a backend that predates it omits them, and consumers must
+     * degrade rather than assume their presence.
+     */
+    profileIcon?: string | null;
+    roles?: { id: string; name: string }[];
+    projects?: { id: string; name: string }[];
     competencies: UserCompetencyState[];
 };
 
