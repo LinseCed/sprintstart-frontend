@@ -121,6 +121,7 @@ class MockIntersectionObserver {
 }
 global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
+
 // matchMedia polyfill for jsdom (ThemeProvider listens to prefers-color-scheme
 // changes when the user picks the 'system' theme). Tests can override per-case
 // via Object.defineProperty(window, 'matchMedia', ...) if they need a specific

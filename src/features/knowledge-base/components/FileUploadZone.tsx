@@ -21,7 +21,7 @@ interface FileUploadZoneProps {
  */
 export function FileUploadZone({ onUpload, isUploading }: FileUploadZoneProps) {
     const [isDragActive, setIsDragActive] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<string[]>([]);
 
     const validateFiles = (files: FileList | File[]): File[] => {
         const allowedTypes = [
@@ -35,7 +35,7 @@ export function FileUploadZone({ onUpload, isUploading }: FileUploadZoneProps) {
 
         const maxSize = 10 * 1024 * 1024;
         const validFiles: File[] = [];
-        const errors: string[] = [];
+        const newErrors: string[] = [];
 
         Array.from(files).forEach(file => {
             // Browsers often report an empty/`application/octet-stream` MIME for `.md`,
@@ -43,18 +43,19 @@ export function FileUploadZone({ onUpload, isUploading }: FileUploadZoneProps) {
             const isMd = file.name.toLowerCase().endsWith('.md');
 
             if (!allowedTypes.includes(file.type) && !isMd) {
-                errors.push(
+                newErrors.push(
                     `File type not supported: ${file.name}. Only PDF, MD, TXT, PNG, JPG, and WEBP are allowed.`,
                 );
             } else if (file.size > maxSize) {
-                errors.push(`File too large: ${file.name}. Max size is 10MB.`);
+                newErrors.push(`File too large: ${file.name}. Max size is 10MB.`);
             } else {
                 validFiles.push(file);
             }
         });
 
-        // Surface the first validation error of the batch; clear when the batch is clean.
-        setError(errors.length > 0 ? errors[0] : null);
+        // Surface every validation error of the batch, not just the first, so the
+        // user can fix all rejected files at once instead of discovering them one by one.
+        setErrors(newErrors);
 
         return validFiles;
     };
@@ -134,6 +135,7 @@ export function FileUploadZone({ onUpload, isUploading }: FileUploadZoneProps) {
                     onChange={handleFileInput}
                     accept=".pdf,.md,.txt,.png,.jpg,.jpeg,.webp"
                     multiple
+                    data-testid="file-input"
                 />
 
                 <div
@@ -175,15 +177,25 @@ export function FileUploadZone({ onUpload, isUploading }: FileUploadZoneProps) {
             </motion.div>
 
             <AnimatePresence>
-                {error && (
+                {errors.length > 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        className="mt-4 flex items-center gap-3 rounded-xl border border-app-danger-border bg-app-danger-bg p-4 text-sm text-app-danger-text"
+                        aria-live="polite"
+                        className="mt-4 flex items-start gap-3 rounded-xl border border-app-danger-border bg-app-danger-bg p-4 text-sm text-app-danger-text"
+                        data-testid="file-upload-errors"
                     >
                         <AlertCircle className="h-5 w-5 shrink-0" />
-                        {error}
+                        {errors.length === 1 ? (
+                            <span>{errors[0]}</span>
+                        ) : (
+                            <ul className="list-inside list-disc space-y-1">
+                                {errors.map((err, i) => (
+                                    <li key={i}>{err}</li>
+                                ))}
+                            </ul>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

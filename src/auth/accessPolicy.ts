@@ -15,29 +15,30 @@ export type AppRoute =
     | '/pm-dashboard'
     | '/team-management'
     | '/insights/faq'
-    | '/insights/knowledge-gaps';
+    | '/insights/knowledge-gaps'
+    | '/settings'
+    | '/profile';
+
+const ALL_GROUPS: readonly PermissionGroup[] = [
+    PermissionGroup.USER,
+    PermissionGroup.PM,
+    PermissionGroup.HR,
+    PermissionGroup.ADMIN,
+];
 
 const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
-    '/': [PermissionGroup.USER, PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
-    '/chat': [PermissionGroup.USER, PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
-    '/knowledge-base': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
-    '/onboarding': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
+    '/': ALL_GROUPS,
+    '/chat': ALL_GROUPS,
+    '/knowledge-base': ALL_GROUPS,
+    '/onboarding': ALL_GROUPS,
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/admin': [PermissionGroup.HR, PermissionGroup.ADMIN],
     '/pm-dashboard': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/team-management': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/faq': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/knowledge-gaps': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/settings': ALL_GROUPS,
+    '/profile': ALL_GROUPS,
 };
 
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {

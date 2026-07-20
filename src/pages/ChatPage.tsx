@@ -194,17 +194,17 @@ export function ChatPage() {
 
     return (
         <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
-            {/* Mobile slide-out drawer — slides in from the right on mobile */}
+            {/* Mobile slide-out drawer — slides in from the left on mobile */}
             <aside
                 id="chat-mobile-sidebar"
                 aria-label="Mobile chat navigation"
                 aria-hidden={!sidebarOpen}
                 inert={!sidebarOpen}
                 className={[
-                    "fixed top-0 right-0 z-50 h-full w-64 bg-app-bg-soft",
-                    "border-l border-app-border shadow-2xl",
+                    "fixed top-0 left-0 z-50 h-full w-64 bg-app-bg-soft",
+                    "border-r border-app-border shadow-2xl",
                     "transform transition-transform duration-300 md:hidden",
-                    sidebarOpen ? "translate-x-0" : "translate-x-full",
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full",
                 ].join(" ")}
             >
                 <div className="flex items-center justify-between p-4">
@@ -216,21 +216,56 @@ export function ChatPage() {
                 <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
             </aside>
 
-            {/* Mobile toggle button — top-left so it doesn't overlap the mobile header burger */}
+            {/* Mobile toggle button — top-right so it doesn't overlap the mobile header burger */}
             <button
                 aria-label="Toggle sidebar"
                 aria-controls="chat-mobile-sidebar"
                 aria-expanded={sidebarOpen}
-                className="fixed top-4 left-[var(--app-page-gutter)] z-50 mt-15 rounded-full border border-app-border bg-app-surface p-3 text-app-text shadow-lg hover:cursor-pointer hover:bg-app-surface-hover md:hidden"
+                className="fixed top-4 right-[var(--app-page-gutter)] z-50 mt-15 rounded-full border border-app-border bg-app-surface p-3 text-app-text shadow-lg hover:cursor-pointer hover:bg-app-surface-hover md:hidden"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
             >
                 <MessageSquareText size={24} />
             </button>
 
+            {/* Desktop chat history sidebar — LEFT side, always rendered */}
+            <aside
+                aria-label="Chat history"
+                className={[
+                    "hidden shrink-0 flex-col border-r border-app-border bg-app-bg-soft transition-all duration-200 md:flex",
+                    desktopSidebarOpen ? "w-64" : "w-0 overflow-hidden border-r-0",
+                ].join(" ")}
+            >
+                {/* Sidebar header */}
+                <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                    <h2 className="font-bold text-sm tracking-wide text-app-text-muted uppercase">Chats</h2>
+                    <button
+                        aria-label="Close sidebar"
+                        onClick={() => setDesktopSidebarOpen(false)}
+                        className="text-app-text-muted hover:text-app-text transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+                <div className="flex flex-1 flex-col overflow-hidden">
+                    <ChatSidebar chats={chats} setSidebarOpen={() => {}} />
+                </div>
+            </aside>
+
             {/* Main content column */}
-            <div className="relative flex min-w-0 flex-1 flex-col">
-                {/* Header: page title + open-sidebar toggle on the right */}
-                <div className="flex shrink-0 items-center gap-2 border-b border-app-border bg-app-bg/80 app-page-frame py-3 backdrop-blur-md">
+            <div className={`relative flex min-w-0 flex-1 flex-col${desktopSidebarOpen ? ' chat-sidebar-open' : ''}`}>
+                {/* Header: open-sidebar toggle floats at the far-left edge so it
+                    doesn't crowd the page title's icon; title stays aligned with
+                    the message column below (toggle is out of flow). */}
+                <div className="relative flex shrink-0 items-center border-b border-app-border bg-app-bg/80 app-page-frame py-3 backdrop-blur-md">
+                    {!desktopSidebarOpen && (
+                        <button
+                            aria-label="Open sidebar"
+                            onClick={() => setDesktopSidebarOpen(true)}
+                            className="absolute left-2 top-1/2 hidden -translate-y-1/2 md:flex items-center justify-center rounded-xl border border-app-border bg-app-surface p-2 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text transition-colors shrink-0"
+                        >
+                            <MessageSquareText size={18} />
+                        </button>
+                    )}
                     <PageHeader
                         icon={Sparkles}
                         title="AI Assistant"
@@ -238,15 +273,6 @@ export function ChatPage() {
                         hideSubtitleBelow="md"
                         className="flex-1"
                     />
-                    {!desktopSidebarOpen && (
-                        <button
-                            aria-label="Open sidebar"
-                            onClick={() => setDesktopSidebarOpen(true)}
-                            className="hidden md:flex items-center justify-center rounded-xl border border-app-border bg-app-surface p-2 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text transition-colors shrink-0"
-                        >
-                            <MessageSquareText size={18} />
-                        </button>
-                    )}
                 </div>
 
                 <div ref={scrollContainerRef} className="flex flex-1 flex-col overflow-y-auto">
@@ -345,30 +371,6 @@ export function ChatPage() {
                     clearFilters={clearFilters}
                 />
             </div>
-
-            {/* Desktop chat history sidebar — RIGHT side, always rendered */}
-            <aside
-                aria-label="Chat history"
-                className={[
-                    "hidden shrink-0 flex-col border-l border-app-border bg-app-bg-soft transition-all duration-200 md:flex",
-                    desktopSidebarOpen ? "w-64" : "w-0 overflow-hidden border-l-0",
-                ].join(" ")}
-            >
-                {/* Sidebar header */}
-                <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                    <h2 className="font-bold text-sm tracking-wide text-app-text-muted uppercase">Chats</h2>
-                    <button
-                        aria-label="Close sidebar"
-                        onClick={() => setDesktopSidebarOpen(false)}
-                        className="text-app-text-muted hover:text-app-text transition-colors"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-                <div className="flex flex-1 flex-col overflow-hidden">
-                    <ChatSidebar chats={chats} setSidebarOpen={() => {}} />
-                </div>
-            </aside>
 
             {viewingCitationArtifact && projectId && (
                 <ArtifactViewerDrawer

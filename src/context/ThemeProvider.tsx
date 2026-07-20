@@ -1,46 +1,99 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import type { Theme } from './ThemeContext';
 import { ThemeContext } from './ThemeContext';
 
+const STORAGE_KEY = 'theme';
+
 /**
- * Resolves the user's initial theme preference.
- * Checks localStorage first, then falls back to system settings.
+ * Reads the user's stored theme preference, falling back to the OS
+ * `prefers-color-scheme` setting (resolved to a concrete light/dark value)
+ * when no preference has been persisted. 'system' is only used when explicitly
+ * chosen by the user and stored.
  */
 function getInitialTheme(): Theme {
-    const storedTheme = window.localStorage.getItem('theme') as Theme | null;
-    if (storedTheme) return storedTheme;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    let stored: string | null = null;
+    try {
+        stored = window.localStorage.getItem(STORAGE_KEY);
+    } catch (error) {
+        // localStorage may be disabled (private mode) or throw on access.
+        console.warn('Failed to read theme preference', error);
+    }
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
+        return stored;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+}
+
+/** Resolves a (possibly 'system') theme to the concrete light/dark mode in effect. */
+function resolveDark(theme: Theme): boolean {
+    if (theme === 'system') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return theme === 'dark';
+}
+
+/**
+ * Applies the resolved light/dark class to <html> and persists the preference.
+ * Persistence failures (e.g. quota exceeded, private mode) are warned and
+ * swallowed — the in-memory theme still applies for the current session.
+ */
+function applyTheme(theme: Theme) {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(resolveDark(theme) ? 'dark' : 'light');
+    try {
+        window.localStorage.setItem(STORAGE_KEY, theme);
+    } catch (error) {
+        console.warn('Failed to persist theme preference', error);
+    }
 }
 
 /**
  * Provider component that manages the application's visual theme.
- * 
- * Synchronizes the theme state with the document root class and persists
- * the selection in localStorage.
+ *
+ * Supports an explicit 'system' preference that follows the OS
+ * `prefers-color-scheme` media query and re-applies when the OS
+ * preference changes. The selection is persisted to localStorage.
+ *
+ * The resolved `.light`/`.dark` class is applied synchronously in a
+ * `useLayoutEffect` so the correct palette is on <html> before the browser
+ * paints — avoiding a flash of the wrong theme on first load.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<Theme>(() => getInitialTheme());
+    const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
 
-    useEffect(() => {
-        /**
-         * Side effect that updates the '<html>' element class to trigger 
-         * Tailwind dark mode and saves the preference.
-         */
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-        root.classList.add(theme);
-        window.localStorage.setItem('theme', theme);
+    // Sync before paint to avoid a FOUC of the default light palette.
+    useLayoutEffect(() => {
+        applyTheme(theme);
     }, [theme]);
 
-    const toggleTheme = () => {
-        setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    // When the user picks 'system', keep the applied mode in sync with the OS.
+    useEffect(() => {
+        if (theme !== 'system') return;
+
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleChange = () => applyTheme('system');
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, [theme]);
+
+    const setTheme = (next: Theme) => {
+        setThemeState(next);
     };
 
-    const isDarkMode = theme === 'dark';
+    // Sidebar quick toggle: cycle light <-> dark. 'system' is treated as the
+    // resolved mode so toggling from 'system' flips to the opposite concrete mode.
+    const toggleTheme = () => {
+        setThemeState((prev) => (resolveDark(prev) ? 'light' : 'dark'));
+    };
+
+    const isDarkMode = resolveDark(theme);
 
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme, isDarkMode }}>
+        <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, isDarkMode }}>
             {children}
         </ThemeContext.Provider>
     );

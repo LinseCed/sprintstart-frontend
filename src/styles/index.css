@@ -229,6 +229,13 @@
   padding-right: var(--app-page-gutter);
 }
 
+/* ChatPage: when the desktop history sidebar is open, collapse the left
+   gutter so the sidebar opens "into" the empty gutter space instead of
+   pushing the chat content right and leaving a gap between sidebar and chat. */
+.chat-sidebar-open .app-page-frame {
+  padding-left: 1.5rem;
+}
+
 .admin-page-frame {
   width: 100%;
   padding-left: clamp(1rem, 4vw, 2rem);
