@@ -99,7 +99,7 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
                         {/* Verified is a materially stronger claim than assessed, so it is worth
                             distinguishing rather than folding into one count. */}
                         {verified.length} verified by a passed check
-                        {inProgress.length > 0 && ` · ${inProgress.length} below target`}
+                        {inProgress.length > 0 && ` Â· ${inProgress.length} below target`}
                     </p>
                 )}
 

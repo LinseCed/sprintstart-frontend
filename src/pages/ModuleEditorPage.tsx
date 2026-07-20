@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Check, Loader2, Plus, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Copy, Loader2, Plus, Users } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
 import { ModulePageEditor } from '../features/competency-module/components/ModulePageEditor';
 import { useModuleEditor } from '../features/competency-module/hooks/useModuleEditor';
@@ -33,8 +33,18 @@ export function ModuleEditorPage() {
     const { profile } = useAuth();
     const canAct = profile?.permissionGroup !== PermissionGroup.HR;
 
-    const { module, isLoading, isSaving, error, addPage, updatePage, deletePage, movePage, approve } =
-        useModuleEditor(moduleId ?? null);
+    const {
+        module,
+        isLoading,
+        isSaving,
+        error,
+        addPage,
+        updatePage,
+        deletePage,
+        movePage,
+        approve,
+        startNewVersion
+    } = useModuleEditor(moduleId ?? null);
 
     const [newPageKind, setNewPageKind] = useState<ModulePageKind>('LESSON');
 
@@ -115,11 +125,29 @@ export function ModuleEditorPage() {
                 )}
 
                 {!isLoading && module && !isEditable && (
-                    <p className="rounded-2xl border border-app-border bg-app-surface-muted p-4 text-sm text-app-text-muted">
-                        This version is {STATUS_LABELS[module.status].toLowerCase()} &mdash; it is the
-                        record of what hires were taught, so it is read-only. Start a new version to
-                        change it.
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted p-4">
+                        <p className="text-sm text-app-text-muted">
+                            This version is {STATUS_LABELS[module.status].toLowerCase()} &mdash; it is
+                            the record of what hires were taught, so it is read-only. Start a new
+                            version to change it.
+                        </p>
+                        {canAct && (
+                            <button
+                                type="button"
+                                data-testid="start-new-version"
+                                disabled={isSaving}
+                                onClick={() =>
+                                    void startNewVersion().then(draftId => {
+                                        if (draftId) void navigate(`/competency-modules/${draftId}`);
+                                    })
+                                }
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                                Start a new version
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 {!isLoading && module && aiPageCount > 0 && (

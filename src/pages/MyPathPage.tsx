@@ -24,6 +24,7 @@ import { GoalBanner } from '../features/my-path/components/GoalBanner';
 import { GoalPicker } from '../features/my-path/components/GoalPicker';
 import { useGoalSelection } from '../features/my-path/hooks/useGoalSelection';
 import { useGraphEditing } from '../features/my-path/hooks/useGraphEditing';
+import { useModuleAuthoring } from '../features/my-path/hooks/useModuleAuthoring';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 import type { PathNode, PathView } from '../features/skill-assessment/types';
@@ -116,6 +117,15 @@ export function MyPathPage() {
         addPrerequisite
     } = useGraphEditing(retry);
 
+    // Module authoring: which competencies have an unpublished module in flight, and creating one
+    // for those that don't. Only fetched for authors.
+    const {
+        pendingByKey,
+        isBusy: isCreatingModule,
+        error: moduleError,
+        create: createModule
+    } = useModuleAuthoring(selectedProjectId, canAuthor);
+
     const [isPickingGoal, setIsPickingGoal] = useState(false);
     const [noticeDismissed, setNoticeDismissed] = useState(false);
     const [view, setView] = useState<'map' | 'list'>('map');
@@ -152,6 +162,15 @@ export function MyPathPage() {
 
     const editModule = (moduleId: string) => {
         void navigate(`/competency-modules/${moduleId}`);
+    };
+
+    // Create a module for the selected node, then drop the PM straight into the editor on it --
+    // creating something you can't immediately author would be a dead end.
+    const handleCreateModule = (mode: 'blank' | 'ai') => {
+        if (!selectedNode) return;
+        void createModule(selectedNode.key, selectedNode.label, mode).then(module => {
+            if (module) void navigate(`/competency-modules/${module.id}`);
+        });
     };
 
     const handleFocusSkill = (key: string) => {
@@ -395,6 +414,10 @@ export function MyPathPage() {
                                 // from, so the map reloads in place -- no navigation,
                                 // no full-page spinner, the panel stays where it was.
                                 onGraphChanged={retry}
+                                pendingModule={pendingByKey.get(selectedNode.key) ?? null}
+                                isCreatingModule={isCreatingModule}
+                                moduleError={moduleError}
+                                onCreateModule={canAuthor ? handleCreateModule : undefined}
                             />
                         )}
                     </div>
