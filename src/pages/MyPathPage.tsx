@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     AlertCircle,
@@ -20,7 +20,6 @@ import { CompetencyGraph } from '../features/my-path/components/CompetencyGraph'
 import { NodeDetailPanel } from '../features/my-path/components/NodeDetailPanel';
 import { SkillsRail } from '../features/my-path/components/SkillsRail';
 import { useMyCompetencies } from '../features/my-path/hooks/useMyCompetencies';
-import { onboardingService } from '../services/onboardingService';
 import type { PathNode, PathView } from '../features/skill-assessment/types';
 
 /** Navigation state a passing module hands back so the map knows what to celebrate. */
@@ -75,7 +74,7 @@ export function MyPathPage() {
         errorMessage: projectsError
     } = useProjectSelection();
 
-    const { path, isLoading, error, notFound, pathUpdated, justChangedKeys, retry } =
+    const { path, isLoading, error, pathUpdated, justChangedKeys, retry } =
         useCompetencyPath(selectedProjectId);
     const {
         competencies,
@@ -105,63 +104,8 @@ export function MyPathPage() {
         return fromUnlock.size > 0 ? fromUnlock : justChangedKeys;
     }, [path, unlockedKey, justChangedKeys]);
 
-    // Path generation (only reached when a project has no path yet).
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [generationStage, setGenerationStage] = useState<string | null>(null);
-    const [generationError, setGenerationError] = useState<string | null>(null);
-    // The project we've already auto-generated for, so a generation that fails to
-    // produce a path doesn't loop the 404 -> generate -> 404 cycle forever.
-    const [generatedForProject, setGeneratedForProject] = useState<string | null>(null);
-
-    const generatePath = useCallback(
-        async (projectId: string) => {
-            setIsGenerating(true);
-            setGenerationStage(null);
-            setGenerationError(null);
-            setGeneratedForProject(projectId);
-            await onboardingService.personalizePath(
-                {
-                    onStage: name => setGenerationStage(name),
-                    onPath: () => {
-                        // The SSE emits the legacy phases path; this view reads the projected
-                        // PathView instead, so just re-fetch once generation lands.
-                    },
-                    onDone: () => {
-                        setIsGenerating(false);
-                        void retry();
-                    },
-                    onError: message => {
-                        setIsGenerating(false);
-                        setGenerationError(message);
-                    }
-                },
-                projectId
-            );
-        },
-        [retry]
-    );
-
-    // Auto-start generation the first time we learn a selected project has no path.
-    // Deferred to a macrotask so it reads as the async side-effect it is, rather
-    // than a synchronous setState cascade during the effect.
-    useEffect(() => {
-        if (
-            !notFound ||
-            !selectedProjectId ||
-            isGenerating ||
-            generatedForProject === selectedProjectId
-        ) {
-            return;
-        }
-        const timer = setTimeout(() => void generatePath(selectedProjectId), 0);
-        return () => clearTimeout(timer);
-    }, [notFound, selectedProjectId, isGenerating, generatedForProject, generatePath]);
-
-    // A fresh project selection is eligible for a fresh generation attempt, and
-    // its graph has none of the previous project's nodes.
+    // A fresh project has none of the previous project's nodes selected.
     const handleSelectProject = (projectId: string) => {
-        setGeneratedForProject(null);
-        setGenerationError(null);
         setSelectedKey(null);
         setFocusedKey(null);
         setSelectedProjectId(projectId);
@@ -253,37 +197,7 @@ export function MyPathPage() {
         );
     }
 
-    // Whether we've already run generation for the currently selected project --
-    // distinguishes "about to auto-generate" from "generated but produced no path".
-    const alreadyAttempted = generatedForProject === selectedProjectId;
-
-    if (isGenerating || (notFound && !alreadyAttempted)) {
-        return (
-            <div className="min-h-screen bg-app-bg">
-                {header}
-                <div className="flex items-center justify-center p-16">
-                    <div className="max-w-md text-center">
-                        <Sparkles className="mx-auto mb-4 h-10 w-10 animate-pulse text-app-brand" />
-                        <h2 className="mb-2 text-xl font-semibold text-app-text">
-                            Building your path for this project...
-                        </h2>
-                        <p className="text-sm text-app-text-muted">
-                            {generationStage ?? 'Starting up'}
-                        </p>
-                        <div className="mx-auto mt-4 h-6 w-6 animate-spin rounded-full border-2 border-app-brand border-t-transparent" />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // A load failure, a generation error, or a generation that ran but produced
-    // no path (e.g. nothing ingested yet to build a baseline from).
-    if (error || generationError || (notFound && alreadyAttempted)) {
-        const message =
-            error ??
-            generationError ??
-            "We couldn't build a path for this project yet -- there may be nothing ingested to base it on.";
+    if (error) {
         return (
             <div className="min-h-screen bg-app-bg">
                 {header}
@@ -293,20 +207,36 @@ export function MyPathPage() {
                         <h2 className="mb-2 text-xl font-semibold text-app-text">
                             Something went wrong
                         </h2>
-                        <p className="mb-6 text-sm text-app-text-muted">{message}</p>
+                        <p className="mb-6 text-sm text-app-text-muted">{error}</p>
                         <button
-                            onClick={() => {
-                                if (selectedProjectId && (generationError || notFound)) {
-                                    setGeneratedForProject(null);
-                                    void generatePath(selectedProjectId);
-                                } else {
-                                    void retry();
-                                }
-                            }}
+                            onClick={() => void retry()}
                             className="rounded-xl bg-app-brand px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-app-brand-hover"
                         >
                             Try again
                         </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // An empty path is an answer, not a failure. The path is derived from the
+    // project's baseline, so "nothing here" means nobody has approved a baseline
+    // for this project yet -- which is a PM's job, not something to retry.
+    if (path && path.nodes.length === 0) {
+        return (
+            <div className="min-h-screen bg-app-bg">
+                {header}
+                <div className="flex items-center justify-center p-16">
+                    <div className="max-w-md text-center">
+                        <Sparkles className="mx-auto mb-4 h-10 w-10 text-app-brand" />
+                        <h2 className="mb-2 text-xl font-semibold text-app-text">
+                            Nothing on your path yet
+                        </h2>
+                        <p className="text-sm text-app-text-muted">
+                            This project&apos;s onboarding baseline hasn&apos;t been approved yet, so
+                            there are no competencies to aim at. It&apos;ll appear here once it has.
+                        </p>
                     </div>
                 </div>
             </div>

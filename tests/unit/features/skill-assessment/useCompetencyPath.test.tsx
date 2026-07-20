@@ -106,17 +106,20 @@ describe('useCompetencyPath', () => {
         expect(result.current.justChangedKeys.has('kotlin')).toBe(true);
     });
 
-    it('surfaces a 404 as notFound rather than an error', async () => {
+    it('treats an empty path as an answer, not a failure', async () => {
+        // The path is derived on every read, so "nothing selected by the baseline"
+        // comes back as an empty path rather than a 404 to recover from.
         server.use(
-            http.get('/api/v1/onboarding/me/path', () => new HttpResponse(null, { status: 404 })),
+            http.get('/api/v1/onboarding/me/path', () =>
+                HttpResponse.json({ nodes: [], edges: [], graphVersion: 1 }),
+            ),
         );
 
         const { result } = renderHook(() => useCompetencyPath('proj1'));
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
-        expect(result.current.notFound).toBe(true);
         expect(result.current.error).toBeNull();
-        expect(result.current.path).toBeNull();
+        expect(result.current.path?.nodes).toEqual([]);
     });
 
     it('stays idle and does not fetch when no project is selected', async () => {

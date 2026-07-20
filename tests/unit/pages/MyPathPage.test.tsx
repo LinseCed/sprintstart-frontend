@@ -35,14 +35,8 @@ vi.mock('../../../src/features/projects/useProjectSelection', () => ({
     }),
 }));
 
-vi.mock('../../../src/services/onboardingService', () => ({
-    onboardingService: { personalizePath: vi.fn(), fetchStep: vi.fn() },
-}));
-
 import { assessmentService, getLastSeenGraphVersion } from '../../../src/services/assessmentService';
 import { myCompetencyService } from '../../../src/services/myCompetencyService';
-import { onboardingService } from '../../../src/services/onboardingService';
-import { ApiError } from '../../../src/services/apiClient';
 
 function renderPage() {
     return render(
@@ -59,13 +53,6 @@ describe('MyPathPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(myCompetencyService.fetchMyCompetencies).mockResolvedValue([]);
-        vi.mocked(onboardingService.fetchStep).mockResolvedValue({
-            id: 'step1',
-            estimatedMinutes: 15,
-            pages: [{ kind: 'LESSON', title: 'Learn', content: '# Hi' }],
-            tasks: [],
-            resources: [],
-        } as never);
     });
 
     it('renders the graph', async () => {
@@ -220,24 +207,25 @@ describe('MyPathPage', () => {
         await user.click(screen.getByRole('button', { name: 'Try again' }));
 
         await waitFor(() => {
-            expect(screen.getByText(/no competencies in your path yet/i)).toBeInTheDocument();
+            expect(screen.getByText(/nothing on your path yet/i)).toBeInTheDocument();
         });
     });
 
-    it('kicks off generation for the selected project when it has no path yet', async () => {
+    it('says an empty path is waiting on a baseline, with nothing to retry', async () => {
+        // The path is derived on read, so there is no generation to kick off: an
+        // empty path means the project's baseline selects nothing visible yet.
         vi.mocked(getLastSeenGraphVersion).mockReturnValue(null);
-        vi.mocked(assessmentService.fetchPath).mockRejectedValue(new ApiError(404, 'no path'));
-        // Never resolves the SSE, so the page stays in the generating state.
-        vi.mocked(onboardingService.personalizePath).mockReturnValue(new Promise(() => {}));
+        vi.mocked(assessmentService.fetchPath).mockResolvedValue({
+            nodes: [],
+            edges: [],
+            graphVersion: 1,
+        });
 
         renderPage();
 
         await waitFor(() => {
-            expect(onboardingService.personalizePath).toHaveBeenCalledWith(
-                expect.any(Object),
-                'proj1',
-            );
+            expect(screen.getByText(/nothing on your path yet/i)).toBeInTheDocument();
         });
-        expect(screen.getByText(/building your path for this project/i)).toBeInTheDocument();
+        expect(screen.getByText(/baseline hasn't been approved yet/i)).toBeInTheDocument();
     });
 });

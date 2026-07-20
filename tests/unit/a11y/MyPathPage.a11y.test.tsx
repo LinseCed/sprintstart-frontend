@@ -49,10 +49,6 @@ vi.mock('../../../src/features/projects/useProjectSelection', () => ({
     }),
 }));
 
-vi.mock('../../../src/services/onboardingService', () => ({
-    onboardingService: { personalizePath: vi.fn() },
-}));
-
 describe('MyPathPage Accessibility', () => {
     it('should not have any a11y violations', async () => {
         const { baseElement } = render(
