@@ -1,11 +1,9 @@
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import {
     formatDateTime,
     formatNumber,
     formatRunFinishedAt,
-    getAiSyncStatusLabel,
-    getAiSyncStatusTone,
-    getRunStatusLabel,
-    getRunStatusTone,
+    getEffectiveRunStatus,
     getSourceLabel,
 } from "../data.ts";
 import type { IngestionRun } from "../types.ts";
@@ -59,13 +57,7 @@ export function RunHistory({ runs }: RunHistoryProps) {
                             </p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <RunStatusBadge status={run.status} />
-                            <AiSyncStatusBadge
-                                status={run.aiSyncStatus}
-                                failureReason={run.aiSyncFailureReason}
-                            />
-                        </div>
+                        <RunStatusCell run={run} />
 
                         <div>
                             <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
@@ -122,75 +114,57 @@ export function RunHistory({ runs }: RunHistoryProps) {
     );
 }
 
-function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
-    const label = getRunStatusLabel(status);
-    const tone = getRunStatusTone(status);
+const TONE_STYLES = {
+    success: {
+        icon: CheckCircle2,
+        className:
+            "border border-app-success-border bg-app-success-bg text-app-success-text",
+    },
+    running: {
+        icon: Loader2,
+        className: "border border-transparent bg-app-brand-soft text-app-brand-text",
+    },
+    warning: {
+        icon: AlertTriangle,
+        className:
+            "border border-app-warning-border bg-app-warning-bg text-app-warning-text",
+    },
+} as const;
 
-    if (tone === "success") {
-        return (
-            <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-                {label}
-            </span>
-        );
-    }
-
-    if (tone === "running") {
-        return (
-            <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                {label}
-            </span>
-        );
-    }
-
-    return (
-        <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-            {label}
-        </span>
-    );
-}
-
-function AiSyncStatusBadge({
-    status,
-    failureReason,
-}: {
-    status: IngestionRun["aiSyncStatus"];
-    failureReason: IngestionRun["aiSyncFailureReason"];
-}) {
-    const label = getAiSyncStatusLabel(status);
-    if (!label) return null;
-
-    const tone = getAiSyncStatusTone(status);
-    const title =
-        status === "FAILED" && failureReason ? failureReason : undefined;
-
-    if (tone === "success") {
-        return (
-            <span
-                title={title}
-                className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text"
-            >
-                {label}
-            </span>
-        );
-    }
-
-    if (tone === "running") {
-        return (
-            <span
-                title={title}
-                className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text"
-            >
-                {label}
-            </span>
-        );
-    }
+/**
+ * One run's overall status: a single badge whose verdict already accounts for
+ * both the local fetch and the AI indexing phase (see `getEffectiveRunStatus`),
+ * with the per-phase detail as supporting text.
+ *
+ * Previously the two phases were two equal side-by-side badges, so an indexing
+ * failure sat next to a green "Success" and read as a footnote. Only one badge
+ * is prominent now, and it is never green unless the run is genuinely done.
+ */
+function RunStatusCell({ run }: { run: IngestionRun }) {
+    const { label, tone, detail } = getEffectiveRunStatus(run);
+    const { icon: Icon, className } = TONE_STYLES[tone];
 
     return (
-        <span
-            title={title}
-            className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text"
-        >
-            {label}
-        </span>
+        <div data-testid={`run-status-${run.runId}`}>
+            <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${className}`}
+            >
+                <Icon
+                    className={`h-3.5 w-3.5 shrink-0 ${tone === "running" ? "animate-spin" : ""}`}
+                    aria-hidden="true"
+                />
+                {label}
+            </span>
+
+            {detail && (
+                <p className="mt-1 text-xs text-app-text-subtle">{detail}</p>
+            )}
+
+            {run.aiSyncStatus === "FAILED" && run.aiSyncFailureReason && (
+                <p className="mt-1 break-words text-xs text-app-warning-text">
+                    {run.aiSyncFailureReason}
+                </p>
+            )}
+        </div>
     );
 }

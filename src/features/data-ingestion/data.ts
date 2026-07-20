@@ -136,7 +136,12 @@ export function buildDataSources(
         if (!latestRun) return source;
 
         const hasErrors = latestRun.failedCount > 0;
-        const status = getSourceStatus(false, hasErrors, latestRun.status);
+        const status = getSourceStatus(
+            false,
+            hasErrors,
+            latestRun.status,
+            latestRun.aiSyncStatus,
+        );
 
         return {
             ...source,
@@ -145,6 +150,7 @@ export function buildDataSources(
                 false,
                 hasErrors,
                 latestRun.status,
+                latestRun.aiSyncStatus,
             ),
             artifacts: latestRun.ingestedCount,
             lastSync: formatDateTime(latestRun.startedAt),
@@ -157,14 +163,23 @@ export function buildDataSources(
     });
 }
 
+/**
+ * @param aiSyncStatus The latest run's indexing status. A source whose artifacts
+ *   never reached the AI index is not "connected and fine", so a failed index
+ *   downgrades the card the same way a failed fetch does (see
+ *   {@link getEffectiveRunStatus}).
+ */
 export function getSourceStatus(
   hasNeverSynced: boolean,
   hasErrors: boolean,
   runStatus?: IngestionRunStatus | null,
+  aiSyncStatus?: AiSyncStatus | null,
 ): SourceStatus {
   if (hasNeverSynced) return "warning";
   if (isRunInProgress(runStatus)) return "running";
   if (runStatus === "FAILED" || runStatus === "PARTIAL") return "warning";
+  if (aiSyncStatus === "FAILED") return "warning";
+  if (aiSyncStatus === "PENDING") return "running";
   if (hasErrors) return "warning";
   return "connected";
 }
@@ -189,15 +204,22 @@ export function getSourceStatusFromBackend(
   }
 }
 
+/**
+ * @param aiSyncStatus The latest run's indexing status -- a source is only
+ *   labeled "Synced" once its artifacts are actually searchable.
+ */
 export function getSourceStatusLabel(
   hasNeverSynced: boolean,
   hasErrors: boolean,
   runStatus?: IngestionRunStatus | null,
+  aiSyncStatus?: AiSyncStatus | null,
 ) {
   if (hasNeverSynced) return "Not synced";
   if (isRunInProgress(runStatus)) return "Running";
   if (runStatus === "FAILED") return "Failed";
   if (runStatus === "PARTIAL") return "Partial";
+  if (aiSyncStatus === "FAILED") return "Indexing failed";
+  if (aiSyncStatus === "PENDING") return "Indexing...";
   if (hasErrors) return "Warning";
   if (runStatus === "COMPLETED") return "Synced";
   return "Connected";
@@ -272,6 +294,64 @@ export function getAiSyncStatusTone(status: AiSyncStatus) {
   if (status === "SUCCEEDED") return "success";
   if (status === "PENDING") return "running";
   return "warning";
+}
+
+/**
+ * A run's status as a user actually experiences it, folding the local
+ * fetch-and-store phase (`status`) together with the AI indexing phase
+ * (`aiSyncStatus`).
+ *
+ * These are two separate backend fields, and a run reports `COMPLETED` as soon as
+ * it has fetched and stored artifacts locally -- even if indexing then failed and
+ * *nothing is searchable*. Shown as two side-by-side badges, that read as "the run
+ * succeeded" with the real failure demoted to a footnote. So a run is only ever
+ * reported as a success here when both phases succeeded; the losing phase decides
+ * the label and tone.
+ *
+ * @returns The label and tone for the single prominent badge, plus a `detail`
+ * line naming both phases so the combined verdict is never ambiguous.
+ */
+export function getEffectiveRunStatus(run: {
+  status: IngestionRunStatus;
+  aiSyncStatus: AiSyncStatus;
+}): {
+  label: string;
+  tone: "success" | "running" | "warning";
+  detail: string | null;
+} {
+  if (isRunInProgress(run.status)) {
+    return { label: "Running", tone: "running", detail: "Fetching from source" };
+  }
+
+  if (run.status === "FAILED" || run.status === "PARTIAL") {
+    return {
+      label: getRunStatusLabel(run.status),
+      tone: "warning",
+      detail:
+        run.aiSyncStatus === "SUCCEEDED"
+          ? "Fetch incomplete; what was fetched is indexed"
+          : "Fetch incomplete; not searchable",
+    };
+  }
+
+  switch (run.aiSyncStatus) {
+    case "FAILED":
+      return {
+        label: "Indexing failed",
+        tone: "warning",
+        detail: "Fetched, but nothing reached the search index",
+      };
+    case "PENDING":
+      return {
+        label: "Indexing...",
+        tone: "running",
+        detail: "Fetched; not searchable until indexing finishes",
+      };
+    case "SUCCEEDED":
+      return { label: "Success", tone: "success", detail: "Fetched and indexed" };
+    case "NOT_APPLICABLE":
+      return { label: "Success", tone: "success", detail: null };
+  }
 }
 
 export function getSourceLabel(sourceSystem: SourceSystem) {
