@@ -7,6 +7,12 @@ type TaskZeroStepProps = {
     environmentReady: boolean;
     onHandBack: () => void;
     isHandingBack: boolean;
+    /**
+     * Orientation for this task, rendered inside the step rather than on a page
+     * of its own: it is help *for the task*, not a course you leave the task to
+     * take. Absent until there is a task to orient for.
+     */
+    orientation?: React.ReactNode;
 };
 
 const PR_LOOP: { icon: typeof GitBranch; label: string; detail: string }[] = [
@@ -24,7 +30,13 @@ const PR_LOOP: { icon: typeof GitBranch; label: string; detail: string }[] = [
  * branch → PR → review → merge loop is spelled out for someone who has never
  * contributed here, because the task is the easy part; the loop is what is new.
  */
-export function TaskZeroStep({ taskZero, environmentReady, onHandBack, isHandingBack }: TaskZeroStepProps) {
+export function TaskZeroStep({
+    taskZero,
+    environmentReady,
+    onHandBack,
+    isHandingBack,
+    orientation
+}: TaskZeroStepProps) {
     if (!environmentReady) {
         return (
             <StepShell index={2} title="Your first task">
@@ -107,6 +119,8 @@ export function TaskZeroStep({ taskZero, environmentReady, onHandBack, isHanding
                     ))}
                 </ol>
             </div>
+
+            {orientation}
 
             <button
                 type="button"
