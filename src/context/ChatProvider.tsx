@@ -341,7 +341,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         // citation, tool_use) so a slow "reasoning" phase doesn't get cut off.
         // Only fires when the connection goes completely silent for the whole
         // window — surfacing a visible error instead of an infinite spinner.
-        const STREAM_TIMEOUT_MS = 30_000;
+        const STREAM_TIMEOUT_MS = 300_000;
         const armStreamTimeout = () => {
             clearStreamTimeout();
             streamTimeoutRef.current = setTimeout(() => {
