@@ -16,7 +16,6 @@ import type {
     UpsertPhaseCheckQuestion,
     PhaseCheckAttemptsReviewEndpoint,
 } from '../features/onboarding/types';
-import onboardingStepMock from '../mocks/onboardingStepMock.json';
 
 export const onboardingService = {
 
@@ -110,13 +109,20 @@ export const onboardingService = {
 
     // ── STEP ─────────────────────────────────────────────────
 
+    /**
+     * Loads one onboarding step: its lesson content, tasks, resources and the
+     * ordered `pages` a learn-verify module is rendered from.
+     *
+     * Failures propagate. This used to swallow the error and return a bundled
+     * mock step, which meant a hire could be shown placeholder lesson content --
+     * and, on `/my-path/module/:stepId`, be graded against a check that isn't the
+     * one they read -- with nothing but a console line to say so. Both callers
+     * already render a real error state.
+     *
+     * @throws ApiError when the step cannot be loaded (e.g. unknown id, 401).
+     */
     async fetchStep(stepId: string): Promise<OnboardingStepDetail> {
-        try {
-            return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/me/steps/${stepId}`);
-        } catch (error) {
-            console.error(`Error fetching onboarding step with ID ${stepId}:`, error);
-            return onboardingStepMock as OnboardingStepDetail;
-        }
+        return await apiClient.fetch<OnboardingStepDetail>(`/api/v1/onboarding/me/steps/${stepId}`);
     },
 
     /**
