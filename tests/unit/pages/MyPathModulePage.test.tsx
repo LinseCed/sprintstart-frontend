@@ -89,6 +89,15 @@ describe('MyPathModulePage', () => {
         expect(await screen.findByText('Explain the deploy flow')).toBeInTheDocument();
     });
 
+    it('surfaces a failed load instead of rendering placeholder content', async () => {
+        vi.mocked(onboardingService.fetchStep).mockRejectedValue(new Error('Step not found'));
+
+        renderModule();
+
+        expect(await screen.findByText('Step not found')).toBeInTheDocument();
+        expect(screen.queryByText('Lesson body')).not.toBeInTheDocument();
+    });
+
     it('deep-links straight to a page via the query string', async () => {
         renderModule('/my-path/module/step1?page=2');
 
