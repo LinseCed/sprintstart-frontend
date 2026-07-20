@@ -3,6 +3,7 @@ import { useAuth } from '../../../context/useAuth';
 import { userService } from '../../../services/userService';
 import type { UserProfile } from '../../../services/types';
 import { AccountForm } from './AccountForm';
+import { GithubHistorySection } from './GithubHistorySection';
 import { PasswordForm } from './PasswordForm';
 import { Loader2, UserCircle } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
@@ -87,6 +88,9 @@ export function ProfileLayout() {
                         profile={profile}
                         onUpdate={handleUpdateProfile}
                     />
+                    {/* Sits right after the GitHub username field it depends on: without a
+                        username there is nothing to attribute the user's work to. */}
+                    <GithubHistorySection />
                     <PasswordForm />
                 </div>
             </main>
