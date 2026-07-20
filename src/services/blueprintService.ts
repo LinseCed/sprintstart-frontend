@@ -9,7 +9,8 @@ const BASE_URL = '/api/v1/onboarding/blueprints';
 
 export const blueprintService = {
     /**
-     * Generates baseline blueprint proposals from the ingested corpus.
+     * Generates baseline proposals from the ingested corpus: a competency
+     * selection per scope, drawn from the live competency graph.
      *
      * Proposal-only: nothing becomes the mandatory baseline until a PM approves
      * it. Omitting `scopes` lets the backend pick the scopes it knows about.
@@ -21,7 +22,7 @@ export const blueprintService = {
         });
     },
 
-    /** Lists blueprint versions awaiting PM review. */
+    /** Lists baseline versions awaiting PM review. */
     async fetchProposed(): Promise<ProposedBlueprints> {
         return await apiClient.fetch<ProposedBlueprints>(`${BASE_URL}/proposed`);
     },
@@ -47,14 +48,19 @@ export const blueprintService = {
         );
     },
 
-    /** Approves a single proposed step within a version. */
-    async approveStep(proposalId: string): Promise<void> {
-        await apiClient.fetch(`${BASE_URL}/steps/${proposalId}/approve`, { method: 'POST' });
+    /** Keeps a single proposed competency in the baseline. */
+    async approveCompetency(proposalId: string): Promise<void> {
+        await apiClient.fetch(`${BASE_URL}/competencies/${proposalId}/approve`, {
+            method: 'POST'
+        });
     },
 
-    /** Rejects a single proposed step, so it is left out when the version is approved. */
-    async rejectStep(proposalId: string, reason?: string): Promise<void> {
-        await apiClient.fetch(`${BASE_URL}/steps/${proposalId}/reject`, {
+    /**
+     * Drops a single proposed competency, so it is left out when the version is
+     * approved -- it stops being something everyone in the scope must reach.
+     */
+    async rejectCompetency(proposalId: string, reason?: string): Promise<void> {
+        await apiClient.fetch(`${BASE_URL}/competencies/${proposalId}/reject`, {
             method: 'POST',
             body: JSON.stringify({ reason: reason ?? null })
         });

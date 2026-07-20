@@ -17,8 +17,8 @@ vi.mock('../../../src/services/blueprintService', () => ({
         fetchProposed: vi.fn(),
         approve: vi.fn(),
         reject: vi.fn(),
-        approveStep: vi.fn(),
-        rejectStep: vi.fn(),
+        approveCompetency: vi.fn(),
+        rejectCompetency: vi.fn(),
     },
 }));
 
@@ -27,13 +27,16 @@ import { blueprintService } from '../../../src/services/blueprintService';
 const proposal = {
     scope: 'global',
     version: '3',
-    steps: [
+    competencies: [
         {
-            id: 'step-1',
-            title: 'Run the stack locally',
+            competencyKey: 'run-the-stack',
+            label: 'Run the stack locally',
             description: 'Boot it end to end',
+            targetLevel: 2,
+            targetLevelOverridden: false,
             requirement: 'required',
             invariant: true,
+            rationale: 'Every contribution starts from a working local stack.',
             proposalId: 'p1',
             status: 'PROPOSED' as const,
         },
@@ -47,7 +50,7 @@ describe('BlueprintAuthoringPage', () => {
         vi.mocked(blueprintService.fetchProposed).mockResolvedValue({ blueprints: [proposal] });
     });
 
-    it('renders a proposed baseline with its steps', async () => {
+    it('renders a proposed baseline with the competencies it selects', async () => {
         render(<BlueprintAuthoringPage />);
 
         const card = await screen.findByTestId('blueprint-global');
@@ -56,6 +59,33 @@ describe('BlueprintAuthoringPage', () => {
         expect(within(card).getByText('Run the stack locally')).toBeInTheDocument();
         expect(within(card).getByText('Required')).toBeInTheDocument();
         expect(within(card).getByText('Invariant')).toBeInTheDocument();
+        // The bar decides when a hire is done with the node, so it has to be visible.
+        expect(within(card).getByText(/reach intermediate/i)).toBeInTheDocument();
+        expect(
+            within(card).getByText(/every contribution starts from a working local stack/i),
+        ).toBeInTheDocument();
+    });
+
+    it("marks a bar this baseline sets, rather than the competency's own", async () => {
+        vi.mocked(blueprintService.fetchProposed).mockResolvedValue({
+            blueprints: [
+                {
+                    ...proposal,
+                    competencies: [
+                        {
+                            ...proposal.competencies[0],
+                            targetLevel: 4,
+                            targetLevelOverridden: true,
+                        },
+                    ],
+                },
+            ],
+        });
+
+        render(<BlueprintAuthoringPage />);
+
+        const card = await screen.findByTestId('blueprint-global');
+        expect(within(card).getByText(/reach expert — set by this baseline/i)).toBeInTheDocument();
     });
 
     it('explains the empty queue instead of looking broken', async () => {
@@ -80,26 +110,26 @@ describe('BlueprintAuthoringPage', () => {
         });
     });
 
-    it('drops a single step by its proposal id, not its semantic step id', async () => {
-        vi.mocked(blueprintService.rejectStep).mockResolvedValue();
+    it('drops a single competency by its proposal id, not its competency key', async () => {
+        vi.mocked(blueprintService.rejectCompetency).mockResolvedValue();
         const user = userEvent.setup();
         render(<BlueprintAuthoringPage />);
 
-        await user.click(await screen.findByRole('button', { name: /drop step/i }));
+        await user.click(await screen.findByRole('button', { name: /drop run the stack/i }));
 
-        expect(blueprintService.rejectStep).toHaveBeenCalledWith('p1');
+        expect(blueprintService.rejectCompetency).toHaveBeenCalledWith('p1');
     });
 
     it('generates proposals and surfaces the per-scope outcome', async () => {
         vi.mocked(blueprintService.generate).mockResolvedValue({
-            outcomes: [{ scope: 'global', status: 'generated', message: '4 steps' }],
+            outcomes: [{ scope: 'global', status: 'created', message: '4 competencies' }],
         });
         const user = userEvent.setup();
         render(<BlueprintAuthoringPage />);
 
         await user.click(await screen.findByRole('button', { name: /generate baseline/i }));
 
-        expect(await screen.findByText(/generated/)).toBeInTheDocument();
+        expect(await screen.findByText(/created/)).toBeInTheDocument();
     });
 
     it('lets HR read the queue but not change it', async () => {

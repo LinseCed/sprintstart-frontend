@@ -1,6 +1,6 @@
 import { Check, ShieldAlert, X } from 'lucide-react';
 import { Badge } from '../../../components/ui/Badge';
-import type { BlueprintProposal, BlueprintStepProposal } from '../types';
+import type { BlueprintCompetencyProposal, BlueprintProposal } from '../types';
 
 type BlueprintProposalCardProps = {
     blueprint: BlueprintProposal;
@@ -8,8 +8,15 @@ type BlueprintProposalCardProps = {
     canAct: boolean;
     onApprove: () => void;
     onReject: () => void;
-    onApproveStep: (proposalId: string) => void;
-    onRejectStep: (proposalId: string) => void;
+    onApproveCompetency: (proposalId: string) => void;
+    onRejectCompetency: (proposalId: string) => void;
+};
+
+const LEVEL_NAMES: Record<number, string> = {
+    1: 'beginner',
+    2: 'intermediate',
+    3: 'advanced',
+    4: 'expert'
 };
 
 /** `global` and `area:backend` are storage scopes; PMs shouldn't have to read them as such. */
@@ -18,39 +25,52 @@ function scopeLabel(scope: string): string {
     return scope.startsWith('area:') ? `Area: ${scope.slice('area:'.length)}` : scope;
 }
 
-function StepRow({
-    step,
+function CompetencyRow({
+    competency,
     canAct,
     onApprove,
     onReject
 }: {
-    step: BlueprintStepProposal;
+    competency: BlueprintCompetencyProposal;
     canAct: boolean;
     onApprove: () => void;
     onReject: () => void;
 }) {
-    const decided = step.status !== 'PROPOSED';
+    const decided = competency.status !== 'PROPOSED';
+    const levelName = LEVEL_NAMES[competency.targetLevel] ?? `level ${competency.targetLevel}`;
 
     return (
         <li className="flex items-start justify-between gap-4 rounded-xl border border-app-border bg-app-bg p-3">
             <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium text-app-text">{step.title}</p>
-                    {step.requirement === 'required' && <Badge variant="brand">Required</Badge>}
-                    {step.invariant && (
+                    <p className="text-sm font-medium text-app-text">{competency.label}</p>
+                    {competency.requirement === 'required' && (
+                        <Badge variant="brand">Required</Badge>
+                    )}
+                    {competency.invariant && (
                         <Badge variant="warning" className="gap-1">
                             <ShieldAlert className="h-3 w-3" />
                             Invariant
                         </Badge>
                     )}
                     {decided && (
-                        <Badge variant={step.status === 'APPROVED' ? 'success' : 'neutral'}>
-                            {step.status === 'APPROVED' ? 'Kept' : 'Dropped'}
+                        <Badge variant={competency.status === 'APPROVED' ? 'success' : 'neutral'}>
+                            {competency.status === 'APPROVED' ? 'Kept' : 'Dropped'}
                         </Badge>
                     )}
                 </div>
-                {step.description && (
-                    <p className="mt-1 text-xs text-app-text-muted">{step.description}</p>
+
+                {/* The bar is the whole point of an entry: it decides when a hire is done with
+                    this node. Say which one applies, and whether this baseline set it. */}
+                <p className="mt-1 text-xs text-app-text-subtle">
+                    Reach {levelName}
+                    {competency.targetLevelOverridden
+                        ? ' — set by this baseline'
+                        : " — the competency's own bar"}
+                </p>
+
+                {competency.rationale && (
+                    <p className="mt-1.5 text-xs text-app-text-muted">{competency.rationale}</p>
                 )}
             </div>
 
@@ -58,7 +78,7 @@ function StepRow({
                 <div className="flex shrink-0 gap-1.5">
                     <button
                         type="button"
-                        aria-label={`Keep step ${step.title}`}
+                        aria-label={`Keep ${competency.label} in the baseline`}
                         onClick={onApprove}
                         className="rounded-lg border border-app-success-border p-1.5 text-app-success-text transition-colors hover:bg-app-success-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     >
@@ -66,7 +86,7 @@ function StepRow({
                     </button>
                     <button
                         type="button"
-                        aria-label={`Drop step ${step.title}`}
+                        aria-label={`Drop ${competency.label} from the baseline`}
                         onClick={onReject}
                         className="rounded-lg border border-app-border p-1.5 text-app-text-muted transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     >
@@ -79,11 +99,12 @@ function StepRow({
 }
 
 /**
- * One proposed blueprint version, with its steps.
+ * One proposed baseline version: the competencies everyone in this scope would
+ * have to reach, and how deeply.
  *
  * Approving is the action that makes a baseline **active** — and it is what
  * unblocks path generation, since personalization refuses to run for a user
- * whose scopes have no active blueprint. The copy says so, because from the
+ * whose scopes have no active baseline. The copy says so, because from the
  * queue alone it looks like an optional review chore.
  */
 export function BlueprintProposalCard({
@@ -91,9 +112,11 @@ export function BlueprintProposalCard({
     canAct,
     onApprove,
     onReject,
-    onApproveStep,
-    onRejectStep
+    onApproveCompetency,
+    onRejectCompetency
 }: BlueprintProposalCardProps) {
+    const count = blueprint.competencies.length;
+
     return (
         <article
             data-testid={`blueprint-${blueprint.scope}`}
@@ -105,8 +128,8 @@ export function BlueprintProposalCard({
                         {scopeLabel(blueprint.scope)}
                     </h3>
                     <p className="text-xs text-app-text-subtle">
-                        Version {blueprint.version} · {blueprint.steps.length} step
-                        {blueprint.steps.length === 1 ? '' : 's'}
+                        Version {blueprint.version} · {count} competenc
+                        {count === 1 ? 'y' : 'ies'}
                     </p>
                 </div>
 
@@ -133,13 +156,13 @@ export function BlueprintProposalCard({
             </div>
 
             <ul className="space-y-2">
-                {blueprint.steps.map((step) => (
-                    <StepRow
-                        key={step.proposalId}
-                        step={step}
+                {blueprint.competencies.map((competency) => (
+                    <CompetencyRow
+                        key={competency.proposalId}
+                        competency={competency}
                         canAct={canAct}
-                        onApprove={() => onApproveStep(step.proposalId)}
-                        onReject={() => onRejectStep(step.proposalId)}
+                        onApprove={() => onApproveCompetency(competency.proposalId)}
+                        onReject={() => onRejectCompetency(competency.proposalId)}
                     />
                 ))}
             </ul>
