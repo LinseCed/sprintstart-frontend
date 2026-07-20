@@ -38,6 +38,8 @@ const mockProfile: UserProfile = {
     enabled: true,
     profileIcon: null,
     hasCompletedOnboarding: true,
+    githubLogin: null,
+    githubLoginSource: null,
 };
 
 function authenticatedAs(profile: UserProfile | null) {

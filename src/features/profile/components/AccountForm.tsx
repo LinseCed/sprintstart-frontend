@@ -15,6 +15,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
     const [lastName, setLastName] = useState(profile.lastName || '');
     const [email, setEmail] = useState(profile.email || '');
     const [profileIcon, setProfileIcon] = useState(profile.profileIcon || profile.id);
+    const [githubLogin, setGithubLogin] = useState(profile.githubLogin || '');
     const [isSaving, setIsSaving] = useState(false);
     const [isChoosingIcon, setIsChoosingIcon] = useState(false);
     const [iconOptions, setIconOptions] = useState<string[]>([]);
@@ -40,7 +41,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
         e.preventDefault();
         setIsSaving(true);
         try {
-            await onUpdate({ firstName, lastName, email, profileIcon });
+            await onUpdate({ firstName, lastName, email, profileIcon, githubLogin });
         } finally {
             setIsSaving(false);
         }
@@ -134,6 +135,26 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
                         className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
                         required
                     />
+                </div>
+
+                <div className="space-y-1">
+                    <label htmlFor="githubLogin" className="text-sm font-medium text-app-text">GitHub Username</label>
+                    <input
+                        id="githubLogin"
+                        type="text"
+                        value={githubLogin}
+                        onChange={(e) => setGithubLogin(e.target.value)}
+                        placeholder="octocat"
+                        aria-describedby="githubLoginHelp"
+                        className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
+                    />
+                    {/* Onboarding checks that verify real work attribute a submitted pull request
+                        to its author, so a hire can't complete one until this is set. */}
+                    <p id="githubLoginHelp" className="text-xs text-app-text-muted">
+                        Needed for onboarding checks that verify a pull request you opened. Clear it
+                        to unlink your GitHub account.
+                        {profile.githubLoginSource === 'PM_CONFIRMED' && ' Confirmed by your project manager.'}
+                    </p>
                 </div>
 
                 <div className="pt-4">

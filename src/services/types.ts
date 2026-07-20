@@ -50,4 +50,17 @@ export interface UserProfile {
   enabled: boolean;
   profileIcon: string | null;
   hasCompletedOnboarding: boolean;
+  /**
+   * The GitHub account this user contributes as, lower-cased, or null if they
+   * haven't declared one. Artifact-tier onboarding checks attribute a submitted
+   * pull request to its author, so a hire can't pass one without this set.
+   */
+  githubLogin: string | null;
+  /**
+   * How the login was established. Nothing here proves account ownership --
+   * `SELF_DECLARED` is the user's own claim, `PM_CONFIRMED` was set by a PM.
+   */
+  githubLoginSource: GithubLoginSource | null;
 }
+
+export type GithubLoginSource = "SELF_DECLARED" | "PM_CONFIRMED";

@@ -16,6 +16,8 @@ const createMockProfile = (permissionGroup: PermissionGroup): UserProfile => ({
     enabled: true,
     profileIcon: null,
     hasCompletedOnboarding: true,
+    githubLogin: null,
+    githubLoginSource: null,
 });
 
 describe('accessPolicy', () => {

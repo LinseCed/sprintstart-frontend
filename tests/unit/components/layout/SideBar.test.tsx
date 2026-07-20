@@ -24,6 +24,8 @@ const mockProfile = {
     enabled: true,
     profileIcon: null,
     hasCompletedOnboarding: true,
+    githubLogin: null,
+    githubLoginSource: null,
 };
 
 function renderWithProviders(ui: React.ReactElement) {
