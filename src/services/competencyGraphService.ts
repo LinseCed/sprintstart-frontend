@@ -1,9 +1,15 @@
 import { apiClient } from './apiClient';
 import type {
+    ApproveGraphBatchResult,
     CompetencyEdgeProposal,
     CompetencyProposal,
+    DeleteCompetencyResult,
+    EdgeKind,
     GenerateGraphResult,
+    LiveCompetency,
+    LiveCompetencyEdge,
     ProposedGraph,
+    UpdateCompetencyInput,
 } from '../features/graph-authoring/types';
 
 const BASE_URL = '/api/v1/onboarding/competency-graph';
@@ -61,6 +67,90 @@ export const competencyGraphService = {
         return await apiClient.fetch<CompetencyEdgeProposal>(`${BASE_URL}/edges/${id}/reject`, {
             method: 'POST',
             body: JSON.stringify({ reason }),
+        });
+    },
+
+    /**
+     * Approves proposed competencies and edges as one graph version.
+     *
+     * Preferred over approving a node and then its edges separately: batched, the whole subgraph
+     * classifies ADDITIVE and reaches hires already wired, instead of the node arriving first as
+     * an orphan with no prerequisites that can re-lock once its edges land.
+     */
+    async approveBatch(
+        competencyProposalIds: string[],
+        edgeProposalIds: string[]
+    ): Promise<ApproveGraphBatchResult> {
+        return await apiClient.fetch<ApproveGraphBatchResult>(`${BASE_URL}/approve-batch`, {
+            method: 'POST',
+            body: JSON.stringify({ competencyProposalIds, edgeProposalIds }),
+        });
+    },
+
+    /**
+     * Reads one live competency's authoring detail -- including the `description` and
+     * `targetLevel` the projected path doesn't carry.
+     */
+    async fetchCompetency(key: string): Promise<LiveCompetency> {
+        return await apiClient.fetch<LiveCompetency>(
+            `${BASE_URL}/competencies/${encodeURIComponent(key)}`
+        );
+    },
+
+    /**
+     * Applies a PM's edit to a live competency. Omitted fields are left alone.
+     *
+     * There is no `key` field on purpose -- the backend rejects key changes, because the key is
+     * what the ledger, edges and modules all point at.
+     */
+    async updateCompetency(key: string, input: UpdateCompetencyInput): Promise<LiveCompetency> {
+        return await apiClient.fetch<LiveCompetency>(
+            `${BASE_URL}/competencies/${encodeURIComponent(key)}`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(input),
+            }
+        );
+    },
+
+    /**
+     * Removes a competency and every edge touching it from the live graph.
+     *
+     * Nothing is deleted: the node stops appearing on paths, and every hire keeps any level they
+     * already earned on it.
+     */
+    async deleteCompetency(key: string): Promise<DeleteCompetencyResult> {
+        return await apiClient.fetch<DeleteCompetencyResult>(
+            `${BASE_URL}/competencies/${encodeURIComponent(key)}`,
+            { method: 'DELETE' }
+        );
+    },
+
+    /**
+     * Adds a hand-authored edge between two live competencies.
+     *
+     * Rejected with a 400 if it would close a prerequisite cycle.
+     */
+    async createEdge(
+        fromKey: string,
+        toKey: string,
+        kind: EdgeKind = 'PREREQUISITE'
+    ): Promise<LiveCompetencyEdge> {
+        return await apiClient.fetch<LiveCompetencyEdge>(`${BASE_URL}/edges`, {
+            method: 'POST',
+            body: JSON.stringify({ fromKey, toKey, kind }),
+        });
+    },
+
+    /** Removes one edge, leaving both endpoint competencies in place. */
+    async deleteEdge(
+        fromKey: string,
+        toKey: string,
+        kind: EdgeKind = 'PREREQUISITE'
+    ): Promise<LiveCompetencyEdge> {
+        const params = new URLSearchParams({ fromKey, toKey, kind });
+        return await apiClient.fetch<LiveCompetencyEdge>(`${BASE_URL}/edges?${params.toString()}`, {
+            method: 'DELETE',
         });
     },
 };

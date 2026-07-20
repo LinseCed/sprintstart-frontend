@@ -74,7 +74,33 @@ export function useGraphAuthoring() {
         setEdges(prev => prev.filter(e => e.id !== id));
     }, []);
 
+    /**
+     * Approves everything currently proposed as one graph version.
+     *
+     * Not just a convenience. Approved one at a time, an edge lands in its own version into a
+     * node that already exists, which the backend classifies as structural and holds back until
+     * each hire's next session -- so the node shows up first with no prerequisites and can
+     * re-lock once its edges arrive. Approved together, the node and its edges arrive wired.
+     */
+    const approveAll = useCallback(async () => {
+        if (competencies.length === 0 && edges.length === 0) return;
+        setError(null);
+        try {
+            await competencyGraphService.approveBatch(
+                competencies.map(c => c.id),
+                edges.map(e => e.id)
+            );
+            setCompetencies([]);
+            setEdges([]);
+        } catch (err) {
+            setError(toMessage(err, 'Could not approve these proposals.'));
+            // The batch is all-or-nothing on the backend, so local state is stale either way.
+            await loadProposed();
+        }
+    }, [competencies, edges, loadProposed]);
+
     return {
+        approveAll,
         competencies,
         edges,
         isLoading,

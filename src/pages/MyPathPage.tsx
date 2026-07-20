@@ -23,6 +23,9 @@ import { useMyCompetencies } from '../features/my-path/hooks/useMyCompetencies';
 import { GoalBanner } from '../features/my-path/components/GoalBanner';
 import { GoalPicker } from '../features/my-path/components/GoalPicker';
 import { useGoalSelection } from '../features/my-path/hooks/useGoalSelection';
+import { useGraphEditing } from '../features/my-path/hooks/useGraphEditing';
+import { useAuth } from '../context/useAuth';
+import { PermissionGroup } from '../services/types';
 import type { PathNode, PathView } from '../features/skill-assessment/types';
 
 /** Navigation state a passing module hands back so the map knows what to celebrate. */
@@ -59,13 +62,22 @@ function unlockedPulseKeys(path: PathView | null, unlockedKey: string | undefine
  * unlock.
  *
  * Onboarding is per-project (the graph and the ledger are global, but each
- * project is onboarded independently), so a project switcher scopes the map.
- * Selecting a project with no path yet generates one rather than erroring -- the
- * user asked for that project. The global one-time assessment gate is unchanged
- * and lives in `AuthGuard`.
+ * project is onboarded independently), so a project switcher scopes the map. The
+ * path is derived on every read, so a project with nothing on it means its
+ * baseline hasn't been approved yet -- there is nothing for a hire to generate.
+ * The global one-time assessment gate is unchanged and lives in `AuthGuard`.
+ *
+ * PMs and admins get authoring on top of the same page rather than a second graph
+ * page that would drift: node edit/remove and prerequisite editing in the detail
+ * panel, plus drag-to-connect on the map. Every affordance is role-gated; the
+ * hire's view is what the page is by default.
  */
 export function MyPathPage() {
     const navigate = useNavigate();
+    const { profile } = useAuth();
+    const canAuthor =
+        profile?.permissionGroup === PermissionGroup.PM ||
+        profile?.permissionGroup === PermissionGroup.ADMIN;
     const location = useLocation();
     const unlockedKey = (location.state as MyPathLocationState)?.unlockedKey;
 
@@ -94,6 +106,15 @@ export function MyPathPage() {
         claim: claimGoal,
         clear: clearGoal
     } = useGoalSelection(selectedProjectId, retry);
+
+    // The map's drag-to-connect shares the panel's write path, so a cycle rejected
+    // by either is explained the same way.
+    const {
+        isSaving: isConnecting,
+        error: connectError,
+        clearError: clearConnectError,
+        addPrerequisite
+    } = useGraphEditing(retry);
 
     const [isPickingGoal, setIsPickingGoal] = useState(false);
     const [noticeDismissed, setNoticeDismissed] = useState(false);
@@ -281,6 +302,27 @@ export function MyPathPage() {
                 </div>
             )}
 
+            {/* A rejected drag has to be explained where the drag happened -- the
+                canvas has no room for it, so it lands directly above the map. */}
+            {connectError && (
+                <div className="app-page-content mt-4 shrink-0">
+                    <div
+                        data-testid="graph-connect-error"
+                        className="flex items-center gap-3 rounded-2xl border border-app-danger-border bg-app-danger-bg p-4"
+                    >
+                        <AlertCircle className="h-4 w-4 shrink-0 text-app-danger-text" />
+                        <p className="flex-1 text-sm text-app-danger-text">{connectError}</p>
+                        <button
+                            aria-label="Dismiss error"
+                            onClick={clearConnectError}
+                            className="text-app-danger-text transition-opacity hover:opacity-70"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {!isLoading && path && (
                 <div className="app-page-content mt-4 shrink-0 space-y-3">
                     {/* The destination first: the premise is that onboarding ends in shipping
@@ -326,6 +368,10 @@ export function MyPathPage() {
                                         setFocusedKey(null);
                                         setSelectedKey(node?.key ?? null);
                                     }}
+                                    canConnect={canAuthor && !isConnecting}
+                                    onConnectNodes={(fromKey, toKey) => {
+                                        void addPrerequisite(fromKey, toKey);
+                                    }}
                                 />
                             ) : (
                                 <AssessmentPathView
@@ -345,6 +391,10 @@ export function MyPathPage() {
                                 onEditModule={editModule}
                                 onSelectKey={setSelectedKey}
                                 onClose={() => setSelectedKey(null)}
+                                // A PM edit changes the graph the path is projected
+                                // from, so the map reloads in place -- no navigation,
+                                // no full-page spinner, the panel stays where it was.
+                                onGraphChanged={retry}
                             />
                         )}
                     </div>
