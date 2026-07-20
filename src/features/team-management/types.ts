@@ -1,40 +1,34 @@
-export type SkipRequestStatus =
-    | 'PENDING'
-    | 'ACCEPTED'
-    | 'DENIED';
-
-export type SkipRequest = {
-    id: string;
-    stepId: string;
-    reason: string;
-    status: SkipRequestStatus;
-    reviewComment: string | null;
-    reviewedAt: string | null;
-};
-
-
+/**
+ * One team member as the team list sees them: who they are, and what they can actually do.
+ *
+ * Sourced from `GET /api/v1/onboarding/dashboard/users`. The journey-shaped fields this type
+ * used to carry -- `progressPercentage`, `currentPhase`, `currentStep`, `skip` -- are gone with
+ * the per-user step tree they described (backend#53). Progress through a checklist was never the
+ * signal anyway: a step marked done and a competency actually verified are different claims, and
+ * the ledger is the one that means something.
+ */
 export type TeamOverviewUser = {
     userId: string;
     firstname: string;
     lastname: string;
-    profileIcon?: string;
-    project: {
+    profileIcon?: string | null;
+    projects: {
         id: string;
         name: string;
-    };
+    }[];
     roles: ProjectRole[];
-    progressPercentage: number;
-    currentPhase: {
-        id: string;
-        title: string;
-    };
-    currentStep: {
-        id: string;
-        title: string;
-        startedAt: string;
-        skip: SkipRequest | null;
-    } | null;
+    /** The member's durable competency ledger. */
+    competencies: TeamMemberCompetency[];
     hasFeedback: boolean;
+};
+
+export type TeamMemberCompetency = {
+    competencyKey: string;
+    label: string;
+    /** 0..4; 0 means "asked, saw no competence" -- neither held nor a gap. */
+    level: number;
+    source: 'ASSESSED' | 'VERIFIED' | 'DECLARED';
+    updatedAt: string;
 };
 
 export type ProjectRole = {
@@ -56,11 +50,12 @@ export function isSkillLinkedToRole(skill: Skill, roleId: string): boolean {
     return skill.roleIds.includes(roleId);
 }
 
+/**
+ * Sorting is by what people can do, not by position in a checklist. The old
+ * `LONGEST_STEP`/`SHORTEST_STEP`/`*_PROGRESS` options described the per-user step tree that no
+ * longer exists; "fewest competencies" is the honest way to surface who may need attention.
+ */
 export type TeamOverviewFilters = {
     roleId: string;
-    sortBy:
-        | 'LONGEST_STEP'
-        | 'SHORTEST_STEP'
-        | 'HIGHEST_PROGRESS'
-        | 'LOWEST_PROGRESS';
+    sortBy: 'MOST_COMPETENCIES' | 'FEWEST_COMPETENCIES' | 'RECENTLY_ACTIVE';
 };

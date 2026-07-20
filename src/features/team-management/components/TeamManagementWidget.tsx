@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Loader2,
   MessageSquareText,
-  SkipForward,
   Users,
 } from "lucide-react";
 import { ClickableCard } from "../../../components/common/ClickableCard";
@@ -100,22 +99,16 @@ export function TeamManagementWidget({
     );
   }
 
-  const mostStuck = [...users]
-    .sort((a, b) => {
-      if (!a.currentStep?.startedAt) return 1;
-      if (!b.currentStep?.startedAt) return -1;
+  // Who has the least proven competence -- the closest honest stand-in for "needs attention"
+  // now that time-on-step no longer exists. A competency counts as held at the default bar.
+  const heldCount = (user: (typeof users)[number]) =>
+    user.competencies.filter((entry) => entry.level >= 2).length;
 
-      return (
-        new Date(a.currentStep.startedAt).getTime() -
-        new Date(b.currentStep.startedAt).getTime()
-      );
-    })
+  const needsAttention = [...users]
+    .sort((a, b) => heldCount(a) - heldCount(b))
     .slice(0, 4);
 
   const pendingFeedbackCount = users.filter((user) => user.hasFeedback).length;
-  const pendingSkipCount = users.filter(
-    (user) => user.currentStep?.skip?.status === "PENDING",
-  ).length;
 
   return (
     <ClickableCard
@@ -144,31 +137,19 @@ export function TeamManagementWidget({
         </button>
       </div>
 
-      {(pendingFeedbackCount > 0 || pendingSkipCount > 0) && (
+      {pendingFeedbackCount > 0 && (
         <div className="mb-4 flex items-center gap-2">
-          {pendingFeedbackCount > 0 && (
-            <CountBadge
-              icon={<MessageSquareText className="h-3 w-3" />}
-              count={pendingFeedbackCount}
-              label={`${pendingFeedbackCount} unread feedback`}
-              variant="soft"
-            />
-          )}
-          {pendingSkipCount > 0 && (
-            <CountBadge
-              icon={<SkipForward className="h-3 w-3" />}
-              count={pendingSkipCount}
-              label={`${pendingSkipCount} open skip request${
-                pendingSkipCount > 1 ? "s" : ""
-              }`}
-              variant="muted"
-            />
-          )}
+          <CountBadge
+            icon={<MessageSquareText className="h-3 w-3" />}
+            count={pendingFeedbackCount}
+            label={`${pendingFeedbackCount} unread feedback`}
+            variant="soft"
+          />
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {mostStuck.map((user) => (
+        {needsAttention.map((user) => (
           // TeamMemberCard is already a keyboard-accessible Link; this wrapper
           // only prevents its click from also triggering the widget background.
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions

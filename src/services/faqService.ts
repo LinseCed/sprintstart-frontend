@@ -3,36 +3,22 @@ import type {
     FAQOverview,
     FAQDetail,
 } from '../features/faq/types';
-import faqMock  from '../mocks/faqMock.json';
-import faqDetailMock  from '../mocks/faqDetailMock.json';
-
 export const insightsService = {
 
     /**
      * Fetches all recurring question groups sorted by frequency.
      */
     async fetchFAQGroups(): Promise<FAQOverview> {
-        try {
-            return await apiClient.fetch<FAQOverview>(
-                '/api/v1/insights/faq'
-            );
-        } catch (_error) {
-            return faqMock;
-        }
+        // No mock fallback: the page has a real empty/error state, and returning a fixture on
+        // failure would show fabricated FAQ groups as if the AI had produced them.
+        return await apiClient.fetch<FAQOverview>('/api/v1/insights/faq');
     },
 
     /**
      * Fetches detailed information about a specific FAQ group.
      */
     async fetchFAQGroup(groupId: string): Promise<FAQDetail> {
-        try {
-            return await apiClient.fetch<FAQDetail>(
-                `/api/v1/insights/faq/${groupId}`
-            );
-        } catch (error) {
-            console.error(`Error fetching FAQ group with ID ${groupId}:`, error);
-            return faqDetailMock;
-        }
+        return await apiClient.fetch<FAQDetail>(`/api/v1/insights/faq/${groupId}`);
     },
 
     /**

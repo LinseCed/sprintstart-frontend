@@ -95,13 +95,21 @@ export function UserDetailsDrawer({
       ? draftUserState.draftUser
       : getUserEditFormState(user);
 
+  // Resolved from `projectIds`, the field the backend actually returns. `user.projects` is
+  // populated by enrichUsersWithProjectNames from those same ids, but this drawer is also
+  // rendered from optimistic updates, so it resolves them itself rather than depending on
+  // whoever built the object having remembered to.
   const enrichedAssignedProjects = useMemo(
     () =>
-      user.projects.map((userProject) => {
-        const match = availableProjects.find((p) => p.id === userProject.id);
-        return match ?? userProject;
-      }),
-    [user.projects, availableProjects],
+      user.projectIds.map(
+        (projectId) =>
+          availableProjects.find((project) => project.id === projectId) ??
+          user.projects.find((project) => project.id === projectId) ?? {
+            id: projectId,
+            name: projectId,
+          },
+      ),
+    [user.projectIds, user.projects, availableProjects],
   );
 
   const visibleTitle = isEditing
@@ -206,6 +214,7 @@ export function UserDetailsDrawer({
 
     onUserUpdated({
       ...user,
+      projectIds: Array.from(nextProjectIds),
       projects: getProjectSummariesById(nextProjectIds),
     });
   };
@@ -220,6 +229,7 @@ export function UserDetailsDrawer({
 
     onUserUpdated({
       ...user,
+      projectIds: Array.from(nextProjectIds),
       projects: getProjectSummariesById(nextProjectIds),
     });
   };
@@ -260,8 +270,9 @@ export function UserDetailsDrawer({
         });
       }
 
-      updatedUser = { ...updatedUser, projects: enrichedAssignedProjects };
-
+      // Project membership is saved by its own endpoints as it is changed, so the reloaded user
+      // already reflects it. Overwriting the server's answer with local state here meant the
+      // drawer could never disagree with itself, hiding a failed assignment until a refresh.
       onUserUpdated(updatedUser);
       setDraftUserState({
         userId: updatedUser.id,

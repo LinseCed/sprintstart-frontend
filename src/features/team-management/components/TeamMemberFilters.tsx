@@ -49,10 +49,9 @@ export function TeamMemberFilters({
                 }
                 className="h-9 rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none hover:border-app-border-strong"
             >
-                <option value="LONGEST_STEP">Longest on step</option>
-                <option value="SHORTEST_STEP">Shortest on step</option>
-                <option value="HIGHEST_PROGRESS">Highest progress</option>
-                <option value="LOWEST_PROGRESS">Lowest progress</option>
+                <option value="MOST_COMPETENCIES">Most competencies</option>
+                <option value="FEWEST_COMPETENCIES">Fewest competencies</option>
+                <option value="RECENTLY_ACTIVE">Recently active</option>
             </select>
         </div>
     );

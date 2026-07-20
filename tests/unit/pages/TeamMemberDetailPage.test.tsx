@@ -108,16 +108,9 @@ function createMockUser(overrides: Partial<TeamOverviewUser> = {}): TeamOverview
         firstname: 'Alice',
         lastname: 'Smith',
         roles: [{ id: 'role1', name: 'Backend', description: 'Backend developer' }],
-        progressPercentage: 0.5,
-        currentPhase: { id: 'p1', title: 'Phase 1' },
-        currentStep: {
-            id: 's1',
-            title: 'Setup',
-            startedAt: '2026-07-01T00:00:00Z',
-            skip: { id: 'skip1', stepId: 'step1', status: 'PENDING', reason: 'Already know this', reviewComment: null, reviewedAt: null },
-        },
+        competencies: [],
         hasFeedback: false,
-        project: { id: 'proj1', name: 'Project 1' },
+        projects: [{ id: 'proj1', name: 'Project 1' }],
         ...overrides,
     };
 }

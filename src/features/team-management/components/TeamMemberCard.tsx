@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageSquareText, SkipForward } from 'lucide-react';
+import { MessageSquareText } from 'lucide-react';
 import type { TeamOverviewUser } from '../types';
 
 type TeamMemberCardProps = {
@@ -12,28 +12,25 @@ type TeamMemberCardProps = {
     compact?: boolean;
 };
 
-const AT_RISK_AFTER_DAYS = 5;
-
-function getElapsedDays(startedAt: string): number {
-    const started = new Date(startedAt).getTime();
-
-    return Math.max(
-        0,
-        Math.floor((Date.now() - started) / (1000 * 60 * 60 * 24))
-    );
-}
+/**
+ * The bar a competency counts as held at.
+ *
+ * `GET /dashboard/users` carries no per-competency `targetLevel` (only the hire's own
+ * `/me/competencies` does), so the default is applied -- intermediate, matching
+ * `Competency.DEFAULT_TARGET_LEVEL`. A node whose PM raised its bar therefore reads as held one
+ * rung early here. Same known imprecision as the member detail page; fixing it is backend work.
+ */
+const DEFAULT_TARGET_LEVEL = 2;
 
 import { UserAvatar } from '../../../components/common/UserAvatar';
 export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
-    const elapsedDays = user.currentStep?.startedAt
-        ? getElapsedDays(user.currentStep.startedAt)
-        : 0;
-
-    const progressPercentage = Math.round(user.progressPercentage * 100);
-    const isAtRisk = !!user.currentStep && elapsedDays > AT_RISK_AFTER_DAYS;
-
-    const hasPendingSkipRequest =
-        user.currentStep?.skip?.status === 'PENDING';
+    // What somebody can do, not how far through a checklist they are. Level 0 is "asked, saw no
+    // competence" -- neither held nor in progress.
+    const held = user.competencies.filter(entry => entry.level >= DEFAULT_TARGET_LEVEL);
+    const inProgress = user.competencies.filter(
+        entry => entry.level > 0 && entry.level < DEFAULT_TARGET_LEVEL
+    );
+    const verified = held.filter(entry => entry.source === 'VERIFIED');
 
     return (
         <Link
@@ -58,16 +55,6 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
                     </span>
                 )}
 
-                {hasPendingSkipRequest && (
-                    <span
-                        title="Open skip request"
-                        className={`flex items-center justify-center rounded-full border border-app-danger-border bg-app-danger-bg text-app-danger-text shadow-sm ${
-                            compact ? 'h-5 w-5' : 'h-6 w-6'
-                        }`}
-                    >
-                        <SkipForward className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-                    </span>
-                )}
             </div>
 
             <div className={`flex items-center gap-2 ${compact ? 'pr-7' : 'pr-14 gap-3'}`}>
@@ -94,46 +81,33 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
             </div>
 
             <div className={compact ? 'mt-2' : 'mt-3'}>
-                <div className="flex items-start justify-between gap-3">
-                    <p
-                        className={`line-clamp-2 font-medium text-app-text ${
-                            compact ? 'text-xs' : 'text-sm'
+                <div className="flex items-baseline gap-1.5">
+                    <span
+                        className={`font-semibold tabular-nums text-app-text ${
+                            compact ? 'text-sm' : 'text-base'
                         }`}
                     >
-                        {user.currentStep?.title ?? 'No current step'}
+                        {held.length}
+                    </span>
+                    <span className={`text-app-text-muted ${compact ? 'text-[10px]' : 'text-xs'}`}>
+                        {held.length === 1 ? 'competency held' : 'competencies held'}
+                    </span>
+                </div>
+
+                {!compact && (
+                    <p className="mt-1 text-xs text-app-text-muted">
+                        {/* Verified is a materially stronger claim than assessed, so it is worth
+                            distinguishing rather than folding into one count. */}
+                        {verified.length} verified by a passed check
+                        {inProgress.length > 0 && ` · ${inProgress.length} below target`}
                     </p>
+                )}
 
-                    <span
-                        className={`shrink-0 text-xs ${
-                            isAtRisk
-                                ? 'font-medium text-app-warning-text'
-                                : 'text-app-text-muted'
-                        }`}
-                    >
-                        {user.currentStep ? `${elapsedDays}d` : 'â€”'}
-                    </span>
-                </div>
-
-                <div className={`flex items-center gap-2 ${compact ? 'mt-2' : 'mt-3'}`}>
-                    <div
-                        className={`flex-1 overflow-hidden rounded-full bg-app-progress-track ${
-                            compact ? 'h-1' : 'h-1.5'
-                        }`}
-                    >
-                        <div
-                            className="h-full rounded-full bg-gradient-to-r from-app-progress-fill to-app-progress-fill-end transition-all duration-500"
-                            style={{ width: `${progressPercentage}%` }}
-                        />
-                    </div>
-
-                    <span
-                        className={`font-medium tabular-nums text-app-text ${
-                            compact ? 'text-[10px]' : 'text-xs'
-                        }`}
-                    >
-                        {progressPercentage}%
-                    </span>
-                </div>
+                {user.competencies.length === 0 && (
+                    <p className={`mt-1 text-app-text-subtle ${compact ? 'text-[10px]' : 'text-xs'}`}>
+                        No assessment yet
+                    </p>
+                )}
             </div>
         </Link>
     );

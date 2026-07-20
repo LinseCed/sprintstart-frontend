@@ -299,7 +299,9 @@ export const handlers = [
     () => new HttpResponse(null, { status: 200 }),
   ),
 
-  http.get("/api/v1/onboarding/team-overview", ({ request }) => {
+  // The team list reads the competency dashboard; `/onboarding/team-overview` was deleted with
+  // the per-user step tree (backend#53).
+  http.get("/api/v1/onboarding/dashboard/users", ({ request }) => {
     const url = new URL(request.url);
     const roleId = url.searchParams.get("roleIds");
     const users = [
@@ -307,28 +309,44 @@ export const handlers = [
         userId: "user1",
         firstname: "Alice",
         lastname: "Smith",
-        email: "alice@example.com",
+        profileIcon: null,
         roles: [{ id: "role1", name: "Backend" }],
-        progressPercentage: 80,
-        currentStep: { startedAt: "2023-01-01T10:00:00Z" },
-        skills: [],
+        projects: [{ id: "proj1", name: "SprintStart" }],
+        competencies: [
+          {
+            competencyKey: "kotlin",
+            label: "Kotlin",
+            level: 3,
+            source: "VERIFIED",
+            updatedAt: "2026-07-01T10:00:00Z",
+          },
+        ],
       },
       {
         userId: "user2",
         firstname: "Bob",
         lastname: "Jones",
-        email: "bob@example.com",
+        profileIcon: null,
         roles: [{ id: "role2", name: "Frontend" }],
-        progressPercentage: 20,
-        currentStep: { startedAt: "2023-01-02T10:00:00Z" },
-        skills: [],
+        projects: [{ id: "proj1", name: "SprintStart" }],
+        competencies: [],
       },
     ];
     const filtered = roleId
       ? users.filter((u) => u.roles.some((r) => r.id === roleId))
       : users;
-    return HttpResponse.json({ content: filtered });
+    return HttpResponse.json({
+      content: filtered,
+      totalElements: filtered.length,
+      totalPages: 1,
+      number: 0,
+      size: 100,
+      first: true,
+      last: true,
+    });
   }),
+
+  http.get("/api/v1/admin/onboarding/feedback", () => HttpResponse.json([])),
 
   http.get("/api/v1/projectRoles", () =>
     HttpResponse.json([

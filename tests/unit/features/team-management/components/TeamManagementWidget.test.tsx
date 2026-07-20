@@ -20,11 +20,9 @@ function createUser(overrides: Partial<TeamOverviewUser> = {}): TeamOverviewUser
         firstname: 'Alice',
         lastname: 'Smith',
         roles: [],
-        progressPercentage: 0.5,
-        currentPhase: { id: 'p1', title: 'Phase 1' },
-        currentStep: { id: 's1', title: 'Setup', startedAt: '2026-07-01T00:00:00Z', skip: null },
+        competencies: [],
         hasFeedback: false,
-        project: { id: 'proj1', name: 'Project 1' },
+        projects: [{ id: 'proj1', name: 'Project 1' }],
         ...overrides,
     };
 }
@@ -62,10 +60,17 @@ describe('TeamManagementWidget', () => {
         await waitFor(() => expect(screen.getByText('Team progress')).toBeInTheDocument());
     });
 
-    it('renders up to 4 members sorted by longest time on step', async () => {
+    it('surfaces the members with the fewest held competencies first', async () => {
+        // "Needs attention" is now fewest proven competencies -- time-on-step no longer exists.
         const users = [
-            createUser({ userId: 'u1', firstname: 'Alice', currentStep: { id: 's1', title: 'Step A', startedAt: '2026-07-05T00:00:00Z', skip: null } }),
-            createUser({ userId: 'u2', firstname: 'Bob', currentStep: { id: 's2', title: 'Step B', startedAt: '2026-07-01T00:00:00Z', skip: null } }),
+            createUser({
+                userId: 'u1',
+                firstname: 'Alice',
+                competencies: [
+                    { competencyKey: 'a', label: 'A', level: 3, source: 'VERIFIED', updatedAt: '2026-07-01T00:00:00Z' },
+                ],
+            }),
+            createUser({ userId: 'u2', firstname: 'Bob', competencies: [] }),
         ];
         vi.mocked(getTeamOverview).mockResolvedValue(users);
         renderWidget();

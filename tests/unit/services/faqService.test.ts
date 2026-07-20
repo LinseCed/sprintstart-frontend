@@ -23,15 +23,14 @@ describe('faqService', () => {
             expect(result).toEqual(overview);
         });
 
-        it('returns mock fallback data on error', async () => {
+        it('propagates the error instead of inventing FAQ groups', async () => {
+            // The page has a real empty/error state; a fixture here would render fabricated
+            // groups as if the AI had produced them.
             server.use(
                 http.get('/api/v1/insights/faq', () => HttpResponse.json({}, { status: 500 })),
             );
 
-            const result = await insightsService.fetchFAQGroups();
-
-            expect(result).toBeDefined();
-            expect(Array.isArray((result as { groups: unknown[] }).groups)).toBe(true);
+            await expect(insightsService.fetchFAQGroups()).rejects.toThrow();
         });
     });
 
@@ -52,15 +51,12 @@ describe('faqService', () => {
             expect(result).toEqual(detail);
         });
 
-        it('returns mock fallback data on error', async () => {
+        it('propagates the error instead of returning a fixture', async () => {
             server.use(
                 http.get('/api/v1/insights/faq/g1', () => HttpResponse.json({}, { status: 500 })),
             );
 
-            const result = await insightsService.fetchFAQGroup('g1');
-
-            expect(result).toBeDefined();
-            expect((result as { groupId: string }).groupId).toBeDefined();
+            await expect(insightsService.fetchFAQGroup('g1')).rejects.toThrow();
         });
     });
 });
