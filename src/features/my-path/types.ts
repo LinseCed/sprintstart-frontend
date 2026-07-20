@@ -16,6 +16,8 @@ export type MyCompetency = {
     kind: CompetencyKind;
     /** 0..4 proficiency level; 0 means "known but unplaced". */
     level: number;
+    /** The level `level` must reach for this competency to count as held. */
+    targetLevel: number;
     source: CompetencySource;
     updatedAt: string;
 };
