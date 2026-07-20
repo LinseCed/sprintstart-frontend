@@ -167,8 +167,12 @@ export function MyPathPage() {
         setSelectedProjectId(projectId);
     };
 
-    const openModule = (stepId: string) => {
-        void navigate(`/my-path/module/${stepId}`);
+    const openModule = (moduleId: string) => {
+        void navigate(`/my-path/module/${moduleId}`);
+    };
+
+    const editModule = (moduleId: string) => {
+        void navigate(`/competency-modules/${moduleId}`);
     };
 
     const handleFocusSkill = (key: string) => {
@@ -386,6 +390,7 @@ export function MyPathPage() {
                                 path={path}
                                 source={sourceByKey.get(selectedNode.key) ?? null}
                                 onStartModule={openModule}
+                                onEditModule={editModule}
                                 onSelectKey={setSelectedKey}
                                 onClose={() => setSelectedKey(null)}
                             />

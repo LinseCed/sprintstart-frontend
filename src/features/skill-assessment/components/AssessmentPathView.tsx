@@ -7,7 +7,7 @@ type AssessmentPathViewProps = {
     path: PathView;
     /**
      * Called when a node with a configured step is opened. Locked nodes and
-     * nodes with no `stepId` (no learn-verify module wired up yet) are not
+     * nodes with no `moduleId` (no published module yet) are not
      * clickable and never trigger this.
      */
     onSelectNode?: (node: PathNode) => void;
@@ -73,7 +73,7 @@ export function AssessmentPathView({ path, onSelectNode, justChangedKeys }: Asse
             <ul className="flex flex-col gap-3">
                 {ordered.map(node => {
                     const prereqs = prereqsByKey.get(node.key) ?? [];
-                    const isOpenable = Boolean(node.stepId) && node.state !== 'LOCKED' && onSelectNode;
+                    const isOpenable = Boolean(node.moduleId) && node.state !== 'LOCKED' && onSelectNode;
                     const isGoal = node.kind === 'CONTRIBUTION';
                     const isArtifactCheck = node.verificationType === 'ARTIFACT';
                     const justChanged = !reduceMotion && (justChangedKeys?.has(node.key) ?? false);

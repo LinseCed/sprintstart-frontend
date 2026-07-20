@@ -31,16 +31,17 @@ export type PathNode = {
     level?: number;
 
     /**
-     * The onboarding step configured to teach/verify this competency, if any.
+     * The live module that teaches this competency in this project, if one has
+     * been published.
      * Null when no step has been wired up yet -- such nodes have no learn-verify
      * module to open.
      */
-    stepId?: string | null;
+    moduleId?: string | null;
 
     /**
-     * The grading type of that same step's verification, echoed here so a node
-     * can show an at-a-glance icon (e.g. an artifact-checked milestone) without
-     * an extra per-node fetch. Null under the same condition as `stepId`.
+     * The grading type of that module's check, echoed here so a node can show an
+     * at-a-glance icon (e.g. an artifact-checked milestone) without an extra
+     * per-node fetch. Null when the module has no check configured.
      */
     verificationType?: 'KNOWLEDGE' | 'EXACT' | 'ATTEST' | 'ARTIFACT' | null;
 };

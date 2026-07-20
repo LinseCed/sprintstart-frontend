@@ -1,27 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../../../services/apiClient';
-import { onboardingService } from '../../../services/onboardingService';
-import { verificationService } from '../../../services/verificationService';
-import type { OnboardingStepDetail } from '../../onboarding/types';
-import type { VerificationAttemptResult, VerificationEndpoint } from '../types';
+import { competencyModuleService } from '../../../services/competencyModuleService';
+import type { VerificationAttemptResult, VerificationEndpoint } from '../../learn-verify/types';
+import type { CompetencyModule } from '../types';
 
 function toMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
 }
 
 /**
- * Loads a node's step content + verification config and drives the submit/retry
- * loop. Attempts accumulate locally for the session (the backend has no
- * attempt-history endpoint for this feature) so the Verify zone can show a
- * running attempt count and the latest hint.
+ * Loads the shared module behind a path node and drives its check.
  *
- * A `KNOWLEDGE` grading call can 503 when the AI service is unavailable -- the
- * backend deliberately surfaces this as a retryable error rather than a
- * fabricated grade, so it's tracked separately (`gradingUnavailable`) from a
- * generic submit failure.
+ * The module and its check are fetched separately because a module without a
+ * configured check is a real state, not an error -- pages can be published while
+ * the gate is still being written, and the hire should read them rather than see
+ * a failure.
+ *
+ * A `KNOWLEDGE`/`ARTIFACT` grading call can 503 when the AI service is
+ * unavailable; the backend surfaces that rather than fabricating a grade, so it
+ * is tracked separately from a generic submit failure.
  */
-export function useLearnVerifyModule(stepId: string | null) {
-    const [step, setStep] = useState<OnboardingStepDetail | null>(null);
+export function useCompetencyModule(moduleId: string | null) {
+    const [module, setModule] = useState<CompetencyModule | null>(null);
     const [verification, setVerification] = useState<VerificationEndpoint | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export function useLearnVerifyModule(stepId: string | null) {
     const [gradingUnavailable, setGradingUnavailable] = useState(false);
 
     useEffect(() => {
-        if (!stepId) return;
+        if (!moduleId) return;
 
         let cancelled = false;
 
@@ -41,16 +41,22 @@ export function useLearnVerifyModule(stepId: string | null) {
             setIsLoading(true);
             setLoadError(null);
             try {
-                const [stepResult, verificationResult] = await Promise.all([
-                    onboardingService.fetchStep(stepId),
-                    verificationService.fetchVerification(stepId)
-                ]);
+                const loaded = await competencyModuleService.fetchModule(moduleId);
                 if (cancelled) return;
-                setStep(stepResult);
-                setVerification(verificationResult);
+                setModule(loaded);
             } catch (err) {
                 if (cancelled) return;
-                setLoadError(toMessage(err, 'Could not load this node.'));
+                setLoadError(toMessage(err, 'Could not load this module.'));
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                const check = await competencyModuleService.fetchVerification(moduleId);
+                if (!cancelled) setVerification(check);
+            } catch {
+                // No check configured yet: the pages are still worth reading.
+                if (!cancelled) setVerification(null);
             } finally {
                 if (!cancelled) setIsLoading(false);
             }
@@ -60,16 +66,16 @@ export function useLearnVerifyModule(stepId: string | null) {
         return () => {
             cancelled = true;
         };
-    }, [stepId]);
+    }, [moduleId]);
 
     const submit = useCallback(async () => {
-        if (!stepId || !answer.trim()) return;
+        if (!moduleId || !answer.trim()) return;
 
         setSubmitting(true);
         setSubmitError(null);
         setGradingUnavailable(false);
         try {
-            const result = await verificationService.submitVerificationAttempt(stepId, answer.trim());
+            const result = await competencyModuleService.submitAttempt(moduleId, answer.trim());
             setAttempts(previous => [...previous, result]);
             setAnswer('');
         } catch (err) {
@@ -81,12 +87,12 @@ export function useLearnVerifyModule(stepId: string | null) {
         } finally {
             setSubmitting(false);
         }
-    }, [stepId, answer]);
+    }, [moduleId, answer]);
 
     const latestAttempt = attempts.length > 0 ? attempts[attempts.length - 1] : null;
 
     return {
-        step,
+        module,
         verification,
         isLoading,
         loadError,

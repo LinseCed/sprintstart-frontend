@@ -4,48 +4,53 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MyPathModulePage } from '../../../src/pages/MyPathModulePage';
 
-vi.mock('../../../src/services/onboardingService', () => ({
-    onboardingService: { fetchStep: vi.fn() },
+vi.mock('../../../src/services/competencyModuleService', () => ({
+    competencyModuleService: {
+        fetchModule: vi.fn(),
+        fetchVerification: vi.fn(),
+        submitAttempt: vi.fn(),
+    },
 }));
 
-vi.mock('../../../src/services/verificationService', () => ({
-    verificationService: { fetchVerification: vi.fn(), submitVerificationAttempt: vi.fn() },
-}));
+import { competencyModuleService } from '../../../src/services/competencyModuleService';
 
-import { onboardingService } from '../../../src/services/onboardingService';
-import { verificationService } from '../../../src/services/verificationService';
+const page = (id: string, kind: string, title: string, body: string | null) => ({
+    id,
+    kind,
+    title,
+    body,
+    position: 0,
+    provenance: 'AI',
+    updatedAt: '2026-07-20T10:00:00Z',
+});
 
-const step = {
-    id: 'step1',
-    phaseId: 'phase1',
-    position: 1,
-    title: 'Ship your first change',
-    description: 'A module',
-    type: 'TASK',
-    estimatedMinutes: 20,
-    expectedOutcomes: [],
-    tasks: [{ id: 't1', stepId: 'step1', position: 1, title: 'Clone the repo', description: '', finished: false }],
-    resources: [],
-    status: 'IN_PROGRESS',
-    startedAt: null,
-    completedAt: null,
-    feedback: null,
-    skip: null,
-    content: 'Lesson body',
+const module = {
+    id: 'm1',
+    competencyKey: 'deploy',
+    competencyLabel: 'Deploy the service',
+    projectId: 'p1',
+    version: 1,
+    status: 'ACTIVE',
+    origin: 'AI',
+    title: 'Deploying',
+    summary: 'How deploys work here.',
     pages: [
-        { kind: 'LESSON', title: 'Learn', content: 'Lesson body' },
-        { kind: 'TASK', title: 'Practice', content: null },
-        { kind: 'VERIFY', title: 'Verify', content: null },
+        page('pg-context', 'CONTEXT', 'Why it matters', 'Deploys are gated because...'),
+        page('pg-lesson', 'LESSON', 'How it works', 'Lesson body'),
+        page('pg-walk', 'WALKTHROUGH', 'Trace a deploy', 'Step by step'),
+        page('pg-verify', 'VERIFY', 'Verify', null),
     ],
+    verificationType: 'KNOWLEDGE',
+    updatedAt: '2026-07-20T10:00:00Z',
 };
 
 const verification = {
     id: 'v1',
-    stepId: 'step1',
+    moduleId: 'm1',
     type: 'KNOWLEDGE',
     prompt: 'Explain the deploy flow',
     competencyKey: 'deploy',
-    level: 'APPLY',
+    level: 'intermediate',
 };
 
 /** Surfaces the router location so the return-to-map hand-off can be asserted. */
@@ -53,17 +58,18 @@ function LocationProbe() {
     const location = useLocation();
     return (
         <p>
-            map:{location.pathname}:{(location.state as { unlockedKey?: string } | null)?.unlockedKey ?? 'none'}
+            map:{location.pathname}:
+            {(location.state as { unlockedKey?: string } | null)?.unlockedKey ?? 'none'}
         </p>
     );
 }
 
-function renderModule(initialEntry = '/my-path/module/step1') {
+function renderModule(initialEntry = '/my-path/module/m1') {
     return render(
         <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route path="/my-path" element={<LocationProbe />} />
-                <Route path="/my-path/module/:stepId" element={<MyPathModulePage />} />
+                <Route path="/my-path/module/:moduleId" element={<MyPathModulePage />} />
             </Routes>
         </MemoryRouter>,
     );
@@ -72,53 +78,86 @@ function renderModule(initialEntry = '/my-path/module/step1') {
 describe('MyPathModulePage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(onboardingService.fetchStep).mockResolvedValue(step as never);
-        vi.mocked(verificationService.fetchVerification).mockResolvedValue(verification as never);
+        vi.mocked(competencyModuleService.fetchModule).mockResolvedValue(module as never);
+        vi.mocked(competencyModuleService.fetchVerification).mockResolvedValue(verification as never);
     });
 
-    it('renders the backend-provided pages behind a stepper', async () => {
+    it('renders each page kind deliberately, behind a stepper', async () => {
         const user = userEvent.setup();
         renderModule();
 
+        // First page wins when no page is requested.
+        expect(await screen.findByText(/deploys are gated because/i)).toBeInTheDocument();
+        expect(screen.getByText(/why this matters/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /How it works/ }));
         expect(await screen.findByText('Lesson body')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /Practice/ }));
-        expect(await screen.findByText('Clone the repo')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /Trace a deploy/ }));
+        expect(await screen.findByText(/walkthrough/i)).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /Verify/ }));
         expect(await screen.findByText('Explain the deploy flow')).toBeInTheDocument();
     });
 
-    it('surfaces a failed load instead of rendering placeholder content', async () => {
-        vi.mocked(onboardingService.fetchStep).mockRejectedValue(new Error('Step not found'));
+    it('renders an unknown page kind visibly rather than as a blank page', async () => {
+        vi.mocked(competencyModuleService.fetchModule).mockResolvedValue({
+            ...module,
+            pages: [page('pg-new', 'SIMULATION', 'Try the simulator', 'Body of the new kind')],
+        } as never);
 
         renderModule();
 
-        expect(await screen.findByText('Step not found')).toBeInTheDocument();
+        expect(await screen.findByTestId('unknown-page-kind')).toBeInTheDocument();
+        // The content a hire may be graded on is still shown.
+        expect(screen.getByText('Body of the new kind')).toBeInTheDocument();
+    });
+
+    it('still renders the pages when no check is configured yet', async () => {
+        vi.mocked(competencyModuleService.fetchVerification).mockRejectedValue(new Error('404'));
+
+        renderModule();
+
+        expect(await screen.findByText(/deploys are gated because/i)).toBeInTheDocument();
+    });
+
+    it('surfaces a failed load instead of rendering placeholder content', async () => {
+        vi.mocked(competencyModuleService.fetchModule).mockRejectedValue(
+            new Error('Module not found'),
+        );
+
+        renderModule();
+
+        expect(await screen.findByText('Module not found')).toBeInTheDocument();
         expect(screen.queryByText('Lesson body')).not.toBeInTheDocument();
     });
 
-    it('deep-links straight to a page via the query string', async () => {
-        renderModule('/my-path/module/step1?page=2');
+    it('deep-links to a page by id, so the link survives a reorder', async () => {
+        renderModule('/my-path/module/m1?page=pg-verify');
 
         expect(await screen.findByText('Explain the deploy flow')).toBeInTheDocument();
     });
 
+    it('falls back to the first page when the deep-linked page is gone', async () => {
+        renderModule('/my-path/module/m1?page=pg-deleted');
+
+        expect(await screen.findByText(/deploys are gated because/i)).toBeInTheDocument();
+    });
+
     it('returns to the map with the earned competency key after passing', async () => {
-        vi.mocked(verificationService.submitVerificationAttempt).mockResolvedValue({
+        vi.mocked(competencyModuleService.submitAttempt).mockResolvedValue({
             attemptId: 'a1',
-            stepId: 'step1',
+            moduleId: 'm1',
             passed: true,
             score: 1,
             feedback: 'Correct',
             hint: null,
             attemptNo: 1,
             graphVersion: 3,
-            stepStatus: 'FINISHED',
         } as never);
 
         const user = userEvent.setup();
-        renderModule('/my-path/module/step1?page=2');
+        renderModule('/my-path/module/m1?page=pg-verify');
 
         await user.type(await screen.findByLabelText('Your answer'), 'Because it is');
         await user.click(screen.getByRole('button', { name: 'Submit answer' }));
@@ -133,20 +172,19 @@ describe('MyPathModulePage', () => {
     });
 
     it('shows a failed attempt with its hint and keeps the check open', async () => {
-        vi.mocked(verificationService.submitVerificationAttempt).mockResolvedValue({
+        vi.mocked(competencyModuleService.submitAttempt).mockResolvedValue({
             attemptId: 'a1',
-            stepId: 'step1',
+            moduleId: 'm1',
             passed: false,
             score: 0.2,
             feedback: 'Missing the rollback step',
             hint: 'Think about what happens on failure',
             attemptNo: 1,
             graphVersion: 3,
-            stepStatus: 'IN_PROGRESS',
         } as never);
 
         const user = userEvent.setup();
-        renderModule('/my-path/module/step1?page=2');
+        renderModule('/my-path/module/m1?page=pg-verify');
 
         await user.type(await screen.findByLabelText('Your answer'), 'Not sure');
         await user.click(screen.getByRole('button', { name: 'Submit answer' }));

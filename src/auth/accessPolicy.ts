@@ -63,7 +63,7 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/chat': ['/chat/'],
     '/onboarding': ['/onboarding/'],
-    // The focused module route (/my-path/module/:stepId) sits under the map's permissions.
+    // The focused module route (/my-path/module/:moduleId) sits under the map's permissions.
     '/my-path': ['/my-path/'],
     '/team-management': ['/team/'],
     '/insights/faq': ['/insights/faq/'],
