@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useReducedMotion } from 'framer-motion';
 import {
     AlertCircle,
     FolderKanban,
@@ -25,33 +26,13 @@ import { GoalPicker } from '../features/my-path/components/GoalPicker';
 import { useGoalSelection } from '../features/my-path/hooks/useGoalSelection';
 import { useGraphEditing } from '../features/my-path/hooks/useGraphEditing';
 import { useModuleAuthoring } from '../features/my-path/hooks/useModuleAuthoring';
+import { useUnlockSequence } from '../features/my-path/hooks/useUnlockSequence';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
-import type { PathNode, PathView } from '../features/skill-assessment/types';
+import type { PathNode } from '../features/skill-assessment/types';
 
 /** Navigation state a passing module hands back so the map knows what to celebrate. */
 type MyPathLocationState = { unlockedKey?: string } | null;
-
-/**
- * Keys to pulse on arrival from a passed module: the competency just earned,
- * plus every node it directly unlocked that is now reachable.
- *
- * The map is unmounted while a module runs, so the cross-load state diff
- * `useCompetencyPath` computes can't span the round trip -- the earned key comes
- * back in navigation state instead, and the dependents are derived from the
- * freshly loaded path.
- */
-function unlockedPulseKeys(path: PathView | null, unlockedKey: string | undefined): Set<string> {
-    if (!path || !unlockedKey) return new Set();
-
-    const keys = new Set<string>([unlockedKey]);
-    for (const edge of path.edges) {
-        if (edge.from !== unlockedKey) continue;
-        const dependent = path.nodes.find(node => node.key === edge.to);
-        if (dependent && dependent.state !== 'LOCKED') keys.add(dependent.key);
-    }
-    return keys;
-}
 
 /**
  * "My Path" -- the competency graph *is* the interface.
@@ -80,6 +61,7 @@ export function MyPathPage() {
         profile?.permissionGroup === PermissionGroup.PM ||
         profile?.permissionGroup === PermissionGroup.ADMIN;
     const location = useLocation();
+    const reduceMotion = useReducedMotion() ?? false;
     const unlockedKey = (location.state as MyPathLocationState)?.unlockedKey;
 
     const {
@@ -144,10 +126,21 @@ export function MyPathPage() {
         () => new Map(competencies.map(entry => [entry.competencyKey, entry.source])),
         [competencies]
     );
-    const pulseKeys = useMemo(() => {
-        const fromUnlock = unlockedPulseKeys(path, unlockedKey);
-        return fromUnlock.size > 0 ? fromUnlock : justChangedKeys;
-    }, [path, unlockedKey, justChangedKeys]);
+    // On the map the unlock sequence owns the celebration when a module was just
+    // passed, so the one-shot pulse stands down; the cross-load diff still covers
+    // a state change that happened in place.
+    const unlock = useUnlockSequence(unlockedKey, path, !reduceMotion);
+    const pulseKeys = unlock.unlockedKey ? undefined : justChangedKeys;
+    // The list has no camera and no edges to run a charge along, so there the
+    // same unlock stays a pulse on what changed -- otherwise switching to the
+    // accessible view would silently cost you the feedback entirely.
+    const listPulseKeys = useMemo(
+        () =>
+            unlock.unlockedKey
+                ? new Set([unlock.unlockedKey, ...unlock.dependentKeys])
+                : justChangedKeys,
+        [unlock.unlockedKey, unlock.dependentKeys, justChangedKeys]
+    );
 
     // A fresh project has none of the previous project's nodes selected.
     const handleSelectProject = (projectId: string) => {
@@ -383,6 +376,7 @@ export function MyPathPage() {
                                     selectedKey={selectedKey}
                                     focusedKey={focusedKey}
                                     justChangedKeys={pulseKeys}
+                                    unlock={unlock}
                                     onSelectNode={(node: PathNode | null) => {
                                         setFocusedKey(null);
                                         setSelectedKey(node?.key ?? null);
@@ -395,7 +389,7 @@ export function MyPathPage() {
                             ) : (
                                 <AssessmentPathView
                                     path={path}
-                                    justChangedKeys={pulseKeys}
+                                    justChangedKeys={listPulseKeys}
                                     onSelectNode={node => setSelectedKey(node.key)}
                                 />
                             )}

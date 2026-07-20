@@ -31,21 +31,31 @@ const KIND_ICONS: Record<CompetencyKind, typeof Wrench> = {
  * own icon and a visible text label (AGENTS.md §7), so the graph stays readable
  * with any color-vision deficiency.
  */
-const STATE_STYLES: Record<NodeState, { icon: typeof CheckCircle2; label: string; className: string }> = {
+const STATE_STYLES: Record<
+    NodeState,
+    { icon: typeof CheckCircle2; label: string; className: string; motionClassName: string }
+> = {
     MASTERED: {
         icon: CheckCircle2,
         label: 'Mastered',
-        className: 'border-app-success-border bg-app-success-bg text-app-success-text'
+        className: 'border-app-success-border bg-app-success-bg text-app-success-text',
+        // Settled and saturated: a slow glow, no movement.
+        motionClassName: 'animate-node-glow'
     },
     AVAILABLE: {
         icon: CircleDot,
         label: 'Available',
-        className: 'border-app-brand-border-strong bg-app-surface text-app-brand-text'
+        className: 'border-app-brand-border-strong bg-app-surface text-app-brand-text',
+        // The only state that asks for attention -- this is your move.
+        motionClassName: 'animate-node-breathe'
     },
     LOCKED: {
         icon: Lock,
         label: 'Locked',
-        className: 'border-app-border bg-app-surface-muted text-app-text-subtle'
+        // Desaturated and slightly smaller, so the frontier stands out from what
+        // is still out of reach without hiding anything.
+        className: 'border-app-border bg-app-surface-muted text-app-text-subtle saturate-50',
+        motionClassName: ''
     }
 };
 
@@ -53,12 +63,19 @@ export type CompetencyNodeData = {
     node: PathNode;
     /** Whether this node is the one whose detail panel is open. */
     selected: boolean;
-    /** Faded because another node is selected and this one isn't adjacent to it. */
+    /** Faded because another node's prerequisite chain is lit and this one isn't in it. */
     dimmed: boolean;
     /** Flipped state since the last path load -- pulses once on return from a module. */
     justChanged: boolean;
     /** Focus ring driven by the skills rail, not by graph selection. */
     highlighted: boolean;
+    /**
+     * This node's part in the unlock payoff, if one is playing: `flip` for the
+     * competency just earned, `pop` for a node that earning it opened.
+     */
+    unlockRole?: 'flip' | 'pop' | null;
+    /** False when the OS asks for reduced motion; suppresses every animation here. */
+    animate?: boolean;
 };
 
 export type CompetencyFlowNode = Node<CompetencyNodeData, 'competency'>;
@@ -74,23 +91,39 @@ export type CompetencyFlowNode = Node<CompetencyNodeData, 'competency'>;
  * too would nest two interactive elements.
  */
 function CompetencyGraphNodeComponent({ data }: NodeProps<CompetencyFlowNode>) {
-    const { node, selected, dimmed, justChanged, highlighted } = data;
+    const { node, selected, dimmed, justChanged, highlighted, unlockRole, animate = true } = data;
     const state = STATE_STYLES[node.state];
     const StateIcon = state.icon;
     const KindIcon = KIND_ICONS[node.kind];
     const isGoal = node.kind === 'CONTRIBUTION';
 
+    // The unlock sequence owns the node while it plays -- its animation replaces
+    // the ambient state one rather than stacking two transforms on one element.
+    const unlockAnimation =
+        unlockRole === 'flip'
+            ? 'animate-node-flip'
+            : unlockRole === 'pop'
+              ? 'animate-node-pop'
+              : '';
+    const stateAnimation = unlockAnimation === '' ? state.motionClassName : unlockAnimation;
+
     return (
         <div
             data-testid={`graph-node-${node.key}`}
+            data-node-state={node.state}
+            data-unlock-role={unlockRole ?? undefined}
             style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}
             className={[
                 'flex flex-col justify-center gap-1 rounded-xl border px-3 py-2 transition-all duration-200',
                 state.className,
-                isGoal ? 'border-2 shadow-lg' : '',
+                // The destination is drawn as one: larger and heavier than the
+                // competencies that lead to it.
+                isGoal ? 'scale-105 border-2 shadow-lg' : '',
+                node.state === 'LOCKED' ? 'scale-95' : '',
                 selected || highlighted ? 'ring-2 ring-app-focus' : '',
-                justChanged ? 'animate-pulse' : '',
-                dimmed ? 'opacity-40' : 'opacity-100'
+                animate ? stateAnimation : '',
+                animate && justChanged && !unlockRole ? 'animate-pulse' : '',
+                dimmed ? 'opacity-30' : 'opacity-100'
             ]
                 .filter(Boolean)
                 .join(' ')}

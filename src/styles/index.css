@@ -201,6 +201,71 @@
   --font-sans: var(--sans);
   --font-heading: var(--heading);
   --font-mono: var(--mono);
+
+  /* Competency-graph node states (see CompetencyGraphNode). State is always also
+     carried by an icon and a text label -- this motion is reinforcement only. */
+  --animate-node-breathe: app-node-breathe 2.6s ease-in-out infinite;
+  --animate-node-glow: app-node-glow 3.6s ease-in-out infinite;
+  --animate-node-flip: app-node-flip 550ms ease-out 1;
+  --animate-node-pop: app-node-pop 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+
+/* "This is your move": an available node breathes an outward ring. */
+@keyframes app-node-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--brand-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 8px var(--brand-glow);
+  }
+}
+
+/* Mastered nodes are settled, not inert -- a slow glow, no movement. */
+@keyframes app-node-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 0 var(--success-border);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px var(--success-border);
+  }
+}
+
+/* The node you just passed turns over into its mastered state. */
+@keyframes app-node-flip {
+  0% {
+    transform: perspective(600px) rotateY(0deg);
+  }
+  50% {
+    transform: perspective(600px) rotateY(90deg);
+  }
+  100% {
+    transform: perspective(600px) rotateY(0deg);
+  }
+}
+
+/* Each node the unlock opened lands with a slight overshoot. */
+@keyframes app-node-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Motion here is decorative; the OS-level preference switches all of it off. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-node-breathe,
+  .animate-node-glow,
+  .animate-node-flip,
+  .animate-node-pop {
+    animation: none !important;
+  }
 }
 
 @media (max-width: 1024px) {
