@@ -1,25 +1,9 @@
 import { useEffect, useState } from 'react';
-import {
-    ArrowRight,
-    ExternalLink,
-    Flag,
-    GitPullRequest,
-    Layers,
-    Lock,
-    SlidersHorizontal,
-    X
-} from 'lucide-react';
+import { ArrowRight, ExternalLink, Flag, GitPullRequest, Layers, Lock, X } from 'lucide-react';
 import { NodeStatusChip } from '../../skill-assessment/components/NodeStatusChip';
-import { CompetencyNodeEditor } from './CompetencyNodeEditor';
-import { PrerequisiteEditor } from './PrerequisiteEditor';
-import { ModuleAuthoringSection } from './ModuleAuthoringSection';
-import { useGraphEditing } from '../hooks/useGraphEditing';
 import { competencyModuleService } from '../../../services/competencyModuleService';
-import { useAuth } from '../../../context/useAuth';
-import { PermissionGroup } from '../../../services/types';
 import type { PathNode, PathView } from '../../skill-assessment/types';
 import type { CompetencySource } from '../../competency-dashboard/types';
-import type { PendingModule } from '../hooks/useModuleAuthoring';
 
 type NodeDetailPanelProps = {
     node: PathNode;
@@ -28,21 +12,9 @@ type NodeDetailPanelProps = {
     source?: CompetencySource | null;
     /** Opens the focused module route for this node's module. */
     onStartModule: (moduleId: string) => void;
-    /** Opens the authoring surface for this node's module (PM/admin only). */
-    onEditModule: (moduleId: string) => void;
     /** Jumps the graph selection to another node (used by the blocker links). */
     onSelectKey: (key: string) => void;
     onClose: () => void;
-    /** Reloads the path after a PM changes the graph. */
-    onGraphChanged: () => void | Promise<void>;
-    /** A DRAFT/PROPOSED module in flight for this competency, if any (PM/admin only). */
-    pendingModule?: PendingModule | null;
-    /** Whether a module create/draft is in flight. */
-    isCreatingModule?: boolean;
-    /** The last module-authoring error. */
-    moduleError?: string | null;
-    /** Creates a module for this node, then opens the editor on the result. */
-    onCreateModule?: (mode: 'blank' | 'ai') => void;
 };
 
 const SOURCE_LABELS: Record<CompetencySource, string> = {
@@ -58,40 +30,20 @@ const SOURCE_LABELS: Record<CompetencySource, string> = {
  *
  * Blockers are rendered as buttons that move the graph selection to the blocking
  * prerequisite, so a hire can walk backwards from "I want this" to "start here".
+ *
+ * Entirely a hire's view. Editing the competency, its prerequisites or its module
+ * is a different job for a different audience and lives in the competency studio
+ * (`/graph-studio`), against the whole graph rather than one person's path.
  */
 export function NodeDetailPanel({
     node,
     path,
     source,
     onStartModule,
-    onEditModule,
     onSelectKey,
-    onClose,
-    onGraphChanged,
-    pendingModule = null,
-    isCreatingModule = false,
-    moduleError = null,
-    onCreateModule
+    onClose
 }: NodeDetailPanelProps) {
-    const { profile } = useAuth();
-    const canAuthor =
-        profile?.permissionGroup === PermissionGroup.PM ||
-        profile?.permissionGroup === PermissionGroup.ADMIN;
     const [pageCount, setPageCount] = useState<number | null>(null);
-    // Which node the editor is open for, rather than a bare boolean: selecting a
-    // different node then implicitly closes the form, without an effect that
-    // resets state (and the cascading render that comes with it).
-    const [editingKey, setEditingKey] = useState<string | null>(null);
-    const isEditing = editingKey === node.key;
-    const {
-        isSaving,
-        error: editError,
-        clearError,
-        updateCompetency,
-        deleteCompetency,
-        addPrerequisite,
-        removePrerequisite
-    } = useGraphEditing(onGraphChanged);
 
     // How many pages the module has lives on the module, not on the projected
     // node -- fetched lazily so opening the panel is the only cost.
@@ -291,75 +243,6 @@ export function NodeDetailPanel({
                 </p>
             )}
 
-            {/* Authoring lives below the hire's view, not instead of it: this page has one
-                audience by default and PMs get extra tools, rather than a second graph page
-                that would drift from this one. */}
-            {canAuthor && (
-                <div className="mt-2 space-y-4 border-t border-app-border pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
-                        Authoring
-                    </p>
-
-                    {onCreateModule && (
-                        <ModuleAuthoringSection
-                            node={node}
-                            pending={pendingModule}
-                            isBusy={isCreatingModule}
-                            error={moduleError}
-                            onOpenModule={onEditModule}
-                            onCreate={onCreateModule}
-                        />
-                    )}
-
-                    {isEditing ? (
-                        <CompetencyNodeEditor
-                            competencyKey={node.key}
-                            isSaving={isSaving}
-                            error={editError}
-                            onClearError={clearError}
-                            onSave={input =>
-                                updateCompetency(node.key, {
-                                    label: input.label,
-                                    description: input.description,
-                                    kind: input.kind,
-                                    targetLevel: input.targetLevel,
-                                    invariant: input.invariant
-                                })
-                            }
-                            onDelete={async () => {
-                                const removed = await deleteCompetency(node.key);
-                                // The node is gone from the graph, so the panel describing it
-                                // has nothing left to describe.
-                                if (removed) onClose();
-                                return removed;
-                            }}
-                            onCancel={() => setEditingKey(null)}
-                        />
-                    ) : (
-                        <button
-                            type="button"
-                            data-testid="edit-competency"
-                            onClick={() => setEditingKey(node.key)}
-                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                        >
-                            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-                            Edit this competency
-                        </button>
-                    )}
-
-                    {!isEditing && (
-                        <PrerequisiteEditor
-                            node={node}
-                            path={path}
-                            isSaving={isSaving}
-                            error={editError}
-                            onClearError={clearError}
-                            onAdd={addPrerequisite}
-                            onRemove={removePrerequisite}
-                        />
-                    )}
-                </div>
-            )}
         </aside>
     );
 }

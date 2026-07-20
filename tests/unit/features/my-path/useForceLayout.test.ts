@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useForceLayout } from '../../../../src/features/my-path/hooks/useForceLayout';
-import { layoutPath, NODE_HEIGHT } from '../../../../src/features/my-path/graphLayout';
+import { useForceLayout } from '../../../../src/features/competency-graph/useForceLayout';
+import { layoutPath, NODE_HEIGHT } from '../../../../src/features/competency-graph/layout';
 import type { PathView } from '../../../../src/features/skill-assessment/types';
 
 const path: PathView = {

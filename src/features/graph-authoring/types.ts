@@ -81,6 +81,19 @@ export type LiveCompetencyEdge = {
 };
 
 /**
+ * The whole live graph, as a PM authors it.
+ *
+ * Deliberately not a `PathView`. That is one hire's projection: filtered to a project's approved
+ * baseline, carrying per-user node state, resolved at that hire's pinned graph version. Nothing
+ * here is mastered or locked, because that describes a person rather than the graph.
+ */
+export type LiveGraph = {
+    competencies: LiveCompetency[];
+    edges: LiveCompetencyEdge[];
+    graphVersion: number;
+};
+
+/**
  * The outcome of removing a node. `edgesRemoved` is surfaced because removing one node detaches
  * every edge touching it, which is more of the graph's structure than a PM may expect.
  */

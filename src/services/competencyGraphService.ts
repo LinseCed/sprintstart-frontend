@@ -8,6 +8,7 @@ import type {
     GenerateGraphResult,
     LiveCompetency,
     LiveCompetencyEdge,
+    LiveGraph,
     ProposedGraph,
     UpdateCompetencyInput,
 } from '../features/graph-authoring/types';
@@ -85,6 +86,18 @@ export const competencyGraphService = {
             method: 'POST',
             body: JSON.stringify({ competencyProposalIds, edgeProposalIds }),
         });
+    },
+
+    /**
+     * Reads the whole live graph: every visible competency and edge at the head version.
+     *
+     * The PM counterpart to `assessmentService.fetchPath`. That returns a hire's projection --
+     * scoped to one project's baseline, carrying their per-user node state -- so authoring
+     * against it meant editing the graph through somebody's onboarding, and a project with no
+     * approved baseline showed nothing to edit at all.
+     */
+    async fetchGraph(): Promise<LiveGraph> {
+        return await apiClient.fetch<LiveGraph>(BASE_URL);
     },
 
     /**

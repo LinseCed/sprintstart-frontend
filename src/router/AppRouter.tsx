@@ -3,7 +3,7 @@ import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
-import { GraphAuthoringPage } from '../pages/GraphAuthoringPage.tsx';
+import { GraphStudioPage } from '../pages/GraphStudioPage.tsx';
 import { StarterWorkPage } from '../pages/StarterWorkPage';
 import { BlueprintAuthoringPage } from '../pages/BlueprintAuthoringPage.tsx';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
@@ -54,7 +54,9 @@ export function AppRouter() {
                 <Route path="/competency-modules/:moduleId" element={<ModuleEditorPage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />
-                <Route path="/graph-authoring" element={<GraphAuthoringPage />} />
+                <Route path="/graph-studio" element={<GraphStudioPage />} />
+                {/* The proposal queue used to live here on its own; it is part of the studio now. */}
+                <Route path="/graph-authoring" element={<Navigate to="/graph-studio" replace />} />
                 <Route path="/onboarding-baseline" element={<BlueprintAuthoringPage />} />
                 <Route path="/starter-work" element={<StarterWorkPage />} />
                 <Route path="/team-management" element={<TeamManagementPage />} />

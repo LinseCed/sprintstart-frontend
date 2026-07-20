@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { layoutPath, prerequisitesByKey } from '../../../../src/features/my-path/graphLayout';
+import { layoutPath, prerequisitesByKey } from '../../../../src/features/competency-graph/layout';
 import type { PathView } from '../../../../src/features/skill-assessment/types';
 
 const path: PathView = {

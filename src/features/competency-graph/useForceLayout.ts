@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { forceCollide, forceLink, forceSimulation, forceY } from 'd3-force';
-import { NODE_HEIGHT, NODE_WIDTH, layoutPath, type NodePosition } from '../graphLayout';
-import type { PathView } from '../../skill-assessment/types';
+import { NODE_HEIGHT, NODE_WIDTH, layoutPath, type GraphShape, type NodePosition } from './layout';
 
 /**
  * Above this many nodes the relaxation is skipped and dagre's positions are used
@@ -52,11 +51,11 @@ export type ForceLayout = {
  * second while settling (seconds before anything appeared) and ran without end
  * during a drag. Physics you can watch is not worth a graph you cannot use.
  *
- * @param path The projected graph; a change in its shape recomputes the layout.
+ * @param path The graph to lay out; a change in its shape recomputes the layout.
  * @param enabled False for reduced motion. The relaxation involves no motion, so
  * this only exists to keep the reduced-motion path byte-identical to plain dagre.
  */
-export function useForceLayout(path: PathView, enabled: boolean): ForceLayout {
+export function useForceLayout(path: GraphShape, enabled: boolean): ForceLayout {
     const seeded = useMemo(() => layoutPath(path), [path]);
 
     const positions = useMemo(() => {

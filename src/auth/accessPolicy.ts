@@ -13,7 +13,7 @@ export type AppRoute =
     | '/onboarding/assessment'
     | '/my-path'
     | '/data-ingestion'
-    | '/graph-authoring'
+    | '/graph-studio'
     | '/onboarding-baseline'
     | '/starter-work'
     | '/admin'
@@ -51,7 +51,7 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.ADMIN,
     ],
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
-    '/graph-authoring': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/graph-studio': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/onboarding-baseline': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     // HR reads the queue; approving is what mints a goal node, so only PM/ADMIN act (enforced
     // server-side too -- this only decides who sees the page).

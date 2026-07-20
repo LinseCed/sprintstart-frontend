@@ -71,8 +71,8 @@ const projectManagerNavItems: SidebarNavItem[] = [
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
     {
-        label: 'Graph Authoring',
-        path: '/graph-authoring',
+        label: 'Competency Studio',
+        path: '/graph-studio',
         icon: <Network className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
     {

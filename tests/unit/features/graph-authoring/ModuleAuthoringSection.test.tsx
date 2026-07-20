@@ -1,20 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
-import { ModuleAuthoringSection } from '../../../../src/features/my-path/components/ModuleAuthoringSection';
-import type { PathNode } from '../../../../src/features/skill-assessment/types';
+import { ModuleAuthoringSection } from '../../../../src/features/graph-authoring/components/ModuleAuthoringSection';
+import type { LiveCompetency } from '../../../../src/features/graph-authoring/types';
 
-const node: PathNode = {
+const competency: LiveCompetency = {
     key: 'kotlin',
     label: 'Kotlin',
+    description: null,
     kind: 'SKILL',
-    state: 'AVAILABLE'
+    targetLevel: 2,
+    invariant: false,
+    repoRef: null
 };
 
 function renderSection(overrides: Partial<React.ComponentProps<typeof ModuleAuthoringSection>> = {}) {
     const props = {
-        node,
-        pending: null,
+        competency,
+        readiness: { activeModuleId: null, pending: null },
         isBusy: false,
         error: null,
         onOpenModule: vi.fn(),
@@ -65,7 +68,9 @@ describe('ModuleAuthoringSection', () => {
     describe('a draft is in flight', () => {
         it('offers to continue it rather than create a duplicate', async () => {
             const user = userEvent.setup();
-            const props = renderSection({ pending: { moduleId: 'm1', status: 'DRAFT' } });
+            const props = renderSection({
+                readiness: { activeModuleId: null, pending: { moduleId: 'm1', status: 'DRAFT' } }
+            });
 
             expect(screen.queryByTestId('author-create-blank')).not.toBeInTheDocument();
             const continueButton = screen.getByTestId('author-continue-module');
@@ -76,7 +81,9 @@ describe('ModuleAuthoringSection', () => {
         });
 
         it('frames a proposed module as awaiting review', () => {
-            renderSection({ pending: { moduleId: 'm2', status: 'PROPOSED' } });
+            renderSection({
+                readiness: { activeModuleId: null, pending: { moduleId: 'm2', status: 'PROPOSED' } }
+            });
 
             expect(screen.getByTestId('author-continue-module')).toHaveTextContent(/review the proposal/i);
         });
@@ -85,7 +92,9 @@ describe('ModuleAuthoringSection', () => {
     describe('an active module exists', () => {
         it('offers to edit it', async () => {
             const user = userEvent.setup();
-            const props = renderSection({ node: { ...node, moduleId: 'active-1' } });
+            const props = renderSection({
+                readiness: { activeModuleId: 'active-1', pending: null }
+            });
 
             expect(screen.queryByTestId('author-create-blank')).not.toBeInTheDocument();
             await user.click(screen.getByTestId('author-edit-module'));

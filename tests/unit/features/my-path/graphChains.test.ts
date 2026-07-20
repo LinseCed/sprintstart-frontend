@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chainFor, liveEdgeIds } from '../../../../src/features/my-path/graphLayout';
+import { chainFor } from '../../../../src/features/competency-graph/layout';
+import { liveEdgeIds } from '../../../../src/features/my-path/pathGraph';
 import type { NodeState, PathNode, PathView } from '../../../../src/features/skill-assessment/types';
 
 function node(key: string, state: NodeState = 'LOCKED'): PathNode {
