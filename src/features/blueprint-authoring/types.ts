@@ -1,34 +1,43 @@
 export type ProposalStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED';
 
 /**
- * One proposed step of a baseline blueprint.
+ * One competency selected into a proposed baseline.
  *
- * `proposalId` is the entity id that approve/reject target; `id` is the semantic
- * step id from generation, which is *not* the same value -- targeting the wrong
- * one silently 404s.
+ * A baseline is a selection over the competency graph -- which competencies
+ * everyone in a scope must reach, and how deeply -- not a list of prose steps.
+ *
+ * `proposalId` is the entity id that approve/reject target; `competencyKey` is
+ * the graph key, which is *not* the same value -- targeting the wrong one
+ * silently 404s.
  */
-export type BlueprintStepProposal = {
-    id: string | null;
-    title: string;
+export type BlueprintCompetencyProposal = {
+    competencyKey: string;
+    label: string;
     description: string | null;
+    /** The bar that will actually apply: this baseline's override, else the node's own. */
+    targetLevel: number;
+    /** True when `targetLevel` is this baseline's override rather than the graph's bar. */
+    targetLevelOverridden: boolean;
     requirement: string;
     invariant: boolean;
+    /** Why the proposer selected it; absent when it gave no reason. */
+    rationale: string | null;
     proposalId: string;
     status: ProposalStatus;
 };
 
-/** A proposed blueprint version for one scope (`global` or `area:<role>`). */
+/** A proposed baseline version for one scope (`global` or `area:<role>`). */
 export type BlueprintProposal = {
     scope: string;
     version: string;
-    steps: BlueprintStepProposal[];
+    competencies: BlueprintCompetencyProposal[];
 };
 
 export type ProposedBlueprints = {
     blueprints: BlueprintProposal[];
 };
 
-/** Per-scope result of a generation run; `status` is e.g. `generated` / `unchanged` / `failed`. */
+/** Per-scope result of a generation run; `status` is e.g. `created` / `unchanged` / `skipped`. */
 export type BlueprintOutcome = {
     scope: string;
     status: string;

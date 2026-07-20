@@ -7,7 +7,7 @@ function toMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * Drives the blueprint proposal queue: generate, review, approve/reject.
+ * Drives the baseline proposal queue: generate, review, approve/reject.
  *
  * Every mutation reloads the queue from the backend rather than patching local
  * state, because approving a version has server-side consequences beyond the row
@@ -26,7 +26,7 @@ export function useBlueprintAuthoring() {
         try {
             setBlueprints((await blueprintService.fetchProposed()).blueprints);
         } catch (err) {
-            setError(toMessage(err, 'Could not load proposed blueprints.'));
+            setError(toMessage(err, 'Could not load proposed baselines.'));
         } finally {
             setIsLoading(false);
         }
@@ -44,7 +44,7 @@ export function useBlueprintAuthoring() {
             setOutcomes((await blueprintService.generate()).outcomes);
             await load();
         } catch (err) {
-            setError(toMessage(err, 'Could not generate blueprints.'));
+            setError(toMessage(err, 'Could not generate a baseline.'));
         } finally {
             setIsGenerating(false);
         }
@@ -72,12 +72,18 @@ export function useBlueprintAuthoring() {
         generate,
         reload: load,
         approve: (scope: string, version: string) =>
-            act(() => blueprintService.approve(scope, version), 'Could not approve this blueprint.'),
+            act(() => blueprintService.approve(scope, version), 'Could not approve this baseline.'),
         reject: (scope: string, version: string) =>
-            act(() => blueprintService.reject(scope, version), 'Could not reject this blueprint.'),
-        approveStep: (proposalId: string) =>
-            act(() => blueprintService.approveStep(proposalId), 'Could not approve this step.'),
-        rejectStep: (proposalId: string) =>
-            act(() => blueprintService.rejectStep(proposalId), 'Could not reject this step.'),
+            act(() => blueprintService.reject(scope, version), 'Could not reject this baseline.'),
+        approveCompetency: (proposalId: string) =>
+            act(
+                () => blueprintService.approveCompetency(proposalId),
+                'Could not keep this competency.',
+            ),
+        rejectCompetency: (proposalId: string) =>
+            act(
+                () => blueprintService.rejectCompetency(proposalId),
+                'Could not drop this competency.',
+            ),
     };
 }

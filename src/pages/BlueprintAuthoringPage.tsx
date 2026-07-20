@@ -6,14 +6,14 @@ import { BlueprintProposalCard } from '../features/blueprint-authoring/component
 import { useBlueprintAuthoring } from '../features/blueprint-authoring/hooks/useBlueprintAuthoring';
 
 /**
- * PM-facing surface for the baseline blueprint's proposal-only lifecycle: generate proposals from
- * the ingested corpus, review them step by step, then approve the version that becomes the
+ * PM-facing surface for the baseline's proposal-only lifecycle: generate proposals from the
+ * ingested corpus, review them competency by competency, then approve the version that becomes the
  * mandatory baseline.
  *
- * This is the gate in front of everything a hire sees. Path generation deliberately refuses to run
- * for a user whose scopes have no ACTIVE blueprint, so until a version is approved here, hires get
- * no path, no steps and therefore no openable nodes on their competency graph. It had no UI at all
- * until now, which made that failure look like a broken graph rather than an unfinished setup.
+ * A baseline is a selection over the competency graph -- which competencies everyone in a scope
+ * must reach, and how deeply. This is the gate in front of everything a hire sees: path generation
+ * refuses to run for a user whose scopes have no ACTIVE baseline, and a path aims only at what is
+ * selected here, so until a version is approved hires get no path at all.
  */
 export function BlueprintAuthoringPage() {
     const { profile } = useAuth();
@@ -27,8 +27,8 @@ export function BlueprintAuthoringPage() {
         generate,
         approve,
         reject,
-        approveStep,
-        rejectStep
+        approveCompetency,
+        rejectCompetency
     } = useBlueprintAuthoring();
 
     return (
@@ -38,7 +38,7 @@ export function BlueprintAuthoringPage() {
                     <PageHeader
                         icon={ClipboardList}
                         title="Onboarding Baseline"
-                        subtitle="Generate the mandatory baseline from the ingested corpus, then approve the version hires are onboarded against. Nobody gets an onboarding path until a baseline is active."
+                        subtitle="Choose which competencies everyone here must reach, and how deeply. Generating proposes a selection from the ingested corpus; a hire's path aims at what you approve, and nobody gets a path until a baseline is active."
                         actions={
                             canAct && (
                                 <button
@@ -97,8 +97,8 @@ export function BlueprintAuthoringPage() {
                         </h3>
                         <p className="mx-auto mt-2 max-w-lg text-sm text-app-text-muted">
                             Either a baseline is already active, or none has been generated yet.
-                            Generating proposes one from what has been ingested &mdash; it changes
-                            nothing for hires until you approve it.
+                            Generating proposes a competency selection from what has been ingested
+                            &mdash; it changes nothing for hires until you approve it.
                         </p>
                     </div>
                 ) : (
@@ -109,8 +109,12 @@ export function BlueprintAuthoringPage() {
                             canAct={canAct}
                             onApprove={() => void approve(blueprint.scope, blueprint.version)}
                             onReject={() => void reject(blueprint.scope, blueprint.version)}
-                            onApproveStep={(proposalId) => void approveStep(proposalId)}
-                            onRejectStep={(proposalId) => void rejectStep(proposalId)}
+                            onApproveCompetency={(proposalId) =>
+                                void approveCompetency(proposalId)
+                            }
+                            onRejectCompetency={(proposalId) =>
+                                void rejectCompetency(proposalId)
+                            }
                         />
                     ))
                 )}
