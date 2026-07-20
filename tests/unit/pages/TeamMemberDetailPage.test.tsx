@@ -57,8 +57,6 @@ vi.mock('../../../src/services/teamManagementService', () => ({
     getOnboardingTasksByStep: mockGetOnboardingTasksByStep,
     assignProjectRoleToUser: mockAssignProjectRoleToUser,
     unassignProjectRoleFromUser: mockUnassignProjectRoleFromUser,
-    acceptOnboardingSkipRequest: mockAcceptOnboardingSkipRequest,
-    denyOnboardingSkipRequest: mockDenyOnboardingSkipRequest,
     markOnboardingFeedbackRead: vi.fn(),
     deleteOnboardingStep: vi.fn(),
     deleteOnboardingTask: vi.fn(),
@@ -212,33 +210,14 @@ describe('TeamMemberDetailPage', () => {
         });
     });
 
-    it('accepts a pending skip request', async () => {
-        const user = userEvent.setup();
+    it('leads with the ledger, not a journey', async () => {
+        // Progress is what somebody has proven, not how far through a checklist
+        // they are -- the phases view went with the per-user tree (backend#53).
         render(<MemoryRouter><TeamMemberDetailPage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByText('Skip request')).toBeInTheDocument();
+            expect(screen.getByText('Competencies held')).toBeInTheDocument();
         });
-
-        await user.click(screen.getByRole('button', { name: 'Accept' }));
-
-        await waitFor(() => {
-            expect(mockAcceptOnboardingSkipRequest).toHaveBeenCalledWith('skip1');
-        });
-    });
-
-    it('denies a pending skip request', async () => {
-        const user = userEvent.setup();
-        render(<MemoryRouter><TeamMemberDetailPage /></MemoryRouter>);
-
-        await waitFor(() => {
-            expect(screen.getByText('Skip request')).toBeInTheDocument();
-        });
-
-        await user.click(screen.getByRole('button', { name: 'Deny' }));
-
-        await waitFor(() => {
-            expect(mockDenyOnboardingSkipRequest).toHaveBeenCalledWith('skip1');
-        });
+        expect(screen.queryByText(/skip request/i)).not.toBeInTheDocument();
     });
 });

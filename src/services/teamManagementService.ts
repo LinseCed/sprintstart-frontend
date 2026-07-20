@@ -7,13 +7,6 @@ import type {
   TeamOverviewUser,
   SkillStatus,
 } from "../features/team-management/types";
-import type {
-  OnboardingPhaseEndpoint,
-  OnboardingPathEndpoint,
-  OnboardingStepEndpoint,
-  OnboardingTaskEndpoint,
-  StepType,
-} from "../features/onboarding/types";
 
 let mockUsers = teamOverviewMock.users as TeamOverviewUser[];
 
@@ -214,35 +207,13 @@ export async function unassignProjectRoleFromUser(
   }
 }
 
-export async function acceptOnboardingSkipRequest(
-  skipId: string,
-  reviewComment = "",
-): Promise<void> {
-  await apiClient.fetch(`/api/v1/admin/onboarding/skips/${skipId}/accept`, {
-    method: "POST",
-    body: JSON.stringify({
-      reviewComment,
-    }),
-  });
-}
-
-export async function denyOnboardingSkipRequest(
-  skipId: string,
-  reviewComment = "",
-): Promise<void> {
-  await apiClient.fetch(`/api/v1/admin/onboarding/skips/${skipId}/deny`, {
-    method: "POST",
-    body: JSON.stringify({
-      reviewComment,
-    }),
-  });
-}
-
 export type OnboardingFeedback = {
   id: string;
   userId?: string;
-  stepId?: string | null;
-  stepTitle?: string | null;
+  pageId?: string | null;
+  pageTitle?: string | null;
+  moduleId?: string | null;
+  competencyKey?: string | null;
   message: string;
   comment?: string;
   helpful?: boolean | null;
@@ -286,156 +257,6 @@ export async function markOnboardingFeedbackRead(
       method: "POST",
     },
   );
-}
-
-export async function getUserOnboardingPath(
-  userId: string,
-): Promise<OnboardingPathEndpoint | null> {
-  try {
-    const path = await apiClient.fetch<OnboardingPathEndpoint>(
-      `/api/v1/onboarding/users/${userId}/path`,
-    );
-
-    const phases =
-      path.phases?.length > 0
-        ? path.phases
-        : await apiClient.fetch<OnboardingPhaseEndpoint[]>(
-            `/api/v1/onboarding/users/${userId}/path/phases`,
-          );
-
-    const hydratedPhases = await Promise.all(
-      phases.map(async (phase) => {
-        if (phase.steps?.length > 0) return phase;
-
-        try {
-          const steps = await apiClient.fetch<OnboardingStepEndpoint[]>(
-            `/api/v1/onboarding/phases/${phase.id}/steps`,
-          );
-
-          return {
-            ...phase,
-            steps,
-          };
-        } catch {
-          return {
-            ...phase,
-            steps: [],
-          };
-        }
-      }),
-    );
-
-    return {
-      ...path,
-      phases: hydratedPhases,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export type CreateOnboardingStepRequest = {
-  position: number;
-  isAiAssisted?: boolean;
-  title: string;
-  description: string;
-  type: StepType;
-  estimatedMinutes: number;
-  expectedOutcome?: string;
-};
-
-export type UpdateOnboardingStepRequest = CreateOnboardingStepRequest & {
-  status?: string;
-  skip?: unknown;
-};
-
-export type CreateOnboardingTaskRequest = {
-  position: number;
-  title: string;
-  description: string;
-  finished?: boolean;
-};
-
-export async function createOnboardingStepForPhase(
-  phaseId: string,
-  request: CreateOnboardingStepRequest,
-): Promise<OnboardingStepEndpoint> {
-  return await apiClient.fetch<OnboardingStepEndpoint>(
-    `/api/v1/onboarding/phases/${phaseId}/steps`,
-    {
-      method: "POST",
-      body: JSON.stringify(request),
-    },
-  );
-}
-
-export async function updateOnboardingStep(
-  stepId: string,
-  request: UpdateOnboardingStepRequest,
-): Promise<OnboardingStepEndpoint> {
-  return await apiClient.fetch<OnboardingStepEndpoint>(`/api/v1/onboarding/steps/${stepId}`, {
-    method: "PUT",
-    body: JSON.stringify(request),
-  });
-}
-
-export async function createOnboardingTaskForStep(
-  stepId: string,
-  request: CreateOnboardingTaskRequest,
-): Promise<OnboardingTaskEndpoint> {
-  return await apiClient.fetch<OnboardingTaskEndpoint>(
-    `/api/v1/onboarding/steps/${stepId}/tasks`,
-    {
-      method: "POST",
-      body: JSON.stringify(request),
-    },
-  );
-}
-
-export async function deleteOnboardingStep(stepId: string): Promise<void> {
-  await apiClient.fetch(`/api/v1/onboarding/steps/${stepId}`, {
-    method: "DELETE",
-  });
-}
-
-export type UpdateOnboardingTaskRequest = {
-  position: number;
-  title: string;
-  description: string;
-  finished: boolean;
-};
-
-/**
- * Updates an onboarding task, including its position. Used by the drag-and-drop
- * task reordering in the team member detail view. The backend automatically
- * shifts sibling tasks within the same step when the position changes.
- */
-export async function updateOnboardingTask(
-  taskId: string,
-  request: UpdateOnboardingTaskRequest,
-): Promise<OnboardingTaskEndpoint> {
-  return await apiClient.fetch<OnboardingTaskEndpoint>(`/api/v1/onboarding/tasks/${taskId}`, {
-    method: "PUT",
-    body: JSON.stringify(request),
-  });
-}
-
-export async function getOnboardingTasksByStep(
-  stepId: string,
-): Promise<OnboardingTaskEndpoint[]> {
-  try {
-    return await apiClient.fetch<OnboardingTaskEndpoint[]>(
-      `/api/v1/onboarding/steps/${stepId}/tasks`,
-    );
-  } catch {
-    return [];
-  }
-}
-
-export async function deleteOnboardingTask(taskId: string): Promise<void> {
-  await apiClient.fetch(`/api/v1/onboarding/tasks/${taskId}`, {
-    method: "DELETE",
-  });
 }
 
 type SkillResponseDto = {

@@ -154,7 +154,7 @@ describe('MyPathModulePage', () => {
             hint: null,
             attemptNo: 1,
             graphVersion: 3,
-        } as never);
+        });
 
         const user = userEvent.setup();
         renderModule('/my-path/module/m1?page=pg-verify');
@@ -181,7 +181,7 @@ describe('MyPathModulePage', () => {
             hint: 'Think about what happens on failure',
             attemptNo: 1,
             graphVersion: 3,
-        } as never);
+        });
 
         const user = userEvent.setup();
         renderModule('/my-path/module/m1?page=pg-verify');
