@@ -540,6 +540,38 @@ describe('ProjectDetailsDrawer', () => {
             );
         });
 
+        it('disables the make-manager control for a member without the PM role', async () => {
+            vi.mocked(projectService.getProjectById).mockResolvedValue({
+                ...projectDetails,
+                users: [
+                    {
+                        id: 'u-3',
+                        username: 'lea.klein',
+                        email: 'lea@example.com',
+                        firstName: 'Lea',
+                        lastName: 'Klein',
+                        roles: ['USER'],
+                        projectRoles: ['MEMBER'],
+                        enabled: true,
+                    },
+                ],
+            });
+
+            renderDrawer();
+
+            await waitFor(() =>
+                expect(screen.getByText('Lea Klein')).toBeInTheDocument(),
+            );
+
+            // The backend rejects a non-PM manager, so the UI blocks the promotion
+            // up front and explains why instead of surfacing a bare "Bad request".
+            expect(
+                screen.getByRole('button', {
+                    name: /Make Lea Klein project manager — requires the Project Manager \(PM\) role/,
+                }),
+            ).toBeDisabled();
+        });
+
         it('blocks removing the manager until they are demoted', async () => {
             vi.mocked(projectService.getProjectById).mockResolvedValue({
                 ...projectDetails,

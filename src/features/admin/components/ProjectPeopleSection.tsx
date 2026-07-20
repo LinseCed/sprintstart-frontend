@@ -38,9 +38,36 @@ type PersonRow = {
   secondaryLabel: string;
   profileIcon: string | null;
   isManager: boolean;
+  /** Whether the person may be assigned as manager (holds the PM/ADMIN role). */
+  isManagerEligible: boolean;
   isPendingAdd: boolean;
   isPendingRemove: boolean;
 };
+
+// Both spellings the two data sources use for the manager-granting roles: members
+// carry raw `GlobalUserRole` codes, while `AdminUser` exposes the humanized
+// permission-group label.
+const MANAGER_ELIGIBLE_ROLES = new Set([
+  "PM",
+  "ADMIN",
+  "PROJECT MANAGER",
+  "PROJECT_MANAGER",
+]);
+
+/**
+ * Whether any of the given role signals grants project-manager eligibility.
+ *
+ * The backend only accepts a manager who already holds the global PM (or ADMIN)
+ * role and rejects anyone else with a bare 400, so the UI enforces the same rule
+ * up front instead of letting the assignment fail with an opaque "Bad request".
+ */
+function isManagerEligible(...roleSignals: Array<string | undefined>): boolean {
+  return roleSignals.some(
+    (signal) =>
+      signal !== undefined &&
+      MANAGER_ELIGIBLE_ROLES.has(signal.trim().toUpperCase()),
+  );
+}
 
 function getDisplayName(user: {
   firstName?: string;
@@ -99,6 +126,7 @@ export function ProjectPeopleSection({
       secondaryLabel: member.email || member.username,
       profileIcon: member.profileIcon ?? null,
       isManager: member.id === effectiveManagerId,
+      isManagerEligible: isManagerEligible(...member.roles),
       isPendingAdd: false,
       isPendingRemove: activeDraft.removedUserIds.has(member.id),
     }));
@@ -115,6 +143,7 @@ export function ProjectPeopleSection({
             secondaryLabel: user.email || user.username,
             profileIcon: user.profileIcon ?? null,
             isManager: user.id === effectiveManagerId,
+            isManagerEligible: isManagerEligible(user.permissionGroup),
             isPendingAdd: true,
             isPendingRemove: false,
           },
@@ -139,6 +168,9 @@ export function ProjectPeopleSection({
           secondaryLabel: managerUser.email || managerUser.username,
           profileIcon: knownUser?.profileIcon ?? null,
           isManager: true,
+          // Already the manager, so eligibility is moot — treat as eligible so
+          // the demote control renders normally.
+          isManagerEligible: true,
           isPendingAdd: false,
           isPendingRemove: false,
         });
@@ -293,9 +325,17 @@ export function ProjectPeopleSection({
                         onClick={() =>
                           onDraftChange(stageManager(activeDraft, row.id))
                         }
-                        disabled={disabled}
-                        aria-label={`Make ${row.displayName} project manager`}
-                        title="Make manager"
+                        disabled={disabled || !row.isManagerEligible}
+                        aria-label={
+                          row.isManagerEligible
+                            ? `Make ${row.displayName} project manager`
+                            : `Make ${row.displayName} project manager — requires the Project Manager (PM) role`
+                        }
+                        title={
+                          row.isManagerEligible
+                            ? "Make manager"
+                            : "User needs the Project Manager (PM) role first"
+                        }
                         className="flex h-9 w-9 items-center justify-center rounded-xl text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-brand disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <ShieldCheck className="h-4 w-4" />

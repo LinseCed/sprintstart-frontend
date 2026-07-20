@@ -1,6 +1,31 @@
+import { ApiError } from "../../services/apiClient";
 import { projectService } from "../../services/projectService";
 import type { ProjectManager } from "../../services/projectService";
 import type { ProjectUser } from "./types";
+
+/**
+ * Turns a failed manager assignment into an actionable message.
+ *
+ * The backend only accepts a manager who already holds the global PM role and
+ * otherwise answers with a bare 400, which would surface to the admin as an
+ * opaque "Bad request". The UI already blocks this case up front, so this is a
+ * safety net that still names the concrete next step if the request slips
+ * through (e.g. the user lost the role between load and save).
+ */
+function toManagerAssignmentError(error: unknown): Error {
+  if (
+    error instanceof ApiError &&
+    (error.status === 400 || error.status === 409)
+  ) {
+    return new Error(
+      "This user must have the Project Manager (PM) role before they can be assigned as project manager.",
+    );
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error("The project manager could not be assigned.");
+}
 
 /**
  * Pending people changes, expressed as a diff against a server snapshot.
@@ -119,7 +144,11 @@ export async function applyPeopleChanges(
     if (draft.managerId === null) {
       await projectService.clearProjectManager(projectId);
     } else {
-      await projectService.setProjectManager(projectId, draft.managerId);
+      try {
+        await projectService.setProjectManager(projectId, draft.managerId);
+      } catch (error) {
+        throw toManagerAssignmentError(error);
+      }
     }
   }
 

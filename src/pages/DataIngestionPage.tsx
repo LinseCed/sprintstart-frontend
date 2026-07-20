@@ -65,6 +65,10 @@ import {
   type ConfigureGithubRepositoryRequest,
 } from "../services/sources/githubService.ts";
 import type { ProjectSource } from "../services/projectService.ts";
+import {
+  parseGithubRepositoryInput,
+  parseGithubRepositoryReference,
+} from "../services/sources/githubRepositoryInput.ts";
 
 const GITHUB_REPOSITORY_STORAGE_KEY =
   "sprintstart:data-ingestion:last-github-repository";
@@ -80,47 +84,6 @@ async function fetchIngestionData() {
   ]);
 
   return { statusData, runData };
-}
-
-function parseGithubRepositoryInput(
-  ownerInput: string,
-  repositoryInput: string,
-) {
-  const trimmedOwnerInput = ownerInput.trim();
-  const trimmedRepositoryInput = repositoryInput.trim();
-  const parsedOwnerInput = parseGithubRepositoryReference(trimmedOwnerInput);
-
-  if (parsedOwnerInput) {
-    return parsedOwnerInput;
-  }
-
-  if (trimmedOwnerInput && trimmedRepositoryInput) {
-    return {
-      owner: trimmedOwnerInput,
-      name: trimmedRepositoryInput,
-    };
-  }
-
-  return null;
-}
-
-function parseGithubRepositoryReference(value: string) {
-  const normalizedInput = value
-    .replace(/^https?:\/\/github\.com\//i, "")
-    .replace(/^github\.com\//i, "")
-    .replace(/^git@github\.com:/i, "")
-    .replace(/\.git$/i, "")
-    .replace(/^\/+|\/+$/g, "");
-
-  const [owner, name] = normalizedInput
-    .split("/")
-    .filter((segment) => segment.length > 0);
-
-  if (owner && name) {
-    return { owner, name };
-  }
-
-  return null;
 }
 
 function storeGithubRepository(repository: GithubRepositoryReference) {

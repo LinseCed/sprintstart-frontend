@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Check, Loader2, RefreshCw, Terminal } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw, Terminal } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { AlertDialog } from "../components/ui/AlertDialog";
-import { Modal } from "../components/ui/Modal";
 import {
   DRAWER_CLOSE_DELAY_MS,
   areAllVisibleUsersSelected,
@@ -23,6 +22,7 @@ import { AdminMetrics } from "../features/admin/components/AdminMetrics";
 import { AdminPagination } from "../features/admin/components/AdminPagination";
 import { AdminProjectsToolbar } from "../features/admin/components/AdminProjectsToolbar";
 import { AdminUsersToolbar } from "../features/admin/components/AdminUsersToolbar";
+import { CreateProjectWizard } from "../features/admin/components/CreateProjectWizard";
 import { ProjectDetailsDrawer } from "../features/admin/components/ProjectDetailsDrawer";
 import { ProjectsTab } from "../features/admin/components/ProjectsTab";
 import { TabSwitcher } from "../features/admin/components/TabSwitcher";
@@ -69,11 +69,7 @@ export function AdminPage() {
   const [isBulkDeletingUsers, setIsBulkDeletingUsers] = useState(false);
   const [bulkDeleteErrorMessage, setBulkDeleteErrorMessage] = useState("");
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newProjectDescription, setNewProjectDescription] = useState("");
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [createProjectError, setCreateProjectError] = useState("");
+  const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
 
   const {
     users,
@@ -118,51 +114,21 @@ export function AdminPage() {
     selectedUserIds,
   );
 
-  const openCreateModal = useCallback(() => {
-    setNewProjectName("");
-    setNewProjectDescription("");
-    setCreateProjectError("");
-    setIsCreateModalOpen(true);
-  }, []);
-
-  const closeCreateModal = useCallback(() => {
-    if (isCreatingProject) return;
-
-    setIsCreateModalOpen(false);
-    setCreateProjectError("");
-  }, [isCreatingProject]);
-
-  const handleCreateProject = useCallback(async () => {
-    const trimmedName = newProjectName.trim();
-    if (!trimmedName) return;
-
-    setIsCreatingProject(true);
-    setCreateProjectError("");
-
-    try {
-      await projectService.createProject({
-        name: trimmedName,
-        description: newProjectDescription.trim() || undefined,
-      });
-
-      setProjects(await projectService.getProjects());
-      // Keep the global project switcher in sync with the new project.
-      void reloadProjects();
-      closeCreateModal();
-    } catch (error) {
-      setCreateProjectError(
-        error instanceof Error ? error.message : "Failed to create project.",
-      );
-    } finally {
-      setIsCreatingProject(false);
+  const openCreateWizard = useCallback(() => {
+    // Step 2 of the wizard needs the saved PAT names; without visiting the
+    // tokens tab first they were never fetched.
+    if (!tokensLoaded) {
+      void loadTokenNames();
     }
-  }, [
-    closeCreateModal,
-    newProjectDescription,
-    newProjectName,
-    reloadProjects,
-    setProjects,
-  ]);
+
+    setIsCreateWizardOpen(true);
+  }, [loadTokenNames, tokensLoaded]);
+
+  const handleProjectCreated = useCallback(() => {
+    void projectService.getProjects().then(setProjects);
+    // Keep the global project switcher in sync with the new project.
+    void reloadProjects();
+  }, [reloadProjects, setProjects]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds((current) => {
@@ -584,7 +550,7 @@ export function AdminPage() {
                   projectCount={filteredProjects.length}
                   projectSearchValue={projectSearchValue}
                   onProjectSearchChange={setProjectSearchValue}
-                  onCreateProject={openCreateModal}
+                  onCreateProject={openCreateWizard}
                 />
 
                 <ProjectsTab
@@ -686,79 +652,12 @@ export function AdminPage() {
         onConfirm={() => void confirmBulkUserDelete()}
       />
 
-      <Modal
-        isOpen={isCreateModalOpen}
-        title="New Project"
-        description="Create a project shell for sources and member assignments."
-        onClose={closeCreateModal}
-        isDismissDisabled={isCreatingProject}
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={closeCreateModal}
-              disabled={isCreatingProject}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-app-border bg-app-surface px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="create-project-form"
-              disabled={isCreatingProject || !newProjectName.trim()}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isCreatingProject ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              Create Project
-            </button>
-          </>
-        }
-      >
-        <form
-          id="create-project-form"
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void handleCreateProject();
-          }}
-        >
-          {createProjectError && (
-            <div className="flex items-start gap-2 rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3 text-sm text-app-danger-text">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{createProjectError}</span>
-            </div>
-          )}
-
-          <label className="block">
-            <span className="text-sm font-medium text-app-text-muted">
-              Name
-            </span>
-            <input
-              value={newProjectName}
-              onChange={(event) => setNewProjectName(event.target.value)}
-              disabled={isCreatingProject}
-              className="mt-1 h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm font-medium text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-app-text-muted">
-              Description
-            </span>
-            <textarea
-              value={newProjectDescription}
-              onChange={(event) => setNewProjectDescription(event.target.value)}
-              disabled={isCreatingProject}
-              rows={4}
-              className="mt-1 min-h-28 w-full resize-y rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm font-medium leading-relaxed text-app-text outline-none placeholder:text-app-text-disabled focus:border-app-brand-border-strong focus:ring-2 focus:ring-app-brand-glow disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </label>
-        </form>
-      </Modal>
+      <CreateProjectWizard
+        isOpen={isCreateWizardOpen}
+        tokenNames={tokenNames}
+        onClose={() => setIsCreateWizardOpen(false)}
+        onProjectCreated={handleProjectCreated}
+      />
     </div>
   );
 }
