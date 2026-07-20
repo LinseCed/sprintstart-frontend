@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { axe } from "vitest-axe";
 import { http, HttpResponse } from "msw";
+import { MemoryRouter } from "react-router-dom";
 import { AdminPage } from "../../../src/pages/AdminPage";
 import { server } from "../setup/vitest.setup";
 
@@ -32,7 +33,11 @@ describe("AdminPage Accessibility", () => {
 
   it("has no axe violations across admin tabs", async () => {
     const user = userEvent.setup();
-    const { baseElement } = render(<AdminPage />);
+    const { baseElement } = render(
+      <MemoryRouter>
+        <AdminPage />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("John Doe")).toBeInTheDocument();

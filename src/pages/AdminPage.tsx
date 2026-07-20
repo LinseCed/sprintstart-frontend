@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { AlertCircle, Check, Loader2, RefreshCw, Terminal } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { AlertDialog } from "../components/ui/AlertDialog";
@@ -40,6 +41,7 @@ import { adminUserService } from "../services/adminUserService";
 import { projectService } from "../services/projectService";
 
 export function AdminPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
     new Set(),
@@ -407,8 +409,7 @@ export function AdminPage() {
 
   const openSourceDetails = (projectId: string, sourceId: string) => {
     const params = new URLSearchParams({ projectId, sourceId });
-    window.history.pushState(null, "", `/data-ingestion?${params.toString()}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    void navigate(`/data-ingestion?${params.toString()}`);
   };
 
   const handleUserUpdated = useCallback(

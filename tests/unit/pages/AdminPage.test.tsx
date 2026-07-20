@@ -128,6 +128,7 @@ function createMockProject(overrides: Partial<AdminProject> = {}): AdminProject 
         id: 'proj1',
         name: 'Project Alpha',
         description: 'A test project',
+        manager: null,
         sources: [] as ProjectSource[],
         users: [] as ProjectUserSummary[],
         ...overrides,

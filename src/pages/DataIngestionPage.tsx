@@ -54,7 +54,7 @@ import {
   getProjectArtifactSnapshot,
 } from "../services/ingestionService.ts";
 import { useAuth } from "../context/useAuth";
-import { useProjectSelection } from "../features/projects/useProjectSelection.ts";
+import { useProjectContext } from "../features/projects/useProjectContext.ts";
 import {
   configureAllGithubRepositories,
   configureGithubRepository,
@@ -509,15 +509,15 @@ export function DataIngestionPage() {
     null,
   );
 
+  // The project is chosen globally in the sidebar switcher. The `?projectId=`
+  // search param is still honoured so deep links from the admin view land on
+  // the right project — it writes into the global selection below.
   const {
-    projects,
     selectedProject,
     selectedProjectId,
-    isLoading: isLoadingProjects,
-    errorMessage: projectErrorMessage,
     setSelectedProjectId,
     reloadProjects,
-  } = useProjectSelection({ isAdmin: profile?.permissionGroup === "ADMIN" });
+  } = useProjectContext();
 
   const requestedProjectId = searchParams.get("projectId") ?? "";
   const requestedSourceId = searchParams.get("sourceId") ?? "";
@@ -992,7 +992,7 @@ export function DataIngestionPage() {
     setArtifactSnapshotVersion((version) => version + 1);
   }, [loadData, loadGithubConnectorSources, reloadProjects]);
 
-  const isLoading = loadingState === "loading" || isLoadingProjects;
+  const isLoading = loadingState === "loading";
   const shouldShowInitialLoading =
     isLoading && sources.every((source) => source.lastRunAt === null);
 
@@ -1011,11 +1011,6 @@ export function DataIngestionPage() {
       <div>
         <DataIngestionHeader
           isLoading={isLoading}
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          isLoadingProjects={isLoadingProjects}
-          projectErrorMessage={projectErrorMessage}
-          onProjectChange={setSelectedProjectId}
           onRefresh={() => {
             void loadData();
             void reloadProjects();
@@ -1025,7 +1020,6 @@ export function DataIngestionPage() {
             }
             setArtifactSnapshotVersion((version) => version + 1);
           }}
-          showProjectSelect={profile?.permissionGroup === "ADMIN"}
         />
 
         <main className="app-page-shell">

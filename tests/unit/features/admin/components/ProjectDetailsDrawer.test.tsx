@@ -15,6 +15,7 @@ const projectOverview: ProjectOverview = {
     id: 'proj-1',
     name: 'Alpha',
     description: 'Overview description',
+    manager: null,
     sources: [],
     users: [],
 };
@@ -23,6 +24,7 @@ const projectDetails: AdminProjectDetails = {
     id: 'proj-1',
     name: 'Alpha',
     description: 'Detailed project description',
+    manager: null,
     sources: [
         { id: 'src-1', name: 'Repo A', type: 'GITHUB', status: 'CONNECTED' },
     ],

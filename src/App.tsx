@@ -2,6 +2,7 @@ import { AppRouter } from './router/AppRouter';
 import { SideBar } from './components/layout/SideBar';
 import { AuthProvider } from './context/AuthProvider';
 import { ThemeProvider } from './context/ThemeProvider';
+import { ProjectProvider } from './features/projects/ProjectProvider';
 import { useAuth } from './context/useAuth';
 
 function AppContent() {
@@ -22,10 +23,14 @@ function AppContent() {
 }
 
 function App() {
+    // ProjectProvider sits inside AuthProvider: which projects are loaded
+    // depends on the authenticated user's permission group.
     return (
         <ThemeProvider>
             <AuthProvider>
-                <AppContent />
+                <ProjectProvider>
+                    <AppContent />
+                </ProjectProvider>
             </AuthProvider>
         </ThemeProvider>
     );

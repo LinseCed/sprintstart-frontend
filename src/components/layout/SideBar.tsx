@@ -17,7 +17,7 @@ import {
 import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
-import { ThemeToggle } from '../common/ThemeToggle';
+import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 
 type SidebarNavItem = {
     label: string;
@@ -255,7 +255,7 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                     </div>
                 )}
 
-                <ThemeToggle className="w-full" />
+                <ProjectSwitcher className="w-full" />
 
                 <button
                     type="button"
