@@ -1,4 +1,4 @@
-import { Loader2, Network, Sparkles } from 'lucide-react';
+import { CheckCheck, Loader2, Network, Sparkles } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
@@ -26,7 +26,10 @@ export function GraphAuthoringPage() {
         rejectCompetency,
         approveEdge,
         rejectEdge,
+        approveAll,
     } = useGraphAuthoring();
+
+    const proposalCount = competencies.length + edges.length;
 
     return (
         <div className="min-h-screen bg-app-bg">
@@ -37,6 +40,18 @@ export function GraphAuthoringPage() {
                         title="Graph Authoring"
                         subtitle="Generate AI-proposed competencies and edges from the ingested corpus, then approve or reject each one. The live graph never changes until you approve."
                         actions={
+                            <div className="flex flex-wrap items-center gap-2">
+                            {canAct && proposalCount > 0 && (
+                                <button
+                                    type="button"
+                                    data-testid="approve-all"
+                                    onClick={() => void approveAll()}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                                >
+                                    <CheckCheck className="h-4 w-4" />
+                                    Approve all {proposalCount}
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => void generate()}
@@ -50,6 +65,7 @@ export function GraphAuthoringPage() {
                                 )}
                                 {isGenerating ? 'Generating...' : 'Generate proposals'}
                             </button>
+                            </div>
                         }
                     />
                 </div>
@@ -75,6 +91,17 @@ export function GraphAuthoringPage() {
                     <div className="rounded-2xl border border-app-danger-border bg-app-danger-bg p-4 text-sm text-app-danger-text">
                         {error}
                     </div>
+                )}
+
+                {/* Worth stating, because "approve each one" looks like the careful
+                    option and is actually the one that produces the worse result. */}
+                {canAct && proposalCount > 0 && (
+                    <p className="text-sm text-app-text-muted">
+                        Approving everything at once lands the new nodes and their prerequisite
+                        links together, so hires see them already connected. Approved one at a
+                        time, a node arrives before its links do and can briefly look like it has
+                        no prerequisites.
+                    </p>
                 )}
 
                 {isLoading ? (

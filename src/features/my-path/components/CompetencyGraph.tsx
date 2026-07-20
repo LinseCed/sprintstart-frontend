@@ -5,6 +5,7 @@ import {
     MarkerType,
     ReactFlow,
     useReactFlow,
+    type Connection,
     type Edge,
     type NodeMouseHandler
 } from '@xyflow/react';
@@ -26,6 +27,13 @@ type CompetencyGraphProps = {
     onSelectNode: (node: PathNode | null) => void;
     /** Nodes whose state changed since the previous load; pulsed once. */
     justChangedKeys?: Set<string>;
+    /**
+     * Whether nodes expose connection handles, so a PM can drag one onto another
+     * to declare a prerequisite. Off for hires -- the graph is theirs to read.
+     */
+    canConnect?: boolean;
+    /** Called with (prerequisite, dependent) when such a drag completes. */
+    onConnectNodes?: (fromKey: string, toKey: string) => void;
 };
 
 const nodeTypes = { competency: CompetencyGraphNode };
@@ -64,7 +72,9 @@ export function CompetencyGraph({
     selectedKey,
     focusedKey = null,
     onSelectNode,
-    justChangedKeys
+    justChangedKeys,
+    canConnect = false,
+    onConnectNodes
 }: CompetencyGraphProps) {
     // Positions depend only on the graph's shape; the node/edge arrays below
     // rebuild on selection, but the layout itself must stay stable.
@@ -122,6 +132,18 @@ export function CompetencyGraph({
         [onSelectNode]
     );
 
+    // Dragging one node onto another is the map's natural way to say "this comes
+    // first". It is an addition to the panel's select-based editor, never the only
+    // way -- a drag is not a gesture everyone can make, and the list view has no
+    // canvas to make it on.
+    const handleConnect = useCallback(
+        (connection: Connection) => {
+            if (!connection.source || !connection.target) return;
+            onConnectNodes?.(connection.source, connection.target);
+        },
+        [onConnectNodes]
+    );
+
     return (
         <div
             className="h-full w-full"
@@ -135,8 +157,9 @@ export function CompetencyGraph({
                 nodeTypes={nodeTypes}
                 onNodeClick={handleNodeClick}
                 onPaneClick={() => onSelectNode(null)}
+                onConnect={handleConnect}
                 nodesDraggable={false}
-                nodesConnectable={false}
+                nodesConnectable={canConnect}
                 edgesFocusable={false}
                 fitView
                 proOptions={{ hideAttribution: false }}
