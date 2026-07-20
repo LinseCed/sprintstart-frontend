@@ -74,10 +74,9 @@ function CameraController({
  *
  * Three things make it read as a tree you climb rather than a printed diagram:
  *
- * - **A physics layer over the layout, not instead of it.** Dagre still fixes
- *   the tiers ({@link useForceLayout} pins each node to its column); the
- *   simulation only resolves overlap and lets a dragged node tug its neighbours
- *   and settle back.
+ * - **A relaxation pass over the layout, not instead of it.** Dagre still fixes
+ *   the tiers ({@link useForceLayout} pins each node to its column); the pass
+ *   only resolves overlap and pulls linked competencies together vertically.
  * - **The prerequisite chain lights up.** Hovering or selecting a node dims
  *   everything outside its full ancestor/dependent chain, so you can see what a
  *   node costs and what it buys. Hover is the pointer affordance; selection is
@@ -104,7 +103,7 @@ export function CompetencyGraph({
 
     const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
-    const { positions, isLive, onDragStart, onDrag, onDragStop } = useForceLayout(path, animate);
+    const { positions } = useForceLayout(path, animate);
 
     // Hover is transient and pointer-only, so selection has to light the same
     // chain -- otherwise this reading of the graph is unavailable by keyboard.
@@ -225,12 +224,10 @@ export function CompetencyGraph({
                 onNodeMouseLeave={handleNodeLeave}
                 onPaneClick={() => onSelectNode(null)}
                 onConnect={handleConnect}
-                // Dragging is part of the physics feel; with the simulation off
-                // there is nothing to spring back, so nodes stay put instead.
-                nodesDraggable={isLive}
-                onNodeDragStart={(_event, node) => onDragStart(node.id, node.position)}
-                onNodeDrag={(_event, node) => onDrag(node.id, node.position)}
-                onNodeDragStop={(_event, node) => onDragStop(node.id)}
+                // Positions are derived from the layout on every render, so a
+                // dragged node would be pulled back under the pointer on the next
+                // one. Reading the graph is panning and zooming, not rearranging.
+                nodesDraggable={false}
                 nodesConnectable={canConnect}
                 edgesFocusable={false}
                 fitView
