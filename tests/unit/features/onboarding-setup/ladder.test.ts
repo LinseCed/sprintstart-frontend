@@ -1,0 +1,100 @@
+import { describe, it, expect } from 'vitest';
+import { buildLadder, deriveCorpusRung } from '../../../../src/features/onboarding-setup/ladder';
+import type { SetupReadiness, SetupRung } from '../../../../src/features/onboarding-setup/types';
+import type { DataSource } from '../../../../src/features/data-ingestion/types';
+
+function source(status: DataSource['status'], latestIngestedCount: number): DataSource {
+    return { status, latestIngestedCount } as DataSource;
+}
+
+function readiness(rungs: SetupRung[]): SetupReadiness {
+    return { projectId: 'p1', rungs, ready: rungs.every((r) => r.state === 'OK') };
+}
+
+describe('deriveCorpusRung', () => {
+    it('is OK and totals ingested artifacts when any source is connected', () => {
+        const rung = deriveCorpusRung([source('connected', 400), source('warning', 263)]);
+        expect(rung.state).toBe('OK');
+        expect(rung.count).toBe(663);
+        expect(rung.detail).toContain('663 artifacts');
+    });
+
+    it('warns that the first sync is running when nothing is connected yet', () => {
+        const rung = deriveCorpusRung([source('running', 0)]);
+        expect(rung.state).toBe('WARN');
+        expect(rung.detail).toContain('running');
+    });
+
+    it('warns to connect a source when there are none', () => {
+        const rung = deriveCorpusRung([]);
+        expect(rung.state).toBe('WARN');
+        expect(rung.detail).toContain('Connect a repository');
+    });
+});
+
+describe('buildLadder', () => {
+    const corpusOk: SetupRung = { key: 'corpus', state: 'OK', count: 663, detail: '663 artifacts ingested.' };
+
+    it('renders the five stages corpus-first, in pipeline order', () => {
+        const ladder = buildLadder(
+            readiness([
+                { key: 'skill-map', state: 'OK', count: 6, detail: '6 competencies approved.' },
+                { key: 'baseline', state: 'OK', count: 3, detail: '3 competencies expected on this project.' },
+                { key: 'starter-tasks', state: 'OK', count: 2, detail: '2 starter tasks ready to claim.' },
+                { key: 'human-loop', state: 'OK', count: 1, detail: 'Every hire has a buddy (1 of 1).' },
+            ]),
+            corpusOk,
+        );
+        expect(ladder.rungs.map((r) => r.key)).toEqual([
+            'corpus',
+            'skill-map',
+            'baseline',
+            'starter-tasks',
+            'human-loop',
+        ]);
+        expect(ladder.rungs[1].title).toBe('Skill map approved');
+        expect(ladder.rungs[1].route).toBe('/graph-studio');
+        expect(ladder.ready).toBe(true);
+    });
+
+    // The bug that started this: a map was generated but never approved, so the baseline read empty.
+    it('is not ready when proposals await review and the baseline is blocked', () => {
+        const ladder = buildLadder(
+            readiness([
+                {
+                    key: 'skill-map',
+                    state: 'WARN',
+                    count: 0,
+                    detail: '25 competencies and 19 edges are waiting for your review.',
+                },
+                {
+                    key: 'baseline',
+                    state: 'BLOCKED',
+                    count: 0,
+                    detail: 'Approve competencies first, then mark which ones matter on this project.',
+                },
+                { key: 'starter-tasks', state: 'WARN', count: 0, detail: 'No starter tasks yet.' },
+                { key: 'human-loop', state: 'WARN', count: 0, detail: 'No hires on this project yet.' },
+            ]),
+            corpusOk,
+        );
+        expect(ladder.ready).toBe(false);
+        const skillMap = ladder.rungs.find((r) => r.key === 'skill-map');
+        expect(skillMap?.state).toBe('WARN');
+        expect(skillMap?.detail).toContain('waiting for your review');
+        expect(ladder.rungs.find((r) => r.key === 'baseline')?.state).toBe('BLOCKED');
+    });
+
+    it('is not ready when the corpus rung is not OK even if the backend rungs are', () => {
+        const ladder = buildLadder(
+            readiness([
+                { key: 'skill-map', state: 'OK', count: 6, detail: 'ok' },
+                { key: 'baseline', state: 'OK', count: 3, detail: 'ok' },
+                { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
+                { key: 'human-loop', state: 'OK', count: 1, detail: 'ok' },
+            ]),
+            { key: 'corpus', state: 'WARN', count: 0, detail: 'No corpus yet.' },
+        );
+        expect(ladder.ready).toBe(false);
+    });
+});
