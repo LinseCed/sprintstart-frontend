@@ -45,6 +45,16 @@ export type OrientationSource = {
     artifactType: string | null;
 };
 
+/**
+ * Who wrote a packet.
+ *
+ * `AI` packets are cached and revalidated against the corpus — served, deleted, or re-assembled as
+ * the code they describe moves. A `HUMAN` packet is a person's own words (a PM's, or the hire's own,
+ * fixed in place) and is served exactly as written: never regenerated, never auto-deleted. The client
+ * badges it as human-written and offers to hand it back to the AI rather than to "refresh" it.
+ */
+export type OrientationOrigin = 'AI' | 'HUMAN';
+
 export type OrientationPacket = {
     taskId: string;
     taskTitle: string;
@@ -52,6 +62,32 @@ export type OrientationPacket = {
     sections: OrientationSection[];
     sources: OrientationSource[];
     assembledAt: string;
+    origin: OrientationOrigin;
+};
+
+/** One section a human is authoring; `chunkId` is the AI's, so a human citation carries only a link. */
+export type AuthorOrientationCitationInput = {
+    filename: string;
+    sourceUrl: string | null;
+};
+
+export type AuthorOrientationSectionInput = {
+    step: OrientationStep;
+    title: string;
+    body: string;
+    citations: AuthorOrientationCitationInput[];
+};
+
+/**
+ * A human-authored packet, replacing whatever was there.
+ *
+ * Unlike the AI contract, a section is **not required to carry citations** — the mandatory-citation
+ * rule is a guardrail against the AI asserting things the corpus does not support, and a person
+ * writing about a task they are doing is not bound by it.
+ */
+export type AuthorOrientationInput = {
+    summary: string | null;
+    sections: AuthorOrientationSectionInput[];
 };
 
 /**

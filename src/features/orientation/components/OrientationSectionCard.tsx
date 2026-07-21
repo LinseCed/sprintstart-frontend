@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Check, ChevronDown, Flag, Loader2 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { SourceLinks } from './SourceLinks';
 import { STEP_LABELS } from '../steps';
 import type { OrientationSection } from '../types';
@@ -10,7 +9,6 @@ type OrientationSectionCardProps = {
     section: OrientationSection;
     isOpen: boolean;
     onToggle: () => void;
-    onReport: (section: OrientationSection) => Promise<void>;
 };
 
 /**
@@ -18,28 +16,11 @@ type OrientationSectionCardProps = {
  *
  * Collapsed by default once a hire has been here before (see `useOpenSteps`) —
  * the value of step segmentation is precisely that you can skip the parts you
- * have done.
+ * have done. Correcting a section is a packet-level action (the whole packet is
+ * replaced on save), so the "fix this" affordance lives on the panel, not here.
  */
-export function OrientationSectionCard({
-    section,
-    isOpen,
-    onToggle,
-    onReport
-}: OrientationSectionCardProps) {
-    const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent'>('idle');
+export function OrientationSectionCard({ section, isOpen, onToggle }: OrientationSectionCardProps) {
     const label = STEP_LABELS[section.step] ?? section.step;
-
-    const handleReport = async () => {
-        setReportState('sending');
-        try {
-            await onReport(section);
-            setReportState('sent');
-        } catch {
-            // Reporting is a courtesy the hire is doing us. If it fails, let them
-            // try again rather than showing an error they cannot act on.
-            setReportState('idle');
-        }
-    };
 
     return (
         <li className="overflow-hidden rounded-xl border border-app-border bg-app-bg">
@@ -68,24 +49,6 @@ export function OrientationSectionCard({
                     </div>
 
                     <SourceLinks label="Where this came from" items={section.citations} />
-
-                    <button
-                        type="button"
-                        onClick={() => void handleReport()}
-                        disabled={reportState !== 'idle'}
-                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-app-text-muted underline-offset-2 transition-colors hover:text-app-text hover:underline disabled:no-underline disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                    >
-                        {reportState === 'sending' && (
-                            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                        )}
-                        {reportState === 'sent' && (
-                            <Check className="h-3 w-3 text-app-success-solid" aria-hidden="true" />
-                        )}
-                        {reportState === 'idle' && <Flag className="h-3 w-3" aria-hidden="true" />}
-                        {reportState === 'sent'
-                            ? 'Thanks — passed on'
-                            : 'This is wrong or out of date'}
-                    </button>
                 </div>
             )}
         </li>

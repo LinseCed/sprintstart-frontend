@@ -1,15 +1,19 @@
-import { AlertCircle, BookOpen, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, BookOpen, Loader2, PencilLine, RefreshCw, UserRound } from 'lucide-react';
 import { OrientationSectionCard } from './OrientationSectionCard';
 import { SourceLinks } from './SourceLinks';
 import { useOpenSteps } from '../hooks/useOpenSteps';
-import { orientationService } from '../../../services/orientationService';
-import type { MyOrientation, OrientationPacket, OrientationSection } from '../types';
+import type { MyOrientation, OrientationPacket } from '../types';
 
 type OrientationPanelProps = {
     orientation: MyOrientation | null;
     isLoading: boolean;
     error: string | null;
     onRetry: () => void;
+    /**
+     * When set, shows a "fix this" affordance that opens the editor. Omitted in read-only contexts
+     * (like the editor's own live preview) so the panel doesn't offer to edit itself.
+     */
+    onEdit?: () => void;
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -24,20 +28,38 @@ function Shell({ children }: { children: React.ReactNode }) {
     );
 }
 
-function Packet({ packet }: { packet: OrientationPacket }) {
-    const { isOpen, toggle } = useOpenSteps(packet.taskId, packet.sections[0]?.step);
+function EditButton({ onEdit, label }: { onEdit: () => void; label: string }) {
+    return (
+        <button
+            type="button"
+            data-testid="edit-orientation"
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 text-xs font-medium text-app-brand-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+        >
+            <PencilLine className="h-3 w-3" aria-hidden="true" />
+            {label}
+        </button>
+    );
+}
 
-    const report = async (section: OrientationSection) => {
-        const sources = section.citations.map((c) => c.filename).join(', ');
-        await orientationService.reportStaleOrientation(
-            `Orientation for "${packet.taskTitle}" — the "${section.title}" section ` +
-                `(${section.step}) is wrong or out of date. It was assembled from: ${sources}.`
-        );
-    };
+function Packet({ packet, onEdit }: { packet: OrientationPacket; onEdit?: () => void }) {
+    const { isOpen, toggle } = useOpenSteps(packet.taskId, packet.sections[0]?.step);
+    const isHuman = packet.origin === 'HUMAN';
 
     return (
         <>
-            {packet.summary && <p className="mb-3 text-xs text-app-text-muted">{packet.summary}</p>}
+            <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    {isHuman && (
+                        <span className="mb-1 inline-flex items-center gap-1 text-[11px] font-medium text-app-text-subtle">
+                            <UserRound className="h-3 w-3" aria-hidden="true" />
+                            Written by a person, not assembled
+                        </span>
+                    )}
+                    {packet.summary && <p className="text-xs text-app-text-muted">{packet.summary}</p>}
+                </div>
+                {onEdit && <EditButton onEdit={onEdit} label={isHuman ? 'Edit' : 'Fix this'} />}
+            </div>
             <ul className="space-y-2">
                 {packet.sections.map((section) => (
                     <OrientationSectionCard
@@ -45,14 +67,14 @@ function Packet({ packet }: { packet: OrientationPacket }) {
                         section={section}
                         isOpen={isOpen(section.step)}
                         onToggle={() => toggle(section.step)}
-                        onReport={report}
                     />
                 ))}
             </ul>
-            <SourceLinks label="Assembled from" items={packet.sources} />
+            <SourceLinks label={isHuman ? 'Sources' : 'Assembled from'} items={packet.sources} />
             <p className="mt-2 text-[11px] text-app-text-subtle">
-                Gathered from what the team has already written — nothing here was written for you,
-                and it is not something you have to finish. Reading it is optional.
+                {isHuman
+                    ? 'Written by the team for this task. Reading it is optional.'
+                    : 'Gathered from what the team has already written — nothing here was written for you, and it is not something you have to finish. Reading it is optional.'}
             </p>
         </>
     );
@@ -66,8 +88,12 @@ function Packet({ packet }: { packet: OrientationPacket }) {
  * **Nothing is ever invented to fill the gap** — a hire following fabricated
  * setup instructions on a task they will be reviewed on loses more time than
  * having no instructions at all.
+ *
+ * When `onEdit` is passed, a "fix this" affordance turns the same panel into the
+ * entry point for correcting the orientation in place — including when the corpus
+ * grounded nothing, where the honest move is to write it yourself.
  */
-export function OrientationPanel({ orientation, isLoading, error, onRetry }: OrientationPanelProps) {
+export function OrientationPanel({ orientation, isLoading, error, onRetry, onEdit }: OrientationPanelProps) {
     if (isLoading) {
         return (
             <Shell>
@@ -125,13 +151,18 @@ export function OrientationPanel({ orientation, isLoading, error, onRetry }: Ori
                         ]}
                     />
                 )}
+                {onEdit && (
+                    <div className="mt-3">
+                        <EditButton onEdit={onEdit} label="Write it yourself" />
+                    </div>
+                )}
             </Shell>
         );
     }
 
     return (
         <Shell>
-            <Packet packet={orientation.packet} />
+            <Packet packet={orientation.packet} onEdit={onEdit} />
         </Shell>
     );
 }

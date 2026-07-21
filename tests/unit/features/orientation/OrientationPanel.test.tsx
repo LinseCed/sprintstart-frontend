@@ -2,7 +2,6 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrientationPanel } from '../../../../src/features/orientation/components/OrientationPanel';
-import { orientationService } from '../../../../src/services/orientationService';
 import type { MyOrientation } from '../../../../src/features/orientation/types';
 
 const withPacket: MyOrientation = {
@@ -43,7 +42,8 @@ const withPacket: MyOrientation = {
                 artifactType: 'FILE'
             }
         ],
-        assembledAt: '2026-07-21T12:00:00Z'
+        assembledAt: '2026-07-21T12:00:00Z',
+        origin: 'AI'
     }
 };
 
@@ -127,28 +127,63 @@ describe('OrientationPanel', () => {
         expect(screen.getByText('One approving review is required.')).toBeInTheDocument();
     });
 
-    it('reports a stale section naming the task, the section and its sources', async () => {
-        const report = vi
-            .spyOn(orientationService, 'reportStaleOrientation')
-            .mockResolvedValue(undefined);
+    it('offers a fix-this affordance only when an editor is wired', async () => {
+        const onEdit = vi.fn();
+        const { rerender } = render(
+            <OrientationPanel orientation={withPacket} isLoading={false} error={null} onRetry={vi.fn()} />
+        );
+        // No onEdit: no edit affordance, and no dead "report" button either.
+        expect(screen.queryByTestId('edit-orientation')).not.toBeInTheDocument();
 
-        render(
+        rerender(
             <OrientationPanel
                 orientation={withPacket}
                 isLoading={false}
                 error={null}
                 onRetry={vi.fn()}
+                onEdit={onEdit}
+            />
+        );
+        await userEvent.click(screen.getByTestId('edit-orientation'));
+        expect(onEdit).toHaveBeenCalledTimes(1);
+    });
+
+    it('badges a human-authored packet and can still edit it', () => {
+        const onEdit = vi.fn();
+        render(
+            <OrientationPanel
+                orientation={{ ...withPacket, packet: { ...withPacket.packet!, origin: 'HUMAN' } }}
+                isLoading={false}
+                error={null}
+                onRetry={vi.fn()}
+                onEdit={onEdit}
             />
         );
 
-        await userEvent.click(screen.getByRole('button', { name: /wrong or out of date/ }));
+        expect(screen.getByText(/Written by a person/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Edit/ })).toBeInTheDocument();
+    });
 
-        expect(report).toHaveBeenCalledTimes(1);
-        const message = report.mock.calls[0][0];
-        expect(message).toContain('Fix the stale cache header');
-        expect(message).toContain('Run it locally');
-        expect(message).toContain('README.md');
-        expect(await screen.findByText(/passed on/)).toBeInTheDocument();
+    it('lets a hire write orientation when the corpus grounded nothing', async () => {
+        const onEdit = vi.fn();
+        render(
+            <OrientationPanel
+                orientation={{
+                    taskId: 'task-1',
+                    taskTitle: 'Fix the stale cache header',
+                    taskUrl: 'https://github.com/acme/repo/issues/42',
+                    packet: null,
+                    reason: 'corpus is empty'
+                }}
+                isLoading={false}
+                error={null}
+                onRetry={vi.fn()}
+                onEdit={onEdit}
+            />
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: /Write it yourself/ }));
+        expect(onEdit).toHaveBeenCalledTimes(1);
     });
 
     it('never invents a packet when one could not be assembled', () => {

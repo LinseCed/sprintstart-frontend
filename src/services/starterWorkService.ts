@@ -23,6 +23,11 @@ export const starterWorkService = {
         return await apiClient.fetch<ProposedStarterWork>(`${BASE_URL}/proposed`);
     },
 
+    /** The approved pool — the tasks a PM can author orientation for. */
+    async fetchApproved(): Promise<StarterWorkTask[]> {
+        return await apiClient.fetch<StarterWorkTask[]>(`${BASE_URL}/approved`);
+    },
+
     /**
      * Hand-authors a starter task, with no AI mining. It is born `APPROVED` and its `CONTRIBUTION`
      * node lands in the graph at once, so it never joins the review queue — the returned task is

@@ -8,7 +8,9 @@ import { EnvironmentStep } from '../features/first-week/components/EnvironmentSt
 import { TaskZeroStep } from '../features/first-week/components/TaskZeroStep';
 import { useFirstWeek } from '../features/first-week/hooks/useFirstWeek';
 import { OrientationPanel } from '../features/orientation/components/OrientationPanel';
+import { OrientationEditor } from '../features/orientation/components/OrientationEditor';
 import { useOrientation } from '../features/orientation/hooks/useOrientation';
+import { orientationService } from '../services/orientationService';
 import { RampSection } from '../features/ramp/components/RampSection';
 import { useRamp } from '../features/ramp/hooks/useRamp';
 import { BuddyCard } from '../features/human-loop/components/BuddyCard';
@@ -57,6 +59,9 @@ export function FirstWeekPage() {
 
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isHandingBack, setIsHandingBack] = useState(false);
+    // The hire fixing their own task's orientation in place: today's "this is wrong" becomes a real
+    // edit, not a report into a sink nobody reads.
+    const [isEditingOrientation, setIsEditingOrientation] = useState(false);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -175,6 +180,11 @@ export function FirstWeekPage() {
                                     isLoading={orientationLoading}
                                     error={orientationError}
                                     onRetry={() => void reloadOrientation()}
+                                    onEdit={
+                                        selectedProjectId
+                                            ? () => setIsEditingOrientation(true)
+                                            : undefined
+                                    }
                                 />
                             }
                         />
@@ -213,6 +223,29 @@ export function FirstWeekPage() {
                     </Link>
                 </div>
             </main>
+
+            {isEditingOrientation && selectedProjectId && orientation?.taskId && (
+                <OrientationEditor
+                    taskTitle={orientation.taskTitle ?? 'your task'}
+                    taskUrl={orientation.taskUrl}
+                    initial={orientation.packet}
+                    onSave={async input => {
+                        await orientationService.authorMyOrientation(selectedProjectId, input);
+                        await reloadOrientation();
+                        return true;
+                    }}
+                    onRevert={
+                        orientation.packet
+                            ? async () => {
+                                  await orientationService.revertMyOrientation(selectedProjectId);
+                                  await reloadOrientation();
+                                  return true;
+                              }
+                            : undefined
+                    }
+                    onClose={() => setIsEditingOrientation(false)}
+                />
+            )}
         </div>
     );
 }

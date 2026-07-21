@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { MyOrientation } from '../features/orientation/types';
+import type { AuthorOrientationInput, MyOrientation, OrientationPacket } from '../features/orientation/types';
 
 const BASE = '/api/v1/onboarding';
 
@@ -22,23 +22,79 @@ export const orientationService = {
     },
 
     /**
-     * Reports that a piece of assembled orientation is wrong or out of date.
+     * Replaces the orientation for the hire's *own* current task with their own
+     * words, pinning it as human-authored so it is served as-is and never
+     * AI-regenerated. This is what the "fix this" affordance does — a hire who
+     * knows the orientation is wrong corrects it rather than reporting it into a
+     * sink nobody reads.
      *
-     * Sent as page-less onboarding feedback (`pageId` is null): a packet is
-     * disposable and regenerates, so there is no durable page to attach this to
-     * — what is worth recording is *which source* misled somebody, which the
-     * message names.
-     *
-     * **Known gap, deliberately not worked around here:** the only read surface
-     * for this is `/api/v1/admin/onboarding/feedback`, which is ADMIN-only and
-     * has no UI. The signal is captured and durable, but a PM cannot see it yet.
-     *
-     * @param message What was wrong, including the task and section it was on.
+     * @param projectId The project whose current task to author for.
+     * @param input The whole replacement packet.
      */
-    async reportStaleOrientation(message: string): Promise<void> {
-        await apiClient.fetch<void>(`${BASE}/me/feedback`, {
-            method: 'POST',
-            body: JSON.stringify({ pageId: null, helpful: false, message })
-        });
+    async authorMyOrientation(projectId: string, input: AuthorOrientationInput): Promise<OrientationPacket> {
+        return await apiClient.fetch<OrientationPacket>(
+            `${BASE}/me/orientation?projectId=${encodeURIComponent(projectId)}`,
+            { method: 'PUT', body: JSON.stringify(input) }
+        );
+    },
+
+    /**
+     * Drops the hire's hand-authored packet for their current task, restoring AI
+     * assembly on the next read.
+     *
+     * @param projectId The project whose current task to revert.
+     */
+    async revertMyOrientation(projectId: string): Promise<void> {
+        await apiClient.fetch<void>(
+            `${BASE}/me/orientation?projectId=${encodeURIComponent(projectId)}`,
+            { method: 'DELETE' }
+        );
+    },
+
+    /**
+     * The current orientation for a task, for a PM to author from — the cached
+     * packet if there is one, otherwise a shell (task title and link) to start
+     * blank. Never triggers AI assembly: opening the editor does not generate.
+     *
+     * @param taskId The starter-work task to author orientation for.
+     * @param projectId The project the orientation is scoped to.
+     */
+    async fetchTaskOrientation(taskId: string, projectId: string): Promise<MyOrientation> {
+        return await apiClient.fetch<MyOrientation>(
+            `${BASE}/orientation/tasks/${encodeURIComponent(taskId)}?projectId=${encodeURIComponent(projectId)}`
+        );
+    },
+
+    /**
+     * Replaces a task's orientation with a hand-authored packet (PM surface),
+     * pinned as human-authored.
+     *
+     * @param taskId The starter-work task to author orientation for.
+     * @param projectId The project the orientation is scoped to.
+     * @param input The whole replacement packet.
+     */
+    async authorTaskOrientation(
+        taskId: string,
+        projectId: string,
+        input: AuthorOrientationInput
+    ): Promise<OrientationPacket> {
+        return await apiClient.fetch<OrientationPacket>(
+            `${BASE}/orientation/tasks/${encodeURIComponent(taskId)}?projectId=${encodeURIComponent(projectId)}`,
+            { method: 'PUT', body: JSON.stringify(input) }
+        );
+    },
+
+    /**
+     * Drops the hand-authored packet for a task (PM surface), restoring AI
+     * assembly on the next read.
+     *
+     * @param taskId The starter-work task to revert.
+     * @param projectId The project the orientation is scoped to.
+     */
+    async revertTaskOrientation(taskId: string, projectId: string): Promise<void> {
+        await apiClient.fetch<void>(
+            `${BASE}/orientation/tasks/${encodeURIComponent(taskId)}?projectId=${encodeURIComponent(projectId)}`,
+            { method: 'DELETE' }
+        );
     }
 };

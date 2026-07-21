@@ -5,6 +5,7 @@ import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 import { StarterWorkTaskCard } from '../features/starter-work/components/StarterWorkTaskCard';
 import { NewStarterTaskModal } from '../features/starter-work/components/NewStarterTaskModal';
+import { TaskOrientationManager } from '../features/orientation/components/TaskOrientationManager';
 import { useStarterWorkReview } from '../features/starter-work/hooks/useStarterWorkReview';
 import type { CreateStarterWorkTaskInput } from '../features/starter-work/types';
 
@@ -21,6 +22,7 @@ import type { CreateStarterWorkTaskInput } from '../features/starter-work/types'
 export function StarterWorkPage() {
     const { profile } = useAuth();
     const canAct = profile?.permissionGroup !== PermissionGroup.HR;
+    const isAdmin = profile?.permissionGroup === PermissionGroup.ADMIN;
     const {
         tasks,
         isLoading,
@@ -154,6 +156,10 @@ export function StarterWorkPage() {
                         ))}
                     </section>
                 )}
+
+                {/* Authoring a task's orientation is PM/ADMIN only, matching the backend role split —
+                    HR reviews the queue but does not write hire-facing content. */}
+                {canAct && <TaskOrientationManager isAdmin={isAdmin} />}
             </main>
 
             {isCreateOpen && (
