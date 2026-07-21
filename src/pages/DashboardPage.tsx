@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { Link } from 'react-router-dom';
 import { Bot, BookOpen, Sparkles, ChartColumn } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { Game2048Modal } from '../features/game2048/components/Game2048Modal';
+import { useGame2048Shortcut } from '../features/game2048/hooks/useGame2048Shortcut';
+import { DinoGameModal } from '../features/dino/components/DinoGameModal';
+import { useDinoShortcut } from '../features/dino/hooks/useDinoShortcut';
 
 /**
  * Central hub displayed after login.
@@ -12,6 +16,18 @@ import { PageHeader } from '../components/layout/PageHeader';
 export function DashboardPage() {
     const { profile } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
+
+    // 2048 easter egg: Ctrl+Shift+2 opens the game in a modal.
+    const [game2048Open, setGame2048Open] = useState(false);
+    const openGame2048 = useCallback(() => setGame2048Open(true), []);
+    useGame2048Shortcut(openGame2048);
+
+    // Dino easter egg: Ctrl+Shift+1 opens the runner in a modal.
+    // Bypasses the `dinoUnlocked` gate that the sidebar/chat use — the
+    // dashboard chord is a true easter egg, always available.
+    const [dinoOpen, setDinoOpen] = useState(false);
+    const openDino = useCallback(() => setDinoOpen(true), []);
+    useDinoShortcut(openDino);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -96,6 +112,9 @@ export function DashboardPage() {
                     </div>
                 </div>
             </main>
+
+            <Game2048Modal open={game2048Open} onClose={() => setGame2048Open(false)} />
+            <DinoGameModal open={dinoOpen} onClose={() => setDinoOpen(false)} />
         </div>
     );
 }

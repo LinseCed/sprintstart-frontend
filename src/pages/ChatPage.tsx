@@ -1,15 +1,29 @@
-import { Bot, ExternalLink, MessageSquareText, Plus, Send, Sparkles, X } from "lucide-react";
+import { MessageSquareText, Sparkles, X } from "lucide-react";
+import { ArrowDown } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { centralSpringToken } from "../styles/tokens";
 import { useChat } from "../features/chatbot/hooks/useChat.ts";
+import { useChatPreferences } from "../context/useChatPreferences";
 import { useAuth } from "../context/useAuth";
-import { UserAvatar } from "../components/common/UserAvatar.tsx";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
 import { ChatSidebar } from "../features/chatbot/components/ChatSidebar.tsx";
+import { MessageRow } from "../features/chatbot/components/MessageRow.tsx";
+import { ThinkingIndicator } from "../features/chatbot/components/ThinkingIndicator.tsx";
+import { CitationPopover } from "../features/chatbot/components/CitationPopover.tsx";
+import { ChatEmptyState } from "../features/chatbot/components/ChatEmptyState.tsx";
+import { ChatComposer } from "../features/chatbot/components/ChatComposer.tsx";
 import { PageHeader } from "../components/layout/PageHeader.tsx";
+import { ArtifactViewerDrawer } from "../features/knowledge-base/components/ArtifactViewerDrawer.tsx";
+import type { SelectedCitation } from "../context/ChatContext.ts";
 
 import "katex/dist/katex.min.css";
+
+type CitationArtifactOpen = {
+    artifactId: string;
+    filename: string;
+    sourceUrl?: string;
+    lines: number[];
+};
 
 /**
  * Displays the interface for communication with the chat.
@@ -21,338 +35,365 @@ export function ChatPage() {
         chatId,
         chats,
         handleSubmit,
+        stopStreaming,
         isThinking,
         isStreaming,
+        thinkingState,
+        streamingMessageId,
         newRequest,
         setNewRequest,
-        selectedCitation,
-        setSelectedCitation,
         sidebarOpen,
         setSidebarOpen,
+        desktopSidebarOpen,
+        setDesktopSidebarOpen,
         textareaRef,
         bottomRef,
-        showBrainrot,
-        timestamp
+        selectedCitation,
+        setSelectedCitation,
+        showFilters,
+        setShowFilters,
+        from,
+        setFrom,
+        to,
+        setTo,
+        sourceSystems,
+        toggleSourceSystem,
+        activeFilterCount,
+        clearFilters,
+        scrollContainerRef,
+        isAtBottom,
+        scrollToBottom
     } = useChat();
-    const hasChatHistory = chats?.length !== 0;
+
+    const { showThoughtProcess } = useChatPreferences();
+
+    const projectId = profile?.projectIds?.[0] ?? null;
+    const [viewingCitationArtifact, setViewingCitationArtifact] =
+        useState<CitationArtifactOpen | null>(null);
+
+    // Dino easter egg: while the assistant is thinking, pressing Space drops the
+    // AI avatar into a tiny endless runner. Doing nothing leaves the chat untouched.
+    const [gameActive, setGameActive] = useState(false);
+    const [isUnlocked, setIsUnlocked] = useState(
+        () => localStorage.getItem("dinoUnlocked") === "true",
+    );
+
+    // Close the game as soon as the answer arrives. Uses React's documented
+    // "adjust state when a value changes" pattern (guarded setState during
+    // render) instead of an effect — avoids cascading renders and the
+    // set-state-in-effect lint rule. See:
+    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+    const [prevIsThinking, setPrevIsThinking] = useState(isThinking);
+    if (prevIsThinking !== isThinking) {
+        setPrevIsThinking(isThinking);
+        if (!isThinking && gameActive) {
+            setGameActive(false);
+        }
+    }
+
+    // Keep isUnlocked state perfectly in sync with localStorage and close game if locked
+    useEffect(() => {
+        const handleUnlockChange = () => {
+            const unlocked = localStorage.getItem("dinoUnlocked") === "true";
+            setIsUnlocked(unlocked);
+            if (!unlocked) {
+                setGameActive(false);
+            }
+        };
+        window.addEventListener("dinoUnlockChanged", handleUnlockChange);
+        window.addEventListener("storage", handleUnlockChange);
+        return () => {
+            window.removeEventListener("dinoUnlockChanged", handleUnlockChange);
+            window.removeEventListener("storage", handleUnlockChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isThinking || gameActive || !isUnlocked) return;
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.code !== "Space") return;
+
+            // Don't hijack space while the user is typing their next message.
+            const active = document.activeElement;
+            const typing =
+                active instanceof HTMLElement &&
+                (active.tagName === "TEXTAREA" ||
+                    active.tagName === "INPUT" ||
+                    active.isContentEditable);
+            if (typing) return;
+
+            e.preventDefault();
+            setGameActive(true);
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isThinking, gameActive, isUnlocked]);
+
+    // Focus textarea when opening a new chat (empty state).
+    useEffect(() => {
+        if (!chatId) {
+            setTimeout(() => textareaRef.current?.focus(), 0);
+        }
+    }, [chatId, textareaRef]);
+
+    // Scroll the freshly-started game into view, even if the user was scrolled up.
+    useEffect(() => {
+        if (gameActive) {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [gameActive, bottomRef]);
+
+    // E9: "/" focuses the composer (like Slack/GitHub) when the user isn't
+    // already typing in a field. Escape blurs it to return to the page.
+    useEffect(() => {
+        const isTypingTarget = (el: Element | null) =>
+            el instanceof HTMLElement &&
+            (el.tagName === "TEXTAREA" ||
+                el.tagName === "INPUT" ||
+                el.isContentEditable);
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "/" && !isTypingTarget(document.activeElement)) {
+                e.preventDefault();
+                textareaRef.current?.focus();
+            }
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [textareaRef]);
+
+    const fillSuggestion = useCallback(
+        (text: string) => {
+            setNewRequest(text);
+            const el = textareaRef.current;
+            if (el) {
+                el.focus();
+                el.style.height = "auto";
+                el.style.height = `${el.scrollHeight}px`;
+            }
+        },
+        [setNewRequest, textareaRef],
+    );
+
+    // Stable callbacks for the memoized MessageRow — referential equality
+    // across renders is what lets unchanged rows bail out of re-rendering.
+    const handleCitationClick = useCallback(
+        (citation: SelectedCitation) => setSelectedCitation(citation),
+        [setSelectedCitation],
+    );
+    const handleOpenArtifact = useCallback(
+        (data: CitationArtifactOpen) => setViewingCitationArtifact(data),
+        [],
+    );
+    const profileFallbackName = profile
+        ? `${profile.firstName} ${profile.lastName}`.trim()
+        : "User";
 
     return (
-        <div
-            className={[
-                "flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen",
-                hasChatHistory ? "" : "app-page-frame",
-            ].filter(Boolean).join(" ")}
-        >
-            {hasChatHistory && (
-                <aside className="w-64 bg-app-bg border-r border-app-border md:flex flex-col shrink-0 hidden">
-                    <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
-                </aside>
-            )}
-
+        <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-app-bg text-app-text lg:h-screen">
+            {/* Mobile slide-out drawer — slides in from the left on mobile */}
             <aside
                 id="chat-mobile-sidebar"
                 aria-label="Mobile chat navigation"
                 aria-hidden={!sidebarOpen}
                 inert={!sidebarOpen}
-                className={`
-                    fixed top-0 left-0 h-full w-64 bg-app-bg
-                    border-r border-app-border z-50
-                    transform transition-transform duration-300
-                    md:hidden
-                    ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-                `}
+                className={[
+                    "fixed top-0 left-0 z-50 h-full w-64 bg-app-bg-soft",
+                    "border-r border-app-border shadow-2xl",
+                    "transform transition-transform duration-300 md:hidden",
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full",
+                ].join(" ")}
             >
-                <div className="p-4 flex justify-between items-center">
+                <div className="flex items-center justify-between p-4">
                     <h2 className="font-bold">Chats</h2>
-
                     <button aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
                         <X size={24} />
                     </button>
                 </div>
-
                 <ChatSidebar chats={chats} setSidebarOpen={setSidebarOpen} />
             </aside>
 
+            {/* Mobile toggle button — top-right so it doesn't overlap the mobile header burger */}
             <button
                 aria-label="Toggle sidebar"
                 aria-controls="chat-mobile-sidebar"
                 aria-expanded={sidebarOpen}
-                className="
-                    fixed
-                    top-4
-                    right-[var(--app-page-gutter)]
-                    z-50
-                    md:hidden
-                    p-3
-                    text-white
-                    rounded-full
-                    bg-app-surface
-                    border
-                    border-app-border
-                    shadow-lg
-                    mt-15
-                    hover:cursor-pointer
-                "
+                className="fixed top-4 right-[var(--app-page-gutter)] z-50 mt-15 rounded-full border border-app-border bg-app-surface p-3 text-app-text shadow-lg hover:cursor-pointer hover:bg-app-surface-hover md:hidden"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
             >
                 <MessageSquareText size={24} />
             </button>
 
-            <div className="flex flex-col flex-1 min-w-0">
-                <PageHeader
-                    icon={Sparkles}
-                    title="AI Assistant"
-                    subtitle="Ask questions about project knowledge, code, documentation and onboarding."
-                    className="shrink-0 border-b border-app-border bg-app-bg/80 px-6 py-4 backdrop-blur-md"
-                />
+            {/* Desktop chat history sidebar — LEFT side, always rendered */}
+            <aside
+                aria-label="Chat history"
+                className={[
+                    "hidden shrink-0 flex-col border-r border-app-border bg-app-bg-soft transition-all duration-200 md:flex",
+                    desktopSidebarOpen ? "w-64" : "w-0 overflow-hidden border-r-0",
+                ].join(" ")}
+            >
+                {/* Sidebar header */}
+                <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                    <h2 className="font-bold text-sm tracking-wide text-app-text-muted uppercase">Chats</h2>
+                    <button
+                        aria-label="Close sidebar"
+                        onClick={() => setDesktopSidebarOpen(false)}
+                        className="text-app-text-muted hover:text-app-text transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+                <div className="flex flex-1 flex-col overflow-hidden">
+                    <ChatSidebar chats={chats} setSidebarOpen={() => {}} />
+                </div>
+            </aside>
 
-                <div className="flex-1 overflow-y-auto flex flex-col">
-                    {!chatId && (
-                        <div className="flex-1 flex flex-col justify-center items-center p-8 text-center">
-                            <div className="bg-app-brand-soft p-4 rounded-3xl mb-4">
-                                <Bot className="text-app-brand-text size-12" />
-                            </div>
-
-                            <h1 className="text-app-text font-bold text-2xl mb-2">
-                                How can I help you today?
-                            </h1>
-
-                            <p className="text-app-text-muted max-w-md text-sm">
-                                Ask anything about your project&apos;s codebase, documentation, or
-                                onboarding process.
-                            </p>
-                        </div>
+            {/* Main content column */}
+            <div className={`relative flex min-w-0 flex-1 flex-col${desktopSidebarOpen ? ' chat-sidebar-open' : ''}`}>
+                {/* Header: open-sidebar toggle floats at the far-left edge so it
+                    doesn't crowd the page title's icon; title stays aligned with
+                    the message column below (toggle is out of flow). */}
+                <div className="relative flex shrink-0 items-center border-b border-app-border bg-app-bg/80 app-page-frame py-3 backdrop-blur-md">
+                    {!desktopSidebarOpen && (
+                        <button
+                            aria-label="Open sidebar"
+                            onClick={() => setDesktopSidebarOpen(true)}
+                            className="absolute left-2 top-1/2 hidden -translate-y-1/2 md:flex items-center justify-center rounded-xl border border-app-border bg-app-surface p-2 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text transition-colors shrink-0"
+                        >
+                            <MessageSquareText size={18} />
+                        </button>
                     )}
+                    <PageHeader
+                        icon={Sparkles}
+                        title="AI Assistant"
+                        subtitle="Ask questions about project knowledge, code, documentation and onboarding."
+                        hideSubtitleBelow="md"
+                        className="flex-1"
+                    />
+                </div>
 
-                    <div className="max-w-4xl mx-auto w-full px-4 py-8 flex flex-col gap-6">
-                        {messages.map((message, index) => {
-                            const isRequest = message.role === "USER";
+                <div ref={scrollContainerRef} className="flex flex-1 flex-col overflow-y-auto">
+                    {!chatId && <ChatEmptyState onPickSuggestion={fillSuggestion} />}
 
-                            if (
-                                message.role === "ASSISTANT" &&
-                                message.content === "" &&
-                                isThinking
-                            ) {
-                                return null;
-                            }
-
-                            return (
-                                <div
-                                    key={index}
-                                    className={`flex w-full gap-4 ${
-                                        isRequest ? "flex-row-reverse" : "flex-row"
-                                    }`}
+                    <div
+                        className="app-page-frame flex w-full flex-col gap-8 py-8"
+                        aria-live="polite"
+                        aria-atomic="false"
+                    >
+                        {/* E1: AnimatePresence wraps dynamically added/removed
+                            message rows so enter/exit animate smoothly (chat
+                            switch, new messages). Per AGENTS.md §11. */}
+                        <AnimatePresence mode="popLayout">
+                            {messages.map((message, index) => (
+                                <motion.div
+                                    key={message.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={centralSpringToken}
                                 >
-                                    <div
-                                        className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                            isRequest ? "" : "bg-app-surface-muted"
-                                        }`}
-                                    >
-                                        {isRequest ? (
-                                            <UserAvatar
-                                                profileIcon={profile?.profileIcon}
-                                                fallbackName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : "User"}
-                                                seed={profile?.id}
-                                                size={32}
-                                            />
-                                        ) : (
-                                            <Bot size={16} className="text-app-brand-text" />
-                                        )}
-                                    </div>
+                                    <MessageRow
+                                        message={message}
+                                        showDivider={
+                                            index > 0 &&
+                                            messages[index - 1].role === "ASSISTANT" &&
+                                            message.role === "ASSISTANT"
+                                        }
+                                        isThinking={isThinking}
+                                        isStreaming={isStreaming}
+                                        streamingMessageId={streamingMessageId}
+                                        showThoughtProcess={showThoughtProcess}
+                                        profileIcon={profile?.profileIcon ?? undefined}
+                                        profileFallbackName={profileFallbackName}
+                                        profileSeed={profile?.id ?? undefined}
+                                        onCitationClick={handleCitationClick}
+                                        onOpenArtifact={handleOpenArtifact}
+                                    />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
 
-                                    <div
-                                        className={`flex flex-col max-w-[85%] ${
-                                            isRequest ? "items-end" : "items-start"
-                                        }`}
-                                    >
-                                        <div
-                                            className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                                                isRequest
-                                                    ? "bg-app-brand text-white rounded-tr-none"
-                                                    : "bg-app-surface-muted text-app-text rounded-tl-none"
-                                            }`}
-                                        >
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm, remarkMath]}
-                                                rehypePlugins={[rehypeKatex]}
-                                                components={{
-                                                    table: ({ children }) => (
-                                                        <div className="overflow-x-auto">
-                                                            <table className={`w-full border-collapse border-2 my-3 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
-                                                                {children}
-                                                            </table>
-                                                        </div>
-                                                    ),
-                                                    th: ({ children }) => (
-                                                        <th className={`border-2 px-3 py-2 text-left ${isRequest ? "border-app-brand-border bg-app-brand-soft" : "border-app-border-muted bg-app-surface"}`}>
-                                                            {children}
-                                                        </th>
-                                                    ),
-                                                    td: ({ children }) => (
-                                                        <td className={`border-2 px-3 py-2 ${isRequest ? "border-app-brand-border" : "border-app-border-muted"}`}>
-                                                            {children}
-                                                        </td>
-                                                    ),
-                                                    code({ children, className }: { children?: React.ReactNode; className?: string }) {
-
-                                                        const isBlock = className?.startsWith("language-");
-
-                                                        if (!isBlock) {
-                                                            return (
-                                                                <code className={`px-1 py-0.5 mx-0.5 rounded border ${isRequest ? "bg-app-brand-soft border-app-brand-border" : "bg-app-surface border-app-border-muted"}`}>
-                                                                    {children}
-                                                                </code>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <code className={className}>
-                                                                {children}
-                                                            </code>
-                                                        );
-                                                    },
-                                                    pre(props) {
-                                                        return (
-                                                            <pre
-                                                                className={`
-                                                                    p-3 
-                                                                    my-3
-                                                                    rounded-xl
-                                                                    overflow-x-auto
-                                                                    border
-                                                                    ${isRequest ? "bg-app-brand-soft border-app-brand-border" : "bg-app-surface border-app-border-muted"}
-                                                                `}
-                                                            >
-                                                                {props.children}
-                                                            </pre>
-                                                        );
-                                                    }
-                                                }}>
-                                                {message.content}
-                                            </ReactMarkdown>
-
-                                            {message.citations && message.citations.length > 0 && (
-                                                <div className="mt-3 pt-3 border-t border-app-border-muted flex flex-wrap gap-1.5">
-                                                    {message.citations.map((citation, cIdx) => (
-                                                        <button
-                                                            key={cIdx}
-                                                            onClick={() =>
-                                                                setSelectedCitation(citation)
-                                                            }
-                                                            className="text-[10px] bg-app-bg-soft hover:bg-app-surface text-app-brand-text px-2 py-0.5 rounded border border-app-brand-border transition-colors"
-                                                        >
-                                                            [{cIdx + 1}] {citation.filename}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {isThinking &&  (
-                            <div className="flex w-full gap-4">
-                                <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-app-surface-muted">
-                                    <Bot size={16} className="text-app-brand-text" />
-                                </div>
-
-                                <div className="flex flex-col items-start max-w-[85%]">
-                                    <div className="px-4 py-2.5 rounded-2xl rounded-tl-none bg-app-surface-muted text-app-text">
-                                        <div className="flex gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce" />
-                                            <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:150ms]" />
-                                            <span className="w-2 h-2 rounded-full bg-app-brand animate-bounce [animation-delay:300ms]" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {showBrainrot && (
-                            <iframe
-                                title="Subway Surfers Gameplay 2h"
-                                src={`https://www.youtube.com/embed/vTfD20dbxho?start=${timestamp}&autoplay=1&mute=1`}
-                                className="w-full h-100 rounded-xl"
-                                allowFullScreen
-                                allow="autoplay"
-                            />
-                        )}
+                        <ThinkingIndicator
+                            isThinking={isThinking}
+                            gameActive={gameActive}
+                            thinkingState={thinkingState}
+                            onGameExit={() => setGameActive(false)}
+                        />
 
                         <div ref={bottomRef} />
                     </div>
                 </div>
 
                 {selectedCitation && (
-                    <div className="absolute right-6 bottom-24 w-80 rounded-xl bg-app-surface border border-app-border p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-4">
-                        <div className="flex justify-between items-start mb-2">
-                            <h3 className="text-sm font-bold text-app-text truncate pr-4">
-                                {selectedCitation.sourceUrl ? (
-                                    <a
-                                        href={selectedCitation.sourceUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 hover:underline"
-                                    >
-                                        {selectedCitation.filename}
-                                        <ExternalLink size={12} />
-                                    </a>
-                                ) : (
-                                    selectedCitation.filename
-                                )}
-                            </h3>
+                    <CitationPopover
+                        selected={selectedCitation}
+                        onClose={() => setSelectedCitation(null)}
+                    />
+                )}
 
-                            <button
-                                aria-label="Close citation"
-                                onClick={() => setSelectedCitation(null)}
-                                className="text-app-text-muted hover:text-app-text transition-colors"
-                            >
-                                <Plus size={18} className="rotate-45" />
-                            </button>
-                        </div>
-
-                        <div className="text-xs text-app-text-muted leading-relaxed">
-                            {selectedCitation.startLine !== undefined && `Line ${selectedCitation.startLine}`}
-                            {selectedCitation.startPage !== undefined && `Page ${selectedCitation.startPage}`}
-                        </div>
+                {/* E12: floating "jump to latest" button — shown when the user
+                     has scrolled up during streaming so they can return quickly. */}
+                {chatId && !isAtBottom && (
+                    <div className="pointer-events-none absolute bottom-28 left-1/2 z-10 -translate-x-1/2">
+                        <button
+                            type="button"
+                            aria-label="Jump to latest message"
+                            data-testid="chat-scroll-to-bottom"
+                            onClick={scrollToBottom}
+                            className="pointer-events-auto flex items-center gap-1 rounded-full border border-app-border bg-app-surface px-3 py-1.5 text-xs font-medium text-app-text shadow-lg transition-colors hover:bg-app-surface-hover"
+                        >
+                            <ArrowDown size={14} />
+                            Latest
+                        </button>
                     </div>
                 )}
 
-                <footer className="p-4 bg-app-bg border-t border-app-border">
-                    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-3 items-end">
-                        <textarea
-                            ref={textareaRef}
-                            aria-label="Message"
-                            placeholder="Ask anything about the project..."
-                            className="flex-1 px-4 py-2.5 rounded-xl text-app-text text-sm bg-app-surface-muted border border-app-border-muted placeholder:text-app-text-disabled outline-none focus:ring-2 focus:ring-app-focus/50 transition-all max-h-44 min-h-11 overflow-y-auto resize-none"
-                            value={newRequest}
-                            rows={1}
-                            onChange={(e) => {
-                                setNewRequest(e.currentTarget.value);
-
-                                e.currentTarget.style.height = "auto";
-                                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    e.currentTarget.form?.requestSubmit();
-                                }
-                            }}
-                        />
-
-                        <button
-                            type="submit"
-                            aria-label="Send message"
-                            disabled={isThinking || isStreaming || !newRequest.trim()}
-                            className="p-2.5 bg-app-brand text-white rounded-xl hover:bg-app-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-11 w-11 flex justify-center items-center"
-                        >
-                            <Send size={20} />
-                        </button>
-                    </form>
-                </footer>
+                <ChatComposer
+                    value={newRequest}
+                    onChange={setNewRequest}
+                    onSubmit={handleSubmit}
+                    onStop={stopStreaming}
+                    isBusy={isThinking || isStreaming}
+                    textareaRef={textareaRef}
+                    showFilters={showFilters}
+                    onToggleFilters={() => setShowFilters((v) => !v)}
+                    from={from}
+                    setFrom={setFrom}
+                    to={to}
+                    setTo={setTo}
+                    sourceSystems={sourceSystems}
+                    toggleSourceSystem={toggleSourceSystem}
+                    activeFilterCount={activeFilterCount}
+                    clearFilters={clearFilters}
+                />
             </div>
+
+            {viewingCitationArtifact && projectId && (
+                <ArtifactViewerDrawer
+                    artifact={{
+                        id: viewingCitationArtifact.artifactId,
+                        title: viewingCitationArtifact.filename,
+                        artifactType: "FILE",
+                        sourceSystem: "GITHUB",
+                        sourceId: "",
+                        sourceUrl: viewingCitationArtifact.sourceUrl || null,
+                        mime: "text/plain",
+                        language: null,
+                        ingestedAt: new Date().toISOString(),
+                        createdAtSource: null,
+                        updatedAtSource: null,
+                        contentHash: null,
+                        ingestionRunId: null,
+                    }}
+                    onClose={() => setViewingCitationArtifact(null)}
+                    projectId={projectId}
+                    highlightLines={viewingCitationArtifact.lines}
+                />
+            )}
         </div>
     );
 }

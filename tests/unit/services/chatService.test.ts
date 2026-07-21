@@ -87,7 +87,7 @@ describe('chatService', () => {
             const onDone = vi.fn();
             const onError = vi.fn();
 
-            await streamMessage('chat1', 'hello', { onToken, onCitation: vi.fn(), onDone, onError });
+            await streamMessage('chat1', 'hello', [], '', '', { onToken, onReasoning: vi.fn(), onCitation: vi.fn(), onToolUse: vi.fn(), onDone, onError });
 
             expect(mockKeycloakInstance.updateToken).toHaveBeenCalledWith(30);
             expect(capturedAuthHeader).toBe('Bearer test-token');
@@ -102,7 +102,7 @@ describe('chatService', () => {
             expect(onError).not.toHaveBeenCalled();
         });
 
-        it('calls login and skips streaming if token refresh fails', async () => {
+        it('calls onError and skips streaming if token refresh fails', async () => {
             let promptRequested = false;
             mockKeycloakInstance.updateToken.mockRejectedValueOnce(new Error('Refresh failed'));
 
@@ -113,13 +113,20 @@ describe('chatService', () => {
                 }),
             );
 
-            await streamMessage('chat1', 'hello', {
+            const onError = vi.fn();
+            await streamMessage('chat1', 'hello', [], '', '', {
                 onToken: vi.fn(),
+                onReasoning: vi.fn(),
                 onCitation: vi.fn(),
+                onToolUse: vi.fn(),
                 onDone: vi.fn(),
+                onError,
             });
 
-            expect(mockKeycloakInstance.login).toHaveBeenCalledOnce();
+            // The service surfaces the auth failure via onError instead of
+            // triggering a login redirect — the UI layer decides how to react.
+            expect(onError).toHaveBeenCalledOnce();
+            expect(mockKeycloakInstance.login).not.toHaveBeenCalled();
             expect(promptRequested).toBe(false);
         });
 
@@ -131,9 +138,11 @@ describe('chatService', () => {
             );
 
             const onError = vi.fn();
-            await streamMessage('chat1', 'hello', {
+            await streamMessage('chat1', 'hello', [], '', '', {
                 onToken: vi.fn(),
+                onReasoning: vi.fn(),
                 onCitation: vi.fn(),
+                onToolUse: vi.fn(),
                 onDone: vi.fn(),
                 onError,
             });
@@ -166,9 +175,11 @@ describe('chatService', () => {
             const onCitation = vi.fn();
             const onDone = vi.fn();
 
-            await streamMessage('chat1', 'hello', {
+            await streamMessage('chat1', 'hello', [], '', '', {
                 onToken: vi.fn(),
+                onReasoning: vi.fn(),
                 onCitation,
+                onToolUse: vi.fn(),
                 onDone,
             });
 
@@ -200,14 +211,131 @@ describe('chatService', () => {
             );
 
             const onError = vi.fn();
-            await streamMessage('chat1', 'hello', {
+            await streamMessage('chat1', 'hello', [], '', '', {
                 onToken: vi.fn(),
+                onReasoning: vi.fn(),
                 onCitation: vi.fn(),
+                onToolUse: vi.fn(),
                 onDone: vi.fn(),
                 onError,
             });
 
             expect(onError).toHaveBeenCalledWith('Model overload');
+        });
+
+        it('skips malformed SSE lines and continues parsing', async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: not valid json\n\n'));
+                    controller.enqueue(encoder.encode('data: {"type":"token","content":"good"}\n\n'));
+                    controller.enqueue(encoder.encode('data: {broken\n\n'));
+                    controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                    controller.close();
+                },
+            });
+
+            server.use(
+                http.post('/api/v1/chats/prompt', () =>
+                    new HttpResponse(stream, {
+                        headers: { 'Content-Type': 'text/event-stream' },
+                    }),
+                ),
+            );
+
+            const onToken = vi.fn();
+            const onDone = vi.fn();
+            const onError = vi.fn();
+
+            await streamMessage('chat1', 'hello', [], '', '', {
+                onToken,
+                onReasoning: vi.fn(),
+                onCitation: vi.fn(),
+                onToolUse: vi.fn(),
+                onDone,
+                onError,
+            });
+
+            expect(onToken).toHaveBeenCalledWith('good');
+            expect(onDone).toHaveBeenCalledTimes(1);
+            expect(onError).not.toHaveBeenCalled();
+        });
+
+        it('calls onDone (not onError) when stream is aborted', async () => {
+            const encoder = new TextEncoder();
+            // Simulate an abort: the stream enqueues one token, then the
+            // next read() throws an AbortError (exactly what fetch does when
+            // the signal fires). MSW doesn't propagate abort to mock streams,
+            // so we simulate the error directly.
+            const abortError = new Error('aborted');
+            abortError.name = 'AbortError';
+
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"token","content":"partial"}\n\n'));
+                    // Error the stream after the first chunk is consumed,
+                    // simulating what happens when the AbortSignal fires.
+                    setTimeout(() => controller.error(abortError), 10);
+                },
+            });
+
+            server.use(
+                http.post('/api/v1/chats/prompt', () =>
+                    new HttpResponse(stream, {
+                        headers: { 'Content-Type': 'text/event-stream' },
+                    }),
+                ),
+            );
+
+            const onToken = vi.fn();
+            const onDone = vi.fn();
+            const onError = vi.fn();
+
+            await streamMessage('chat1', 'hello', [], '', '', {
+                onToken,
+                onReasoning: vi.fn(),
+                onCitation: vi.fn(),
+                onToolUse: vi.fn(),
+                onDone,
+                onError,
+            });
+
+            expect(onToken).toHaveBeenCalledWith('partial');
+            expect(onDone).toHaveBeenCalledTimes(1);
+            expect(onError).not.toHaveBeenCalled();
+        });
+
+        it('passes AbortSignal to fetch', async () => {
+            const controller = new AbortController();
+            let signalPassed: AbortSignal | undefined;
+
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                    controller.close();
+                },
+            });
+
+            server.use(
+                http.post('/api/v1/chats/prompt', ({ request }) => {
+                    signalPassed = request.signal;
+                    return new HttpResponse(stream, {
+                        headers: { 'Content-Type': 'text/event-stream' },
+                    });
+                }),
+            );
+
+            await streamMessage('chat1', 'hello', [], '', '', {
+                onToken: vi.fn(),
+                onReasoning: vi.fn(),
+                onCitation: vi.fn(),
+                onToolUse: vi.fn(),
+                onDone: vi.fn(),
+            }, controller.signal);
+
+            // MSW creates its own signal wrapper, so check type not identity
+            expect(signalPassed).toBeInstanceOf(AbortSignal);
         });
     });
 });

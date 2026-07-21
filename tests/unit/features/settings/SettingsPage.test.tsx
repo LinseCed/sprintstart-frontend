@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../../../src/context/ThemeProvider';
+import { ChatPreferencesProvider } from '../../../../src/context/ChatPreferencesProvider';
 import { SettingsPage } from '../../../../src/pages/SettingsPage';
 import { PermissionGroup } from '../../../../src/services/types';
 
@@ -76,7 +77,9 @@ describe('SettingsPage', () => {
         render(
             <MemoryRouter>
                 <ThemeProvider>
-                    <SettingsPage />
+                    <ChatPreferencesProvider>
+                        <SettingsPage />
+                    </ChatPreferencesProvider>
                 </ThemeProvider>
             </MemoryRouter>,
         );
@@ -92,7 +95,9 @@ describe('SettingsPage', () => {
         render(
             <MemoryRouter>
                 <ThemeProvider>
-                    <SettingsPage />
+                    <ChatPreferencesProvider>
+                        <SettingsPage />
+                    </ChatPreferencesProvider>
                 </ThemeProvider>
             </MemoryRouter>,
         );
@@ -107,7 +112,9 @@ describe('SettingsPage', () => {
         render(
             <MemoryRouter>
                 <ThemeProvider>
-                    <SettingsPage />
+                    <ChatPreferencesProvider>
+                        <SettingsPage />
+                    </ChatPreferencesProvider>
                 </ThemeProvider>
             </MemoryRouter>,
         );

@@ -4,10 +4,11 @@ Shared, committed guide for humans and AI agents working in `sprintstart-fronten
 Keep it current: if a rule here stops matching reality, fix the rule in the same PR.
 
 > **Related docs**
-> - [ARCHITECTURE.md](./ARCHITECTURE.md) — system context (frontend / backend / AI service), boundaries, deployment.
-> - [FRONTEND_DOCUMENTATION_GUIDELINES.md](./FRONTEND_DOCUMENTATION_GUIDELINES.md) — the full, committed documentation standards (summarized in §6).
-> - `GEMINI.md` — condensed context (local/agent-specific).
-> - `frontend-documentation-playbook.local.md` — the full documentation rules (summarized in §6).
+> - [docs/FRONTEND_ARCHITECTURE.md](./docs/FRONTEND_ARCHITECTURE.md) — system architecture (frontend-only; replaces the frontend section of root ARCHITECTURE.md): feature-first structure, routing, state, design system, animation.
+> - [docs/FRONTEND_CODING_STANDARDS.md](./docs/FRONTEND_CODING_STANDARDS.md) — TS / React / Tailwind / a11y rules (frontend-only; replaces the frontend section of root CODING_STANDARDS.md).
+> - [docs/FRONTEND_DOCUMENTATION_GUIDELINES.md](./docs/FRONTEND_DOCUMENTATION_GUIDELINES.md) — the full, committed documentation standards (summarized in §6).
+> - [docs/testing_strategy.md](./docs/testing_strategy.md) — Vitest + MSW + vitest-axe setup (replaces the old `mocking_strategy.md`).
+> - `GEMINI.md` — condensed context (local/agent-specific, gitignored).
 
 ---
 
@@ -46,15 +47,15 @@ Copy `.env.example` → `.env` and point Keycloak at the right IAM instance befo
 
 Feature-first: domain code lives in `features/<name>/`; only genuinely shared code goes in the top-level folders.
 
-- `features/<name>/` — self-contained domains (`components/`, optional `hooks/`, `types.ts`). E.g. `admin`, `chatbot`, `onboarding`, `knowledge-base`, `data-ingestion`, `team-management`, `faq`, `knowledge-gaps`.
+- `features/<name>/` — self-contained domains (`components/`, optional `hooks/`, `types.ts`). E.g. `admin`, `chatbot`, `onboarding`, `knowledge-base`, `data-ingestion`, `team-management`, `faq`, `knowledge-gaps`, `connectors`, `profile`, `projects`, `settings`.
 - `components/` — shared UI: `common/` (app-level controls), `layout/` (shell, sidebar, drawers), `ui/` (low-level primitives).
 - `pages/` — route-level page views (one per user-facing flow).
 - `router/` — React Router v7 config + `AuthGuard`.
 - `auth/` — access policy (`AppRoute`, `canAccessRoute`, route→permission map).
-- `context/` — global providers/hooks (`AuthProvider`, `ThemeProvider`, `useAuth`, `useTheme`).
-- `services/` — backend/API communication (one module per domain).
+- `context/` — global providers/hooks (`AuthProvider`, `ThemeProvider`, `ChatProvider`, `ChatPreferencesProvider`, `useAuth`, `useTheme`, `useChatPreferences`).
+- `services/` — backend/API communication (one module per domain; SSE streaming via `sse.ts`; HTTP via `apiClient.ts`).
 - `config/` — integration config (e.g. `keycloak.ts`).
-- `hooks/`, `types/`, `styles/`, `mocks/` — shared utilities, global types, global CSS/tokens, dev mock data.
+- `hooks/`, `styles/`, `mocks/` — shared utilities, global CSS/tokens + animation tokens, dev mock data.
 - `keycloak-theme/` — Keycloakify overrides (much is generated — do **not** hand-edit `kc.gen.tsx`).
 
 **Rule:** new feature work → a `features/<name>/` slice. Promote to `components/`/`context/` only when it's truly shared.
@@ -93,7 +94,7 @@ Conventions:
 
 ## 6. Documentation (the *why*, not the obvious *what*)
 
-Follow the documentation playbook — the full rules live in [FRONTEND_DOCUMENTATION_GUIDELINES.md](./FRONTEND_DOCUMENTATION_GUIDELINES.md). In short — use **TSDoc** blocks on exported symbols:
+Follow the documentation playbook — the full rules live in [docs/FRONTEND_DOCUMENTATION_GUIDELINES.md](./docs/FRONTEND_DOCUMENTATION_GUIDELINES.md). In short — use **TSDoc** blocks on exported symbols:
 
 - **Pages/views:** responsibility, which user flow, key backend/auth/routing/state dependencies.
 - **Reusable components:** when purpose/behavior/constraints aren't obvious from the name.
@@ -139,20 +140,22 @@ We have **one shared palette** — a set of semantic design tokens (CSS variable
 
 ## 10. Auth & routing (brief)
 
-- **Keycloak** (`keycloak-js`) for IAM; dev requires a Keycloak user with a role (`USER`/`ADMIN`) and redirect-based login.
+- **Keycloak** (`keycloak-js`) for IAM; dev requires a Keycloak user with a role (`USER` / `PM` / `HR` / `ADMIN`) and redirect-based login.
 - Route access is centralized in `auth/accessPolicy.ts` (`AppRoute` union + `canAccessRoute`) and enforced by `router/AuthGuard.tsx`. **New protected routes must be added to `AppRoute` + the permission map**, or they won't type-check / won't be access-controlled.
+- See [docs/FRONTEND_ARCHITECTURE.md §4](./docs/FRONTEND_ARCHITECTURE.md#4-routing--access-control) for the full routing model (declarative `<Route element={...}>` API, not data-router loaders).
 
 ---
 
 ## 11. Animation (brief)
 
-- Use the **centralized spring transition tokens** (uniform velocity/stiffness) — don't inline ad-hoc spring configs.
+- Use the **centralized spring transition tokens** (uniform velocity/stiffness) — don't inline ad-hoc spring configs. Canonical implementation: [`src/styles/tokens.ts`](./src/styles/tokens.ts), exporting `centralSpringToken` and `hoverSpringToken`.
 - Wrap dynamically added/removed elements (lists, drawers) in `<AnimatePresence>` to avoid clipping on exit.
+- See [docs/FRONTEND_ARCHITECTURE.md §8](./docs/FRONTEND_ARCHITECTURE.md#8-animation-system-framer-motion-12) for the full animation system.
 
 ---
 
 ## 12. Git & repo boundaries
 
-- Separate repos: `sprintstart-frontend`, `sprintstart-backend`, `sprintstart-ai`, `sprintstart-k8s`. Don't assume a shared monorepo checkout.
+- Separate repos: `sprintstart-frontend`, `sprintstart-backend`, `sprintstart-ai`, `sprintstart-ai-ops`, `Wiki`. Don't assume a shared monorepo checkout. (There is **no** `sprintstart-k8s` repo — per-component Kubernetes manifests live inside each repo's own `k8s/` folder; here that's `sprintstart-frontend/k8s/`.)
 - Feature work branches off `dev`; PRs target `dev`.
 - Agent instruction files: `AGENTS.md` (this file) is **shared/committed**; `GEMINI.md`, `CLAUDE.md`, and `*.local.md` are gitignored (per-developer).
