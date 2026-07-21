@@ -81,7 +81,12 @@ export function MyPathModulePage() {
 
                     {module && (
                         <div>
-                            <h1 className="text-xl font-semibold text-app-text">{module.title}</h1>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
+                                Optional deep dive
+                            </p>
+                            <h1 className="mt-1 text-xl font-semibold text-app-text">
+                                {module.title}
+                            </h1>
                             {module.summary && (
                                 <p className="mt-1 text-sm text-app-text-muted">{module.summary}</p>
                             )}

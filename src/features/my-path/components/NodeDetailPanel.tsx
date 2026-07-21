@@ -228,18 +228,39 @@ export function NodeDetailPanel({
                 )}
             </section>
 
+            {/* A module is an optional deep dive, not the path. The fastest way to learn a
+                competency is on a real task (First Week) -- the module is background if you want
+                it. The goal node is the exception: its "module" is the real contribution. */}
             {canStart ? (
-                <button
-                    type="button"
-                    data-testid="start-module"
-                    onClick={() => onStartModule(node.moduleId as string)}
-                    className="rounded-xl bg-app-brand px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                >
-                    {node.state === 'MASTERED' ? 'Review this module' : 'Start module'}
-                </button>
+                <section className="space-y-1.5">
+                    {!isGoal && (
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
+                            Optional deep dive
+                        </h3>
+                    )}
+                    {!isGoal && (
+                        <p className="text-xs text-app-text-subtle">
+                            You&apos;ll learn this fastest on a real task. Read this if you want the
+                            background — nothing needs it first.
+                        </p>
+                    )}
+                    <button
+                        type="button"
+                        data-testid="start-module"
+                        onClick={() => onStartModule(node.moduleId as string)}
+                        className="inline-flex items-center rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                    >
+                        {isGoal
+                            ? 'Open the module'
+                            : node.state === 'MASTERED'
+                              ? 'Reread the deep dive'
+                              : 'Read the deep dive'}
+                    </button>
+                </section>
             ) : (
                 <p className="text-xs text-app-text-subtle">
-                    Nothing has been published for this competency yet.
+                    No deep dive has been published for this competency — you don&apos;t need one to
+                    work on it.
                 </p>
             )}
 
