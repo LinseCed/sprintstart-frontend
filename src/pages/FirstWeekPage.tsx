@@ -46,6 +46,8 @@ export function FirstWeekPage() {
         orientation,
         isLoading: orientationLoading,
         error: orientationError,
+        activity: orientationActivity,
+        isStreaming: orientationStreaming,
         reload: reloadOrientation
     } = useOrientation(selectedProjectId);
     const {
@@ -179,6 +181,8 @@ export function FirstWeekPage() {
                                     orientation={orientation}
                                     isLoading={orientationLoading}
                                     error={orientationError}
+                                    activity={orientationActivity}
+                                    isStreaming={orientationStreaming}
                                     onRetry={() => void reloadOrientation()}
                                     onEdit={
                                         selectedProjectId

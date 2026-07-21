@@ -71,7 +71,9 @@ export function GraphStudioPage() {
         readinessByKey,
         isBusy: isCreatingModule,
         error: moduleError,
-        create: createModule
+        create: createModule,
+        streamingKey: moduleStreamingKey,
+        activity: moduleActivity
     } = useModuleAuthoring(selectedProjectId, canAuthor);
 
     const canAuthorBaseline = canAuthor && Boolean(selectedProjectId);
@@ -302,6 +304,8 @@ export function GraphStudioPage() {
                             moduleReadinessProps={{
                                 isBusy: isCreatingModule,
                                 error: moduleError,
+                                isStreaming: moduleStreamingKey === panelCompetency.key,
+                                activity: moduleActivity,
                                 onOpenModule: moduleId =>
                                     void navigate(`/competency-modules/${moduleId}`),
                                 onCreate: mode => {

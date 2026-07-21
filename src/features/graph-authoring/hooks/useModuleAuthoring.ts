@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { competencyModuleService } from '../../../services/competencyModuleService';
+import { useAiStream } from '../../ai-activity/useAiStream';
 import type { CompetencyModule } from '../../competency-module/types';
 
 function toMessage(error: unknown, fallback: string): string {
@@ -40,52 +41,80 @@ export function useModuleAuthoring(projectId: string | undefined, enabled: boole
     const [readinessByKey, setReadinessByKey] = useState<Map<string, ModuleReadiness>>(new Map());
     const [isBusy, setIsBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Which competency is being AI-drafted right now, so the UI shows the live log against that node.
+    const [streamingKey, setStreamingKey] = useState<string | null>(null);
+    const { entries: activity, start, reset } = useAiStream();
+
+    const fetchReadiness = useCallback(async (): Promise<Map<string, ModuleReadiness>> => {
+        if (!projectId || !enabled) return new Map();
+        // A competency has at most one non-active module in flight (approve archives the rest),
+        // so DRAFT and PROPOSED never collide on the same key.
+        const [active, drafts, proposed] = await Promise.all([
+            competencyModuleService.list(projectId, 'ACTIVE'),
+            competencyModuleService.list(projectId, 'DRAFT'),
+            competencyModuleService.list(projectId, 'PROPOSED')
+        ]);
+        const next = new Map<string, ModuleReadiness>();
+        const entryFor = (key: string): ModuleReadiness =>
+            next.get(key) ?? { activeModuleId: null, pending: null };
+        for (const module of active.modules) {
+            next.set(module.competencyKey, {
+                ...entryFor(module.competencyKey),
+                activeModuleId: module.id
+            });
+        }
+        for (const module of drafts.modules) {
+            next.set(module.competencyKey, {
+                ...entryFor(module.competencyKey),
+                pending: { moduleId: module.id, status: 'DRAFT' }
+            });
+        }
+        for (const module of proposed.modules) {
+            next.set(module.competencyKey, {
+                ...entryFor(module.competencyKey),
+                pending: { moduleId: module.id, status: 'PROPOSED' }
+            });
+        }
+        return next;
+    }, [projectId, enabled]);
 
     const load = useCallback(async () => {
-        if (!projectId || !enabled) {
-            setReadinessByKey(new Map());
-            return;
-        }
         try {
-            // A competency has at most one non-active module in flight (approve archives the rest),
-            // so DRAFT and PROPOSED never collide on the same key.
-            const [active, drafts, proposed] = await Promise.all([
-                competencyModuleService.list(projectId, 'ACTIVE'),
-                competencyModuleService.list(projectId, 'DRAFT'),
-                competencyModuleService.list(projectId, 'PROPOSED')
-            ]);
-            const next = new Map<string, ModuleReadiness>();
-            const entryFor = (key: string): ModuleReadiness =>
-                next.get(key) ?? { activeModuleId: null, pending: null };
-            for (const module of active.modules) {
-                next.set(module.competencyKey, {
-                    ...entryFor(module.competencyKey),
-                    activeModuleId: module.id
-                });
-            }
-            for (const module of drafts.modules) {
-                next.set(module.competencyKey, {
-                    ...entryFor(module.competencyKey),
-                    pending: { moduleId: module.id, status: 'DRAFT' }
-                });
-            }
-            for (const module of proposed.modules) {
-                next.set(module.competencyKey, {
-                    ...entryFor(module.competencyKey),
-                    pending: { moduleId: module.id, status: 'PROPOSED' }
-                });
-            }
-            setReadinessByKey(next);
+            setReadinessByKey(await fetchReadiness());
         } catch {
             // A failed lookup shouldn't blank the canvas; every node then reads as "nothing
             // authored", and the backend's own version counter prevents real corruption.
             setReadinessByKey(new Map());
         }
-    }, [projectId, enabled]);
+    }, [fetchReadiness]);
 
     useEffect(() => {
         void Promise.resolve().then(() => load());
     }, [load]);
+
+    /** Streams the AI draft for a competency, returning the module it produced (or null). */
+    const proposeStreaming = useCallback(
+        async (competencyKey: string, targetProjectId: string): Promise<CompetencyModule | null> => {
+            setStreamingKey(competencyKey);
+            try {
+                const endpoint = `/api/v1/onboarding/competency-modules/propose/stream?competencyKey=${encodeURIComponent(
+                    competencyKey
+                )}&projectId=${encodeURIComponent(targetProjectId)}`;
+                // The stream is a view; the module itself is read back afterwards, so a dropped stream
+                // still lands the proposal the backend persisted on `done`.
+                await start(endpoint);
+                const fresh = await fetchReadiness();
+                setReadinessByKey(fresh);
+                const landed = fresh.get(competencyKey);
+                const moduleId = landed?.pending?.moduleId ?? landed?.activeModuleId ?? null;
+                return moduleId ? await competencyModuleService.get(moduleId) : null;
+            } finally {
+                setStreamingKey(null);
+                reset();
+            }
+        },
+        [start, reset, fetchReadiness]
+    );
 
     const create = useCallback(
         async (
@@ -97,14 +126,14 @@ export function useModuleAuthoring(projectId: string | undefined, enabled: boole
             setIsBusy(true);
             setError(null);
             try {
-                const module =
-                    mode === 'ai'
-                        ? await competencyModuleService.proposeFromCorpus(competencyKey, projectId)
-                        : await competencyModuleService.createVersion({
-                              competencyKey,
-                              projectId,
-                              title: competencyLabel
-                          });
+                if (mode === 'ai') {
+                    return await proposeStreaming(competencyKey, projectId);
+                }
+                const module = await competencyModuleService.createVersion({
+                    competencyKey,
+                    projectId,
+                    title: competencyLabel
+                });
                 await load();
                 return module;
             } catch (err) {
@@ -114,8 +143,8 @@ export function useModuleAuthoring(projectId: string | undefined, enabled: boole
                 setIsBusy(false);
             }
         },
-        [projectId, load]
+        [projectId, load, proposeStreaming]
     );
 
-    return { readinessByKey, isBusy, error, create, reload: load };
+    return { readinessByKey, isBusy, error, create, reload: load, streamingKey, activity };
 }
