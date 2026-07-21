@@ -65,21 +65,31 @@ function sortProjects(projects: SelectableProject[]): SelectableProject[] {
 }
 
 /**
- * Loads every project an admin can reach and marks all of them as manageable.
+ * Loads every project an admin can reach.
+ *
+ * `isManaged` reflects the actual manager assignment — a project counts as
+ * "managed by you" only when the current user is its assigned project manager,
+ * not merely because an admin can reach every project. Admins therefore see the
+ * assigned PM (and the member count) on projects they do not personally manage,
+ * which land in the "Member of" group.
  *
  * `getProjects` already degrades to the self-service listing on 401/403, which
  * is what an HR user hits — the backend restricts `/api/v1/admin/projects` to
  * ADMIN, while the frontend groups HR with admins.
  */
 async function loadAdminProjects(
-  canManageEverything: boolean,
+  currentUserId: string | null,
 ): Promise<SelectableProject[]> {
   const projects = await projectService.getProjects();
   return projects.map((project) =>
-    toSelectableProject(project, canManageEverything, {
-      memberCount: project.users.length,
-      sourceCount: project.sources.length,
-    }),
+    toSelectableProject(
+      project,
+      currentUserId !== null && project.manager?.id === currentUserId,
+      {
+        memberCount: project.users.length,
+        sourceCount: project.sources.length,
+      },
+    ),
   );
 }
 
@@ -150,6 +160,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const permissionGroup = profile?.permissionGroup ?? null;
+  const userId = profile?.id ?? null;
   const isAuthenticated = status !== "unauthenticated" && status !== "loading";
 
   const setSelectedProjectId = useCallback((projectId: string) => {
@@ -175,7 +186,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
       let nextProjects: SelectableProject[];
       if (isAdmin || isHr) {
-        nextProjects = await loadAdminProjects(isAdmin);
+        nextProjects = await loadAdminProjects(userId);
       } else if (isManager) {
         nextProjects = await loadManagerProjects();
       } else {
@@ -219,7 +230,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, permissionGroup]);
+  }, [isAuthenticated, permissionGroup, userId]);
 
   // Deferred to a microtask so the synchronous `setIsLoading(true)` at the top
   // of `loadProjects` does not run inside the effect body and cascade a render.

@@ -25,6 +25,22 @@ type ProjectGroup = {
   projects: SelectableProject[];
 };
 
+/**
+ * The management line shown on a card: "Managed by you" when the current user
+ * manages the project, otherwise the assigned project manager's name. Returns
+ * `null` when the current user does not manage it and no PM is assigned — an
+ * admin reaching every project should not be labelled as managing all of them.
+ */
+function getManagerLabel(project: SelectableProject): string | null {
+  if (project.isManaged) return "Managed by you";
+
+  const manager = project.manager;
+  if (!manager) return null;
+
+  const fullName = `${manager.firstName} ${manager.lastName}`.trim();
+  return `Managed by ${fullName || manager.username}`;
+}
+
 function matchesSearch(project: SelectableProject, search: string): boolean {
   const term = search.trim().toLowerCase();
   if (!term) return true;
@@ -64,6 +80,8 @@ function ProjectCard({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const managerLabel = getManagerLabel(project);
+
   return (
     <button
       type="button"
@@ -95,9 +113,16 @@ function ProjectCard({
             {project.name}
           </span>
 
-          {project.isManaged ? (
-            <span className="mt-1 inline-flex w-fit items-center rounded-full bg-app-brand-soft px-2 py-0.5 text-[10px] font-medium text-app-brand-text">
-              Managed by you
+          {managerLabel ? (
+            <span
+              className={[
+                "mt-1 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                project.isManaged
+                  ? "bg-app-brand-soft text-app-brand-text"
+                  : "bg-app-surface-muted text-app-text-muted",
+              ].join(" ")}
+            >
+              {managerLabel}
             </span>
           ) : null}
         </span>
