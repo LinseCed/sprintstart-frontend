@@ -101,13 +101,23 @@ function RungRow({ rung }: { rung: LadderRung }) {
                     <p className="mt-1 text-sm text-app-text">{rung.detail}</p>
                     <p className="mt-1 text-sm text-app-text-muted">{rung.blurb}</p>
 
-                    <NavLink
-                        to={rung.route}
-                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-app-brand transition-colors hover:text-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                    >
-                        Open this stage
-                        <ArrowRight className="h-4 w-4" />
-                    </NavLink>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                        <NavLink
+                            to={rung.route}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-app-brand transition-colors hover:text-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                        >
+                            Open this stage
+                            <ArrowRight className="h-4 w-4" />
+                        </NavLink>
+                        {rung.reviewKind && (
+                            <NavLink
+                                to={`/setup/review?kind=${rung.reviewKind}`}
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                            >
+                                Review proposals
+                            </NavLink>
+                        )}
+                    </div>
                 </div>
             </div>
         </li>

@@ -7,7 +7,9 @@ import type { LadderRung, SetupLadder, SetupReadiness, SetupRung } from './types
  * the backend rung key (plus `corpus`, which is composed client-side). The order here is the order
  * the ladder renders — the setup pipeline, top to bottom.
  */
-const RUNG_META: Record<string, { title: string; blurb: string; route: AppRoute }> = {
+type RungMeta = { title: string; blurb: string; route: AppRoute; reviewKind?: string };
+
+const RUNG_META: Record<string, RungMeta> = {
     corpus: {
         title: 'Corpus connected',
         blurb: 'The AI grounds answers, orientation and mined tasks in what has been ingested.',
@@ -17,16 +19,19 @@ const RUNG_META: Record<string, { title: string; blurb: string; route: AppRoute 
         title: 'Skill map approved',
         blurb: 'Generate a competency map from the corpus, then approve it. This is the substrate matching and gap-detection run on.',
         route: '/graph-studio',
+        reviewKind: 'skill-map',
     },
     baseline: {
         title: 'Baseline set',
         blurb: 'Mark which approved competencies a hire on this project is expected to reach.',
         route: '/onboarding-baseline',
+        reviewKind: 'baseline',
     },
     'starter-tasks': {
         title: 'Starter tasks stocked',
         blurb: 'Well-scoped first tasks a hire can aim at. Approving one turns it into a goal.',
         route: '/starter-work',
+        reviewKind: 'starter-tasks',
     },
     'human-loop': {
         title: 'A human per hire',
