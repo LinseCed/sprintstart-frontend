@@ -315,6 +315,23 @@ export const projectService = {
     return toAdminProjectDetails(project);
   },
 
+  /**
+   * Fetches one project's details — metadata, connected sources and assigned
+   * users — through the project-scoped endpoint any project member may reach.
+   *
+   * Unlike `getProjectById` (which hits the ADMIN-only `/admin/projects/{id}`),
+   * this uses `/projects/{id}`, authorized for the assigned manager and members
+   * as well. It is how PM/member flows obtain a project's `sources`, which the
+   * ADMIN-only listing never exposes to them.
+   */
+  async getAccessibleProject(projectId: string): Promise<AdminProjectDetails> {
+    const project = await apiClient.fetch<BackendAdminProjectDetails>(
+      `/api/v1/projects/${projectId}`,
+    );
+
+    return toAdminProjectDetails(project);
+  },
+
   async createProject(
     request: CreateProjectRequest,
   ): Promise<AdminProjectDetails> {

@@ -27,7 +27,13 @@ export type ProjectContextValue = {
   projects: SelectableProject[];
   selectedProject: SelectableProject | null;
   selectedProjectId: string;
-  /** Whether the user manages the currently selected project. */
+  /**
+   * Whether the user manages the currently selected project.
+   *
+   * Also gates the manager-only areas (PM dashboard, data ingestion) for the PM
+   * role: a PM who is a mere member of the selected project should not reach
+   * them. Admins/HR are gated by role alone, so this is only consulted for PMs.
+   */
   canManageSelected: boolean;
   /** Whether the project switcher should be offered at all for this role. */
   isSwitcherEnabled: boolean;
