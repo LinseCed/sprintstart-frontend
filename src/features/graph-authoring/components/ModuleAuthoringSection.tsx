@@ -1,4 +1,6 @@
 import { FilePlus2, Loader2, Pencil, Sparkles } from 'lucide-react';
+import { AiActivityLog } from '../../ai-activity/AiActivityLog';
+import type { AiActivityEntry } from '../../ai-activity/useAiStream';
 import type { LiveCompetency } from '../types';
 import type { ModuleReadiness } from '../hooks/useModuleAuthoring';
 
@@ -12,6 +14,10 @@ type ModuleAuthoringSectionProps = {
     onOpenModule: (moduleId: string) => void;
     /** Creates a module for this competency, then the caller opens the editor. */
     onCreate: (mode: 'blank' | 'ai') => void;
+    /** True while this competency's module is being AI-drafted, so the live log shows. */
+    isStreaming?: boolean;
+    /** The live draft log; shown in place of the buttons while streaming. */
+    activity?: AiActivityEntry[];
 };
 
 /**
@@ -35,7 +41,9 @@ export function ModuleAuthoringSection({
     isBusy,
     error,
     onOpenModule,
-    onCreate
+    onCreate,
+    isStreaming,
+    activity
 }: ModuleAuthoringSectionProps) {
     const { activeModuleId, pending } = readiness;
 
@@ -45,7 +53,9 @@ export function ModuleAuthoringSection({
                 Learn-verify module
             </h3>
 
-            {activeModuleId ? (
+            {isStreaming && activity !== undefined ? (
+                <AiActivityLog phase="streaming" entries={activity} title="Drafting the module" />
+            ) : activeModuleId ? (
                 <>
                     <p className="text-xs text-app-text-muted">
                         A module is published for this competency.

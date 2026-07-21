@@ -2,7 +2,10 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { OrientationEditor } from '../../../../src/features/orientation/components/OrientationEditor';
-import type { OrientationPacket } from '../../../../src/features/orientation/types';
+import type {
+    AuthorOrientationInput,
+    OrientationPacket
+} from '../../../../src/features/orientation/types';
 
 const packet: OrientationPacket = {
     taskId: 'task-1',
@@ -45,7 +48,7 @@ describe('OrientationEditor', () => {
         await user.click(screen.getByTestId('save-orientation'));
 
         await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
-        const input = onSave.mock.calls[0][0];
+        const input = onSave.mock.calls[0][0] as AuthorOrientationInput;
         expect(input.sections[0].title).toBe('Get it running');
         // Citations survive editing and drop the chunkId the AI used.
         expect(input.sections[0].citations[0]).toEqual({

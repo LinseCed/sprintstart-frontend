@@ -2,6 +2,8 @@ import { AlertCircle, BookOpen, Loader2, PencilLine, RefreshCw, UserRound } from
 import { OrientationSectionCard } from './OrientationSectionCard';
 import { SourceLinks } from './SourceLinks';
 import { useOpenSteps } from '../hooks/useOpenSteps';
+import { AiActivityLog } from '../../ai-activity/AiActivityLog';
+import type { AiActivityEntry } from '../../ai-activity/useAiStream';
 import type { MyOrientation, OrientationPacket } from '../types';
 
 type OrientationPanelProps = {
@@ -14,6 +16,9 @@ type OrientationPanelProps = {
      * (like the editor's own live preview) so the panel doesn't offer to edit itself.
      */
     onEdit?: () => void;
+    /** The live assembly log; when streaming, it replaces the spinner. */
+    activity?: AiActivityEntry[];
+    isStreaming?: boolean;
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -93,14 +98,30 @@ function Packet({ packet, onEdit }: { packet: OrientationPacket; onEdit?: () => 
  * entry point for correcting the orientation in place — including when the corpus
  * grounded nothing, where the honest move is to write it yourself.
  */
-export function OrientationPanel({ orientation, isLoading, error, onRetry, onEdit }: OrientationPanelProps) {
+export function OrientationPanel({
+    orientation,
+    isLoading,
+    error,
+    onRetry,
+    onEdit,
+    activity,
+    isStreaming
+}: OrientationPanelProps) {
     if (isLoading) {
         return (
             <Shell>
-                <div className="flex items-center gap-2 text-xs text-app-text-muted">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    Gathering what already exists…
-                </div>
+                {isStreaming && activity !== undefined ? (
+                    <AiActivityLog
+                        phase="streaming"
+                        entries={activity}
+                        title="Assembling your orientation"
+                    />
+                ) : (
+                    <div className="flex items-center gap-2 text-xs text-app-text-muted">
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        Gathering what already exists…
+                    </div>
+                )}
             </Shell>
         );
     }

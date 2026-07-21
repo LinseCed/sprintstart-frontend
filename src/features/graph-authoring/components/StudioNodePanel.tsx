@@ -12,6 +12,7 @@ import type {
     SetBaselineEntryInput,
 } from '../types';
 import type { ModuleReadiness } from '../hooks/useModuleAuthoring';
+import type { AiActivityEntry } from '../../ai-activity/useAiStream';
 
 type StudioNodePanelProps = {
     competency: LiveCompetency;
@@ -35,6 +36,8 @@ type StudioNodePanelProps = {
         error: string | null;
         onOpenModule: (moduleId: string) => void;
         onCreate: (mode: 'blank' | 'ai') => void;
+        isStreaming?: boolean;
+        activity?: AiActivityEntry[];
     };
     /** Direct baseline authoring for the selected project; null when no project is scoped. */
     baselineProps: {
@@ -195,6 +198,8 @@ export function StudioNodePanel({
                             error={moduleReadinessProps.error}
                             onOpenModule={moduleReadinessProps.onOpenModule}
                             onCreate={moduleReadinessProps.onCreate}
+                            isStreaming={moduleReadinessProps.isStreaming}
+                            activity={moduleReadinessProps.activity}
                         />
                     ) : (
                         <p className="text-xs text-app-text-subtle">
