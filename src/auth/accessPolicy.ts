@@ -78,6 +78,8 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
 
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/chat': ['/chat/'],
+    // /setup/review (the unified proposal inbox) sits under the Setup surface's permissions.
+    '/setup': ['/setup/'],
     '/onboarding': ['/onboarding/'],
     // The focused module route (/my-path/module/:moduleId) sits under the map's permissions.
     '/my-path': ['/my-path/'],

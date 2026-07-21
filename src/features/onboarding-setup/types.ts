@@ -29,6 +29,8 @@ export interface LadderRung extends SetupRung {
     blurb: string;
     /** Where "open this stage" navigates. */
     route: AppRoute;
+    /** For rungs backed by a proposal queue: the `?kind=` the review inbox filters by. */
+    reviewKind?: string;
 }
 
 /** The full five-rung ladder shown on the Setup page, and whether every stage is done. */
