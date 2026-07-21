@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
 import type {
+    CreateStarterWorkTaskInput,
     GenerateStarterWorkResult,
     PathGoal,
     ProposedStarterWork,
@@ -20,6 +21,18 @@ export const starterWorkService = {
     /** The starter tasks currently awaiting PM review. */
     async fetchProposed(): Promise<ProposedStarterWork> {
         return await apiClient.fetch<ProposedStarterWork>(`${BASE_URL}/proposed`);
+    },
+
+    /**
+     * Hand-authors a starter task, with no AI mining. It is born `APPROVED` and its `CONTRIBUTION`
+     * node lands in the graph at once, so it never joins the review queue — the returned task is
+     * already approved.
+     */
+    async create(input: CreateStarterWorkTaskInput): Promise<StarterWorkTask> {
+        return await apiClient.fetch<StarterWorkTask>(BASE_URL, {
+            method: 'POST',
+            body: JSON.stringify(input),
+        });
     },
 
     /**

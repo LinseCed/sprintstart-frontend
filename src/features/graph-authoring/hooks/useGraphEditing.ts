@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ApiError } from '../../../services/apiClient';
 import { competencyGraphService } from '../../../services/competencyGraphService';
-import type { EdgeKind, UpdateCompetencyInput } from '../types';
+import type { CreateCompetencyInput, EdgeKind, LiveCompetency, UpdateCompetencyInput } from '../types';
 
 /**
  * Turns a failed graph write into something a PM can act on, at the point of the gesture.
@@ -67,6 +67,26 @@ export function useGraphEditing(onGraphChanged: () => void | Promise<void>) {
         [onGraphChanged]
     );
 
+    // Unlike the others, this needs the created node back (so the studio can select it), which the
+    // boolean-returning `run` can't carry -- so it runs the same flow inline and returns the node.
+    const createCompetency = useCallback(
+        async (input: CreateCompetencyInput): Promise<LiveCompetency | null> => {
+            setIsSaving(true);
+            setError(null);
+            try {
+                const created = await competencyGraphService.createCompetency(input);
+                await onGraphChanged();
+                return created;
+            } catch (err) {
+                setError(toEditingError(err, 'Could not create this competency.'));
+                return null;
+            } finally {
+                setIsSaving(false);
+            }
+        },
+        [onGraphChanged]
+    );
+
     const updateCompetency = useCallback(
         (key: string, input: UpdateCompetencyInput) =>
             run(
@@ -107,6 +127,7 @@ export function useGraphEditing(onGraphChanged: () => void | Promise<void>) {
         isSaving,
         error,
         clearError,
+        createCompetency,
         updateCompetency,
         deleteCompetency,
         addPrerequisite,

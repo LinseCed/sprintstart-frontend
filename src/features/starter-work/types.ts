@@ -24,6 +24,21 @@ export type ProposedStarterWork = {
     tasks: StarterWorkTask[];
 };
 
+/**
+ * What a PM sends to hand-author a starter task, with no AI mining.
+ *
+ * The origination counterpart to approving a mined proposal. A hand-authored task is born
+ * `APPROVED` and its `CONTRIBUTION` node lands in the graph at once, so it never appears in the
+ * review queue. `sourceUrl` is an optional link to the issue or PR it tracks; `competencyKeys` are
+ * wired as prerequisite edges, and a key that isn't a live competency is skipped, not rejected.
+ */
+export type CreateStarterWorkTaskInput = {
+    title: string;
+    summary?: string;
+    sourceUrl?: string;
+    competencyKeys?: string[];
+};
+
 export type GenerateStarterWorkResult = {
     status: string;
     tasksProposed: number;

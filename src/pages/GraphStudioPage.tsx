@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCheck, Loader2, Network, Sparkles, X } from 'lucide-react';
+import { AlertCircle, CheckCheck, Loader2, Network, Plus, Sparkles, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ProjectSelect } from '../features/projects/components/ProjectSelect';
 import { useProjectSelection } from '../features/projects/useProjectSelection';
 import { StudioGraph } from '../features/graph-authoring/components/StudioGraph';
 import { StudioNodePanel } from '../features/graph-authoring/components/StudioNodePanel';
+import { NewCompetencyModal } from '../features/graph-authoring/components/NewCompetencyModal';
 import { CompetencyProposalList } from '../features/graph-authoring/components/CompetencyProposalList';
 import { CompetencyEdgeProposalList } from '../features/graph-authoring/components/CompetencyEdgeProposalList';
 import { useGraphAuthoring } from '../features/graph-authoring/hooks/useGraphAuthoring';
@@ -86,6 +87,7 @@ export function GraphStudioPage() {
         isSaving,
         error: editError,
         clearError: clearEditError,
+        createCompetency,
         updateCompetency,
         deleteCompetency,
         addPrerequisite,
@@ -94,6 +96,19 @@ export function GraphStudioPage() {
 
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    const handleCreateCompetency = async (
+        input: Parameters<typeof createCompetency>[0]
+    ): Promise<boolean> => {
+        const created = await createCompetency(input);
+        if (created) {
+            // Drop the PM straight onto the node they just made, so they can connect it or open a
+            // module without hunting for it in the graph.
+            setSelectedKey(created.key);
+        }
+        return Boolean(created);
+    };
 
     const proposals = useMemo(
         () => ({ competencies: proposedCompetencies, edges: proposedEdges }),
@@ -158,6 +173,17 @@ export function GraphStudioPage() {
                                     </span>
                                 )}
                             </button>
+                            {canAuthor && (
+                                <button
+                                    type="button"
+                                    data-testid="add-competency"
+                                    onClick={() => setIsCreateOpen(true)}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add competency
+                                </button>
+                            )}
                             {canAuthor && (
                                 <button
                                     type="button"
@@ -227,8 +253,19 @@ export function GraphStudioPage() {
                         </h2>
                         <p className="text-sm text-app-text-muted">
                             Generate proposals from the ingested corpus to get a first set of
-                            competencies, then approve the ones that belong.
+                            competencies, then approve the ones that belong — or add a node by hand.
                         </p>
+                        {canAuthor && (
+                            <button
+                                type="button"
+                                data-testid="add-competency-empty"
+                                onClick={() => setIsCreateOpen(true)}
+                                className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Add competency
+                            </button>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -376,6 +413,19 @@ export function GraphStudioPage() {
                         </section>
                     </div>
                 </div>
+            )}
+
+            {isCreateOpen && (
+                <NewCompetencyModal
+                    isSaving={isSaving}
+                    error={editError}
+                    onClearError={clearEditError}
+                    onCreate={handleCreateCompetency}
+                    onClose={() => {
+                        clearEditError();
+                        setIsCreateOpen(false);
+                    }}
+                />
             )}
         </div>
     );
