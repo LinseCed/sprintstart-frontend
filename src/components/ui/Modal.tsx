@@ -75,6 +75,12 @@ export function Modal({
             const dialog = dialogRef.current;
             if (!dialog) return;
 
+            // The autofocus runs a frame late, so a keyboard user (or a test
+            // typing into the dialog) may already have moved focus inside it by
+            // now. Don't yank it back to the first control in that case.
+            const active = document.activeElement;
+            if (active && active !== dialog && dialog.contains(active)) return;
+
             const [firstFocusable] = getFocusableElements(dialog);
             (firstFocusable ?? dialog).focus();
         });
