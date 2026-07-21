@@ -7,19 +7,6 @@ import type {
 
 export const assessmentService = {
     /**
-     * Whether the authenticated user has ever completed a skill assessment.
-     *
-     * This is the source of truth for the "needs assessment" gate -- a
-     * COMPLETED assessment session on the backend, not the retired
-     * self-reported skill-wizard data.
-     */
-    async fetchAssessmentStatus(): Promise<{ completed: boolean }> {
-        return await apiClient.fetch<{ completed: boolean }>(
-            '/api/v1/onboarding/me/assessment/status'
-        );
-    },
-
-    /**
      * Starts the authenticated user's skill-assessment interview, or resumes it
      * if one is already in progress.
      */
@@ -120,35 +107,4 @@ export function markAssessmentCompleted(userId: string): void {
     if (typeof window === 'undefined') return;
 
     window.localStorage.setItem(getAssessmentCompletedKey(userId), 'true');
-}
-
-const assessmentGateSnoozePrefix = 'assessment-gate-snooze';
-const ASSESSMENT_GATE_SNOOZE_MS = 24 * 60 * 60 * 1000;
-
-function getAssessmentGateSnoozeKey(userId: string) {
-    return `${assessmentGateSnoozePrefix}:${userId}`;
-}
-
-/**
- * Whether this user has snoozed the "needs assessment" gate via "Skip for now".
- *
- * The snooze is a client-side, time-boxed escape hatch (24h), not a dismissal -- the assessment
- * stays the intended front door, the gate just stops redirecting until the snooze expires.
- */
-export function isAssessmentGateSnoozed(userId: string): boolean {
-    if (typeof window === 'undefined') return false;
-
-    const raw = window.localStorage.getItem(getAssessmentGateSnoozeKey(userId));
-    const snoozedUntil = raw === null ? Number.NaN : Number(raw);
-    return Number.isFinite(snoozedUntil) && Date.now() < snoozedUntil;
-}
-
-/** Snoozes the "needs assessment" gate for this user for the next 24 hours. */
-export function snoozeAssessmentGate(userId: string): void {
-    if (typeof window === 'undefined') return;
-
-    window.localStorage.setItem(
-        getAssessmentGateSnoozeKey(userId),
-        String(Date.now() + ASSESSMENT_GATE_SNOOZE_MS)
-    );
 }

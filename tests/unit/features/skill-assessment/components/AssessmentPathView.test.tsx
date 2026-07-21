@@ -11,10 +11,10 @@ describe('AssessmentPathView', () => {
         expect(screen.getByText(/no competencies in your path yet/i)).toBeInTheDocument();
     });
 
-    it('orders nodes so prerequisites render before what they unlock', () => {
+    it('orders nodes so prerequisites render before what builds on them', () => {
         const path: PathView = {
             nodes: [
-                { key: 'b', label: 'B', kind: 'SKILL', state: 'LOCKED' },
+                { key: 'b', label: 'B', kind: 'SKILL', state: 'AVAILABLE' },
                 { key: 'a', label: 'A', kind: 'SKILL', state: 'MASTERED' },
             ],
             edges: [{ from: 'a', to: 'b' }],
@@ -31,7 +31,7 @@ describe('AssessmentPathView', () => {
         const path: PathView = {
             nodes: [
                 { key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'MASTERED' },
-                { key: 'domain-model', label: 'Our domain model', kind: 'CONCEPT', state: 'LOCKED' },
+                { key: 'domain-model', label: 'Our domain model', kind: 'CONCEPT', state: 'AVAILABLE' },
             ],
             edges: [{ from: 'kotlin', to: 'domain-model' }],
             graphVersion: 1,
@@ -41,7 +41,7 @@ describe('AssessmentPathView', () => {
         expect(screen.getByText(/after: kotlin/i)).toBeInTheDocument();
     });
 
-    it('renders a visibly shorter/more-mastered list for a senior-like path than a junior-like one', () => {
+    it('renders more shown and fewer open nodes for a senior-like path than a junior-like one', () => {
         const seniorPath: PathView = {
             nodes: [
                 { key: 'a', label: 'A', kind: 'SKILL', state: 'MASTERED' },
@@ -54,23 +54,23 @@ describe('AssessmentPathView', () => {
         const juniorPath: PathView = {
             nodes: [
                 { key: 'a', label: 'A', kind: 'SKILL', state: 'AVAILABLE' },
-                { key: 'b', label: 'B', kind: 'SKILL', state: 'LOCKED' },
-                { key: 'c', label: 'C', kind: 'SKILL', state: 'LOCKED' },
-                { key: 'd', label: 'D', kind: 'CONCEPT', state: 'LOCKED' },
-                { key: 'e', label: 'E', kind: 'CONTRIBUTION', state: 'LOCKED' },
+                { key: 'b', label: 'B', kind: 'SKILL', state: 'AVAILABLE' },
+                { key: 'c', label: 'C', kind: 'SKILL', state: 'AVAILABLE' },
+                { key: 'd', label: 'D', kind: 'CONCEPT', state: 'AVAILABLE' },
+                { key: 'e', label: 'E', kind: 'CONTRIBUTION', state: 'AVAILABLE' },
             ],
             edges: [],
             graphVersion: 1,
         };
 
         const { unmount } = render(<AssessmentPathView path={seniorPath} />);
-        const seniorLockedCount = screen.queryAllByText('Locked').length;
+        const seniorOpenCount = screen.queryAllByText('Open').length;
         unmount();
 
         render(<AssessmentPathView path={juniorPath} />);
-        const juniorLockedCount = screen.queryAllByText('Locked').length;
+        const juniorOpenCount = screen.queryAllByText('Open').length;
 
-        expect(seniorLockedCount).toBeLessThan(juniorLockedCount);
+        expect(seniorOpenCount).toBeLessThan(juniorOpenCount);
     });
 
     it('opens a node with a stepId and calls onSelectNode', async () => {
@@ -86,17 +86,6 @@ describe('AssessmentPathView', () => {
         await user.click(screen.getByRole('button', { name: /kotlin/i }));
 
         expect(onSelectNode).toHaveBeenCalledWith(path.nodes[0]);
-    });
-
-    it('does not make a locked node clickable even if it has a stepId', () => {
-        const path: PathView = {
-            nodes: [{ key: 'kotlin', label: 'Kotlin', kind: 'SKILL', state: 'LOCKED', moduleId: 'step1' }],
-            edges: [],
-            graphVersion: 1,
-        };
-        render(<AssessmentPathView path={path} onSelectNode={vi.fn()} />);
-
-        expect(screen.queryByRole('button', { name: /kotlin/i })).not.toBeInTheDocument();
     });
 
     it('does not make a node without a stepId clickable', () => {

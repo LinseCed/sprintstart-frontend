@@ -8,7 +8,7 @@ const path: PathView = {
     nodes: [
         { key: 'a', label: 'A', kind: 'SKILL', state: 'MASTERED' },
         { key: 'b', label: 'B', kind: 'SKILL', state: 'AVAILABLE' },
-        { key: 'c', label: 'C', kind: 'CONTRIBUTION', state: 'LOCKED' }
+        { key: 'c', label: 'C', kind: 'CONTRIBUTION', state: 'AVAILABLE' }
     ],
     edges: [
         { from: 'a', to: 'b' },

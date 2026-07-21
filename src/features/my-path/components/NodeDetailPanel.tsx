@@ -24,12 +24,14 @@ const SOURCE_LABELS: Record<CompetencySource, string> = {
 };
 
 /**
- * The side panel for a selected graph node: what it is, where you stand, and --
- * crucially -- *why* it is in that state, so a locked node is an explanation
- * with a way forward rather than a dead end.
+ * The side panel for a selected graph node: what it is, where you stand, and what
+ * it usually builds on -- as an ordering suggestion, never a gate. Nothing is
+ * withheld until a prerequisite clears, so the panel points the way rather than
+ * barring the door.
  *
- * Blockers are rendered as buttons that move the graph selection to the blocking
- * prerequisite, so a hire can walk backwards from "I want this" to "start here".
+ * The suggested prerequisites are rendered as buttons that move the graph
+ * selection, so a hire can walk backwards from "I want this" to "a good place to
+ * start" -- but they can also start the node itself whenever they like.
  *
  * Entirely a hire's view. Editing the competency, its prerequisites or its module
  * is a different job for a different audience and lives in the competency studio
@@ -77,8 +79,9 @@ export function NodeDetailPanel({
         .filter(edge => edge.to === node.key)
         .map(edge => path.nodes.find(candidate => candidate.key === edge.from))
         .filter((candidate): candidate is PathNode => candidate !== undefined);
-    const blockers = prerequisites.filter(prerequisite => prerequisite.state !== 'MASTERED');
-    const unlocks = path.edges
+    // Prerequisites the hire hasn't shown yet -- suggested ordering, not a barrier.
+    const suggestedFirst = prerequisites.filter(prerequisite => prerequisite.state !== 'MASTERED');
+    const leadsTo = path.edges
         .filter(edge => edge.from === node.key)
         .map(edge => path.nodes.find(candidate => candidate.key === edge.to)?.label ?? edge.to);
 
@@ -87,7 +90,8 @@ export function NodeDetailPanel({
     const goal = path.goal ?? null;
     const isGoal = goal?.competencyKey === node.key;
     const isContribution = node.kind === 'CONTRIBUTION';
-    const canStart = Boolean(node.moduleId) && node.state !== 'LOCKED';
+    // A module opens whenever one is published -- no state gates it.
+    const canStart = Boolean(node.moduleId);
 
     return (
         <aside
@@ -140,47 +144,40 @@ export function NodeDetailPanel({
                     </p>
                 )}
                 {node.state === 'AVAILABLE' && (
-                    <p className="text-sm text-app-text-muted">
-                        {prerequisites.length > 0
-                            ? 'Every prerequisite is cleared, so this is ready to start.'
-                            : "This has no prerequisites -- it's a starting point."}
-                    </p>
-                )}
-                {node.state === 'LOCKED' && (
                     <div className="space-y-2">
-                        {/*
-                         * Phrased as an ordering suggestion, not a gate. Nothing on the ramp is
-                         * withheld until these clear -- a hire can pick any open task -- so saying
-                         * "waiting on" would describe a restriction that does not exist.
-                         */}
-                        <p className="flex items-center gap-1.5 text-sm text-app-text-muted">
-                            <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            Usually comes after {blockers.length} other{blockers.length === 1 ? '' : 's'}:
+                        <p className="text-sm text-app-text-muted">
+                            {prerequisites.length === 0
+                                ? "This has no prerequisites -- it's a good place to start."
+                                : suggestedFirst.length === 0
+                                  ? 'Everything this builds on is already shown -- ready when you are.'
+                                  : "Usually comes after these, but nothing stops you starting it now:"}
                         </p>
-                        <ul className="space-y-1">
-                            {blockers.map(blocker => (
-                                <li key={blocker.key}>
-                                    <button
-                                        type="button"
-                                        onClick={() => onSelectKey(blocker.key)}
-                                        className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm text-app-brand-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                                    >
-                                        <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                        {blocker.label}
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                        {suggestedFirst.length > 0 && (
+                            <ul className="space-y-1">
+                                {suggestedFirst.map(prerequisite => (
+                                    <li key={prerequisite.key}>
+                                        <button
+                                            type="button"
+                                            onClick={() => onSelectKey(prerequisite.key)}
+                                            className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm text-app-brand-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                                        >
+                                            <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                            {prerequisite.label}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 )}
             </section>
 
-            {unlocks.length > 0 && (
+            {leadsTo.length > 0 && (
                 <section>
                     <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-app-text-subtle">
-                        Unlocks
+                        Leads to
                     </h3>
-                    <p className="text-sm text-app-text-muted">{unlocks.join(', ')}</p>
+                    <p className="text-sm text-app-text-muted">{leadsTo.join(', ')}</p>
                 </section>
             )}
 
@@ -198,9 +195,9 @@ export function NodeDetailPanel({
                     <p className="text-xs text-app-text-muted">
                         {goal.isReachable
                             ? 'You have everything this needs. Ship it as a pull request — that is what gets checked.'
-                            : `${goal.remainingCount} ${
-                                  goal.remainingCount === 1 ? 'prerequisite' : 'prerequisites'
-                              } to clear before you start.`}
+                            : `${goal.remainingCount} related ${
+                                  goal.remainingCount === 1 ? 'competency' : 'competencies'
+                              } still open — you can start whenever you're ready.`}
                     </p>
                     {goal.sourceUrl && (
                         <a
@@ -242,9 +239,7 @@ export function NodeDetailPanel({
                 </button>
             ) : (
                 <p className="text-xs text-app-text-subtle">
-                    {node.moduleId
-                        ? 'Clear the prerequisites above to open this module.'
-                        : 'Nothing has been published for this competency yet.'}
+                    Nothing has been published for this competency yet.
                 </p>
             )}
 
