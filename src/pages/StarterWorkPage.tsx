@@ -1,9 +1,12 @@
-import { Loader2, Sparkles, Target } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, Loader2, Plus, Sparkles, Target, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 import { StarterWorkTaskCard } from '../features/starter-work/components/StarterWorkTaskCard';
+import { NewStarterTaskModal } from '../features/starter-work/components/NewStarterTaskModal';
 import { useStarterWorkReview } from '../features/starter-work/hooks/useStarterWorkReview';
+import type { CreateStarterWorkTaskInput } from '../features/starter-work/types';
 
 /**
  * PM-facing review of AI-mined starter work.
@@ -18,8 +21,29 @@ import { useStarterWorkReview } from '../features/starter-work/hooks/useStarterW
 export function StarterWorkPage() {
     const { profile } = useAuth();
     const canAct = profile?.permissionGroup !== PermissionGroup.HR;
-    const { tasks, isLoading, isGenerating, error, generateResult, generate, approve, reject } =
-        useStarterWorkReview();
+    const {
+        tasks,
+        isLoading,
+        isGenerating,
+        error,
+        generateResult,
+        createdTask,
+        generate,
+        create,
+        dismissCreated,
+        approve,
+        reject
+    } = useStarterWorkReview();
+
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+
+    const handleCreate = async (input: CreateStarterWorkTaskInput): Promise<boolean> => {
+        setIsCreating(true);
+        const ok = await create(input);
+        setIsCreating(false);
+        return ok;
+    };
 
     return (
         <div className="min-h-screen bg-app-bg">
@@ -30,26 +54,61 @@ export function StarterWorkPage() {
                         title="Starter Work"
                         subtitle="Well-scoped first tasks mined from the ingested corpus. Approving one turns it into a goal a hire can work toward — their path becomes the route to shipping it."
                         actions={
-                            <button
-                                type="button"
-                                data-testid="generate-starter-work"
-                                onClick={() => void generate()}
-                                disabled={isGenerating}
-                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isGenerating ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Sparkles className="h-4 w-4" />
+                            <div className="flex flex-wrap items-center gap-2">
+                                {canAct && (
+                                    <button
+                                        type="button"
+                                        data-testid="add-starter-task"
+                                        onClick={() => setIsCreateOpen(true)}
+                                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Add a task
+                                    </button>
                                 )}
-                                {isGenerating ? 'Mining...' : 'Find starter tasks'}
-                            </button>
+                                <button
+                                    type="button"
+                                    data-testid="generate-starter-work"
+                                    onClick={() => void generate()}
+                                    disabled={isGenerating}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isGenerating ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4" />
+                                    )}
+                                    {isGenerating ? 'Mining...' : 'Find starter tasks'}
+                                </button>
+                            </div>
                         }
                     />
                 </div>
             </header>
 
             <main className="app-page-frame space-y-5 py-6 lg:py-8">
+                {createdTask && (
+                    <div
+                        data-testid="created-task-confirmation"
+                        className="flex items-start gap-3 rounded-2xl border border-app-success-border bg-app-success-bg p-4 text-sm text-app-success-text"
+                    >
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <p className="flex-1">
+                            <strong>“{createdTask.title}”</strong> is now a goal in the graph — it
+                            skipped review because you authored it. It won&apos;t appear in the queue
+                            below; hires can aim at it straight away.
+                        </p>
+                        <button
+                            type="button"
+                            aria-label="Dismiss"
+                            onClick={dismissCreated}
+                            className="rounded-lg p-1 text-app-success-text transition-colors hover:bg-app-surface-hover"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
+
                 {generateResult && (
                     <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-4 text-sm text-app-brand-text">
                         Found {generateResult.tasksProposed} task
@@ -96,6 +155,15 @@ export function StarterWorkPage() {
                     </section>
                 )}
             </main>
+
+            {isCreateOpen && (
+                <NewStarterTaskModal
+                    isSaving={isCreating}
+                    error={error}
+                    onCreate={handleCreate}
+                    onClose={() => setIsCreateOpen(false)}
+                />
+            )}
         </div>
     );
 }

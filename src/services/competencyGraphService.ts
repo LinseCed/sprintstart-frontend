@@ -3,6 +3,7 @@ import type {
     ApproveGraphBatchResult,
     CompetencyEdgeProposal,
     CompetencyProposal,
+    CreateCompetencyInput,
     DeleteCompetencyResult,
     EdgeKind,
     GenerateGraphResult,
@@ -98,6 +99,20 @@ export const competencyGraphService = {
      */
     async fetchGraph(): Promise<LiveGraph> {
         return await apiClient.fetch<LiveGraph>(BASE_URL);
+    },
+
+    /**
+     * Hand-authors a new competency node, with no AI proposal in the loop.
+     *
+     * The origination counterpart to `approveCompetency`: AI mining is one way to seed the graph,
+     * this is the other. The returned node's `key` may differ from the one sent — the backend
+     * slugifies it into the graph's house style.
+     */
+    async createCompetency(input: CreateCompetencyInput): Promise<LiveCompetency> {
+        return await apiClient.fetch<LiveCompetency>(`${BASE_URL}/competencies`, {
+            method: 'POST',
+            body: JSON.stringify(input),
+        });
     },
 
     /**

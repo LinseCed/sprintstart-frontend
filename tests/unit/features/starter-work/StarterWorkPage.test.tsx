@@ -91,4 +91,37 @@ describe('StarterWorkPage', () => {
 
         expect(await screen.findByText('boom')).toBeInTheDocument();
     });
+
+    it('hand-authors a task through the service and confirms it skipped review', async () => {
+        const user = userEvent.setup();
+        const create = vi.spyOn(starterWorkService, 'create').mockResolvedValue({
+            ...task,
+            id: 'authored-1',
+            title: 'Add a dark-mode toggle',
+            status: 'APPROVED'
+        });
+        render(<StarterWorkPage />);
+
+        await user.click(await screen.findByTestId('add-starter-task'));
+        await user.type(screen.getByLabelText('Title'), 'Add a dark-mode toggle');
+        await user.click(screen.getByTestId('create-starter-task'));
+
+        await waitFor(() =>
+            expect(create).toHaveBeenCalledWith(
+                expect.objectContaining({ title: 'Add a dark-mode toggle' })
+            )
+        );
+        // Born approved, so it never joins the queue — the page says so rather than losing it.
+        expect(await screen.findByTestId('created-task-confirmation')).toHaveTextContent(
+            /add a dark-mode toggle/i
+        );
+    });
+
+    it('does not offer hand-authoring to HR', async () => {
+        permissionGroup.current = 'HR';
+        render(<StarterWorkPage />);
+
+        await screen.findByText('Fix the login redirect');
+        expect(screen.queryByTestId('add-starter-task')).not.toBeInTheDocument();
+    });
 });

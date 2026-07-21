@@ -90,6 +90,24 @@ export type LiveCompetency = {
     repoRef: string | null;
 };
 
+/**
+ * What a PM sends to hand-author a new competency, with no AI proposal in the loop.
+ *
+ * The origination counterpart of `UpdateCompetencyInput`: this one *requires* `key`, because
+ * creation is the single moment a node's permanent identity is set — editing can never change it,
+ * since the ledger, every edge and every module point at it. The backend slugifies the key into
+ * the graph's house style, so the created node's key may differ from what was typed. `targetLevel`
+ * omitted takes the intermediate default a proposed node would get.
+ */
+export type CreateCompetencyInput = {
+    key: string;
+    label: string;
+    description?: string;
+    kind: CompetencyKind;
+    targetLevel?: number;
+    invariant?: boolean;
+};
+
 /** The fields a PM can change on a live competency. Omitted fields are left alone. */
 export type UpdateCompetencyInput = {
     label?: string;
