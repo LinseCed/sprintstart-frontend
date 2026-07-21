@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StarterWorkPage } from '../../../../src/pages/StarterWorkPage';
 import { starterWorkService } from '../../../../src/services/starterWorkService';
+import { userService } from '../../../../src/services/userService';
 import type { StarterWorkTask } from '../../../../src/features/starter-work/types';
 
 const permissionGroup = vi.hoisted(() => ({ current: 'PM' }));
@@ -27,6 +28,10 @@ describe('StarterWorkPage', () => {
         vi.restoreAllMocks();
         permissionGroup.current = 'PM';
         vi.spyOn(starterWorkService, 'fetchProposed').mockResolvedValue({ tasks: [task] });
+        // The PM page also renders the task-orientation manager, which loads the approved pool and
+        // the caller's projects. Stub both so these tests stay about the review queue.
+        vi.spyOn(starterWorkService, 'fetchApproved').mockResolvedValue([]);
+        vi.spyOn(userService, 'getMyProjects').mockResolvedValue([]);
     });
 
     it('shows the AI scope-safety rationale next to the task', async () => {

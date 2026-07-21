@@ -21,20 +21,54 @@ describe('orientationService', () => {
         expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/me/orientation?projectId=p1');
     });
 
-    it('reports stale orientation as page-less feedback', async () => {
+    it('pins a hire-authored packet for their own current task', async () => {
+        const packet = { taskId: 't1', taskTitle: 'Fix the header', origin: 'HUMAN' };
+        const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(packet);
+        const input = {
+            summary: 'Do it.',
+            sections: [{ step: 'SET_UP' as const, title: 'Run it', body: 'make dev', citations: [] }]
+        };
+
+        await expect(orientationService.authorMyOrientation('p1', input)).resolves.toEqual(packet);
+        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/me/orientation?projectId=p1', {
+            method: 'PUT',
+            body: JSON.stringify(input)
+        });
+    });
+
+    it('hands a hire-authored packet back to the AI', async () => {
         const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(undefined);
 
-        await orientationService.reportStaleOrientation('The setup section is out of date.');
+        await orientationService.revertMyOrientation('p1');
 
-        // A packet is disposable, so there is no durable page to attach this to.
-        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/me/feedback', {
-            method: 'POST',
-            body: JSON.stringify({
-                pageId: null,
-                helpful: false,
-                message: 'The setup section is out of date.'
-            })
+        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/me/orientation?projectId=p1', {
+            method: 'DELETE'
         });
+    });
+
+    it('authors a task orientation on the PM surface, scoped to task and project', async () => {
+        const packet = { taskId: 't1', origin: 'HUMAN' };
+        const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(packet);
+        const input = {
+            summary: null,
+            sections: [{ step: 'SET_UP' as const, title: 'Run it', body: 'make dev', citations: [] }]
+        };
+
+        await orientationService.authorTaskOrientation('task-1', 'p1', input);
+
+        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/orientation/tasks/task-1?projectId=p1', {
+            method: 'PUT',
+            body: JSON.stringify(input)
+        });
+    });
+
+    it('reads a task orientation for authoring without triggering assembly', async () => {
+        const orientation = { taskId: 'task-1', taskTitle: 'Fix', taskUrl: null, packet: null, reason: null };
+        const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(orientation);
+
+        await orientationService.fetchTaskOrientation('task-1', 'p1');
+
+        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/orientation/tasks/task-1?projectId=p1');
     });
 
     it('propagates backend failures instead of swallowing them', async () => {
