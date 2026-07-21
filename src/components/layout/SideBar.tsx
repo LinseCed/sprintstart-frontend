@@ -54,16 +54,17 @@ const navItems: SidebarNavItem[] = [
         path: '/knowledge-base',
         icon: <BookOpen className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
-    // A new hire's day one: get it running, ship one small thing, meet their buddy.
+    // The hire's single onboarding spine: get it running, ship one small thing, meet their buddy,
+    // then the ramp. This is the front door; the competency map below is a secondary status view.
     {
-        label: 'First Week',
+        label: 'Onboarding',
         path: '/first-week',
         icon: <Compass className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
-    // The phased "OnBoarding" journey is retired -- a hire's onboarding *is* their competency
-    // path now, so there is one entry point rather than two overlapping ones.
+    // Demoted from a co-equal front door to "where I stand" -- the competency map as status, not a
+    // rival to-do. Onboarding leads; this reads as the optional standing view beneath it.
     {
-        label: 'My Path',
+        label: 'Where I stand',
         path: '/my-path',
         icon: <Map className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },

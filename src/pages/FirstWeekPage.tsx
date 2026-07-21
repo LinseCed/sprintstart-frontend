@@ -122,8 +122,8 @@ export function FirstWeekPage() {
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3">
                     <GraduationCap className="h-4 w-4 shrink-0 text-app-text-muted" aria-hidden="true" />
                     <p className="flex-1 text-xs text-app-text-muted">
-                        Optional: a short skill check helps tailor your competency path. You can take it
-                        anytime — it won&apos;t hold up your first week.
+                        Optional: a short skill check helps us suggest better first tasks. You can take
+                        it anytime — it won&apos;t hold up your first week.
                     </p>
                     <Link
                         to="/onboarding/assessment"
@@ -201,6 +201,17 @@ export function FirstWeekPage() {
                         )}
                     </div>
                 )}
+
+                {/* The competency map is a secondary status view, reached from the spine rather than
+                    competing with it in the nav. Low emphasis on purpose. */}
+                <div className="flex justify-center pt-2">
+                    <Link
+                        to="/my-path"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                    >
+                        See where you stand →
+                    </Link>
+                </div>
             </main>
         </div>
     );

@@ -89,10 +89,10 @@ export function DashboardPage() {
                             <p className="text-app-text/60 text-center mt-2">Explore company resources</p>
                         </Link>
 
-                        <Link to="/my-path" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+                        <Link to="/first-week" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
                             <Sparkles className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
                             <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Onboarding</h3>
-                            <p className="text-app-text/60 text-center mt-2">Continue your setup</p>
+                            <p className="text-app-text/60 text-center mt-2">Get set up and ship your first PR</p>
                         </Link>
                     </div>
 

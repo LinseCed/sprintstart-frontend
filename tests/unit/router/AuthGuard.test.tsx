@@ -133,10 +133,9 @@ describe('AuthGuard', () => {
         });
     });
 
-    it('does not redirect an un-assessed USER away from the landing route', async () => {
-        authenticatedAs(mockProfile);
-
-        render(
+    function renderAtRoot(profile: UserProfile) {
+        authenticatedAs(profile);
+        return render(
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route
@@ -151,16 +150,31 @@ describe('AuthGuard', () => {
                 </Routes>
             </MemoryRouter>,
         );
+    }
+
+    it('sends a USER landing on the root to their first-week onboarding home', async () => {
+        // A hire's home is their onboarding, not the generic dashboard. Role-based, no
+        // network, no assessment — so it can't recreate the retired-gate bug class.
+        renderAtRoot(mockProfile);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('location')).toHaveTextContent('/first-week');
+        });
+    });
+
+    it('does not redirect a USER away from a non-landing route', async () => {
+        // The landing redirect fires only from '/', so a hire navigates freely everywhere else.
+        authenticatedAs(mockProfile);
+
+        renderGuarded();
 
         await waitFor(() => {
             expect(screen.getByTestId('protected-content')).toBeInTheDocument();
         });
     });
 
-    it('renders children for non-USER permission groups too', async () => {
-        authenticatedAs({ ...mockProfile, permissionGroup: PermissionGroup.PM });
-
-        renderGuarded();
+    it('keeps the dashboard as home for non-USER roles', async () => {
+        renderAtRoot({ ...mockProfile, permissionGroup: PermissionGroup.PM });
 
         await waitFor(() => {
             expect(screen.getByTestId('protected-content')).toBeInTheDocument();
