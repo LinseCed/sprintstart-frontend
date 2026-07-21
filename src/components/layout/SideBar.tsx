@@ -124,7 +124,8 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
         location.pathname.startsWith('/pm-dashboard') ||
         location.pathname.startsWith('/insights/faq') ||
         location.pathname.startsWith('/insights/knowledge-gaps') ||
-        location.pathname.startsWith('/insights/competencies');
+        location.pathname.startsWith('/insights/competencies') ||
+        location.pathname.startsWith('/insights/onboarding');
 
     return (
         <div className="flex h-full flex-col bg-app-bg text-app-text">
