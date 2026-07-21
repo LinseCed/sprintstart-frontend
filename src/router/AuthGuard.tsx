@@ -15,18 +15,17 @@ interface LocationState {
 }
 
 /**
- * Route guard for authentication and the skill-assessment intake gate.
+ * Route guard for authentication and the new hire's day-one landing.
  *
- * Unauthenticated visitors are sent to the login page. Authenticated `USER`s
- * who have never completed the adaptive skill assessment are sent to
- * `/onboarding/assessment` until a completed session exists on the backend
- * (`GET /me/assessment/status`) -- the store the assessment chat actually
- * writes, replacing the retired skill-wizard heuristics. While the gate is
- * open, the status is re-checked on navigation so finishing the chat
- * releases the gate without a reload; once completed, no further checks are
- * made for the session. A failed status check fails open rather than
- * trapping the user in the assessment page, and "Skip for now" on the
- * assessment page snoozes the gate for 24 hours (client-side, per user).
+ * Unauthenticated visitors are sent to the login page. The skill assessment no
+ * longer gates the app: a `USER` who has never completed it (`GET
+ * /me/assessment/status`) is sent to their **first week** (`/first-week`) instead
+ * of the assessment — but only from the landing route, so they can navigate
+ * freely everywhere else. The assessment is offered there as an optional,
+ * non-blocking step; it never blocks the first week. The status is re-checked on
+ * navigation while still un-assessed, so completing it stops the landing redirect
+ * without a reload; a failed check fails open, and "Skip for now" snoozes the
+ * redirect for 24 hours (client-side, per user).
  */
 export function AuthGuard({ children }: AuthGuardProps) {
     const { status, profile } = useAuth();
@@ -100,16 +99,17 @@ export function AuthGuard({ children }: AuthGuardProps) {
         return <Navigate to={from} replace />;
     }
 
-    // The snooze is re-read at render time (not just in the effect) so that "Skip for now" on
-    // the assessment page takes effect on the very next navigation, before the effect has had a
-    // chance to recompute the stale needsSkillAssessment state.
+    // A new hire's day one is their first week, not the assessment. An un-assessed USER landing on
+    // the root is sent to /first-week; from anywhere else they navigate freely, so the assessment
+    // is genuinely optional. The snooze is re-read at render time (not just in the effect) so "Skip
+    // for now" takes effect on the very next navigation, before the effect recomputes.
     if (
         status === "authenticated" &&
         needsSkillAssessment &&
         !(profileId && isAssessmentGateSnoozed(profileId)) &&
-        location.pathname !== "/onboarding/assessment"
+        location.pathname === "/"
     ) {
-        return <Navigate to="/onboarding/assessment" replace />;
+        return <Navigate to="/first-week" replace />;
     }
 
     return <>{children}</>;

@@ -6,6 +6,7 @@ import {
     Briefcase,
     ChartColumn,
     ClipboardList,
+    Compass,
     Database,
     LogOut,
     Map,
@@ -49,6 +50,12 @@ const navItems: SidebarNavItem[] = [
         label: 'Knowledge Base',
         path: '/knowledge-base',
         icon: <BookOpen className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    // A new hire's day one: get it running, ship one small thing, meet their buddy.
+    {
+        label: 'First Week',
+        path: '/first-week',
+        icon: <Compass className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
     // The phased "OnBoarding" journey is retired -- a hire's onboarding *is* their competency
     // path now, so there is one entry point rather than two overlapping ones.

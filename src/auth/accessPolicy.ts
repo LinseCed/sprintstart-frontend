@@ -11,6 +11,7 @@ export type AppRoute =
     | '/knowledge-base'
     | '/onboarding'
     | '/onboarding/assessment'
+    | '/first-week'
     | '/my-path'
     | '/data-ingestion'
     | '/graph-studio'
@@ -40,6 +41,12 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.ADMIN,
     ],
     '/onboarding/assessment': [
+        PermissionGroup.USER,
+        PermissionGroup.PM,
+        PermissionGroup.HR,
+        PermissionGroup.ADMIN,
+    ],
+    '/first-week': [
         PermissionGroup.USER,
         PermissionGroup.PM,
         PermissionGroup.HR,
