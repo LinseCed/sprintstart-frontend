@@ -7,6 +7,8 @@ import { useProjectSelection } from '../features/projects/useProjectSelection';
 import { EnvironmentStep } from '../features/first-week/components/EnvironmentStep';
 import { TaskZeroStep } from '../features/first-week/components/TaskZeroStep';
 import { useFirstWeek } from '../features/first-week/hooks/useFirstWeek';
+import { OrientationPanel } from '../features/orientation/components/OrientationPanel';
+import { useOrientation } from '../features/orientation/hooks/useOrientation';
 import { BuddyCard } from '../features/human-loop/components/BuddyCard';
 import { firstWeekService } from '../services/firstWeekService';
 
@@ -34,6 +36,14 @@ export function FirstWeekPage() {
     } = useProjectSelection();
 
     const { environment, taskZero, isLoading, error, refresh } = useFirstWeek(selectedProjectId);
+    // Loaded independently of the first week itself: orientation is help, never a
+    // gate, so a slow assembly must not hold up the two reads the page depends on.
+    const {
+        orientation,
+        isLoading: orientationLoading,
+        error: orientationError,
+        reload: reloadOrientation
+    } = useOrientation(selectedProjectId);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isHandingBack, setIsHandingBack] = useState(false);
 
@@ -133,6 +143,14 @@ export function FirstWeekPage() {
                             environmentReady={environment?.ready ?? false}
                             onHandBack={() => void handleHandBack()}
                             isHandingBack={isHandingBack}
+                            orientation={
+                                <OrientationPanel
+                                    orientation={orientation}
+                                    isLoading={orientationLoading}
+                                    error={orientationError}
+                                    onRetry={() => void reloadOrientation()}
+                                />
+                            }
                         />
                         <div>
                             <div className="mb-3 flex items-center gap-2.5">
