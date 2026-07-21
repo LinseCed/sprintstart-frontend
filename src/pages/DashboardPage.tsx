@@ -22,7 +22,7 @@ export function DashboardPage() {
     const openGame2048 = useCallback(() => setGame2048Open(true), []);
     useGame2048Shortcut(openGame2048);
 
-    // Dino easter egg: Ctrl+Shift+3 opens the runner in a modal.
+    // Dino easter egg: Ctrl+Shift+1 opens the runner in a modal.
     // Bypasses the `dinoUnlocked` gate that the sidebar/chat use — the
     // dashboard chord is a true easter egg, always available.
     const [dinoOpen, setDinoOpen] = useState(false);
