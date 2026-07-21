@@ -14,6 +14,7 @@ export type AppRoute =
     | '/first-week'
     | '/my-path'
     | '/data-ingestion'
+    | '/setup'
     | '/graph-studio'
     | '/onboarding-baseline'
     | '/starter-work'
@@ -59,6 +60,8 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.ADMIN,
     ],
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    // The single front door to project setup; the stages below are reached from its ladder.
+    '/setup': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/graph-studio': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/onboarding-baseline': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     // HR reads the queue; approving is what mints a goal node, so only PM/ADMIN act (enforced

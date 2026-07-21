@@ -1,0 +1,84 @@
+import { AlertCircle, ListChecks, Loader2 } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
+import { ProjectSelect } from '../features/projects/components/ProjectSelect';
+import { useProjectSelection } from '../features/projects/useProjectSelection';
+import { SetupReadinessLadder } from '../features/onboarding-setup/components/SetupReadinessLadder';
+import { useSetupReadiness } from '../features/onboarding-setup/hooks/useSetupReadiness';
+import { useAuth } from '../context/useAuth';
+import { PermissionGroup } from '../services/types';
+
+/**
+ * Onboarding Setup: the PM's single front door to making a project ready to onboard someone.
+ *
+ * The setup surfaces (skill map, baseline, starter tasks, buddies) grew as separate, co-equal nav
+ * items that did not know about each other — so a PM could generate a competency map, never approve
+ * it, and find the Baseline page "empty" with nothing explaining why. This page composes them into
+ * one ladder with one verdict, and every rung links into the page that advances it.
+ */
+export function OnboardingSetupPage() {
+    const { profile } = useAuth();
+    const {
+        projects,
+        selectedProjectId,
+        setSelectedProjectId,
+        isLoading: projectsLoading,
+        errorMessage: projectsError,
+    } = useProjectSelection({ isAdmin: profile?.permissionGroup === PermissionGroup.ADMIN });
+
+    const { ladder, loading, error } = useSetupReadiness(selectedProjectId);
+
+    return (
+        <div className="min-h-screen bg-app-bg">
+            <header className="border-b border-app-border bg-app-bg">
+                <div className="app-page-frame py-6">
+                    <PageHeader
+                        icon={ListChecks}
+                        title="Onboarding Setup"
+                        subtitle="Everything a project needs before a hire arrives — an approved skill map, a baseline, starter tasks and a buddy for every hire — as one pipeline with one readiness check."
+                        actions={
+                            <ProjectSelect
+                                projects={projects}
+                                selectedProjectId={selectedProjectId}
+                                isLoading={projectsLoading}
+                                errorMessage={projectsError}
+                                onChange={setSelectedProjectId}
+                            />
+                        }
+                    />
+                </div>
+            </header>
+
+            <main className="app-page-frame py-6 lg:py-8">
+                {!selectedProjectId ? (
+                    <EmptyPrompt
+                        title="Pick a project"
+                        body="Choose a project above to see how ready it is to onboard someone."
+                    />
+                ) : loading ? (
+                    <div className="flex items-center justify-center p-16">
+                        <Loader2 className="h-8 w-8 animate-spin text-app-brand" />
+                    </div>
+                ) : error || !ladder ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-app-danger-border bg-app-danger-bg p-4">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-app-danger-text" />
+                        <p className="text-sm text-app-danger-text">
+                            Could not load setup readiness for this project. Try again in a moment.
+                        </p>
+                    </div>
+                ) : (
+                    <SetupReadinessLadder ladder={ladder} />
+                )}
+            </main>
+        </div>
+    );
+}
+
+function EmptyPrompt({ title, body }: { title: string; body: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-app-border bg-app-bg p-16 text-center">
+            <ListChecks className="mb-4 h-10 w-10 text-app-text-disabled" />
+            <h2 className="mb-2 text-xl font-semibold text-app-text">{title}</h2>
+            <p className="max-w-md text-sm text-app-text-muted">{body}</p>
+        </div>
+    );
+}
