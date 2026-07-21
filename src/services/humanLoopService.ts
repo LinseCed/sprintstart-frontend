@@ -3,7 +3,9 @@ import type {
     AssignBuddyRequest,
     BuddyAssignment,
     LogBuddyContactRequest,
+    Mentee,
     MyBuddy,
+    MyMentees,
     MyTimeline,
     ProjectAttention
 } from '../features/human-loop/types';
@@ -26,6 +28,17 @@ export const humanLoopService = {
             `${BASE}/me/buddy?projectId=${encodeURIComponent(projectId)}`
         );
         return 'buddyId' in response ? (response as MyBuddy) : null;
+    },
+
+    /**
+     * The hires the authenticated user is a buddy for — the other side of
+     * `fetchMyBuddy`. Worst first, across every project they mentor in, so the
+     * person who actually closes the loop can see who is waiting. Empty array
+     * when the caller mentors nobody (not an error).
+     */
+    async fetchMyMentees(): Promise<Mentee[]> {
+        const response = await apiClient.fetch<MyMentees>(`${BASE}/me/mentees`);
+        return response.mentees;
     },
 
     /**

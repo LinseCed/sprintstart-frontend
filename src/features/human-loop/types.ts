@@ -26,6 +26,36 @@ export type MyBuddy = {
     overdue: boolean;
 };
 
+/** One thing a buddy could do for a hire right now — always the buddy's move. */
+export type MenteeAlert = {
+    reason: string;
+    severity: AttentionSeverity;
+    /** How long this has been true, in days. */
+    days: number;
+};
+
+/** One hire this buddy is responsible for, as the buddy sees them (`GET /me/mentees`). */
+export type Mentee = {
+    hireId: string;
+    hireName: string;
+    /** The hire's GitHub handle, when known — the concrete way to reach them. Null → usual channel. */
+    hireGithubLogin: string | null;
+    projectId: string;
+    cadenceTargetDays: number;
+    assignedAt: string;
+    lastContactAt: string | null;
+    daysSinceContact: number;
+    /** True once the cadence gap has passed — the pair is due a conversation. */
+    overdue: boolean;
+    /** What's outstanding, worst first. Empty when the pair is on track. */
+    alerts: MenteeAlert[];
+};
+
+/** The hires counting on the authenticated buddy (`GET /me/mentees`). */
+export type MyMentees = {
+    mentees: Mentee[];
+};
+
 /** Body for logging a conversation (`POST /me/buddy/contacts`). */
 export type LogBuddyContactRequest = {
     /** Only set when a buddy/PM logs on a hire's behalf; a hire logging their own omits it. */
