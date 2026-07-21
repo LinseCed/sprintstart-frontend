@@ -22,6 +22,14 @@ describe('humanLoopService', () => {
         await expect(humanLoopService.fetchMyBuddy('p1')).resolves.toBeNull();
     });
 
+    it('reads the mentees list and unwraps the array', async () => {
+        const mentees = [{ hireId: 'h1', hireName: 'Bo', alerts: [] }];
+        const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue({ mentees });
+
+        await expect(humanLoopService.fetchMyMentees()).resolves.toEqual(mentees);
+        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/me/mentees');
+    });
+
     it('reads the caller-scoped timeline from /metrics/me', async () => {
         const timeline = { userId: 'u1', longestOpenWaitHours: 72 };
         const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(timeline);

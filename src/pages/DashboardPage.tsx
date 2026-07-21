@@ -4,6 +4,7 @@ import { UserAvatar } from '../components/common/UserAvatar';
 import { Link } from 'react-router-dom';
 import { Bot, BookOpen, Sparkles, ChartColumn } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { MenteesCard } from '../features/human-loop/components/MenteesCard';
 
 /**
  * Central hub displayed after login.
@@ -93,6 +94,12 @@ export function DashboardPage() {
                             <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Onboarding</h3>
                             <p className="text-app-text/60 text-center mt-2">Continue your setup</p>
                         </Link>
+                    </div>
+
+                    {/* The buddy's side of the human loop. Renders only for someone who actually
+                        mentors a hire, so it's invisible to everyone else on this shared surface. */}
+                    <div className="mt-8 w-full max-w-4xl">
+                        <MenteesCard />
                     </div>
                 </div>
             </main>
