@@ -139,7 +139,7 @@ describe('MyPathPage', () => {
         expect(await screen.findByText('module route')).toBeInTheDocument();
     });
 
-    it('explains a locked node with clickable blockers', async () => {
+    it('states the usual ordering of a not-yet-shown node, with clickable links', async () => {
         vi.mocked(getLastSeenGraphVersion).mockReturnValue(null);
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
             nodes: [
@@ -158,7 +158,8 @@ describe('MyPathPage', () => {
         fireEvent.click(await screen.findByTestId('graph-node-advanced'));
 
         const panel = await screen.findByTestId('node-detail-panel');
-        expect(within(panel).getByText(/waiting on 1 prerequisite/i)).toBeInTheDocument();
+        // Phrased as ordering, not as a gate: nothing on the ramp is withheld until this clears.
+        expect(within(panel).getByText(/usually comes after 1 other/i)).toBeInTheDocument();
 
         await user.click(within(panel).getByRole('button', { name: 'Basics' }));
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, ExternalLink, Flag, GitPullRequest, Layers, Lock, X } from 'lucide-react';
+import { ArrowRight, ExternalLink, Flag, GitPullRequest, Layers, X } from 'lucide-react';
 import { NodeStatusChip } from '../../skill-assessment/components/NodeStatusChip';
 import { competencyModuleService } from '../../../services/competencyModuleService';
 import type { PathNode, PathView } from '../../skill-assessment/types';
@@ -148,9 +148,14 @@ export function NodeDetailPanel({
                 )}
                 {node.state === 'LOCKED' && (
                     <div className="space-y-2">
+                        {/*
+                         * Phrased as an ordering suggestion, not a gate. Nothing on the ramp is
+                         * withheld until these clear -- a hire can pick any open task -- so saying
+                         * "waiting on" would describe a restriction that does not exist.
+                         */}
                         <p className="flex items-center gap-1.5 text-sm text-app-text-muted">
-                            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            Waiting on {blockers.length} prerequisite{blockers.length === 1 ? '' : 's'}:
+                            <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            Usually comes after {blockers.length} other{blockers.length === 1 ? '' : 's'}:
                         </p>
                         <ul className="space-y-1">
                             {blockers.map(blocker => (

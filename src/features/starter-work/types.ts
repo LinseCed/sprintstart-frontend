@@ -30,12 +30,24 @@ export type GenerateStarterWorkResult = {
     notes: string[];
 };
 
-/** One approved task ranked against a hire's ledger. */
+/** What kind of work a task is, read off the issue's own labels. `OTHER` means unknown. */
+export type TaskType = 'BUG' | 'FEATURE' | 'DOCS' | 'TEST' | 'CHORE' | 'OTHER';
+
+/**
+ * One approved task ranked for a hire.
+ *
+ * `reasons` is the important field. Ranking is a *suggestion*, and a suggestion nobody can
+ * interrogate is an instruction — so the backend sends one clause per contributing signal,
+ * strongest first, with any "you may wait for a review here" note last. An empty list means
+ * nothing matched, which is worth saying plainly rather than dressing up.
+ */
 export type RankedStarterWorkTask = {
     task: StarterWorkTask;
     score: number;
     /** The hire's competencies that overlap this task's requirements. */
     matchedCompetencyKeys: string[];
+    taskType: TaskType;
+    reasons: string[];
 };
 
 /**
