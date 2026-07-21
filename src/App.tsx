@@ -1,6 +1,8 @@
 import { AppRouter } from './router/AppRouter';
 import { SideBar } from './components/layout/SideBar';
 import { AuthProvider } from './context/AuthProvider';
+import { ChatProvider } from './context/ChatProvider';
+import { ChatPreferencesProvider } from './context/ChatPreferencesProvider';
 import { ThemeProvider } from './context/ThemeProvider';
 import { useAuth } from './context/useAuth';
 
@@ -25,7 +27,11 @@ function App() {
     return (
         <ThemeProvider>
             <AuthProvider>
-                <AppContent />
+                <ChatProvider>
+                    <ChatPreferencesProvider>
+                        <AppContent />
+                    </ChatPreferencesProvider>
+                </ChatProvider>
             </AuthProvider>
         </ThemeProvider>
     );
