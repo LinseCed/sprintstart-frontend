@@ -17,7 +17,6 @@ import { PathProgressBar } from '../features/skill-assessment/components/PathPro
 import { useCompetencyPath } from '../features/skill-assessment/hooks/useCompetencyPath';
 import { ProjectSelect } from '../features/projects/components/ProjectSelect';
 import { useProjectSelection } from '../features/projects/useProjectSelection';
-import { BuddyCard } from '../features/human-loop/components/BuddyCard';
 import { CompetencyGraph } from '../features/my-path/components/CompetencyGraph';
 import { NodeDetailPanel } from '../features/my-path/components/NodeDetailPanel';
 import { SkillsRail } from '../features/my-path/components/SkillsRail';
@@ -183,21 +182,13 @@ export function MyPathPage() {
             <div className="app-page-content py-4">
                 <PageHeader
                     icon={MapIcon}
-                    title="Your path"
-                    subtitle="Every node is a competency: mastered ones are already yours, available ones are ready to start, locked ones are waiting on a prerequisite."
+                    title="Where you stand"
+                    subtitle="Each node is a competency: the ones you've shown are yours for good, everything else is open to pick up whenever you want. This is your standing — your day-to-day work lives in Onboarding."
                     actions={switcher}
                 />
             </div>
         </div>
     );
-
-    // The human loop is day-one context, so it shows whenever a project is
-    // selected -- even before a baseline exists and there is nothing on the path.
-    const buddySection = selectedProjectId ? (
-        <div className="app-page-content mt-4 shrink-0">
-            <BuddyCard projectId={selectedProjectId} />
-        </div>
-    ) : null;
 
     // No project to scope the path to: nothing to show until one is picked/exists.
     if (!projectsLoading && !projectsError && projects.length === 0) {
@@ -245,7 +236,6 @@ export function MyPathPage() {
         return (
             <div className="min-h-screen bg-app-bg">
                 {header}
-                {buddySection}
                 <div className="flex items-center justify-center p-16">
                     <div className="max-w-md text-center">
                         <Sparkles className="mx-auto mb-4 h-10 w-10 text-app-brand" />
@@ -267,7 +257,6 @@ export function MyPathPage() {
         // out in; below `lg` the shell adds its 64px top bar, hence the offset.
         <div className="flex h-[calc(100vh-64px)] flex-col overflow-y-auto bg-app-bg lg:h-screen">
             {header}
-            {buddySection}
 
             {pathUpdated && !noticeDismissed && (
                 <div className="app-page-content mt-4 shrink-0">
