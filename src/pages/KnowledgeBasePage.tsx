@@ -5,7 +5,17 @@ import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModa
 import { Pagination } from '../components/ui/Pagination';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
+import { PermissionGroup } from '../services/types';
 import { useKnowledgeBase } from '../features/knowledge-base/hooks/useKnowledgeBase';
+
+/** Roles allowed to delete uploaded artifacts. Pattern A gate mirroring
+ *  `SettingsPage`'s PAT_ALLOWED_GROUPS — keeps destructive uploads deletion
+ *  out of reach of plain USER accounts. */
+const DELETE_ALLOWED_GROUPS: ReadonlySet<PermissionGroup> = new Set([
+    PermissionGroup.PM,
+    PermissionGroup.HR,
+    PermissionGroup.ADMIN,
+]);
 
 /**
  * Unified Knowledge Base view for project resources.
@@ -22,6 +32,9 @@ export function KnowledgeBasePage() {
     const { profile } = useAuth();
     // TODO: support project switching — currently only the first project is scoped.
     const projectId = profile?.projectIds?.[0] ?? null;
+
+    const canDeleteUpload =
+        profile !== null && DELETE_ALLOWED_GROUPS.has(profile.permissionGroup);
 
     const {
         artifacts,
@@ -185,6 +198,11 @@ export function KnowledgeBasePage() {
                         artifact={selectedArtifact}
                         onClose={() => setSelectedArtifactId(null)}
                         projectId={projectId}
+                        canDelete={canDeleteUpload}
+                        onDelete={() => {
+                            setSelectedArtifactId(null);
+                            void fetchArtifacts();
+                        }}
                     />
                 )}
             </main>

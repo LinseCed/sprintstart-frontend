@@ -433,6 +433,8 @@ export function ChatPage() {
                     onClose={() => setViewingCitationArtifact(null)}
                     projectId={projectId}
                     highlightLines={viewingCitationArtifact.lines}
+                    canDelete={false}
+                    onDelete={() => {}}
                 />
             )}
 
