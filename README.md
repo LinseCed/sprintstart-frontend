@@ -61,7 +61,8 @@ self-contained under `src/features/` and surfaced through dedicated routes:
 - **Team Management** — A project-manager view of the team: onboarding
   progress, current phase/step, project roles, skills (beginner → expert), and
   per-user skill assessments. Supports filtering and sorting (progress, step
-  duration) and a per-member detail page.
+  duration) and a per-member detail page. Includes the **Skill Wizard**
+  (`/skill-wizard`) for creating and editing skills linked to project roles.
 - **PM Dashboard** — A project-manager overview surface for monitoring team
   progress.
 - **Admin** — User management (enable/disable, onboarding status, permission
@@ -72,7 +73,7 @@ self-contained under `src/features/` and surfaced through dedicated routes:
   refresh tracking.
 - **Insights — FAQ** — AI-generated clusters of frequently asked questions and
   the documents that answer them.
-- **Skill Wizard** — Create and edit skills linked to project roles.
+- **Settings** — Per-user application settings (e.g. chat preferences).
 - **Profile** — View and edit the current user's profile.
 
 ---
@@ -96,7 +97,8 @@ src/
 │   ├── onboarding/      # AI onboarding paths, checks, skip workflow
 │   ├── profile/         # User profile
 │   ├── projects/        # Project selection
-│   └── team-management/ # Team overview & member detail
+│   ├── settings/        # User settings (chat preferences, etc.)
+│   └── team-management/ # Team overview, member detail, Skill Wizard
 ├── pages/           # Route-level views (one per user-facing flow)
 ├── router/          # React Router v7 config + AuthGuard
 ├── auth/            # Access policy (AppRoute union, canAccessRoute)
@@ -133,7 +135,7 @@ src/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- [Node.js](https://nodejs.org/) (v20 or higher recommended)
 - npm (the project ships a `package-lock.json` and a `postinstall` hook for Keycloakify)
 
 ### Installation
@@ -150,15 +152,41 @@ src/
 ### Environment Variables
 
 Create a `.env` file in the root of the `sprintstart-frontend` directory with the
-following configuration (see `.env.example`):
+following configuration (see `.env.example` for the canonical source):
 
 ```env
 # Keycloak Configuration
 VITE_KEYCLOAK_AUTHORITY=http://localhost:8081/auth/realms/sprintstart
 VITE_KEYCLOAK_CLIENT_ID=sprintstart-frontend
-# 5173 if started with npm run dev
-VITE_KEYCLOAK_REDIRECT_URI=http://localhost:3000
+# Use :5173 for `npm run dev`, :3000 for `docker compose up --build`
+VITE_KEYCLOAK_REDIRECT_URI=http://localhost:5173
+
+# GitHub PAT (classic) — used by the frontend for GitHub API calls
+VITE_GITHUB_PAT=ghp_yor_token
+
+# Knowledge Base test project UUID (until backend exposes project membership in /users/me)
+VITE_KB_PROJECT_ID=00000000-0000-0000-0000-00000000000x
 ```
+
+### Mock mode (optional)
+
+`npm run dev` on a fresh clone will attempt to call the real backend at
+`127.0.0.1:8080` and Keycloak at `127.0.0.1:8081`. If those aren't running
+locally, enable **mock mode** to make the dev server return mock DTOs from
+`src/mocks/` instead of making real HTTP calls.
+
+Create a `.env.development` file (gitignored) in the repo root with one line:
+
+```env
+VITE_USE_MOCK_MODE=true
+```
+
+Vite auto-loads `.env.development` in `npm run dev` (mode = development), so
+mock mode stays on for every `npm run dev` without re-typing. To disable it,
+delete the file or set `VITE_USE_MOCK_MODE=false`.
+
+For one-off use and other options (PowerShell / bash / `.env`), see
+[docs/testing_strategy.md §8](./docs/testing_strategy.md#8-mock-mode-vite_use_mock_mode).
 
 ### Development
 

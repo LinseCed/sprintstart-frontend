@@ -1,9 +1,14 @@
 # Frontend Documentation Guidelines
 
-This document defines the strict documentation standards for the React and TypeScript frontend codebase. 
+This document defines the strict documentation standards for the React and TypeScript frontend codebase.
 
 > [!IMPORTANT]
-> **AI AGENT DIRECTIVE**: As an AI agent working in this codebase, you MUST adhere strictly to these rules. Do not over-document. Do not explain standard React/TS syntax. Only provide comments that explain the **Why** and the **Business Context**. 
+> **AI AGENT DIRECTIVE**: As an AI agent working in this codebase, you MUST adhere strictly to these rules. Do not over-document. Do not explain standard React/TS syntax. Only provide comments that explain the **Why** and the **Business Context**.
+
+> **Related docs**
+> - [FRONTEND_ARCHITECTURE.md](./FRONTEND_ARCHITECTURE.md) — system architecture (routing, services, state, design system, animation).
+> - [FRONTEND_CODING_STANDARDS.md](./FRONTEND_CODING_STANDARDS.md) §9 — documentation rules summary.
+> - [testing_strategy.md](./testing_strategy.md) — Vitest + MSW + vitest-axe setup.
 
 ---
 
@@ -32,7 +37,7 @@ You MUST document all page-level or view-level components. Describe the view's r
  *
  * Allows users to select their working area during the onboarding process.
  * Bound to the `/onboarding/select-role` route.
- * 
+ *
  * The selected role is stored in the backend and used to generate
  * a personalized onboarding path.
  */
@@ -84,17 +89,44 @@ type TaskCardProps = {
 *Do not* document obvious props like `id`, `className`, or `children` unless additional context is strictly necessary.
 
 ### React Router v7 Routes
-Document loader and action parameter bindings, along with anticipated search params or layout nesting.
 
-```typescript
+This codebase uses React Router v7's **declarative `<Route element={...}>` API**
+guarded by an `AuthGuard` wrapper component — **not** the data-router
+`loader`/`action` APIs. There are no `LoaderFunctionArgs` or route loaders in the
+codebase. (See [FRONTEND_ARCHITECTURE.md §4](./FRONTEND_ARCHITECTURE.md#4-routing--access-control)
+for the full routing model.)
+
+Document route components with their route path, the `AppRoute` literal they
+correspond to in `src/auth/accessPolicy.ts`, the permission groups allowed to
+access them, and any auth/redirect behavior the `AuthGuard` enforces for them:
+
+```tsx
 /**
- * PathDetailsLoader
+ * AdminPage
  *
- * React Router v7 loader.
- * Fetches the user onboarding path data based on the route's `userId` param.
- * Returns a `PathDto` or throws a redirect if profile data is missing.
+ * The admin dashboard. Bound to the `/admin` route (`AppRoute` literal in
+ * `src/auth/accessPolicy.ts`). Accessible only to `HR` and `ADMIN` permission
+ * groups (see `routePermissions`).
+ *
+ * `AuthGuard` redirects unauthenticated users to `/login` and authenticated
+ * users without the required group to their default route via
+ * `getDefaultRoute(profile)`.
  */
-export async function loader({ params }: LoaderFunctionArgs) { ... }
+export function AdminPage() { ... }
+```
+
+For sub-routes with dynamic params, document the param shape and where the value
+comes from:
+
+```tsx
+/**
+ * TeamMemberDetailPage
+ *
+ * Bound to `/team/:userId`. The `userId` path param is read via `useParams()`
+ * and fetches the member's detail from `teamManagementService`. Linked from
+ * `TeamManagementPage`'s member cards.
+ */
+export function TeamMemberDetailPage() { ... }
 ```
 
 ---
@@ -158,10 +190,15 @@ useEffect(() => {
 ## 6. Animation & Theme Documentation
 
 ### Framer Motion Boundaries
-Document layout transitions, spring tokens, and why `<AnimatePresence>` is used in a specific context. 
+Document layout transitions, spring tokens, and why `<AnimatePresence>` is used in a specific context.
 
 > [!NOTE]
-> The centralized spring-token module shown below (`centralSpringToken`) is defined in `sprintstart-frontend/docs/animation_tokens.md` but is **not yet implemented** under `src/`. Components currently use inline `motion.` props. Treat the token pattern below as the intended convention to follow for new shared animations.
+> The centralized spring-token module is implemented at
+> [`src/styles/tokens.ts`](../src/styles/tokens.ts), exporting `centralSpringToken`
+> (default layout/list motion) and `hoverSpringToken` (micro-interactions). Use
+> these presets for all `motion` transitions — do not inline ad-hoc spring configs.
+> See [FRONTEND_ARCHITECTURE.md §8](./FRONTEND_ARCHITECTURE.md#8-animation-system-framer-motion-12)
+> for the full animation system.
 
 ```tsx
 /**
@@ -189,7 +226,7 @@ Document layout transitions, spring tokens, and why `<AnimatePresence>` is used 
 
 ## 7. Accessibility & Testing Labels
 
-Interactive components MUST declare labels to support assistive devices and automated E2E tests (e.g., Playwright).
+Interactive components MUST declare labels to support assistive devices and automated tests.
 
 * **`aria-label`**: Required on buttons or links that contain only graphic icons.
 * **`data-testid`**: Required on key interactive items (role selections, chat submit buttons) targeted by tests.
