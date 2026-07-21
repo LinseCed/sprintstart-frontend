@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDot, Lock } from 'lucide-react';
+import { CheckCircle2, CircleDot } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../../components/ui/Badge';
 import type { NodeState } from '../types';
 
@@ -8,9 +8,8 @@ type NodeStatusChipProps = {
 };
 
 const STATE_STYLES: Record<NodeState, { icon: typeof CheckCircle2; variant: BadgeVariant; label: string }> = {
-    MASTERED: { icon: CheckCircle2, variant: 'success', label: 'Mastered' },
-    AVAILABLE: { icon: CircleDot, variant: 'brand', label: 'Available' },
-    LOCKED: { icon: Lock, variant: 'neutral', label: 'Locked' }
+    MASTERED: { icon: CheckCircle2, variant: 'success', label: 'Shown' },
+    AVAILABLE: { icon: CircleDot, variant: 'brand', label: 'Open' }
 };
 
 /**

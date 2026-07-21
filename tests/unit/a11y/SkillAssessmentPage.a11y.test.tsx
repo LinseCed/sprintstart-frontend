@@ -16,7 +16,6 @@ vi.mock('../../../src/services/assessmentService', () => ({
     },
     hasCompletedAssessment: vi.fn().mockReturnValue(false),
     markAssessmentCompleted: vi.fn(),
-    snoozeAssessmentGate: vi.fn(),
 }));
 
 vi.mock('../../../src/features/projects/useProjectSelection', () => ({

@@ -3,21 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthGuard } from '../../../src/router/AuthGuard';
 import { useAuth } from '../../../src/context/useAuth';
-import {
-    assessmentService,
-    isAssessmentGateSnoozed,
-} from '../../../src/services/assessmentService';
 import { PermissionGroup, type UserProfile } from '../../../src/services/types';
 
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: vi.fn(),
-}));
-
-vi.mock('../../../src/services/assessmentService', () => ({
-    assessmentService: {
-        fetchAssessmentStatus: vi.fn(),
-    },
-    isAssessmentGateSnoozed: vi.fn(),
 }));
 
 function LocationDisplay() {
@@ -58,7 +47,6 @@ function renderGuarded(initialPath = '/protected') {
             <Routes>
                 <Route path="/" element={<LocationDisplay />} />
                 <Route path="/login" element={<LocationDisplay />} />
-                <Route path="/onboarding/assessment" element={<LocationDisplay />} />
                 <Route
                     path="/protected"
                     element={
@@ -75,10 +63,6 @@ function renderGuarded(initialPath = '/protected') {
 describe('AuthGuard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
-            completed: true,
-        });
-        vi.mocked(isAssessmentGateSnoozed).mockReturnValue(false);
     });
 
     it('renders loading spinner when status is loading', () => {
@@ -136,7 +120,10 @@ describe('AuthGuard', () => {
         });
     });
 
-    it('renders children when the assessment is already completed', async () => {
+    it('renders children for an authenticated USER without any assessment check', async () => {
+        // The assessment no longer gates the app: an authenticated hire lands where they
+        // navigate, whether or not they have ever taken it. This deletes the redirect-loop
+        // (frontend#19) and retired-endpoint 400 (frontend#29) bug class rather than moving it.
         authenticatedAs(mockProfile);
 
         renderGuarded();
@@ -144,14 +131,10 @@ describe('AuthGuard', () => {
         await waitFor(() => {
             expect(screen.getByTestId('protected-content')).toBeInTheDocument();
         });
-        expect(assessmentService.fetchAssessmentStatus).toHaveBeenCalled();
     });
 
-    it('sends an un-assessed USER from the landing route to their first week, not the assessment', async () => {
+    it('does not redirect an un-assessed USER away from the landing route', async () => {
         authenticatedAs(mockProfile);
-        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
-            completed: false,
-        });
 
         render(
             <MemoryRouter initialEntries={['/']}>
@@ -165,61 +148,17 @@ describe('AuthGuard', () => {
                         }
                     />
                     <Route path="/first-week" element={<LocationDisplay />} />
-                    <Route path="/onboarding/assessment" element={<LocationDisplay />} />
                 </Routes>
             </MemoryRouter>,
         );
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/first-week');
-        });
-    });
-
-    it('does not redirect an un-assessed USER away from a non-landing route', async () => {
-        // The assessment is optional: it only shapes the day-one landing, never traps.
-        authenticatedAs(mockProfile);
-        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
-            completed: false,
-        });
-
-        renderGuarded();
-
-        await waitFor(() => {
             expect(screen.getByTestId('protected-content')).toBeInTheDocument();
         });
     });
 
-    it('never gates non-USER permission groups on the assessment', async () => {
+    it('renders children for non-USER permission groups too', async () => {
         authenticatedAs({ ...mockProfile, permissionGroup: PermissionGroup.PM });
-
-        renderGuarded();
-
-        await waitFor(() => {
-            expect(screen.getByTestId('protected-content')).toBeInTheDocument();
-        });
-        expect(assessmentService.fetchAssessmentStatus).not.toHaveBeenCalled();
-    });
-
-    it('does not redirect while the assessment gate is snoozed', async () => {
-        authenticatedAs(mockProfile);
-        vi.mocked(isAssessmentGateSnoozed).mockReturnValue(true);
-        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({
-            completed: false,
-        });
-
-        renderGuarded();
-
-        await waitFor(() => {
-            expect(screen.getByTestId('protected-content')).toBeInTheDocument();
-        });
-        expect(assessmentService.fetchAssessmentStatus).not.toHaveBeenCalled();
-    });
-
-    it('fails open when the status check errors instead of trapping the user', async () => {
-        authenticatedAs(mockProfile);
-        vi.mocked(assessmentService.fetchAssessmentStatus).mockRejectedValue(
-            new Error('backend down'),
-        );
 
         renderGuarded();
 

@@ -6,21 +6,21 @@ import type { PathNode, PathView } from '../types';
 type AssessmentPathViewProps = {
     path: PathView;
     /**
-     * Called when a node with a configured step is opened. Locked nodes and
-     * nodes with no `moduleId` (no published module yet) are not
-     * clickable and never trigger this.
+     * Called when a node with a configured module is opened. Nodes with no
+     * `moduleId` (no published module yet) are not clickable and never trigger
+     * this.
      */
     onSelectNode?: (node: PathNode) => void;
     /**
-     * Keys of nodes whose state just changed (e.g. unlocked or mastered) since
-     * the previous load -- see `useCompetencyPath`. Drives a one-shot pulse on
+     * Keys of nodes whose state just changed (e.g. newly shown) since the
+     * previous load -- see `useCompetencyPath`. Drives a one-shot pulse on
      * exactly those nodes rather than the whole list; empty by default.
      */
     justChangedKeys?: Set<string>;
 };
 
 /**
- * Orders nodes so every prerequisite renders before what it unlocks, and maps
+ * Orders nodes so every prerequisite renders before what builds on it, and maps
  * each node to its direct prerequisite keys. A simple ordered list -- not a
  * drawn graph -- per the issue's own guidance that a readable layout beats a
  * force-directed graph at this stage.
@@ -73,7 +73,7 @@ export function AssessmentPathView({ path, onSelectNode, justChangedKeys }: Asse
             <ul className="flex flex-col gap-3">
                 {ordered.map(node => {
                     const prereqs = prereqsByKey.get(node.key) ?? [];
-                    const isOpenable = Boolean(node.moduleId) && node.state !== 'LOCKED' && onSelectNode;
+                    const isOpenable = Boolean(node.moduleId) && onSelectNode;
                     const isGoal = node.kind === 'CONTRIBUTION';
                     const isArtifactCheck = node.verificationType === 'ARTIFACT';
                     const justChanged = !reduceMotion && (justChangedKeys?.has(node.key) ?? false);

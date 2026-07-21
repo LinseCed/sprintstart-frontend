@@ -2,7 +2,6 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
     CheckCircle2,
-    Circle,
     CircleDot,
     ClipboardCheck,
     Flag,
@@ -44,19 +43,9 @@ const STATE_STYLES: Record<
     },
     AVAILABLE: {
         icon: CircleDot,
-        label: 'Within reach',
+        label: 'Open',
         className: 'border-app-brand-border-strong bg-app-surface text-app-brand-text',
         motionClassName: 'animate-node-breathe'
-    },
-    LOCKED: {
-        icon: Circle,
-        // Not "Locked". This graph is a record of what somebody has shown, not a curriculum with
-        // gates -- nothing on the ramp is withheld until a node clears, so a padlock would claim a
-        // restriction that does not exist. The backend still calls the state LOCKED; retiring that
-        // is slice 5 (backend#76), and until then the wording here is the honest part.
-        label: 'Not shown yet',
-        className: 'border-app-border bg-app-surface-muted text-app-text-subtle saturate-50',
-        motionClassName: ''
     }
 };
 
@@ -82,10 +71,11 @@ export type CompetencyNodeData = {
 export type CompetencyFlowNode = Node<CompetencyNodeData, 'competency'>;
 
 /**
- * One competency rendered as a React Flow node: state (mastered / available /
- * locked) drives the frame, kind drives the icon, and a `CONTRIBUTION` node --
- * the shipped contribution a path terminates in -- is emphasized as the
- * destination rather than styled like any other node.
+ * One competency rendered as a React Flow node: state (shown / open) drives the
+ * frame, kind drives the icon, and a `CONTRIBUTION` node -- the shipped
+ * contribution a path terminates in -- is emphasized as the destination rather
+ * than styled like any other node. There is no locked frame: the map shows what
+ * a hire has shown and what is open to them, never permission.
  *
  * Interaction lives on the wrapping React Flow node (which is already focusable
  * and keyboard-selectable), so this renders a plain box; making it a `<button>`
@@ -120,7 +110,6 @@ function CompetencyGraphNodeComponent({ data }: NodeProps<CompetencyFlowNode>) {
                 // The destination is drawn as one: larger and heavier than the
                 // competencies that lead to it.
                 isGoal ? 'scale-105 border-2 shadow-lg' : '',
-                node.state === 'LOCKED' ? 'scale-95' : '',
                 selected || highlighted ? 'ring-2 ring-app-focus' : '',
                 animate ? stateAnimation : '',
                 animate && justChanged && !unlockRole ? 'animate-pulse' : '',

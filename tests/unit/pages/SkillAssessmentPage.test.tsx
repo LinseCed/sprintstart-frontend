@@ -16,7 +16,6 @@ vi.mock('../../../src/services/assessmentService', () => ({
     },
     hasCompletedAssessment: vi.fn().mockReturnValue(false),
     markAssessmentCompleted: vi.fn(),
-    snoozeAssessmentGate: vi.fn(),
 }));
 
 vi.mock('../../../src/features/projects/useProjectSelection', () => ({
@@ -31,10 +30,7 @@ vi.mock('../../../src/features/projects/useProjectSelection', () => ({
     }),
 }));
 
-import {
-    assessmentService,
-    snoozeAssessmentGate,
-} from '../../../src/services/assessmentService';
+import { assessmentService } from '../../../src/services/assessmentService';
 
 function LocationDisplay() {
     const location = useLocation();
@@ -46,6 +42,7 @@ function renderPage() {
         <MemoryRouter initialEntries={['/onboarding/assessment']}>
             <Routes>
                 <Route path="/" element={<LocationDisplay />} />
+                <Route path="/first-week" element={<LocationDisplay />} />
                 <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
             </Routes>
         </MemoryRouter>,
@@ -115,7 +112,7 @@ describe('SkillAssessmentPage', () => {
         });
     });
 
-    it('skip for now snoozes the gate and returns to the dashboard', async () => {
+    it('skip for now returns to the first-week page without any gate to snooze', async () => {
         vi.mocked(assessmentService.startAssessment).mockResolvedValue({
             sessionId: 'session1',
             question: 'Q1',
@@ -128,9 +125,8 @@ describe('SkillAssessmentPage', () => {
 
         await user.click(screen.getByRole('button', { name: 'Skip for now' }));
 
-        expect(snoozeAssessmentGate).toHaveBeenCalledWith('user1');
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/');
+            expect(screen.getByTestId('location')).toHaveTextContent('/first-week');
         });
     });
 });

@@ -144,7 +144,7 @@ describe('MyPathPage', () => {
         vi.mocked(assessmentService.fetchPath).mockResolvedValue({
             nodes: [
                 { key: 'basics', label: 'Basics', kind: 'SKILL', state: 'AVAILABLE', moduleId: 's0' },
-                { key: 'advanced', label: 'Advanced', kind: 'SKILL', state: 'LOCKED', moduleId: 's1' },
+                { key: 'advanced', label: 'Advanced', kind: 'SKILL', state: 'AVAILABLE', moduleId: 's1' },
             ],
             edges: [{ from: 'basics', to: 'advanced' }],
             graphVersion: 1,
@@ -159,7 +159,7 @@ describe('MyPathPage', () => {
 
         const panel = await screen.findByTestId('node-detail-panel');
         // Phrased as ordering, not as a gate: nothing on the ramp is withheld until this clears.
-        expect(within(panel).getByText(/usually comes after 1 other/i)).toBeInTheDocument();
+        expect(within(panel).getByText(/usually comes after these/i)).toBeInTheDocument();
 
         await user.click(within(panel).getByRole('button', { name: 'Basics' }));
 

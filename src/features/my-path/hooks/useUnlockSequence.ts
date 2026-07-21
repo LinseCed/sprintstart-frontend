@@ -79,7 +79,7 @@ export function useUnlockSequence(
         for (const edge of path.edges) {
             if (edge.from !== unlockedKey) continue;
             const dependent = path.nodes.find(node => node.key === edge.to);
-            if (dependent && dependent.state !== 'LOCKED') keys.add(dependent.key);
+            if (dependent) keys.add(dependent.key);
         }
         return keys;
     }, [path, unlockedKey]);

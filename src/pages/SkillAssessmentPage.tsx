@@ -5,18 +5,16 @@ import { SkillAssessmentChat } from '../features/skill-assessment/components/Ski
 import { AssessmentPathView } from '../features/skill-assessment/components/AssessmentPathView';
 import { useSkillAssessment } from '../features/skill-assessment/hooks/useSkillAssessment';
 import { useProjectSelection } from '../features/projects/useProjectSelection';
-import { useAuth } from '../context/useAuth';
-import { snoozeAssessmentGate } from '../services/assessmentService';
 
 /**
- * The new front door for onboarding: a conversational skill-chat interview
- * that places the hire on the competency graph, then transitions in place to
- * their personalized path once the interviewer is done.
+ * An optional skill-chat interview that places the hire on the competency graph,
+ * then transitions in place to a preview of their path once the interviewer is
+ * done. Its output is only a prior for matching (proof always outranks it); it
+ * never gates the app.
  *
- * "Skip for now" snoozes the AuthGuard's assessment gate for 24 hours and
- * returns to the dashboard -- an escape hatch, not a dismissal; the gate
- * resumes once the snooze expires. The in-progress session is left as-is,
- * so coming back resumes where the interview left off.
+ * "Skip for now" simply returns to the first-week page -- there is no gate to
+ * snooze. The in-progress session is left as-is, so coming back resumes where
+ * the interview left off.
  */
 export function SkillAssessmentPage() {
     // The interview is global; the selected project only scopes the path preview
@@ -24,12 +22,10 @@ export function SkillAssessmentPage() {
     const { selectedProjectId } = useProjectSelection();
     const { phase, messages, isThinking, error, path, submitAnswer, retry } =
         useSkillAssessment(selectedProjectId);
-    const { profile } = useAuth();
     const navigate = useNavigate();
 
     const skipForNow = () => {
-        if (profile?.id) snoozeAssessmentGate(profile.id);
-        void navigate('/');
+        void navigate('/first-week');
     };
 
     if (error) {
@@ -62,7 +58,7 @@ export function SkillAssessmentPage() {
                         subtitle={
                             phase === 'chat'
                                 ? "A few quick questions so we can tailor onboarding to what you already know."
-                                : 'Nodes you already have covered are marked mastered; everything else unlocks as you go.'
+                                : 'Nodes you already have covered are marked shown; everything else is open whenever you want to pick it up.'
                         }
                     />
                     {phase === 'chat' && (

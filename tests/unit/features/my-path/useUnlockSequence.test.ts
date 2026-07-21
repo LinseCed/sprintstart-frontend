@@ -7,11 +7,11 @@ const path: PathView = {
     nodes: [
         { key: 'earned', label: 'Earned', kind: 'SKILL', state: 'MASTERED' },
         { key: 'opened', label: 'Opened', kind: 'SKILL', state: 'AVAILABLE' },
-        { key: 'still-locked', label: 'Still locked', kind: 'SKILL', state: 'LOCKED' }
+        { key: 'other-dependent', label: 'Other dependent', kind: 'SKILL', state: 'AVAILABLE' }
     ],
     edges: [
         { from: 'earned', to: 'opened' },
-        { from: 'earned', to: 'still-locked' }
+        { from: 'earned', to: 'other-dependent' }
     ],
     graphVersion: 1
 };
@@ -67,11 +67,11 @@ describe('useUnlockSequence', () => {
         expect(result.current.stage).toBe('focus');
     });
 
-    it('counts only the dependents the unlock actually opened', () => {
+    it('celebrates every dependent of the earned node', () => {
         const { result } = renderHook(() => useUnlockSequence('earned', path, true));
 
-        // `still-locked` has another unmet prerequisite, so it is not part of
-        // the payoff -- popping it would promise something that didn't happen.
-        expect(result.current.dependentKeys).toEqual(new Set(['opened']));
+        // Prerequisite edges no longer lock, so every node the earned one leads
+        // to is part of the payoff -- there is no "still locked" to exclude.
+        expect(result.current.dependentKeys).toEqual(new Set(['opened', 'other-dependent']));
     });
 });
