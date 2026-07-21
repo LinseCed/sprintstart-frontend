@@ -93,6 +93,13 @@ function Harness({
                 onOpenModule: vi.fn(),
                 onCreate: vi.fn()
             }}
+            baselineProps={{
+                entry: null,
+                isBusy: false,
+                error: null,
+                onSetExpected: vi.fn(),
+                onRemove: vi.fn()
+            }}
             onApproveProposal={vi.fn()}
             onRejectProposal={vi.fn()}
         />

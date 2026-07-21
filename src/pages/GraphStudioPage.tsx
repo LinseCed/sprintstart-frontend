@@ -12,6 +12,7 @@ import { useGraphAuthoring } from '../features/graph-authoring/hooks/useGraphAut
 import { useGraphEditing } from '../features/graph-authoring/hooks/useGraphEditing';
 import { useLiveGraph } from '../features/graph-authoring/hooks/useLiveGraph';
 import { useModuleAuthoring } from '../features/graph-authoring/hooks/useModuleAuthoring';
+import { useBaseline } from '../features/graph-authoring/hooks/useBaseline';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 import type { ModuleReadiness } from '../features/graph-authoring/hooks/useModuleAuthoring';
@@ -71,6 +72,15 @@ export function GraphStudioPage() {
         error: moduleError,
         create: createModule
     } = useModuleAuthoring(selectedProjectId, canAuthor);
+
+    const canAuthorBaseline = canAuthor && Boolean(selectedProjectId);
+    const {
+        entryFor: baselineEntryFor,
+        setExpected: setBaselineExpected,
+        remove: removeBaseline,
+        isBusy: isSavingBaseline,
+        error: baselineError
+    } = useBaseline(selectedProjectId, canAuthorBaseline);
 
     const {
         isSaving,
@@ -268,6 +278,22 @@ export function GraphStudioPage() {
                                     });
                                 }
                             }}
+                            baselineProps={
+                                canAuthorBaseline && selectedCompetency
+                                    ? {
+                                          entry: baselineEntryFor(panelCompetency.key),
+                                          isBusy: isSavingBaseline,
+                                          error: baselineError,
+                                          onSetExpected: input =>
+                                              void setBaselineExpected(
+                                                  panelCompetency.key,
+                                                  input
+                                              ),
+                                          onRemove: () =>
+                                              void removeBaseline(panelCompetency.key)
+                                      }
+                                    : null
+                            }
                             onApproveProposal={id => {
                                 void handleApproveAndReload(() => approveCompetency(id));
                                 setSelectedKey(null);
