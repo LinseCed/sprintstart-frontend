@@ -92,10 +92,10 @@ export const competencyGraphService = {
     /**
      * Reads the whole live graph: every visible competency and edge at the head version.
      *
-     * The PM counterpart to `assessmentService.fetchPath`. That returns a hire's projection --
-     * scoped to one project's baseline, carrying their per-user node state -- so authoring
-     * against it meant editing the graph through somebody's onboarding, and a project with no
-     * approved baseline showed nothing to edit at all.
+     * The PM counterpart to the hire's path projection (`GET /me/path`). That is scoped to one
+     * project's baseline and carries per-user node state, so authoring against it meant editing
+     * the graph through somebody's onboarding — and a project with no approved baseline showed
+     * nothing to edit at all.
      */
     async fetchGraph(): Promise<LiveGraph> {
         return await apiClient.fetch<LiveGraph>(BASE_URL);

@@ -26,6 +26,14 @@ export type ProposedAction = {
     label: string;
     /** Carried through only for flag-to-PM: the question the buddy composed. */
     question?: string;
+    /**
+     * The goal-claim / verification confirm payloads (`claim_goal`: `taskId`;
+     * `submit_verification`: `moduleId` + `answer`), echoed back verbatim so the
+     * action runs against the target the buddy proposed, never one the client picked.
+     */
+    taskId?: string;
+    moduleId?: string;
+    answer?: string;
     status: ProposedActionStatus;
     /** Whether a resolved action actually changed something (false = a handled "couldn't"). */
     ok?: boolean;

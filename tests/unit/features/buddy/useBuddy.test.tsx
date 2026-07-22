@@ -107,4 +107,70 @@ describe('useBuddy', () => {
         });
         expect(result.current.isOpen).toBe(false);
     });
+
+    it('echoes a proposal\'s confirm payload verbatim when the hire confirms', async () => {
+        let confirmBody: Record<string, unknown> = {};
+        server.use(
+            http.get('/api/v1/onboarding/me/buddy/messages', () => HttpResponse.json([])),
+            http.post('/api/v1/onboarding/me/buddy/messages', () => {
+                const encoder = new TextEncoder();
+                const stream = new ReadableStream({
+                    start(controller) {
+                        controller.enqueue(
+                            encoder.encode(
+                                'data: {"type":"action_proposal","action":"submit_verification","label":"Submit answer","module_id":"m-1","answer":"PR 42"}\n\n',
+                            ),
+                        );
+                        controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                        controller.close();
+                    },
+                });
+                return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } });
+            }),
+            http.post('/api/v1/onboarding/me/buddy/actions', async ({ request }) => {
+                confirmBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({ ok: true, message: 'Passed!' });
+            }),
+        );
+
+        const { result } = renderHook(() => useBuddy());
+
+        act(() => {
+            result.current.toggleOpen();
+        });
+        await waitFor(() => expect(result.current.messages).toHaveLength(0));
+
+        act(() => {
+            result.current.setDraft('here is my answer');
+        });
+        act(() => {
+            result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+        });
+
+        // The proposal landed on the reply with its payload intact.
+        await waitFor(() => {
+            const action = result.current.messages[1]?.actions?.[0];
+            expect(action?.action).toBe('submit_verification');
+            expect(action?.moduleId).toBe('m-1');
+            expect(action?.answer).toBe('PR 42');
+        });
+
+        act(() => {
+            result.current.confirmAction(
+                result.current.messages[1].id,
+                result.current.messages[1].actions![0],
+            );
+        });
+
+        await waitFor(() => {
+            expect(confirmBody).toMatchObject({
+                action: 'submit_verification',
+                moduleId: 'm-1',
+                answer: 'PR 42',
+            });
+        });
+        await waitFor(() => {
+            expect(result.current.messages[1].actions?.[0].status).toBe('resolved');
+        });
+    });
 });

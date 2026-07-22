@@ -48,3 +48,28 @@ export type ProjectOnboardingMetrics = {
     waitingOnResponseCount: number;
     hires: HireTimeline[];
 };
+
+/**
+ * Why one particular hire needs a human today (`GET /metrics/projects/{id}/attention`).
+ *
+ * The reason states whose move it is: a pull request kept waiting is somebody else's move,
+ * not the hire's; a stall is the hire's. Reporting both as *the hire is behind* points the
+ * attention at the one person who cannot fix it.
+ */
+export type AttentionItem = {
+    hireId: string;
+    hireName: string;
+    reason: string;
+    severity: AttentionSeverity;
+    /** How long this has been true, in days — the thing that makes it urgent or not. */
+    days: number;
+};
+
+export type AttentionSeverity = 'BLOCKED' | 'DRIFTING';
+
+/** Who on the project is waiting or stalling, worst first. */
+export type ProjectAttention = {
+    projectId: string;
+    memberCount: number;
+    items: AttentionItem[];
+};

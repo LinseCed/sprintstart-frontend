@@ -25,3 +25,10 @@ export function hoursSince(iso: string | null): number | null {
     if (!iso) return null;
     return Math.max(0, (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60));
 }
+
+/** "today" / "yesterday" / "3 days ago" from a count of days. */
+export function formatDaysAgo(days: number): string {
+    if (days <= 0) return 'today';
+    if (days === 1) return 'yesterday';
+    return `${days} days ago`;
+}

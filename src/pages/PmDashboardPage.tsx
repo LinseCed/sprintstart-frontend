@@ -3,7 +3,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { useAuth } from "../context/useAuth";
 import { CompetencyDashboardWidget } from "../features/competency-dashboard/components/CompetencyDashboardWidget";
 import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
-import { AttentionWidget } from "../features/human-loop/components/AttentionWidget";
+import { AttentionWidget } from "../features/onboarding-metrics/components/AttentionWidget";
 import { OnboardingMetricsWidget } from "../features/onboarding-metrics/components/OnboardingMetricsWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";

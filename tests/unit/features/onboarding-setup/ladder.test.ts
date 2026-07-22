@@ -35,13 +35,12 @@ describe('deriveCorpusRung', () => {
 describe('buildLadder', () => {
     const corpusOk: SetupRung = { key: 'corpus', state: 'OK', count: 663, detail: '663 artifacts ingested.' };
 
-    it('renders the five stages corpus-first, in pipeline order', () => {
+    it('renders the four stages corpus-first, in pipeline order', () => {
         const ladder = buildLadder(
             readiness([
                 { key: 'skill-map', state: 'OK', count: 6, detail: '6 competencies approved.' },
                 { key: 'baseline', state: 'OK', count: 3, detail: '3 competencies expected on this project.' },
                 { key: 'starter-tasks', state: 'OK', count: 2, detail: '2 starter tasks ready to claim.' },
-                { key: 'human-loop', state: 'OK', count: 1, detail: 'Every hire has a buddy (1 of 1).' },
             ]),
             corpusOk,
         );
@@ -50,7 +49,6 @@ describe('buildLadder', () => {
             'skill-map',
             'baseline',
             'starter-tasks',
-            'human-loop',
         ]);
         expect(ladder.rungs[1].title).toBe('Skill map approved');
         expect(ladder.rungs[1].route).toBe('/graph-studio');
@@ -74,7 +72,6 @@ describe('buildLadder', () => {
                     detail: 'Approve competencies first, then mark which ones matter on this project.',
                 },
                 { key: 'starter-tasks', state: 'WARN', count: 0, detail: 'No starter tasks yet.' },
-                { key: 'human-loop', state: 'WARN', count: 0, detail: 'No hires on this project yet.' },
             ]),
             corpusOk,
         );
@@ -91,7 +88,6 @@ describe('buildLadder', () => {
                 { key: 'skill-map', state: 'OK', count: 6, detail: 'ok' },
                 { key: 'baseline', state: 'OK', count: 3, detail: 'ok' },
                 { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
-                { key: 'human-loop', state: 'OK', count: 1, detail: 'ok' },
             ]),
             { key: 'corpus', state: 'WARN', count: 0, detail: 'No corpus yet.' },
         );

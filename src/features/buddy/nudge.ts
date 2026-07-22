@@ -1,4 +1,4 @@
-import type { MyTimeline } from '../human-loop/types';
+import type { HireTimeline } from '../onboarding-metrics/types';
 
 /**
  * A proactive note the buddy shows on load, derived from the hire's own onboarding state.
@@ -34,7 +34,7 @@ function formatWait(hours: number): string {
  * outranks a plain congratulation. One nudge at a time — a wall of notices is noise, and the
  * buddy's job is to point at the next thing, not to dashboard.
  */
-export function deriveBuddyNudge(timeline: MyTimeline): BuddyNudge | null {
+export function deriveBuddyNudge(timeline: HireTimeline): BuddyNudge | null {
     if (timeline.stalled) {
         return {
             id: 'stalled',

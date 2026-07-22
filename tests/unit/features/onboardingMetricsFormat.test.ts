@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     formatDuration,
     formatMoment,
+    formatDaysAgo,
     hoursSince
 } from '../../../src/features/onboarding-metrics/format';
 
@@ -26,5 +27,11 @@ describe('onboarding-metrics format helpers', () => {
         expect(hours).not.toBeNull();
         expect(hours as number).toBeGreaterThanOrEqual(1.9);
         expect(hours as number).toBeLessThan(2.2);
+    });
+
+    it('formats day counts relative to now', () => {
+        expect(formatDaysAgo(0)).toBe('today');
+        expect(formatDaysAgo(1)).toBe('yesterday');
+        expect(formatDaysAgo(3)).toBe('3 days ago');
     });
 });
