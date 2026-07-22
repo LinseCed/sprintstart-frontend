@@ -18,8 +18,9 @@ interface LocationState {
  *
  * Unauthenticated visitors are sent to the login page and authenticated visitors
  * are bounced off it. A `USER` (a new hire) landing on the root is sent to their
- * onboarding home, `/first-week` — the single spine — rather than the generic
- * dashboard. This is a **role-based** redirect, not the retired assessment gate:
+ * onboarding home, `/buddy` — the buddy *is* the onboarding now; First Week and
+ * the competency map are retired hire-side. This is a **role-based** redirect,
+ * not the retired assessment gate:
  * it makes no network call and reads nothing but the permission group, so it
  * cannot recreate the redirect-loop / retired-endpoint bugs that gate produced.
  * It fires **only from `/`**, so a hire navigates freely
@@ -55,7 +56,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         profile?.permissionGroup === PermissionGroup.USER &&
         location.pathname === "/"
     ) {
-        return <Navigate to="/first-week" replace />;
+        return <Navigate to="/buddy" replace />;
     }
 
     return <>{children}</>;

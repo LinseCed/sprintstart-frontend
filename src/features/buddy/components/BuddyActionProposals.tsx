@@ -1,5 +1,7 @@
 import { Check, Loader2, X } from 'lucide-react';
 import type { ProposedAction } from '../types';
+import { BUDDY_ACTION_OPEN_ORIENTATION } from '../types';
+import { BuddyOrientationCard } from './BuddyOrientationCard';
 
 type BuddyActionProposalsProps = {
     /** The message these actions were proposed in — needed to target the confirm. */
@@ -39,20 +41,27 @@ export function BuddyActionProposals({
 
                 if (action.status === 'resolved') {
                     return (
-                        <p
-                            key={action.id}
-                            className={`flex items-start gap-1.5 text-sm ${
-                                action.ok ? 'text-app-text' : 'text-app-text-muted'
-                            }`}
-                        >
-                            <Check
-                                className={`mt-0.5 h-4 w-4 shrink-0 ${
-                                    action.ok ? 'text-app-success-solid' : 'text-app-text-disabled'
+                        <div key={action.id} className="flex flex-col">
+                            <p
+                                className={`flex items-start gap-1.5 text-sm ${
+                                    action.ok ? 'text-app-text' : 'text-app-text-muted'
                                 }`}
-                                aria-hidden="true"
-                            />
-                            {action.outcome}
-                        </p>
+                            >
+                                <Check
+                                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                                        action.ok ? 'text-app-success-solid' : 'text-app-text-disabled'
+                                    }`}
+                                    aria-hidden="true"
+                                />
+                                {action.outcome}
+                            </p>
+                            {/* Opening orientation is the one action whose result is content, not
+                                just an outcome line: the packet renders right here in the thread
+                                instead of navigating to a page. */}
+                            {action.action === BUDDY_ACTION_OPEN_ORIENTATION && action.ok && (
+                                <BuddyOrientationCard />
+                            )}
+                        </div>
                     );
                 }
 

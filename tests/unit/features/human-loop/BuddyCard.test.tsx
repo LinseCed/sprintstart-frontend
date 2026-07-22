@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BuddyCard } from '../../../../src/features/human-loop/components/BuddyCard';
@@ -36,7 +36,9 @@ function buddy(overrides: Partial<MyBuddy> = {}): MyBuddy {
 describe('BuddyCard (buddy-first)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(humanLoopService.fetchMyTimeline).mockResolvedValue(null);
+        // "No timeline" reaches the hook as a failed read (e.g. a 404), which it
+        // degrades to null — the service contract never returns null itself.
+        vi.mocked(humanLoopService.fetchMyTimeline).mockRejectedValue(new Error('404'));
     });
 
     it('leads with the AI buddy and opens it on click', async () => {

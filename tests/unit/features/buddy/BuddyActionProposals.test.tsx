@@ -4,6 +4,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { BuddyActionProposals } from '../../../../src/features/buddy/components/BuddyActionProposals';
 import type { ProposedAction } from '../../../../src/features/buddy/types';
 
+// The card has its own test file; here we only assert *whether* it renders.
+vi.mock('../../../../src/features/buddy/components/BuddyOrientationCard', () => ({
+    BuddyOrientationCard: () => <div data-testid="buddy-orientation-card" />,
+}));
+
 function action(overrides: Partial<ProposedAction> = {}): ProposedAction {
     return {
         id: 'a1',
@@ -79,5 +84,59 @@ describe('BuddyActionProposals', () => {
         expect(screen.getByText(/try again/i)).toBeInTheDocument();
         // The confirm button is still there to retry.
         expect(screen.getByRole('button', { name: /Start Task 0/ })).toBeInTheDocument();
+    });
+
+    it('renders the orientation packet in the thread once open_orientation resolves', () => {
+        // The conversation is the surface now: confirming must not navigate anywhere.
+        render(
+            <BuddyActionProposals
+                messageId="m1"
+                actions={[
+                    action({
+                        action: 'open_orientation',
+                        label: 'Open the task packet',
+                        status: 'resolved',
+                        ok: true,
+                        outcome: 'Here is your task orientation.',
+                    }),
+                ]}
+                onConfirm={vi.fn()}
+                onDismiss={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByTestId('buddy-orientation-card')).toBeInTheDocument();
+    });
+
+    it('renders no orientation card for other actions, or when open_orientation could not', () => {
+        const { rerender } = render(
+            <BuddyActionProposals
+                messageId="m1"
+                actions={[action({ status: 'resolved', ok: true, outcome: 'Task 0 is yours.' })]}
+                onConfirm={vi.fn()}
+                onDismiss={vi.fn()}
+            />,
+        );
+
+        expect(screen.queryByTestId('buddy-orientation-card')).not.toBeInTheDocument();
+
+        rerender(
+            <BuddyActionProposals
+                messageId="m1"
+                actions={[
+                    action({
+                        action: 'open_orientation',
+                        label: 'Open the task packet',
+                        status: 'resolved',
+                        ok: false,
+                        outcome: 'There is no current task to open a packet for yet.',
+                    }),
+                ]}
+                onConfirm={vi.fn()}
+                onDismiss={vi.fn()}
+            />,
+        );
+
+        expect(screen.queryByTestId('buddy-orientation-card')).not.toBeInTheDocument();
     });
 });

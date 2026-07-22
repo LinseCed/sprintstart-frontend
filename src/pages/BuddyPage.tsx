@@ -8,12 +8,13 @@ import { FlagToPmButton } from '../features/knowledge-request/components/FlagToP
 /**
  * The buddy's home: the hire's onboarding front door as a full-page conversation.
  *
- * The buddy is the mentor a new hire would otherwise have to find a person for — it answers
- * from the docs *and* from the hire's own onboarding state (their pull requests, where they
- * stand, what to work on next). On an empty conversation it opens proactively with the
- * questions it can actually answer, so a hire never faces a blank box wondering what to ask.
+ * The buddy is not a feature of the onboarding — it *is* the onboarding. It answers from the
+ * docs *and* from the hire's own state (their pull requests, where they stand, what to work on
+ * next), walks them from setup to their first merged PR, and renders what it opens (like a
+ * task's orientation packet) right here in the thread. On an empty conversation it opens
+ * proactively with the questions it can actually answer, so a hire never faces a blank box
+ * wondering what to ask.
  *
- * A co-equal front door, not a replacement: First Week and the competency map stay reachable.
  * The floating widget (mounted app-wide) shares the same one buddy session, so a hire can pick
  * up the conversation from anywhere.
  */

@@ -10,6 +10,13 @@ import type { Citation } from '../chatbot/types';
  */
 export type ProposedActionStatus = 'idle' | 'confirming' | 'resolved' | 'error' | 'dismissed';
 
+/**
+ * The backend's `open_orientation` action. Once confirmed, its payoff is not the outcome line
+ * but the orientation packet itself, rendered in the thread (see `BuddyOrientationCard`) — the
+ * conversation is the surface now, so confirming must not navigate anywhere.
+ */
+export const BUDDY_ACTION_OPEN_ORIENTATION = 'open_orientation';
+
 export type ProposedAction = {
     /** Local id for keying and targeting the confirm — the backend doesn't assign one. */
     id: string;

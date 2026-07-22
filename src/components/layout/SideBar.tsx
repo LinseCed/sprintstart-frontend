@@ -6,11 +6,9 @@ import {
     Bot,
     Briefcase,
     ChartColumn,
-    Compass,
     Database,
     ListChecks,
     LogOut,
-    Map,
     Menu,
     MessageSquare,
     Rocket,
@@ -43,6 +41,14 @@ const navItems: SidebarNavItem[] = [
         path: '/',
         icon: <ChartColumn className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
+    // The hire's front door: onboarding is one conversation, and this is it. Answers from the
+    // docs and from the hire's own state, and escalates to a person only as a last resort.
+    // (First Week and the competency map are retired hire-side; their jobs are the buddy's tools.)
+    {
+        label: 'Buddy',
+        path: '/buddy',
+        icon: <Bot className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
     {
         label: 'Chat',
         path: '/chat',
@@ -52,27 +58,6 @@ const navItems: SidebarNavItem[] = [
         label: 'Knowledge Base',
         path: '/knowledge-base',
         icon: <BookOpen className="h-[18px] w-[18px] shrink-0 transition-colors" />,
-    },
-    // The mentor: a co-equal front door to onboarding. Answers from the docs and from the hire's
-    // own state, and escalates to a person only as a last resort.
-    {
-        label: 'Buddy',
-        path: '/buddy',
-        icon: <Bot className="h-[18px] w-[18px] shrink-0 transition-colors" />,
-    },
-    // The hire's single onboarding spine: get it running, ship one small thing, meet their buddy,
-    // then the ramp. This is the front door; the competency map below is a secondary status view.
-    {
-        label: 'Onboarding',
-        path: '/first-week',
-        icon: <Compass className="h-[18px] w-[18px] shrink-0 transition-colors" />,
-    },
-    // Demoted from a co-equal front door to "where I stand" -- the competency map as status, not a
-    // rival to-do. Onboarding leads; this reads as the optional standing view beneath it.
-    {
-        label: 'Where I stand',
-        path: '/my-path',
-        icon: <Map className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
 ];
 
