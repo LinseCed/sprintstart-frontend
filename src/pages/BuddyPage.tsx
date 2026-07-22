@@ -1,6 +1,8 @@
 import { Bot } from 'lucide-react';
 import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversation';
+import { useBuddyNudge } from '../features/buddy/hooks/useBuddyNudge';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
+import { BuddyNudgeCard } from '../features/buddy/components/BuddyNudgeCard';
 
 /**
  * The buddy's home: the hire's onboarding front door as a full-page conversation.
@@ -33,6 +35,8 @@ export function BuddyPage() {
         bottomRef,
     } = useBuddyConversation({ autoLoad: true });
 
+    const nudge = useBuddyNudge();
+
     const isEmpty = messages.length === 0 && !isThinking;
 
     return (
@@ -50,6 +54,12 @@ export function BuddyPage() {
                     </div>
                 </div>
             </header>
+
+            {nudge && (
+                <div className="shrink-0 px-4 pt-5">
+                    <BuddyNudgeCard nudge={nudge} onAct={question => void sendMessage(question)} />
+                </div>
+            )}
 
             {isEmpty && (
                 <div className="shrink-0 px-4 pt-5">
