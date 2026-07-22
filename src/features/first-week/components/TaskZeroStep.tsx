@@ -1,10 +1,9 @@
-import { ExternalLink, GitBranch, GitMerge, GitPullRequest, Lock, MessagesSquare, PartyPopper, Sparkles } from 'lucide-react';
+import { ExternalLink, GitBranch, GitMerge, GitPullRequest, MessagesSquare, PartyPopper, Sparkles } from 'lucide-react';
 import { StepShell } from './EnvironmentStep';
 import type { MyTaskZero } from '../types';
 
 type TaskZeroStepProps = {
     taskZero: MyTaskZero | null;
-    environmentReady: boolean;
     onHandBack: () => void;
     isHandingBack: boolean;
     /**
@@ -25,39 +24,25 @@ const PR_LOOP: { icon: typeof GitBranch; label: string; detail: string }[] = [
 /**
  * Step 2 of the first week: your first task.
  *
- * Task 0 appears only once the environment is ready — before that it is a quiet
- * locked state, never a screen that gates the hire out. When assigned, the
- * branch → PR → review → merge loop is spelled out for someone who has never
- * contributed here, because the task is the easy part; the loop is what is new.
+ * Available from day one — there is no environment gate in front of it. When a task
+ * is assigned, the branch → PR → review → merge loop is spelled out for someone who
+ * has never contributed here, because the task is the easy part; the loop is what is
+ * new.
  */
 export function TaskZeroStep({
     taskZero,
-    environmentReady,
     onHandBack,
     isHandingBack,
     orientation
 }: TaskZeroStepProps) {
-    if (!environmentReady) {
-        return (
-            <StepShell index={2} title="Your first task">
-                <div className="flex items-center gap-3 rounded-xl border border-app-border bg-app-surface-muted p-4">
-                    <Lock className="h-4 w-4 shrink-0 text-app-text-muted" aria-hidden="true" />
-                    <p className="text-sm text-app-text-muted">
-                        Appears once your environment is ready. There is nothing to do here yet — no rush.
-                    </p>
-                </div>
-            </StepShell>
-        );
-    }
-
     if (taskZero?.noneAvailable || !taskZero?.task) {
         return (
             <StepShell index={2} title="Your first task">
                 <div className="flex items-start gap-3 rounded-xl border border-app-border bg-app-surface-muted p-4">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-app-brand" aria-hidden="true" />
                     <p className="text-sm text-app-text-muted">
-                        Your environment is ready — nice. Your PM is lining up a first task for you; it
-                        will show up here. In the meantime, say hello to your buddy below.
+                        Your PM is lining up a first task for you; it will show up here. In the meantime,
+                        get the project running above and say hello to your buddy below.
                     </p>
                 </div>
             </StepShell>
