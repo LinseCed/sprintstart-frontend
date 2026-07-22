@@ -17,6 +17,8 @@ function renderConversation(overrides: {
             draft=""
             setDraft={vi.fn()}
             handleSubmit={vi.fn()}
+            confirmAction={vi.fn()}
+            dismissAction={vi.fn()}
             bottomRef={createRef<HTMLDivElement>()}
         />,
     );

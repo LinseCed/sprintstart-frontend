@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMessages, streamMessage } from "../../../services/buddyService";
-import type { BuddyMessageView } from "../types";
+import { getMessages, performAction, streamMessage } from "../../../services/buddyService";
+import type { BuddyMessageView, ProposedAction } from "../types";
 
 /**
  * The conversation core behind every buddy surface: the message list, the optimistic
@@ -94,6 +94,25 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
                     ));
                 },
 
+                onActionProposal: proposal => {
+                    // The buddy is offering to do something — attach it to this reply as a pending
+                    // action. Nothing has changed yet; the hire confirms it below.
+                    setIsThinking(false);
+                    setActiveTool(null);
+                    const action: ProposedAction = {
+                        id: crypto.randomUUID(),
+                        action: proposal.action,
+                        label: proposal.label,
+                        question: proposal.question,
+                        status: "idle",
+                    };
+                    setMessages(prev => prev.map(m =>
+                        m.id === assistantId
+                            ? { ...m, actions: [...(m.actions ?? []), action] }
+                            : m
+                    ));
+                },
+
                 onDone: () => {
                     setIsStreaming(false);
                     setActiveTool(null);
@@ -113,6 +132,53 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
             setActiveTool(null);
         }
     }, []);
+
+    /** Patches one proposed action in place, keyed by its message and action id. */
+    const patchAction = useCallback(
+        (messageId: string, actionId: string, patch: Partial<ProposedAction>) => {
+            setMessages(prev => prev.map(m =>
+                m.id === messageId
+                    ? { ...m, actions: m.actions?.map(a => (a.id === actionId ? { ...a, ...patch } : a)) }
+                    : m
+            ));
+        },
+        []
+    );
+
+    /**
+     * Confirms a proposed action: the one call that mutates. Reflects the outcome inline — a
+     * legible line whether it changed something (`ok`) or legibly couldn't, or a retryable error
+     * if the request itself failed.
+     */
+    const confirmAction = useCallback(
+        (messageId: string, action: ProposedAction) => {
+            patchAction(messageId, action.id, { status: "confirming" });
+            // Fire-and-forget: the outcome lands back in message state, so the handler stays a plain
+            // void callback (no Promise handed to a JSX prop).
+            void (async () => {
+                try {
+                    const result = await performAction(action.action, { question: action.question });
+                    patchAction(messageId, action.id, {
+                        status: "resolved",
+                        ok: result.ok,
+                        outcome: result.message,
+                    });
+                } catch (e) {
+                    console.error(e);
+                    patchAction(messageId, action.id, { status: "error" });
+                }
+            })();
+        },
+        [patchAction]
+    );
+
+    /** Declines a proposed action — nothing changes; the conversation simply continues. */
+    const dismissAction = useCallback(
+        (messageId: string, actionId: string) => {
+            patchAction(messageId, actionId, { status: "dismissed" });
+        },
+        [patchAction]
+    );
 
     const handleSubmit = useCallback((event: React.FormEvent) => {
         event.preventDefault();
@@ -134,6 +200,8 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
         setDraft,
         sendMessage,
         handleSubmit,
+        confirmAction,
+        dismissAction,
 
         loadHistory,
         bottomRef,

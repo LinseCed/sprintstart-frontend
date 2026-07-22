@@ -103,4 +103,11 @@ export type StreamHandlers = {
      * it is doing ("Checking your progress…") instead of a generic spinner.
      */
     onToolUse?: (name: string) => void;
+
+    /**
+     * The function executed when the buddy *proposes* an action the hire must confirm
+     * (e.g. "Start Task 0"). Nothing has changed — the surface renders a confirm
+     * affordance and only mutates when the hire clicks it.
+     */
+    onActionProposal?: (proposal: { action: string; label: string; question?: string }) => void;
 };

@@ -33,6 +33,8 @@ export function BuddyPage() {
         setDraft,
         sendMessage,
         handleSubmit,
+        confirmAction,
+        dismissAction,
         bottomRef,
     } = useBuddyConversation({ autoLoad: true });
 
@@ -100,6 +102,8 @@ export function BuddyPage() {
                 draft={draft}
                 setDraft={setDraft}
                 handleSubmit={handleSubmit}
+                confirmAction={confirmAction}
+                dismissAction={dismissAction}
                 bottomRef={bottomRef}
             />
         </div>

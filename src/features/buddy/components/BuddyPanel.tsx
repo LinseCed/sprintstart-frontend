@@ -2,10 +2,18 @@ import { Bot, Send, X } from 'lucide-react';
 import { AutoResizeTextarea } from '../../../components/ui/AutoResizeTextarea';
 import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { useBuddy } from '../hooks/useBuddy';
+import { BuddyActionProposals } from './BuddyActionProposals';
 
 type BuddyPanelProps = Pick<
     ReturnType<typeof useBuddy>,
-    'messages' | 'isThinking' | 'draft' | 'setDraft' | 'handleSubmit' | 'bottomRef'
+    | 'messages'
+    | 'isThinking'
+    | 'draft'
+    | 'setDraft'
+    | 'handleSubmit'
+    | 'confirmAction'
+    | 'dismissAction'
+    | 'bottomRef'
 > & {
     onClose: () => void;
 };
@@ -14,7 +22,17 @@ type BuddyPanelProps = Pick<
  * The persistent buddy's floating conversation panel. Bubble styling mirrors
  * SkillAssessmentChat/ChatPage so every chat surface in the app feels consistent.
  */
-export function BuddyPanel({ messages, isThinking, draft, setDraft, handleSubmit, bottomRef, onClose }: BuddyPanelProps) {
+export function BuddyPanel({
+    messages,
+    isThinking,
+    draft,
+    setDraft,
+    handleSubmit,
+    confirmAction,
+    dismissAction,
+    bottomRef,
+    onClose,
+}: BuddyPanelProps) {
     return (
         <div
             role="dialog"
@@ -68,6 +86,15 @@ export function BuddyPanel({ messages, isThinking, draft, setDraft, handleSubmit
                                     >
                                         {message.content}
                                     </div>
+
+                                    {!isUser && message.actions && message.actions.length > 0 && (
+                                        <BuddyActionProposals
+                                            messageId={message.id}
+                                            actions={message.actions}
+                                            onConfirm={confirmAction}
+                                            onDismiss={dismissAction}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         );
