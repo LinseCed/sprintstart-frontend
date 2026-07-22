@@ -9,6 +9,11 @@ export type AssessmentAnswerResponse = {
     question?: string | null;
 };
 
+/** `GET /me/assessment/status` — whether the caller has ever completed a placement interview. */
+export type AssessmentStatusResponse = {
+    completed: boolean;
+};
+
 /**
  * A node is either something the hire has shown (`MASTERED`, ledger meets the bar) or something
  * open to them (`AVAILABLE`). There is no `LOCKED`: prerequisite edges rank and order the work,
@@ -74,10 +79,4 @@ export type PathView = {
      * The competency graph version this path was projected against.
      */
     graphVersion: number;
-};
-
-export type AssessmentChatMessage = {
-    id: string;
-    role: 'assistant' | 'user';
-    content: string;
 };

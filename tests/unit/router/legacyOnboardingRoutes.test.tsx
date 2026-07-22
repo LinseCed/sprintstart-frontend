@@ -20,7 +20,7 @@ function renderAt(path: string) {
             <Routes>
                 <Route path="/onboarding" element={<Navigate to="/buddy" replace />} />
                 <Route path="/onboarding/path" element={<Navigate to="/buddy" replace />} />
-                <Route path="/onboarding/assessment" element={<LocationProbe />} />
+                <Route path="/onboarding/assessment" element={<Navigate to="/buddy" replace />} />
                 <Route path="/onboarding/:stepId" element={<Navigate to="/buddy" replace />} />
                 <Route path="/first-week" element={<Navigate to="/buddy" replace />} />
                 <Route path="/my-path" element={<Navigate to="/buddy" replace />} />
@@ -68,10 +68,12 @@ describe('retired hire routes', () => {
         expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
     });
 
-    it('leaves the assessment where it is', () => {
-        // The assessment is still reachable and is not part of the retired surfaces.
+    it('sends the standalone assessment page to the buddy', () => {
+        // The placement interview is the buddy's first conversation now — the page
+        // that hosted it is retired, and /buddy enters intake mode for a hire with
+        // no placement.
         renderAt('/onboarding/assessment');
 
-        expect(screen.getByTestId('location')).toHaveTextContent('/onboarding/assessment');
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
     });
 });

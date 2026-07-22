@@ -8,7 +8,6 @@ import { ReviewInboxPage } from '../pages/ReviewInboxPage.tsx';
 import { GraphStudioPage } from '../pages/GraphStudioPage.tsx';
 import { StarterWorkPage } from '../pages/StarterWorkPage';
 import { BlueprintAuthoringPage } from '../pages/BlueprintAuthoringPage.tsx';
-import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
 import { BuddyPage } from '../pages/BuddyPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
@@ -34,12 +33,14 @@ export function AppRouter() {
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />
-                <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
                 {/* Retired hire surfaces: onboarding is one conversation now, so the phased
-                    journey, First Week, and the competency map all resolve to the buddy.
-                    Keeping the routes as redirects means old links land somewhere real. */}
+                    journey, First Week, the competency map, and the standalone assessment page
+                    all resolve to the buddy (which enters intake mode for a hire with no
+                    placement). Keeping the routes as redirects means old links land somewhere
+                    real. */}
                 <Route path="/onboarding" element={<Navigate to="/buddy" replace />} />
                 <Route path="/onboarding/path" element={<Navigate to="/buddy" replace />} />
+                <Route path="/onboarding/assessment" element={<Navigate to="/buddy" replace />} />
                 <Route path="/onboarding/:stepId" element={<Navigate to="/buddy" replace />} />
                 <Route path="/buddy" element={<BuddyPage />} />
                 <Route path="/first-week" element={<Navigate to="/buddy" replace />} />

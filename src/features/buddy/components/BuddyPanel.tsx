@@ -20,7 +20,7 @@ type BuddyPanelProps = Pick<
 
 /**
  * The persistent buddy's floating conversation panel. Bubble styling mirrors
- * SkillAssessmentChat/ChatPage so every chat surface in the app feels consistent.
+ * the full-page buddy conversation so every buddy surface feels consistent.
  */
 export function BuddyPanel({
     messages,

@@ -2,10 +2,22 @@ import { apiClient } from './apiClient';
 import type {
     AssessmentAnswerResponse,
     AssessmentStartResponse,
-    PathView
+    AssessmentStatusResponse
 } from '../features/skill-assessment/types';
 
 export const assessmentService = {
+    /**
+     * Whether the authenticated user has ever completed a placement interview.
+     * Drives the buddy's intake mode: no completed placement means the buddy
+     * opens with the interview; completed means it opens as the mentor. A hint,
+     * not a door — the assessment never gates anything.
+     */
+    async fetchAssessmentStatus(): Promise<AssessmentStatusResponse> {
+        return await apiClient.fetch<AssessmentStatusResponse>(
+            '/api/v1/onboarding/me/assessment/status'
+        );
+    },
+
     /**
      * Starts the authenticated user's skill-assessment interview, or resumes it
      * if one is already in progress.
@@ -34,77 +46,5 @@ export const assessmentService = {
                 body: JSON.stringify({ sessionId, answer })
             }
         );
-    },
-
-    /**
-     * Returns the authenticated user's personalized competency path for one
-     * project: nodes (mastered/available/locked) and their prerequisite edges,
-     * projected from the competency graph and the user's progress ledger.
-     *
-     * Onboarding is per-project (the competency graph and ledger are global, but
-     * each project is onboarded independently), so `projectId` is required. A
-     * `404` means the user has no path for that project yet — the caller should
-     * kick off generation (personalize) rather than treat it as an error.
-     */
-    async fetchPath(projectId: string): Promise<PathView> {
-        return await apiClient.fetch<PathView>(
-            `/api/v1/onboarding/me/path?projectId=${encodeURIComponent(projectId)}`
-        );
     }
 };
-
-const graphVersionSeenPrefix = 'competency-graph-version-seen';
-
-function getGraphVersionSeenKey(userId: string) {
-    return `${graphVersionSeenPrefix}:${userId}`;
-}
-
-/**
- * Returns the competency graph version this user last saw their path at, or
- * `null` if they've never had one recorded (or the stored value is garbage).
- */
-export function getLastSeenGraphVersion(userId: string): number | null {
-    if (typeof window === 'undefined') return null;
-
-    const value = window.localStorage.getItem(getGraphVersionSeenKey(userId));
-    const parsed = value === null ? NaN : Number(value);
-
-    return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * Records the competency graph version this user has now seen their path at.
- */
-export function markGraphVersionSeen(userId: string, version: number): void {
-    if (typeof window === 'undefined') return;
-
-    window.localStorage.setItem(getGraphVersionSeenKey(userId), String(version));
-}
-
-const assessmentCompletedPrefix = 'skill-assessment-completed';
-
-function getAssessmentCompletedKey(userId: string) {
-    return `${assessmentCompletedPrefix}:${userId}`;
-}
-
-/**
- * Whether this user has ever finished the skill-assessment interview. `GET /me/path` always
- * succeeds (it projects a path from the current graph + ledger regardless of whether an
- * assessment was ever taken), so it can't be used to detect "already completed" -- this flag is
- * the only signal, recorded client-side right when the interview reports `done: true`.
- */
-export function hasCompletedAssessment(userId: string): boolean {
-    if (typeof window === 'undefined') return false;
-
-    return window.localStorage.getItem(getAssessmentCompletedKey(userId)) === 'true';
-}
-
-/**
- * Records that this user has finished the skill-assessment interview, so a page refresh lands
- * back on their path instead of restarting the interview.
- */
-export function markAssessmentCompleted(userId: string): void {
-    if (typeof window === 'undefined') return;
-
-    window.localStorage.setItem(getAssessmentCompletedKey(userId), 'true');
-}

@@ -19,6 +19,8 @@ type BuddyConversationProps = {
     /** Declines a proposed action; nothing changes. */
     dismissAction: (messageId: string, actionId: string) => void;
     bottomRef: RefObject<HTMLDivElement | null>;
+    /** Composer placeholder — "Type your answer…" while the buddy is intaking. */
+    placeholder?: string;
 };
 
 /**
@@ -36,6 +38,7 @@ export function BuddyConversation({
     confirmAction,
     dismissAction,
     bottomRef,
+    placeholder = 'Ask your buddy anything...',
 }: BuddyConversationProps) {
     return (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -118,7 +121,7 @@ export function BuddyConversation({
                     <AutoResizeTextarea
                         value={draft}
                         onChange={setDraft}
-                        placeholder="Ask your buddy anything..."
+                        placeholder={placeholder}
                         minRows={1}
                         maxRows={6}
                         className="flex-1"
