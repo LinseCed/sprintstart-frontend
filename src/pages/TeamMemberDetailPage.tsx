@@ -30,15 +30,9 @@ const DEFAULT_TARGET_LEVEL = 2;
  * What a PM sees about one team member.
  *
  * The page leads with the **competency ledger**, because that is what progress
- * means now: which competencies this person holds, at what level, on what
- * evidence -- durable, and true across every project they work on.
- *
- * It used to lead with a phase-by-phase journey and a completion percentage.
- * Both went with the per-user content tree (backend#53): "3 of 8 steps finished"
- * counted rows in one person's private copy of the material, and a step marked
- * done was indistinguishable from a competency actually proven. Nothing here is
- * per-person content any more -- modules are shared and authored once, at
- * `/competency-modules/:moduleId`.
+ * means: which competencies this person holds, at what level, on what evidence --
+ * durable, and true across every project they work on. Nothing here is per-person
+ * content: modules are shared and authored once, at `/competency-modules/:moduleId`.
  */
 export function TeamMemberDetailPage() {
     const { userId } = useParams<{ userId: string }>();

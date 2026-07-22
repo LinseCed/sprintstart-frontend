@@ -12,7 +12,7 @@ export type AssessmentAnswerResponse = {
 /**
  * A node is either something the hire has shown (`MASTERED`, ledger meets the bar) or something
  * open to them (`AVAILABLE`). There is no `LOCKED`: prerequisite edges rank and order the work,
- * they never bar it (backend #76). The map shows standing, not permission.
+ * they never bar it. The map shows standing, not permission.
  */
 export type NodeState = 'MASTERED' | 'AVAILABLE';
 

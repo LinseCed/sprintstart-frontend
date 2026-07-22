@@ -1,11 +1,9 @@
 /**
  * One team member as the team list sees them: who they are, and what they can actually do.
  *
- * Sourced from `GET /api/v1/onboarding/dashboard/users`. The journey-shaped fields this type
- * used to carry -- `progressPercentage`, `currentPhase`, `currentStep`, `skip` -- are gone with
- * the per-user step tree they described (backend#53). Progress through a checklist was never the
- * signal anyway: a step marked done and a competency actually verified are different claims, and
- * the ledger is the one that means something.
+ * Sourced from `GET /api/v1/onboarding/dashboard/users`. Progress through a checklist was never
+ * the signal: a step marked done and a competency actually verified are different claims, and the
+ * ledger is the one that means something.
  */
 export type TeamOverviewUser = {
     userId: string;

@@ -20,7 +20,7 @@ type UseOrientationResult = {
  *
  * The stream is a *view*: it drives the activity log, and the authoritative packet always comes from
  * the ordinary `GET /me/orientation` read once the stream ends — which returns the packet the stream
- * just cached (backend #94 persists on `done`). If the stream drops, the same read is the fallback,
+ * just cached (the backend persists on `done`). If the stream drops, the same read is the fallback,
  * so a flaky stream never costs the hire their orientation.
  *
  * Kept separate from `useFirstWeek`: orientation is help, never a gate, so a slow or failed assembly
