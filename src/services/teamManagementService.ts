@@ -10,10 +10,8 @@ import type {
 /**
  * The team, each member with their competency ledger.
  *
- * Reads `GET /onboarding/dashboard/users`. The old `/onboarding/team-overview` this used to call
- * was deleted with the per-user step tree (backend#53) and had been 404ing ever since -- which
- * was invisible because this function used to `catch` and return a bundled fixture of thirteen
- * invented people. Errors now propagate so a broken call looks broken.
+ * Reads `GET /onboarding/dashboard/users`. Errors propagate rather than being swallowed into a
+ * fixture, so a broken call looks broken.
  */
 export async function getTeamOverview(
   roleId?: string,
@@ -26,9 +24,9 @@ export async function getTeamOverview(
     size: 100,
   });
 
-  // roles/projects/profileIcon are an additive part of the contract (backend#63). Guard every
-  // one: a backend that predates that change omits them, and crashing the whole team list over a
-  // missing label -- when the names still render fine -- is a worse failure than degrading.
+  // roles/projects/profileIcon are an additive, optional part of the contract. Guard every one:
+  // crashing the whole team list over a missing label -- when the names still render fine -- is a
+  // worse failure than degrading.
   const users: TeamOverviewUser[] = page.content.map((summary) => ({
     userId: summary.userId,
     firstname: summary.firstname,

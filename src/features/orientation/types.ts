@@ -2,7 +2,7 @@
  * Task-scoped orientation: what this project already says about doing the task
  * a hire has, assembled rather than authored.
  *
- * Mirrors the backend's `GET /me/orientation` contract (backend#73, ai#31).
+ * Mirrors the backend's `GET /me/orientation` contract.
  * Deliberately unlike a competency module: no version, no approval, no author —
  * a packet is disposable and regenerates when the corpus moves.
  */

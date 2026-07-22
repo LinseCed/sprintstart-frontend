@@ -1,7 +1,7 @@
 /**
  * The first week: get it running → here is your first task → here is who to ask.
  *
- * Task 0 (#72) is available from day one — there is no environment-readiness gate.
+ * Task 0 is available from day one — there is no environment-readiness gate.
  * Getting the project running is part of the first task, and the real unblock when
  * it fights you is a person, so the buddy half reuses `features/human-loop` (the
  * same person the whole product points a stuck hire at).

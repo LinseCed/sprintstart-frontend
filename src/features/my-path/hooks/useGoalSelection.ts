@@ -9,9 +9,8 @@ function toMessage(error: unknown, fallback: string): string {
 /**
  * The hire's side of goal-setting: fetching their ranked candidate tasks and claiming one.
  *
- * Matches are still fetched lazily, though the reason has changed: ranking is deterministic and
- * local since backend#74, so this is no longer a model round trip — it is simply a list nobody
- * needs until they are actually choosing.
+ * Matches are fetched lazily: the ranked list is a local, deterministic computation nobody needs
+ * until they are actually choosing a goal.
  */
 export function useGoalSelection(projectId: string | undefined, onGoalChanged: () => void | Promise<void>) {
     const [matches, setMatches] = useState<RankedStarterWorkTask[]>([]);

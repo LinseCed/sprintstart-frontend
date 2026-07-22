@@ -3,7 +3,7 @@ import type { StarterWorkTask } from '../starter-work/types';
 /**
  * The ramp of real tasks, and the end of onboarding.
  *
- * Mirrors the backend's `GET /me/ramp` (backend#75). There is deliberately **no completion
+ * Mirrors the backend's `GET /me/ramp`. There is deliberately **no completion
  * percentage** in this contract, and none should be derived from it on the client: the ramp is
  * real work, and a percentage of real work is a number nobody can act on.
  */

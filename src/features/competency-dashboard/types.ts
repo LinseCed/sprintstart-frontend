@@ -40,8 +40,7 @@ export type UserCompetencySummary = {
     lastname: string;
     /**
      * Identity for a team list: role, project, avatar. Optional because they are an additive part
-     * of the contract (backend#63) -- a backend that predates it omits them, and consumers must
-     * degrade rather than assume their presence.
+     * of the contract -- consumers must degrade rather than assume their presence.
      */
     profileIcon?: string | null;
     roles?: { id: string; name: string }[];

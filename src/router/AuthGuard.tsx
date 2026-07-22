@@ -21,8 +21,8 @@ interface LocationState {
  * onboarding home, `/first-week` — the single spine — rather than the generic
  * dashboard. This is a **role-based** redirect, not the retired assessment gate:
  * it makes no network call and reads nothing but the permission group, so it
- * cannot recreate the redirect-loop / retired-endpoint bugs that gate produced
- * (frontend#19/#29). It fires **only from `/`**, so a hire navigates freely
+ * cannot recreate the redirect-loop / retired-endpoint bugs that gate produced.
+ * It fires **only from `/`**, so a hire navigates freely
  * everywhere else and is never trapped. PM/HR/ADMIN keep the dashboard as home.
  */
 export function AuthGuard({ children }: AuthGuardProps) {

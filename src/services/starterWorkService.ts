@@ -61,7 +61,7 @@ export const starterWorkService = {
     /**
      * The approved pool ranked for the authenticated hire on one project.
      *
-     * Ranking is deterministic and local since backend#74 — no AI call — and every entry carries
+     * Ranking is deterministic and local — no AI call — and every entry carries
      * the `reasons` it was suggested. Project-scoped because two of the signals (prior involvement
      * and how fast a repository answers pull requests) only mean anything inside one project.
      *
