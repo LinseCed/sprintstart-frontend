@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { AlertCircle, Check, Folder, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, Folder, Loader2, Trash2 } from "lucide-react";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
 import { AlertDialog } from "../../../components/ui/AlertDialog";
+import { SaveButton } from "../../../components/ui/SaveButton";
 import { projectService } from "../../../services/projectService";
 import {
   getProjectEditFormState,
@@ -276,19 +277,11 @@ export function ProjectDetailsDrawer({
                   Discard
                 </button>
 
-                <button
-                  type="button"
+                <SaveButton
+                  dirty={hasPendingChanges}
+                  saving={isSaving}
                   onClick={() => void saveChanges()}
-                  disabled={isSaving}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
-                  Save changes
-                </button>
+                />
               </div>
             </div>
           ) : undefined

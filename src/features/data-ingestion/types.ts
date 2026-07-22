@@ -97,11 +97,46 @@ export type SourceIngestionStatus = {
 
 export type ActiveTab = "sources" | "artifacts" | "runs" | "connectors";
 
+/**
+ * The section the overview-first Data Ingestion page is filtered to. `all` is
+ * the dashboard view (overview + sources + runs); the rest narrow to a single
+ * section. Replaces the old tab model.
+ */
+export type SectionKey =
+  | "all"
+  | "overview"
+  | "sources"
+  | "runs"
+  | "artifacts"
+  | "connectors";
+
 export type LoadingState = "idle" | "loading" | "success" | "error";
 
 export type ConnectState = "idle" | "loading" | "success" | "error";
 
 export type SourceStatus = "connected" | "running" | "warning" | "disabled";
+
+/**
+ * The single, user-facing status a source is collapsed to. The backend exposes
+ * three overlapping status concepts (backend source status, ingestion-run status
+ * and AI-sync status); {@link SourceStatusView} unifies them into one so the UI
+ * never shows two competing badges for the same source.
+ */
+export type SourceStatusView =
+  | "connected"
+  | "syncing"
+  | "attention"
+  | "disabled";
+
+/** Presentation payload for a {@link SourceStatusView}: what to render. */
+export type SourceStatusPresentation = {
+  state: SourceStatusView;
+  label: string;
+  icon: LucideIcon;
+  tone: "success" | "brand" | "warning" | "neutral";
+  /** True while `state === "syncing"`, so callers can spin the icon. */
+  spinning: boolean;
+};
 
 export type SourceMeta = {
   name: string;
@@ -136,6 +171,8 @@ export type DataSource = SourceDetailsSource & {
   statusLabel: string;
   ingestionStatus: SourceStatus;
   ingestionStatusLabel: string;
+  /** The single unified status shown in the list and details drawer. */
+  statusView: SourceStatusPresentation;
   lastRunAt: string | null;
   latestIngestedCount: number;
   latestUpdatedCount: number;

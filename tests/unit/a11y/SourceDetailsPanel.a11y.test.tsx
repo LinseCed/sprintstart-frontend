@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { GitBranch } from 'lucide-react';
 import { SourceDetailsPanel } from '../../../src/features/data-ingestion/components/SourceDetailsPanel';
 import type { DataSource } from '../../../src/features/data-ingestion/types';
+import { deriveSourceStatus } from '../../../src/features/data-ingestion/data';
 
 vi.mock('../../../src/services/ingestionService', () => ({
     getIngestionRuns: vi.fn().mockResolvedValue([]),
@@ -20,6 +21,7 @@ const source: DataSource = {
     statusLabel: 'Connected',
     ingestionStatus: 'connected',
     ingestionStatusLabel: 'Synced',
+    statusView: deriveSourceStatus({ hasErrors: false, hasNeverSynced: false }),
     artifacts: 42,
     lastSync: '2026-07-01',
     errors: 0,

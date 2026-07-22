@@ -1,4 +1,12 @@
-import { Database, FileText, GitBranch } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleSlash,
+  Database,
+  FileText,
+  GitBranch,
+  Loader2,
+} from "lucide-react";
 import type {
   AiSyncStatus,
   BackendProjectSourceStatus,
@@ -8,6 +16,7 @@ import type {
   SourceIngestionStatus,
   SourceMeta,
   SourceStatus,
+  SourceStatusPresentation,
   SourceSystem,
 } from "./types.ts";
 
@@ -76,6 +85,11 @@ export function createDataSource(
       hasErrors,
       status?.status,
     ),
+    statusView: deriveSourceStatus({
+      runStatus: status?.status,
+      hasErrors,
+      hasNeverSynced,
+    }),
     artifacts: latestIngestedCount,
     lastSync: formatDateTime(lastRunAt),
     nextSync: "Not available",
@@ -146,6 +160,12 @@ export function buildDataSources(
                 hasErrors,
                 latestRun.status,
             ),
+            statusView: deriveSourceStatus({
+                runStatus: latestRun.status,
+                aiSyncStatus: latestRun.aiSyncStatus,
+                hasErrors,
+                hasNeverSynced: false,
+            }),
             artifacts: latestRun.ingestedCount,
             lastSync: formatDateTime(latestRun.startedAt),
             errors: latestRun.failedCount,
@@ -187,6 +207,88 @@ export function getSourceStatusFromBackend(
     default:
       return "warning";
   }
+}
+
+type DeriveSourceStatusInput = {
+  backendStatus?: BackendProjectSourceStatus;
+  runStatus?: IngestionRunStatus | null;
+  aiSyncStatus?: AiSyncStatus | null;
+  hasErrors: boolean;
+  hasNeverSynced: boolean;
+};
+
+/**
+ * Collapses the backend source status, the ingestion-run status and the AI-sync
+ * status into the single {@link SourceStatusPresentation} the UI renders.
+ *
+ * This is the one place the three overlapping status concepts are reconciled, so
+ * the list and the details drawer always agree and never show two competing
+ * badges. Priority is deliberate: an explicitly disabled source wins over any
+ * run state; an in-flight sync (backend UPDATING/INDEXING, a running run, or a
+ * pending AI index) wins over "needs attention"; failures / out-of-date /
+ * never-synced fall to `attention`; everything else is `connected`.
+ */
+export function deriveSourceStatus({
+  backendStatus,
+  runStatus,
+  aiSyncStatus,
+  hasErrors,
+  hasNeverSynced,
+}: DeriveSourceStatusInput): SourceStatusPresentation {
+  if (backendStatus === "DISABLED") {
+    return {
+      state: "disabled",
+      label: "Disabled",
+      icon: CircleSlash,
+      tone: "neutral",
+      spinning: false,
+    };
+  }
+
+  const isSyncing =
+    backendStatus === "UPDATING" ||
+    backendStatus === "INDEXING" ||
+    isRunInProgress(runStatus) ||
+    aiSyncStatus === "PENDING";
+
+  if (isSyncing) {
+    return {
+      state: "syncing",
+      label: aiSyncStatus === "PENDING" ? "Indexing" : "Syncing",
+      icon: Loader2,
+      tone: "brand",
+      spinning: true,
+    };
+  }
+
+  const needsAttention =
+    hasNeverSynced ||
+    hasErrors ||
+    aiSyncStatus === "FAILED" ||
+    runStatus === "FAILED" ||
+    runStatus === "PARTIAL" ||
+    backendStatus === "OUT_OF_DATE" ||
+    backendStatus === "FAILED" ||
+    backendStatus === "ERROR" ||
+    backendStatus === "DISCONNECTED";
+
+  if (needsAttention) {
+    return {
+      state: "attention",
+      label: hasNeverSynced ? "Not synced" : "Needs attention",
+      icon: AlertTriangle,
+      tone: "warning",
+      spinning: false,
+    };
+  }
+
+  return {
+    state: "connected",
+    label: "Connected",
+    icon: CheckCircle2,
+    tone: "success",
+    spinning: false,
+  };
 }
 
 export function getSourceStatusLabel(

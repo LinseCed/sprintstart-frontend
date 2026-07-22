@@ -65,10 +65,6 @@ vi.mock('../../../src/features/data-ingestion/components/SourceList', () => ({
     SourceList: () => <div>No sources connected yet.</div>,
 }));
 
-vi.mock('../../../src/features/data-ingestion/components/ArtifactTable', () => ({
-    ArtifactTable: () => <div>No artifacts.</div>,
-}));
-
 vi.mock('../../../src/features/data-ingestion/components/RunHistory', () => ({
     RunHistory: () => <div>No runs.</div>,
 }));
@@ -80,7 +76,7 @@ describe('DataIngestionPage Accessibility', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'sources' })).toBeInTheDocument();
+            expect(screen.getByRole('group', { name: /filter sections/i })).toBeInTheDocument();
         });
 
         expect(await axe(baseElement)).toHaveNoViolations();

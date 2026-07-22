@@ -38,6 +38,30 @@ export function parseGithubRepositoryReference(
 }
 
 /**
+ * Extracts a bare GitHub owner (organization or user login) from a free-form
+ * value such as `SprintStartProject`, `github.com/SprintStartProject` or a full
+ * `https://github.com/SprintStartProject` URL. Unlike
+ * {@link parseGithubRepositoryReference} it does not require a repository name —
+ * it is used by the org/user discovery flow where only the owner is entered.
+ * Returns `null` when no owner segment can be found.
+ */
+export function parseGithubOwnerInput(value: string): string | null {
+  const normalizedInput = value
+    .trim()
+    .replace(/^https?:\/\/github\.com\//i, "")
+    .replace(/^github\.com\//i, "")
+    .replace(/^git@github\.com:/i, "")
+    .replace(/\.git$/i, "")
+    .replace(/^\/+|\/+$/g, "");
+
+  const [owner] = normalizedInput
+    .split("/")
+    .filter((segment) => segment.length > 0);
+
+  return owner ?? null;
+}
+
+/**
  * Resolves the owner and repository-name inputs of a connect form.
  *
  * A combined reference in the owner field wins, so pasting `owner/repo` or a

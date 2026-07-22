@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { SourceList } from '../../../src/features/data-ingestion/components/SourceList';
 import { GitBranch } from 'lucide-react';
 import type { DataSource } from '../../../src/features/data-ingestion/types';
+import { deriveSourceStatus } from '../../../src/features/data-ingestion/data';
 
 const sources: DataSource[] = [
     {
@@ -16,6 +17,7 @@ const sources: DataSource[] = [
         statusLabel: 'Connected',
         ingestionStatus: 'connected',
         ingestionStatusLabel: 'Synced',
+        statusView: deriveSourceStatus({ hasErrors: false, hasNeverSynced: false }),
         artifacts: 42,
         lastSync: '2026-07-01',
         errors: 0,

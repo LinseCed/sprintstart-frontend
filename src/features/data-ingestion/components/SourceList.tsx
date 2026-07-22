@@ -1,11 +1,14 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { formatNumber } from "../data.ts";
 import type { DataSource } from "../types.ts";
+import { SourceStatusChip } from "./SourceStatusChip.tsx";
 
 type SourceListProps = {
   sources: DataSource[];
   selectedSourceId: string | null;
   onSelectSource: (sourceId: string) => void;
+  /** When set, the empty state offers a primary "connect" call to action. */
+  onAddSource?: () => void;
 };
 
 /**
@@ -16,17 +19,34 @@ export function SourceList({
   sources,
   selectedSourceId,
   onSelectSource,
+  onAddSource,
 }: SourceListProps) {
   if (sources.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted p-8 text-center">
-        <h3 className="text-lg font-semibold text-app-text">
-          No connected sources
-        </h3>
+      <div className="relative overflow-hidden rounded-3xl border border-app-brand-border bg-app-surface p-8 text-center sm:p-10">
+        <div className="pointer-events-none absolute -top-16 right-0 h-56 w-56 rounded-full bg-app-brand-soft blur-3xl" />
 
-        <p className="mt-2 text-sm text-app-text-muted">
-          Connect a source to start ingestion and show source details here.
-        </p>
+        <div className="relative z-10 flex flex-col items-center">
+          <h3 className="text-xl font-bold text-app-text">
+            Connect your first source
+          </h3>
+
+          <p className="mt-2 max-w-md text-sm text-app-text-muted">
+            Discover repositories from a GitHub organization or user and connect
+            them to start ingesting artifacts into the knowledge base.
+          </p>
+
+          {onAddSource && (
+            <button
+              type="button"
+              onClick={onAddSource}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-app-brand px-6 py-3 text-sm font-semibold text-white transition hover:bg-app-brand-hover"
+            >
+              <Plus className="h-4 w-4" />
+              Add sources
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -65,7 +85,7 @@ export function SourceList({
                         {source.type}
                       </span>
 
-                      <SourceStatusBadge source={source} />
+                      <SourceStatusChip status={source.statusView} />
                     </div>
                   </div>
                 </div>
@@ -147,26 +167,3 @@ function InfoBlock({
   );
 }
 
-function SourceStatusBadge({ source }: { source: DataSource }) {
-  if (source.status === "connected") {
-    return (
-      <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-        {source.statusLabel}
-      </span>
-    );
-  }
-
-  if (source.status === "running") {
-    return (
-      <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-        {source.statusLabel}
-      </span>
-    );
-  }
-
-  return (
-    <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-      {source.statusLabel}
-    </span>
-  );
-}
