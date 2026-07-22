@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useReducedMotion } from 'framer-motion';
 import { AlertCircle, CheckCheck, Loader2, Network, Plus, Sparkles, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { AiActivityLog } from '../features/ai-activity/AiActivityLog';
 import { ProjectSelect } from '../features/projects/components/ProjectSelect';
 import { useProjectSelection } from '../features/projects/useProjectSelection';
 import { StudioGraph } from '../features/graph-authoring/components/StudioGraph';
@@ -50,14 +52,17 @@ export function GraphStudioPage() {
         edges: proposedEdges,
         isGenerating,
         error: proposalError,
-        generateResult,
         generate,
+        streamingProposals,
+        streamActivity,
+        streamPhase,
         approveCompetency,
         rejectCompetency,
         approveEdge,
         rejectEdge,
         approveAll
     } = useGraphAuthoring();
+    const reducedMotion = useReducedMotion();
 
     const {
         projects,
@@ -117,6 +122,15 @@ export function GraphStudioPage() {
         [proposedCompetencies, proposedEdges]
     );
     const proposalCount = proposedCompetencies.length + proposedEdges.length;
+
+    // While a generation streams, the graph draws each node/edge as it lands. Reduced motion opts out
+    // of the incremental assembly (the settled graph appears in one step once the re-read completes),
+    // matching the skill-tree-motion constraint. The proposal *list* below is fed by the authoritative
+    // proposals either way, so the a11y alternative never depends on the animation.
+    const isAssembling = streamPhase === 'streaming' && !reducedMotion;
+    const displayProposals = isAssembling ? streamingProposals : proposals;
+    const displayProposalCount =
+        displayProposals.competencies.length + displayProposals.edges.length;
 
     const selectedCompetency = graph.competencies.find(node => node.key === selectedKey) ?? null;
     const selectedProposal =
@@ -224,21 +238,17 @@ export function GraphStudioPage() {
                 </div>
             )}
 
-            {generateResult && (
+            {(streamPhase === 'streaming' || streamPhase === 'done') && (
                 <div className="app-page-frame mt-4 shrink-0">
-                    <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-4 text-sm text-app-brand-text">
-                        Generated {generateResult.competenciesProposed} competenc
-                        {generateResult.competenciesProposed === 1 ? 'y' : 'ies'} and{' '}
-                        {generateResult.edgesProposed} edge
-                        {generateResult.edgesProposed === 1 ? '' : 's'} for review.
-                        {generateResult.notes.length > 0 && (
-                            <ul className="mt-2 list-inside list-disc space-y-1">
-                                {generateResult.notes.map(note => (
-                                    <li key={note}>{note}</li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+                    <AiActivityLog
+                        phase={streamPhase}
+                        entries={streamActivity}
+                        title={
+                            streamPhase === 'done'
+                                ? 'Graph proposals ready to review'
+                                : 'Building the competency graph'
+                        }
+                    />
                 </div>
             )}
 
@@ -246,7 +256,7 @@ export function GraphStudioPage() {
                 <div className="flex flex-1 items-center justify-center p-16">
                     <Loader2 className="h-8 w-8 animate-spin text-app-brand" />
                 </div>
-            ) : graph.competencies.length === 0 && proposalCount === 0 ? (
+            ) : graph.competencies.length === 0 && displayProposalCount === 0 ? (
                 <div className="flex flex-1 items-center justify-center p-16">
                     <div className="max-w-md text-center">
                         <Network className="mx-auto mb-4 h-10 w-10 text-app-text-disabled" />
@@ -276,7 +286,7 @@ export function GraphStudioPage() {
                         <StudioGraph
                             graph={graph}
                             readinessByKey={readinessByKey}
-                            proposals={proposals}
+                            proposals={displayProposals}
                             selectedKey={selectedKey}
                             onSelectKey={setSelectedKey}
                             onConnectNodes={(fromKey, toKey) => {

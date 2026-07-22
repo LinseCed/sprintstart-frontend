@@ -1,9 +1,65 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { competencyGraphService } from '../../../services/competencyGraphService';
-import type { CompetencyEdgeProposal, CompetencyProposal, GenerateGraphResult } from '../types';
+import type { AiProgressItem } from '../../../services/aiStreamService';
+import { useAiStream } from '../../ai-activity/useAiStream';
+import type {
+    CompetencyEdgeProposal,
+    CompetencyKind,
+    CompetencyProposal,
+    EdgeKind,
+    ProposedGraph
+} from '../types';
+
+const GRAPH_GENERATE_STREAM = '/api/v1/onboarding/competency-graph/generate/stream';
 
 function toMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
+}
+
+function str(value: unknown, fallback = ''): string {
+    return typeof value === 'string' ? value : fallback;
+}
+
+function optionalStr(value: unknown): string | null {
+    return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/**
+ * Turns the raw `item` payloads streamed during generation into a [ProposedGraph] the studio graph
+ * can draw as it assembles. An item is either a competency (`key`) or an edge (`from_key`); its keys
+ * are snake_case because the backend relays the AI's own payload. These carry synthetic ids — they
+ * are a live preview, replaced wholesale by the authoritative re-read once the stream ends, so the
+ * ids are never used for a review action.
+ */
+function itemsToProposedGraph(items: AiProgressItem[]): ProposedGraph {
+    const competencies: CompetencyProposal[] = [];
+    const edges: CompetencyEdgeProposal[] = [];
+    items.forEach((item, index) => {
+        const fromKey = item.from_key ?? item.fromKey;
+        if (typeof fromKey === 'string') {
+            edges.push({
+                id: `preview-edge-${index}`,
+                fromKey,
+                toKey: str(item.to_key ?? item.toKey),
+                kind: str(item.kind, 'RELATED') as EdgeKind,
+                rationale: optionalStr(item.rationale),
+                status: 'PROPOSED'
+            });
+            return;
+        }
+        if (typeof item.key === 'string') {
+            competencies.push({
+                id: `preview-node-${index}`,
+                key: str(item.key),
+                label: str(item.label, str(item.key)),
+                description: optionalStr(item.description),
+                kind: str(item.kind, 'SKILL') as CompetencyKind,
+                repoRef: optionalStr(item.repo_ref ?? item.repoRef),
+                status: 'PROPOSED'
+            });
+        }
+    });
+    return { competencies, edges };
 }
 
 /**
@@ -17,7 +73,12 @@ export function useGraphAuthoring() {
     const [isLoading, setIsLoading] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [generateResult, setGenerateResult] = useState<GenerateGraphResult | null>(null);
+    const aiStream = useAiStream();
+
+    // The graph assembling live: each streamed node/edge item drawn as a pending addition, replaced
+    // by the authoritative re-read once the stream ends. A memo so the studio graph re-lays out only
+    // when a new item actually lands.
+    const streamingProposals = useMemo(() => itemsToProposedGraph(aiStream.items), [aiStream.items]);
 
     const loadProposed = useCallback(async () => {
         setIsLoading(true);
@@ -42,17 +103,20 @@ export function useGraphAuthoring() {
     const generate = useCallback(async () => {
         setIsGenerating(true);
         setError(null);
-        setGenerateResult(null);
-        try {
-            const result = await competencyGraphService.generate();
-            setGenerateResult(result);
+        aiStream.reset();
+        // Watch the graph assemble: each grounded competency, then each accepted edge, streams in as
+        // an item. On a clean finish re-read the authoritative proposals (the stream is a view, so the
+        // stored set is the source of truth); on failure fall back to a plain re-read so a dropped
+        // stream never costs the result.
+        const ok = await aiStream.start(GRAPH_GENERATE_STREAM);
+        if (ok) {
             await loadProposed();
-        } catch (err) {
-            setError(toMessage(err, 'Could not generate proposals.'));
-        } finally {
-            setIsGenerating(false);
+        } else {
+            setError(aiStream.errorMessage ?? 'Could not generate proposals.');
+            await loadProposed();
         }
-    }, [loadProposed]);
+        setIsGenerating(false);
+    }, [aiStream, loadProposed]);
 
     const approveCompetency = useCallback(async (id: string) => {
         await competencyGraphService.approveCompetency(id);
@@ -106,8 +170,12 @@ export function useGraphAuthoring() {
         isLoading,
         isGenerating,
         error,
-        generateResult,
         generate,
+        // Live generation surface: the assembling preview, the activity log, and the phase so the
+        // page can show nodes/edges landing and fall back to the settled proposals when it ends.
+        streamingProposals,
+        streamActivity: aiStream.entries,
+        streamPhase: aiStream.phase,
         approveCompetency,
         rejectCompetency,
         approveEdge,
