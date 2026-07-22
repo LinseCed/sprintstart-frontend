@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { humanLoopService } from '../../../services/humanLoopService';
+import { onboardingMetricsService } from '../../../services/onboardingMetricsService';
 import { useProjectSelection } from '../../projects/useProjectSelection';
 import { deriveBuddyNudge, type BuddyNudge } from '../nudge';
 
@@ -24,7 +24,7 @@ export function useBuddyNudge(): BuddyNudge | null {
                 return;
             }
             try {
-                const timeline = await humanLoopService.fetchMyTimeline(selectedProjectId);
+                const timeline = await onboardingMetricsService.fetchMyTimeline(selectedProjectId);
                 if (!cancelled) setNudge(deriveBuddyNudge(timeline));
             } catch {
                 if (!cancelled) setNudge(null);

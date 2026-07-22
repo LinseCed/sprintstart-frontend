@@ -1,15 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { deriveBuddyNudge } from '../../../../src/features/buddy/nudge';
-import type { MyTimeline } from '../../../../src/features/human-loop/types';
+import type { HireTimeline } from '../../../../src/features/onboarding-metrics/types';
 
-function timeline(overrides: Partial<MyTimeline> = {}): MyTimeline {
+function timeline(overrides: Partial<HireTimeline> = {}): HireTimeline {
     return {
         userId: 'u1',
         displayName: 'Sam',
         githubLogin: 'sam',
+        joinedAt: '2026-07-01T00:00:00Z',
+        firstTaskClaimedAt: null,
         firstPullRequestOpenedAt: '2026-07-20T00:00:00Z',
         firstResponseAt: null,
         firstPullRequestMergedAt: null,
+        hoursToFirstMergedPullRequest: null,
+        hoursToFirstResponse: null,
         mergedPullRequestCount: 0,
         openPullRequestCount: 1,
         longestOpenWaitHours: null,

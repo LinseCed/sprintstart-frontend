@@ -20,7 +20,6 @@ import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
-import { useMenteeAlertCount } from '../../features/human-loop/hooks/useMenteeAlertCount';
 
 type SidebarNavItem = {
     label: string;
@@ -31,8 +30,6 @@ type SidebarNavItem = {
 type SidebarContentProps = {
     onNavigate?: () => void;
     'aria-label'?: string;
-    /** How many mentees need this user's move — badges the Dashboard link. 0 hides it. */
-    menteeAlertCount?: number;
 };
 
 const navItems: SidebarNavItem[] = [
@@ -107,7 +104,6 @@ function getNavLinkClass(isActive: boolean): string {
 function SidebarContent({
     onNavigate,
     'aria-label': ariaLabel = 'Primary Navigation',
-    menteeAlertCount = 0,
 }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
     const location = useLocation();
@@ -154,16 +150,7 @@ function SidebarContent({
 
                                 <span>{item.label}</span>
 
-                                {item.path === '/' && menteeAlertCount > 0 ? (
-                                    <span
-                                        aria-label={`${menteeAlertCount} ${
-                                            menteeAlertCount === 1 ? 'mentee needs' : 'mentees need'
-                                        } a check-in`}
-                                        className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-app-danger-solid px-1 text-[11px] font-semibold leading-none text-white"
-                                    >
-                                        {menteeAlertCount}
-                                    </span>
-                                ) : isActive ? (
+                                {isActive ? (
                                     <span className="ml-auto h-[6px] w-[6px] rounded-full bg-white" />
                                 ) : null}
                             </>
@@ -311,10 +298,6 @@ function SidebarContent({
  */
 export function SideBar() {
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-    const { status } = useAuth();
-    // Fetched once here, in the shared parent, so the desktop and mobile copies of
-    // the nav agree and only one read is made.
-    const menteeAlertCount = useMenteeAlertCount(status === 'authenticated');
 
     const closeMobileSidebar = () => {
         setIsMobileSidebarOpen(false);
@@ -323,7 +306,7 @@ export function SideBar() {
     return (
         <>
             <aside aria-label="Desktop Sidebar" className="sticky top-0 hidden h-screen w-[286px] shrink-0 flex-col border-r border-app-border bg-app-bg lg:flex">
-                <SidebarContent aria-label="Desktop Navigation" menteeAlertCount={menteeAlertCount} />
+                <SidebarContent aria-label="Desktop Navigation" />
             </aside>
 
             <header className="fixed left-0 right-0 top-0 z-40 flex h-[64px] items-center justify-between border-b border-app-border bg-app-bg px-[16px] lg:hidden">
@@ -373,7 +356,6 @@ export function SideBar() {
                 <SidebarContent
                     aria-label="Mobile Navigation"
                     onNavigate={closeMobileSidebar}
-                    menteeAlertCount={menteeAlertCount}
                 />
             </aside>
         </>

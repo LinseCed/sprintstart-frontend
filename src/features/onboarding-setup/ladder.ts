@@ -33,15 +33,10 @@ const RUNG_META: Record<string, RungMeta> = {
         route: '/starter-work',
         reviewKind: 'starter-tasks',
     },
-    'human-loop': {
-        title: 'A human per hire',
-        blurb: 'Every hire has a named buddy before day one — the highest-evidence lever there is.',
-        route: '/pm-dashboard',
-    },
 };
 
 /** The order rungs render in, matching the setup pipeline. */
-const RUNG_ORDER = ['corpus', 'skill-map', 'baseline', 'starter-tasks', 'human-loop'];
+const RUNG_ORDER = ['corpus', 'skill-map', 'baseline', 'starter-tasks'];
 
 /**
  * Derives the corpus rung from the ingestion sources the Data Ingestion page already builds, so the
@@ -81,7 +76,7 @@ export function deriveCorpusRung(sources: DataSource[]): SetupRung {
 }
 
 /**
- * Merges the corpus rung with the backend's four rungs into the full ordered ladder, attaching the
+ * Merges the corpus rung with the backend's three rungs into the full ordered ladder, attaching the
  * display metadata each rung renders with. Overall readiness is every rung being OK — the corpus
  * included, which the backend cannot see.
  */

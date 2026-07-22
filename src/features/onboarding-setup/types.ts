@@ -5,7 +5,7 @@ export type RungState = 'OK' | 'WARN' | 'BLOCKED';
 
 /** One setup stage's state, as returned by `GET /api/v1/onboarding/setup/status`. */
 export interface SetupRung {
-    /** Stable key: `skill-map`, `baseline`, `starter-tasks`, `human-loop` — plus `corpus`, added client-side. */
+    /** Stable key: `skill-map`, `baseline`, `starter-tasks` — plus `corpus`, added client-side. */
     key: string;
     state: RungState;
     /** The positive quantity for this rung (approved competencies, ingested artifacts, ...). */
@@ -14,7 +14,7 @@ export interface SetupRung {
     detail: string;
 }
 
-/** The backend's four onboarding-owned rungs. The corpus rung is composed onto the top client-side. */
+/** The backend's three onboarding-owned rungs. The corpus rung is composed onto the top client-side. */
 export interface SetupReadiness {
     projectId: string;
     rungs: SetupRung[];
@@ -33,7 +33,7 @@ export interface LadderRung extends SetupRung {
     reviewKind?: string;
 }
 
-/** The full five-rung ladder shown on the Setup page, and whether every stage is done. */
+/** The full four-rung ladder shown on the Setup page, and whether every stage is done. */
 export interface SetupLadder {
     rungs: LadderRung[];
     ready: boolean;

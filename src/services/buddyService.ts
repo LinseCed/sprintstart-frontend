@@ -40,15 +40,15 @@ export interface BuddyActionResult {
 /**
  * Confirms a buddy-proposed action. This is the only call that mutates — the proposal itself
  * changed nothing. The project is re-resolved server-side from the caller, so only the action name
- * (and, for flag-to-PM, the composed question; for logging contact, an optional note) is sent.
+ * (and, for flag-to-PM, the composed question) is sent.
  */
 export async function performAction(
     action: string,
-    extras: { question?: string; note?: string } = {},
+    extras: { question?: string } = {},
 ): Promise<BuddyActionResult> {
     return await apiClient.fetch<BuddyActionResult>(`/api/v1/onboarding/me/buddy/actions`, {
         method: "POST",
-        body: JSON.stringify({ action, question: extras.question, note: extras.note }),
+        body: JSON.stringify({ action, question: extras.question }),
     });
 }
 
