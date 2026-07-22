@@ -1,24 +1,9 @@
 import { apiClient } from './apiClient';
-import type { MyEnvironment, MyTaskZero } from '../features/first-week/types';
+import type { MyTaskZero } from '../features/first-week/types';
 
 const BASE = '/api/v1/onboarding';
 
 export const firstWeekService = {
-    /**
-     * The authenticated hire's environment readiness on a project. Readiness is
-     * settled by evidence (a reported build/CI run, or a pull request they
-     * authored), never self-declared here — so there is no "mark ready" call.
-     * Not-ready (`ready: false`) is an ordinary response, not an error.
-     *
-     * @param projectId The project to read readiness for.
-     * @throws ApiError 404 when the caller is not a member of the project.
-     */
-    async fetchEnvironment(projectId: string): Promise<MyEnvironment> {
-        return await apiClient.fetch<MyEnvironment>(
-            `${BASE}/me/environment?projectId=${encodeURIComponent(projectId)}`
-        );
-    },
-
     /**
      * The authenticated hire's Task 0. Reading it assigns one automatically once
      * the environment is ready and none is assigned yet, so a first day never

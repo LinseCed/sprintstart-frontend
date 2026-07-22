@@ -7,16 +7,8 @@ describe('firstWeekService', () => {
         vi.restoreAllMocks();
     });
 
-    it('reads environment readiness scoped to the project', async () => {
-        const env = { ready: false, readyAt: null, evidence: null, evidenceDetail: null, derived: false };
-        const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(env);
-
-        await expect(firstWeekService.fetchEnvironment('p1')).resolves.toEqual(env);
-        expect(fetchSpy).toHaveBeenCalledWith('/api/v1/onboarding/me/environment?projectId=p1');
-    });
-
     it('reads Task 0 scoped to the project', async () => {
-        const task = { ready: true, task: null, assignedAt: null, noneAvailable: true, loopProven: false };
+        const task = { task: null, assignedAt: null, noneAvailable: true, loopProven: false };
         const fetchSpy = vi.spyOn(apiClient, 'fetch').mockResolvedValue(task);
 
         await expect(firstWeekService.fetchTaskZero('p1')).resolves.toEqual(task);
@@ -35,6 +27,6 @@ describe('firstWeekService', () => {
     it('propagates backend failures instead of swallowing them', async () => {
         vi.spyOn(apiClient, 'fetch').mockRejectedValue(new Error('boom'));
 
-        await expect(firstWeekService.fetchEnvironment('p1')).rejects.toThrow('boom');
+        await expect(firstWeekService.fetchTaskZero('p1')).rejects.toThrow('boom');
     });
 });

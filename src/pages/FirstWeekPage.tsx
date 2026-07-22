@@ -20,11 +20,12 @@ import { firstWeekService } from '../services/firstWeekService';
  * The first week — what a new hire sees on day one, replacing "here is your
  * generated path".
  *
- * Three steps in the order that matters: **can you run it** (environment
- * readiness, settled by evidence, not self-declaration), **here is your first
- * task** (Task 0, once ready, with the PR loop spelled out), and **here is who to
- * ask** (the human buddy, reused from the human-loop slice). A hire who cannot get
- * the environment working reaches a person from step 1 in one action.
+ * Three steps in the order that matters: **get it running** (the repo's own setup,
+ * no synthesised command and no gate), **here is your first task** (Task 0, available
+ * from day one, with the PR loop spelled out), and **here is who to ask** (the human
+ * buddy, reused from the human-loop slice). A hire who cannot get the project running
+ * reaches a person from step 1 in one action — the real unblock, since no product can
+ * detect a local build across every stack.
  *
  * Nothing here is gated behind the skill assessment — it is offered as an
  * optional, non-blocking step, never a wall. Onboarding is per-project, so a
@@ -39,7 +40,7 @@ export function FirstWeekPage() {
         errorMessage: projectsError
     } = useProjectSelection();
 
-    const { environment, taskZero, isLoading, error, refresh } = useFirstWeek(selectedProjectId);
+    const { taskZero, isLoading, error, refresh } = useFirstWeek(selectedProjectId);
     // Loaded independently of the first week itself: orientation is help, never a
     // gate, so a slow assembly must not hold up the two reads the page depends on.
     const {
@@ -59,20 +60,10 @@ export function FirstWeekPage() {
     // Past the mechanics: the ramp leads, and the setup steps become history rather than the page.
     const pastFirstWeek = ramp !== null && ramp.stage !== 'TASK_ZERO';
 
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isHandingBack, setIsHandingBack] = useState(false);
     // The hire fixing their own task's orientation in place: today's "this is wrong" becomes a real
     // edit, not a report into a sink nobody reads.
     const [isEditingOrientation, setIsEditingOrientation] = useState(false);
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        try {
-            await refresh();
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
 
     const handleHandBack = async () => {
         if (!selectedProjectId) return;
@@ -154,8 +145,8 @@ export function FirstWeekPage() {
                         {/*
                          * Once somebody has merged something, the ramp *is* their home and the
                          * first-week steps are history — so it moves above them rather than being
-                         * a section further down the page. Before that it sits underneath, because
-                         * a hire who cannot run the project yet does not need a task list.
+                         * a section further down the page. Before that it sits underneath the
+                         * setup-and-first-task steps.
                          */}
                         {pastFirstWeek && (
                             <RampSection
@@ -166,14 +157,9 @@ export function FirstWeekPage() {
                                 onChanged={() => void reloadRamp()}
                             />
                         )}
-                        <EnvironmentStep
-                            environment={environment}
-                            onRefresh={() => void handleRefresh()}
-                            isRefreshing={isRefreshing}
-                        />
+                        <EnvironmentStep />
                         <TaskZeroStep
                             taskZero={taskZero}
-                            environmentReady={environment?.ready ?? false}
                             onHandBack={() => void handleHandBack()}
                             isHandingBack={isHandingBack}
                             orientation={
