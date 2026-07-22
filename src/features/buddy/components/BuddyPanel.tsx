@@ -3,6 +3,7 @@ import { AutoResizeTextarea } from '../../../components/ui/AutoResizeTextarea';
 import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { useBuddy } from '../hooks/useBuddy';
 import { BuddyActionProposals } from './BuddyActionProposals';
+import { BuddyMarkdown } from './BuddyMarkdown';
 
 type BuddyPanelProps = Pick<
     ReturnType<typeof useBuddy>,
@@ -58,6 +59,15 @@ export function BuddyPanel({
                 <div className="flex flex-col gap-4 px-4 py-4">
                     {messages.map(message => {
                         const isUser = message.role === 'USER';
+                        const hasText = message.content.trim().length > 0;
+                        const hasActions = (message.actions?.length ?? 0) > 0;
+
+                        // The empty assistant placeholder streams in later; the `isThinking`
+                        // indicator already stands in for it, so skip it to avoid a second empty
+                        // bubble while the buddy is thinking.
+                        if (!isUser && !hasText && !hasActions) {
+                            return null;
+                        }
 
                         return (
                             <div
@@ -77,15 +87,17 @@ export function BuddyPanel({
                                 </div>
 
                                 <div className={`flex max-w-[80%] flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-                                    <div
-                                        className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                                            isUser
-                                                ? 'rounded-tr-none bg-app-brand text-white'
-                                                : 'rounded-tl-none bg-app-surface-muted text-app-text'
-                                        }`}
-                                    >
-                                        {message.content}
-                                    </div>
+                                    {hasText && (
+                                        <div
+                                            className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                                                isUser
+                                                    ? 'whitespace-pre-wrap rounded-tr-none bg-app-brand text-white'
+                                                    : 'rounded-tl-none bg-app-surface-muted text-app-text'
+                                            }`}
+                                        >
+                                            {isUser ? message.content : <BuddyMarkdown content={message.content} />}
+                                        </div>
+                                    )}
 
                                     {!isUser && message.actions && message.actions.length > 0 && (
                                         <BuddyActionProposals
