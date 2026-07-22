@@ -25,7 +25,9 @@ function selectProject(overrides = {}) {
 }
 
 vi.mock('../../../src/context/useAuth', () => ({
-    useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', lastName: 'User' } }),
+    useAuth: () => ({
+        profile: { id: 'user1', firstName: 'Test', lastName: 'User', permissionGroup: 'PM' },
+    }),
 }));
 
 const {
@@ -113,7 +115,6 @@ describe('DataIngestionPage', () => {
         const filter = within(screen.getByRole('group', { name: /filter sections/i }));
         expect(filter.getByRole('button', { name: /overview/i })).toBeInTheDocument();
         expect(filter.getByRole('button', { name: /sources/i })).toBeInTheDocument();
-        expect(filter.getByRole('button', { name: /artifacts/i })).toBeInTheDocument();
         expect(filter.getByRole('button', { name: /runs/i })).toBeInTheDocument();
     });
 
@@ -124,18 +125,21 @@ describe('DataIngestionPage', () => {
         expect(mockGetAccessibleProject).toHaveBeenCalledWith('proj1');
     });
 
-    it('filters to the artifacts section when its control is clicked', async () => {
+    it('opens the connectors modal from Manage connectors', async () => {
         const user = userEvent.setup();
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByRole('group', { name: /filter sections/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /manage connectors/i })).toBeInTheDocument();
         });
 
-        const filter = () => within(screen.getByRole('group', { name: /filter sections/i }));
-        await user.click(filter().getByRole('button', { name: /artifacts/i }));
+        await user.click(screen.getByRole('button', { name: /manage connectors/i }));
 
-        expect(filter().getByRole('button', { name: /artifacts/i })).toHaveClass('bg-app-brand');
+        await waitFor(() => {
+            expect(
+                screen.getByText('Enable or disable a connector, and choose which sources are in scope for this project.'),
+            ).toBeInTheDocument();
+        });
     });
 
     it('filters to the runs section when its control is clicked', async () => {

@@ -245,16 +245,19 @@ export function deriveSourceStatus({
     };
   }
 
+  // "Syncing" must reflect work that is actually in flight. A finished run whose
+  // AI-index status is still reported as PENDING (a stale/never-resolved value)
+  // must NOT count as syncing, otherwise the source (and the "Syncing now" KPI)
+  // reads as busy while nothing is running.
   const isSyncing =
     backendStatus === "UPDATING" ||
     backendStatus === "INDEXING" ||
-    isRunInProgress(runStatus) ||
-    aiSyncStatus === "PENDING";
+    isRunInProgress(runStatus);
 
   if (isSyncing) {
     return {
       state: "syncing",
-      label: aiSyncStatus === "PENDING" ? "Indexing" : "Syncing",
+      label: backendStatus === "INDEXING" ? "Indexing" : "Syncing",
       icon: Loader2,
       tone: "brand",
       spinning: true,

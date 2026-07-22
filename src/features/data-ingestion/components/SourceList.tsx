@@ -52,7 +52,7 @@ export function SourceList({
   }
 
   return (
-    <>
+    <div className="grid gap-4 xl:grid-cols-2">
       {sources.map((source) => {
         const Icon = source.icon;
         const isSelected = selectedSourceId === source.sourceId;
@@ -62,7 +62,7 @@ export function SourceList({
             key={source.sourceId}
             type="button"
             onClick={() => onSelectSource(source.sourceId)}
-            className={`group w-full cursor-pointer rounded-2xl border bg-app-surface p-5 text-left transition focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg sm:p-6 ${
+            className={`group flex h-full w-full cursor-pointer flex-col rounded-2xl border bg-app-surface p-5 text-left transition focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg sm:p-6 ${
               isSelected
                 ? "border-app-brand shadow-sm"
                 : "border-app-border hover:border-app-brand-border"
@@ -101,7 +101,7 @@ export function SourceList({
               />
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-6 grid grid-cols-2 gap-4">
               <InfoBlock
                 label="Artifacts Ingested"
                 value={formatNumber(source.totalArtifactCount)}
@@ -137,7 +137,7 @@ export function SourceList({
           </button>
         );
       })}
-    </>
+    </div>
   );
 }
 

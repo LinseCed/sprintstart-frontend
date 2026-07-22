@@ -33,9 +33,19 @@ describe('deriveSourceStatus', () => {
         expect(status.spinning).toBe(true);
     });
 
-    it('labels a pending AI index as Indexing', () => {
+    it('does not treat a stale pending AI index as syncing on its own', () => {
+        // A finished run whose AI-index status never resolved must not read as busy.
         const status = deriveSourceStatus({
             aiSyncStatus: 'PENDING',
+            hasErrors: false,
+            hasNeverSynced: false,
+        });
+        expect(status.state).toBe('connected');
+    });
+
+    it('labels backend INDEXING as Indexing', () => {
+        const status = deriveSourceStatus({
+            backendStatus: 'INDEXING',
             hasErrors: false,
             hasNeverSynced: false,
         });

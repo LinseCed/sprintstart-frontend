@@ -8,7 +8,7 @@ function filter() {
 }
 
 describe('DataIngestionSectionFilter', () => {
-    it('renders all section options with counts', () => {
+    it('renders the dashboard sections with counts', () => {
         render(
             <DataIngestionSectionFilter active="all" onChange={vi.fn()} sourceCount={4} runCount={3} />,
         );
@@ -17,8 +17,14 @@ describe('DataIngestionSectionFilter', () => {
         expect(filter().getByRole('button', { name: /overview/i })).toBeInTheDocument();
         expect(filter().getByRole('button', { name: /sources/i })).toHaveTextContent('4');
         expect(filter().getByRole('button', { name: /runs/i })).toHaveTextContent('3');
-        expect(filter().getByRole('button', { name: /artifacts/i })).toBeInTheDocument();
-        expect(filter().getByRole('button', { name: /connectors/i })).toBeInTheDocument();
+    });
+
+    it('does not expose connectors as a dashboard section', () => {
+        render(
+            <DataIngestionSectionFilter active="all" onChange={vi.fn()} sourceCount={4} runCount={3} />,
+        );
+
+        expect(filter().queryByRole('button', { name: /connectors/i })).not.toBeInTheDocument();
     });
 
     it('marks the active section as pressed and highlighted', () => {

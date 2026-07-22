@@ -1,9 +1,11 @@
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
   Database,
   GitBranch,
   Loader2,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -14,12 +16,14 @@ import {
   getRunStatusTone,
   getSourceLabel,
 } from "../data.ts";
-import type { DataSource, IngestionRun } from "../types.ts";
+import type { DataSource, IngestionRun, SectionKey } from "../types.ts";
 
 type OverviewSectionProps = {
   sources: DataSource[];
   totalArtifactCount: number;
   runs: IngestionRun[];
+  /** Jump to another section (e.g. from a KPI tile). */
+  onNavigate?: (section: SectionKey) => void;
 };
 
 /**
@@ -32,13 +36,12 @@ export function OverviewSection({
   sources,
   totalArtifactCount,
   runs,
+  onNavigate,
 }: OverviewSectionProps) {
-  const syncing = sources.filter(
-    (source) => source.statusView.state === "syncing",
-  ).length;
   const attention = sources.filter(
     (source) => source.statusView.state === "attention",
   ).length;
+  const syncErrors = sources.reduce((sum, source) => sum + source.errors, 0);
 
   const recentRuns = useMemo(
     () =>
@@ -51,7 +54,28 @@ export function OverviewSection({
     [runs],
   );
 
-  const sparkPath = useMemo(() => buildSparkline(runs), [runs]);
+  const bySource = useMemo(() => {
+    const ranked = [...sources]
+      .filter((source) => source.totalArtifactCount > 0)
+      .sort((a, b) => b.totalArtifactCount - a.totalArtifactCount)
+      .slice(0, 6);
+    const max = Math.max(...ranked.map((s) => s.totalArtifactCount), 1);
+    const shareBase =
+      totalArtifactCount > 0
+        ? totalArtifactCount
+        : Math.max(
+            sources.reduce((sum, s) => sum + s.totalArtifactCount, 0),
+            1,
+          );
+    return ranked.map((source) => ({
+      id: source.sourceId,
+      name: source.name,
+      count: source.totalArtifactCount,
+      pct: Math.max(4, Math.round((source.totalArtifactCount / max) * 100)),
+      share: Math.round((source.totalArtifactCount / shareBase) * 100),
+      attention: source.statusView.state === "attention",
+    }));
+  }, [sources, totalArtifactCount]);
 
   return (
     <section aria-label="Overview">
@@ -65,8 +89,9 @@ export function OverviewSection({
         <Kpi
           label="Connected sources"
           value={formatNumber(sources.length)}
-          foot="across GitHub"
+          foot="View all sources"
           icon={GitBranch}
+          onClick={onNavigate ? () => onNavigate("sources") : undefined}
         />
         <Kpi
           label="Artifacts indexed"
@@ -75,63 +100,78 @@ export function OverviewSection({
           icon={Database}
         />
         <Kpi
-          label="Syncing now"
-          value={formatNumber(syncing)}
-          foot={syncing > 0 ? "indexing in progress" : "nothing running"}
-          icon={Loader2}
-          tone="brand"
+          label="Sync errors"
+          value={formatNumber(syncErrors)}
+          foot={syncErrors > 0 ? "Review failing sources" : "No failed items"}
+          icon={XCircle}
+          tone={syncErrors > 0 ? "warning" : "neutral"}
+          onClick={
+            onNavigate && syncErrors > 0
+              ? () => onNavigate("sources")
+              : undefined
+          }
         />
         <Kpi
           label="Needs attention"
           value={formatNumber(attention)}
-          foot={attention > 0 ? "review these sources" : "all healthy"}
+          foot={attention > 0 ? "Review these sources" : "All healthy"}
           icon={AlertTriangle}
           tone={attention > 0 ? "warning" : "neutral"}
+          onClick={
+            onNavigate && attention > 0 ? () => onNavigate("sources") : undefined
+          }
         />
       </div>
 
       <div className="mt-3.5 grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
         <div className="rounded-2xl border border-app-border bg-app-surface p-5">
-          <h3 className="text-sm font-bold text-app-text">Ingestion activity</h3>
+          <h3 className="text-sm font-bold text-app-text">Artifacts by source</h3>
           <p className="mt-0.5 text-xs text-app-text-subtle">
-            Artifacts ingested across recent runs
+            How many ingested artifacts each source contributes
           </p>
 
-          {sparkPath ? (
-            <svg
-              viewBox="0 0 560 120"
-              preserveAspectRatio="none"
-              role="img"
-              aria-label="Artifacts ingested across recent runs"
-              className="mt-4 h-28 w-full"
-            >
-              <defs>
-                <linearGradient id="di-spark" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="var(--brand)" stopOpacity="0.26" />
-                  <stop offset="1" stopColor="var(--brand)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d={sparkPath.area} fill="url(#di-spark)" />
-              <path
-                d={sparkPath.line}
-                fill="none"
-                stroke="var(--brand)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle
-                cx={sparkPath.lastX}
-                cy={sparkPath.lastY}
-                r="4"
-                fill="var(--brand)"
-                stroke="var(--surface)"
-                strokeWidth="2"
-              />
-            </svg>
+          {bySource.length > 0 ? (
+            <>
+              <ul className="mt-4 space-y-3">
+                {bySource.map((row) => (
+                  <li key={row.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="min-w-0 truncate font-medium text-app-text">
+                        {row.name}
+                      </span>
+                      <span className="shrink-0 font-semibold tabular-nums text-app-text">
+                        {formatNumber(row.count)}
+                        <span className="ml-1 font-normal text-app-text-subtle">
+                          ({row.share}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div
+                      className="h-2.5 overflow-hidden rounded-full bg-app-bg-soft"
+                      role="img"
+                      aria-label={`${row.name}: ${formatNumber(row.count)} artifacts (${row.share}% of total)`}
+                    >
+                      <span
+                        className={`block h-full rounded-full ${
+                          row.attention ? "bg-app-warning-solid" : "bg-app-brand"
+                        }`}
+                        style={{ width: `${row.pct}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-4 flex items-center justify-between border-t border-app-border pt-3 text-xs">
+                <span className="text-app-text-subtle">Total artifacts</span>
+                <span className="font-semibold tabular-nums text-app-text">
+                  {formatNumber(totalArtifactCount)}
+                </span>
+              </div>
+            </>
           ) : (
             <p className="mt-8 text-center text-sm text-app-text-muted">
-              Not enough runs yet to chart activity.
+              No artifacts ingested yet.
             </p>
           )}
         </div>
@@ -172,24 +212,56 @@ function Kpi({
   foot,
   icon: Icon,
   tone = "brand",
+  iconSpin = false,
+  onClick,
 }: {
   label: string;
   value: string;
   foot: string;
   icon: LucideIcon;
   tone?: "brand" | "warning" | "success" | "neutral";
+  iconSpin?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="rounded-2xl border border-app-border bg-app-surface p-4 sm:p-[18px]">
+  const body = (
+    <>
       <div className="flex items-center justify-between">
         <span className="text-[12.5px] text-app-text-muted">{label}</span>
-        <Icon size={20} className={`shrink-0 ${TONE_TILE[tone]}`} />
+        <Icon
+          size={20}
+          className={`shrink-0 ${TONE_TILE[tone]} ${iconSpin ? "animate-spin" : ""}`}
+        />
       </div>
       <p className="mt-2.5 text-3xl font-bold tracking-tight tabular-nums text-app-text">
         {value}
       </p>
-      <p className="mt-1 text-xs text-app-text-subtle">{foot}</p>
-    </div>
+      <p
+        className={`mt-1 flex items-center gap-1 text-xs ${
+          onClick ? "font-medium text-app-brand-text" : "text-app-text-subtle"
+        }`}
+      >
+        {foot}
+        {onClick && <ArrowRight className="h-3 w-3" />}
+      </p>
+    </>
+  );
+
+  if (!onClick) {
+    return (
+      <div className="rounded-2xl border border-app-border bg-app-surface p-4 sm:p-[18px]">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-2xl border border-app-border bg-app-surface p-4 text-left transition hover:border-app-brand-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus sm:p-[18px]"
+    >
+      {body}
+    </button>
   );
 }
 
@@ -232,38 +304,3 @@ function ActivityRow({ run }: { run: IngestionRun }) {
   );
 }
 
-/**
- * Builds an area+line sparkline from the ingested counts of the most recent
- * runs (chronological). Returns null when there are fewer than two runs.
- */
-function buildSparkline(runs: IngestionRun[]) {
-  const series = [...runs]
-    .sort(
-      (a, b) =>
-        new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime(),
-    )
-    .slice(-8)
-    .map((run) => run.ingestedCount);
-
-  if (series.length < 2) return null;
-
-  const w = 560;
-  const h = 120;
-  const pad = 12;
-  const max = Math.max(...series, 1);
-  const stepX = w / (series.length - 1);
-
-  const points = series.map((value, index) => {
-    const x = index * stepX;
-    const y = pad + (1 - value / max) * (h - pad * 2);
-    return [x, y] as const;
-  });
-
-  const line = points
-    .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`)
-    .join(" ");
-  const [lastX, lastY] = points[points.length - 1];
-  const area = `${line} L${w},${h} L0,${h} Z`;
-
-  return { line, area, lastX, lastY };
-}

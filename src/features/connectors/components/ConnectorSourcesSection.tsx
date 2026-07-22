@@ -11,6 +11,8 @@ import type {
 
 type ConnectorSourcesSectionProps = {
   connector: ConnectorListItem;
+  /** Scopes the source list to a project (backend `projectId` filter). */
+  projectId?: string | null;
   onSourcesSaved?: () => void;
 };
 
@@ -29,6 +31,7 @@ const EMPTY_DRAFT: DraftSourceChanges = {
  */
 export function ConnectorSourcesSection({
   connector,
+  projectId,
   onSourcesSaved,
 }: ConnectorSourcesSectionProps) {
   const [loadingState, setLoadingState] = useState<LoadingState>("loading");
@@ -53,7 +56,7 @@ export function ConnectorSourcesSection({
     setErrorMessage(null);
 
     connectorService
-      .getConnectorSources(connector.id)
+      .getConnectorSources(connector.id, projectId ?? undefined)
       .then((response) => {
         setSources(response.sources);
         setLoadedConnectorId(connector.id);
@@ -72,7 +75,7 @@ export function ConnectorSourcesSection({
     let isMounted = true;
 
     void connectorService
-      .getConnectorSources(connector.id)
+      .getConnectorSources(connector.id, projectId ?? undefined)
       .then((response) => {
         if (!isMounted) return;
 
@@ -94,7 +97,7 @@ export function ConnectorSourcesSection({
     return () => {
       isMounted = false;
     };
-  }, [connector.id]);
+  }, [connector.id, projectId]);
 
   const hasLoadedSelectedConnector = loadedConnectorId === connector.id;
 
@@ -164,6 +167,7 @@ export function ConnectorSourcesSection({
       try {
         const refreshed = await connectorService.getConnectorSources(
           connector.id,
+          projectId ?? undefined,
         );
         const matchesIntendedState = patches.every(
           (patch) =>
@@ -330,7 +334,7 @@ export function ConnectorSourcesSection({
               void saveChanges();
             }}
             disabled={isSaving}
-            className="flex-1 rounded-xl bg-app-brand px-4 py-2.5 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex-1 rounded-xl bg-app-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving
               ? "Saving..."

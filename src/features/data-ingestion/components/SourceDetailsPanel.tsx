@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
+import { AccountEnabledToggle } from "../../admin/components/AccountEnabledToggle.tsx";
 import type {
   ConfigureGithubRepositoryRequest,
   GithubRepositoryConfig,
@@ -31,6 +32,11 @@ type SourceDetailsPanelProps = {
     repository: NonNullable<DataSource["githubRepository"]>,
     request: ConfigureGithubRepositoryRequest,
   ) => Promise<void>;
+  /** Enables/disables the source in the connector (allow/deny for ingestion). */
+  onSetSourceEnabled?: (
+    repository: NonNullable<DataSource["githubRepository"]>,
+    enabled: boolean,
+  ) => Promise<void>;
   onClose: () => void;
 };
 
@@ -44,10 +50,12 @@ export function SourceDetailsPanel({
   canManageSyncSettings = false,
   onLoadRepositoryConfig,
   onSaveRepositoryConfig,
+  onSetSourceEnabled,
   onClose,
 }: SourceDetailsPanelProps) {
   const [updateState, setUpdateState] = useState<LoadingState>("idle");
   const [refreshState, setRefreshState] = useState<LoadingState>("idle");
+  const [enabledState, setEnabledState] = useState<LoadingState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const Icon = SOURCE_META[source.sourceSystem].icon;
@@ -64,6 +72,40 @@ export function SourceDetailsPanel({
     repository !== null &&
     onLoadRepositoryConfig !== undefined &&
     onSaveRepositoryConfig !== undefined;
+  const canToggleEnabled =
+    canManageSyncSettings &&
+    source.sourceSystem === "GITHUB" &&
+    repository !== null &&
+    onSetSourceEnabled !== undefined;
+  const isTogglingEnabled = enabledState === "loading";
+
+  const handleToggleEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (!repository || !onSetSourceEnabled) return;
+
+      setEnabledState("loading");
+      setMessage(null);
+      setErrorMessage(null);
+
+      try {
+        await onSetSourceEnabled(repository, enabled);
+        setEnabledState("success");
+        setMessage(
+          enabled
+            ? "Source enabled. It is included in ingestion again."
+            : "Source disabled. It is excluded from ingestion.",
+        );
+      } catch (error) {
+        setEnabledState("error");
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Failed to update the source.",
+        );
+      }
+    },
+    [onSetSourceEnabled, repository],
+  );
 
   const loadRepositoryConfig = useCallback(async () => {
     if (!canManageRepositoryConfig || !repository || !onLoadRepositoryConfig) {
@@ -252,7 +294,32 @@ export function SourceDetailsPanel({
             value={repository?.repositoryId ?? source.sourceId}
             mono
           />
-          <InfoRow label="Source" value={formatEnabled(repository?.enabled)} />
+          {canToggleEnabled && repository ? (
+            <div className="flex items-center gap-3 border-t border-app-border px-4 py-2.5">
+              <dt className="w-24 shrink-0 text-[12.5px] text-app-text-muted">
+                Source
+              </dt>
+              <dd className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                <span className="text-[13px] font-semibold text-app-text">
+                  {repository.enabled === false ? "Disabled" : "Enabled"}
+                  <span className="ml-1 font-normal text-app-text-subtle">
+                    · {repository.enabled === false ? "excluded from" : "included in"}{" "}
+                    ingestion
+                  </span>
+                </span>
+                <AccountEnabledToggle
+                  enabled={repository.enabled !== false}
+                  disabled={isTogglingEnabled}
+                  ariaLabel={`Toggle ingestion for ${repository.fullName}`}
+                  onChange={(next) => {
+                    void handleToggleEnabled(next);
+                  }}
+                />
+              </dd>
+            </div>
+          ) : (
+            <InfoRow label="Source" value={formatEnabled(repository?.enabled)} />
+          )}
         </dl>
       </Section>
 

@@ -1,5 +1,5 @@
 import { CalendarClock } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { SaveButton } from "../../../components/ui/SaveButton.tsx";
 import { AccountEnabledToggle } from "../../admin/components/AccountEnabledToggle.tsx";
 import { formatDateTime } from "../data.ts";
@@ -119,10 +119,20 @@ export function GithubRepositorySyncSettings({
     });
   }, [initialConfig, loadConfig]);
 
+  // Keep the latest loader in a ref so the load effect can depend only on the
+  // stable `loadKey`. Without this the effect re-ran on every parent render
+  // (the details page rebuilds `loadConfig`'s identity while polling), which
+  // reloaded the config and discarded whatever the user had just selected.
+  const loadConfigRef = useRef(loadConfig);
+  useEffect(() => {
+    loadConfigRef.current = loadConfig;
+  });
+
   useEffect(() => {
     let isMounted = true;
 
-    if (!loadConfig) return undefined;
+    const loader = loadConfigRef.current;
+    if (!loader) return undefined;
 
     void Promise.resolve().then(async () => {
       if (!isMounted) return;
@@ -131,7 +141,7 @@ export function GithubRepositorySyncSettings({
       setErrorMessage(null);
 
       try {
-        const config = await loadConfig();
+        const config = await loader();
 
         if (!isMounted) return;
 
@@ -162,7 +172,7 @@ export function GithubRepositorySyncSettings({
     return () => {
       isMounted = false;
     };
-  }, [loadConfig, loadKey]);
+  }, [loadKey]);
 
   const saveSettings = async () => {
     setSaveState("loading");

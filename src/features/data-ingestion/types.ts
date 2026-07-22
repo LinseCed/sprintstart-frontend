@@ -102,13 +102,7 @@ export type ActiveTab = "sources" | "artifacts" | "runs" | "connectors";
  * the dashboard view (overview + sources + runs); the rest narrow to a single
  * section. Replaces the old tab model.
  */
-export type SectionKey =
-  | "all"
-  | "overview"
-  | "sources"
-  | "runs"
-  | "artifacts"
-  | "connectors";
+export type SectionKey = "all" | "overview" | "sources" | "runs";
 
 export type LoadingState = "idle" | "loading" | "success" | "error";
 
