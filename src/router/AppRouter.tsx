@@ -10,6 +10,7 @@ import { StarterWorkPage } from '../pages/StarterWorkPage';
 import { BlueprintAuthoringPage } from '../pages/BlueprintAuthoringPage.tsx';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
 import { FirstWeekPage } from '../pages/FirstWeekPage';
+import { BuddyPage } from '../pages/BuddyPage';
 import { MyPathPage } from '../pages/MyPathPage';
 import { MyPathModulePage } from '../pages/MyPathModulePage';
 import { LoginPage } from '../pages/LoginPage';
@@ -53,6 +54,7 @@ export function AppRouter() {
                 <Route path="/onboarding" element={<Navigate to="/my-path" replace />} />
                 <Route path="/onboarding/path" element={<Navigate to="/my-path" replace />} />
                 <Route path="/onboarding/:stepId" element={<StepRedirect />} />
+                <Route path="/buddy" element={<BuddyPage />} />
                 <Route path="/first-week" element={<FirstWeekPage />} />
                 <Route path="/my-path" element={<MyPathPage />} />
                 <Route path="/my-path/module/:moduleId" element={<MyPathModulePage />} />

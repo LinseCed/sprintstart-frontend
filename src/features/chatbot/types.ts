@@ -96,4 +96,11 @@ export type StreamHandlers = {
      * The function executed when the stream event calls an error.
      */
     onError?: (message: string) => void;
+
+    /**
+     * The function executed when the assistant runs a tool (e.g. the buddy checking
+     * the hire's own metrics), carrying the tool's name so a surface can show what
+     * it is doing ("Checking your progress…") instead of a generic spinner.
+     */
+    onToolUse?: (name: string) => void;
 };

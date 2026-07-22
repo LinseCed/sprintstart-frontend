@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     BookOpen,
+    Bot,
     Briefcase,
     ChartColumn,
     Compass,
@@ -51,6 +52,13 @@ const navItems: SidebarNavItem[] = [
         label: 'Knowledge Base',
         path: '/knowledge-base',
         icon: <BookOpen className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    // The mentor: a co-equal front door to onboarding. Answers from the docs and from the hire's
+    // own state, and escalates to a person only as a last resort.
+    {
+        label: 'Buddy',
+        path: '/buddy',
+        icon: <Bot className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
     // The hire's single onboarding spine: get it running, ship one small thing, meet their buddy,
     // then the ramp. This is the front door; the competency map below is a secondary status view.
