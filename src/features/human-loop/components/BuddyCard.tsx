@@ -8,14 +8,16 @@ type BuddyCardProps = {
 };
 
 /**
- * The human loop on the hire's surface: who your buddy is, a real way to reach
- * them, when you last spoke, and — set apart — how long your pull request has
+ * The human loop on the hire's surface: who your buddy is, when you last spoke,
+ * a genuine way to reach them, and — set apart — how long your pull request has
  * been waiting on a review.
  *
- * The point of the slice is that the answer to "who helps me" is a *person*, so
- * the buddy leads and the AI buddy is offered only as a way to draft the message
- * ("Draft with AI"). The PR-wait line exists to tell a stuck newcomer, in as many
- * words, that the delay is on the reviewer and not a reflection on their work.
+ * Buddy-first (Buddy Enhancement Iteration, F5): the AI buddy leads — it answers
+ * instantly from the project's docs and the hire's own state, and escalates to a
+ * person (the PM) itself when it can't. The *human* buddy is kept, deliberately, as
+ * the last-resort path and the study's control arm — demoted, not deleted. The
+ * PR-wait line exists to tell a stuck newcomer, in as many words, that the delay is
+ * on the reviewer and not a reflection on their work.
  *
  * Rendered inside `/my-path`, which already scopes to a selected project.
  */
@@ -78,17 +80,27 @@ export function BuddyCard({ projectId }: BuddyCardProps) {
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Asking a real person is the first-class action; the AI is the fallback
-                            that helps you word it. */}
+                        {/* Buddy-first: the AI buddy is the first-class action — instant, and it
+                            escalates to your PM itself when it can't help. Reaching the human buddy
+                            is kept as a genuine last resort (the study's control arm), demoted. */}
+                        <button
+                            type="button"
+                            onClick={() => openAiBuddy()}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                        >
+                            <Sparkles className="h-4 w-4" aria-hidden="true" />
+                            Ask your buddy
+                        </button>
+
                         {buddy.buddyGithubLogin ? (
                             <a
                                 href={`https://github.com/${buddy.buddyGithubLogin}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-app-border px-3.5 py-2 text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                             >
                                 <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                                Ask {firstName(buddy.buddyName)}
+                                Prefer a person? Ask {firstName(buddy.buddyName)}
                             </a>
                         ) : (
                             <button
@@ -100,27 +112,12 @@ export function BuddyCard({ projectId }: BuddyCardProps) {
                                         )} asking for help with `
                                     })
                                 }
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-app-border px-3.5 py-2 text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                             >
                                 <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                                Ask {firstName(buddy.buddyName)}
+                                Prefer a person? Ask {firstName(buddy.buddyName)}
                             </button>
                         )}
-
-                        <button
-                            type="button"
-                            onClick={() =>
-                                openAiBuddy({
-                                    draft: `Help me phrase a question for my buddy ${firstName(
-                                        buddy.buddyName
-                                    )} about `
-                                })
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-app-border px-3.5 py-2 text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                        >
-                            <Sparkles className="h-4 w-4" aria-hidden="true" />
-                            Draft with AI
-                        </button>
 
                         <button
                             type="button"
@@ -136,16 +133,17 @@ export function BuddyCard({ projectId }: BuddyCardProps) {
             ) : (
                 <div className="space-y-3">
                     <p className="text-sm text-app-text-muted">
-                        No buddy assigned yet. Your PM pairs you with someone to ask — until then, the
-                        AI buddy can answer from the project&apos;s docs.
+                        Your buddy answers from the project&apos;s docs and your own progress, and
+                        flags your PM when it can&apos;t. Your PM may also pair you with a person to
+                        reach directly.
                     </p>
                     <button
                         type="button"
                         onClick={() => openAiBuddy()}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-app-border px-3.5 py-2 text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     >
                         <Sparkles className="h-4 w-4" aria-hidden="true" />
-                        Ask the AI buddy
+                        Ask your buddy
                     </button>
                 </div>
             )}
