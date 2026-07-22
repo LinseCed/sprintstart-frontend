@@ -212,6 +212,62 @@ describe('buddyService', () => {
                 action: 'claim_task_zero',
                 label: 'Start Task 0',
                 question: undefined,
+                taskId: undefined,
+                moduleId: undefined,
+                answer: undefined,
+            });
+        });
+
+        it('maps a proposal\'s snake_case confirm payloads to camelCase', async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(
+                        encoder.encode(
+                            'data: {"type":"action_proposal","action":"claim_goal","label":"Claim this task","task_id":"t-1"}\n\n',
+                        ),
+                    );
+                    controller.enqueue(
+                        encoder.encode(
+                            'data: {"type":"action_proposal","action":"submit_verification","label":"Submit answer","module_id":"m-1","answer":"42"}\n\n',
+                        ),
+                    );
+                    controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                    controller.close();
+                },
+            });
+
+            server.use(
+                http.post('/api/v1/onboarding/me/buddy/messages', () =>
+                    new HttpResponse(stream, {
+                        headers: { 'Content-Type': 'text/event-stream' },
+                    }),
+                ),
+            );
+
+            const onActionProposal = vi.fn();
+            await streamMessage('let me try that', {
+                onToken: vi.fn(),
+                onCitation: vi.fn(),
+                onDone: vi.fn(),
+                onActionProposal,
+            });
+
+            expect(onActionProposal).toHaveBeenNthCalledWith(1, {
+                action: 'claim_goal',
+                label: 'Claim this task',
+                question: undefined,
+                taskId: 't-1',
+                moduleId: undefined,
+                answer: undefined,
+            });
+            expect(onActionProposal).toHaveBeenNthCalledWith(2, {
+                action: 'submit_verification',
+                label: 'Submit answer',
+                question: undefined,
+                taskId: undefined,
+                moduleId: 'm-1',
+                answer: '42',
             });
         });
     });
@@ -245,6 +301,26 @@ describe('buddyService', () => {
 
             expect(capturedBody.action).toBe('flag_to_pm');
             expect(capturedBody.question).toBe('How do we deploy?');
+        });
+
+        it('echoes the goal-claim and verification payloads the proposal carried', async () => {
+            let capturedBody: Record<string, unknown> = {};
+            server.use(
+                http.post('/api/v1/onboarding/me/buddy/actions', async ({ request }) => {
+                    capturedBody = (await request.json()) as Record<string, unknown>;
+                    return HttpResponse.json({ ok: true, message: 'Done.' });
+                }),
+            );
+
+            await performAction('claim_goal', { taskId: 't-1' });
+            expect(capturedBody).toMatchObject({ action: 'claim_goal', taskId: 't-1' });
+
+            await performAction('submit_verification', { moduleId: 'm-1', answer: '42' });
+            expect(capturedBody).toMatchObject({
+                action: 'submit_verification',
+                moduleId: 'm-1',
+                answer: '42',
+            });
         });
     });
 });

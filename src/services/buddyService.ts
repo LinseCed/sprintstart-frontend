@@ -29,6 +29,11 @@ interface BuddyStreamChunk {
     action?: string;
     label?: string;
     question?: string;
+    // Confirm payloads of the goal-claim and verification actions — echoed back verbatim
+    // on confirm (as camelCase), so the target is the one the buddy proposed.
+    task_id?: string;
+    module_id?: string;
+    answer?: string;
 }
 
 /** The outcome of confirming a buddy-proposed action — a single line to relay in the thread. */
@@ -40,15 +45,22 @@ export interface BuddyActionResult {
 /**
  * Confirms a buddy-proposed action. This is the only call that mutates — the proposal itself
  * changed nothing. The project is re-resolved server-side from the caller, so only the action name
- * (and, for flag-to-PM, the composed question) is sent.
+ * and the proposal's own confirm payloads are sent: `question` for flag-to-PM, `taskId` for a
+ * goal claim, `moduleId` + `answer` for a verification submission.
  */
 export async function performAction(
     action: string,
-    extras: { question?: string } = {},
+    extras: { question?: string; taskId?: string; moduleId?: string; answer?: string } = {},
 ): Promise<BuddyActionResult> {
     return await apiClient.fetch<BuddyActionResult>(`/api/v1/onboarding/me/buddy/actions`, {
         method: "POST",
-        body: JSON.stringify({ action, question: extras.question }),
+        body: JSON.stringify({
+            action,
+            question: extras.question,
+            taskId: extras.taskId,
+            moduleId: extras.moduleId,
+            answer: extras.answer,
+        }),
     });
 }
 
@@ -140,7 +152,10 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
                         handlers.onActionProposal?.({
                             action: event.action,
                             label: event.label,
-                            question: event.question
+                            question: event.question,
+                            taskId: event.task_id,
+                            moduleId: event.module_id,
+                            answer: event.answer
                         });
                     }
                     break;

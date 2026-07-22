@@ -96,7 +96,8 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
 
                 onActionProposal: proposal => {
                     // The buddy is offering to do something — attach it to this reply as a pending
-                    // action. Nothing has changed yet; the hire confirms it below.
+                    // action. Nothing has changed yet; the hire confirms it below. The confirm
+                    // payloads ride along so the action runs against what the buddy proposed.
                     setIsThinking(false);
                     setActiveTool(null);
                     const action: ProposedAction = {
@@ -104,6 +105,9 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
                         action: proposal.action,
                         label: proposal.label,
                         question: proposal.question,
+                        taskId: proposal.taskId,
+                        moduleId: proposal.moduleId,
+                        answer: proposal.answer,
                         status: "idle",
                     };
                     setMessages(prev => prev.map(m =>
@@ -157,7 +161,12 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
             // void callback (no Promise handed to a JSX prop).
             void (async () => {
                 try {
-                    const result = await performAction(action.action, { question: action.question });
+                    const result = await performAction(action.action, {
+                        question: action.question,
+                        taskId: action.taskId,
+                        moduleId: action.moduleId,
+                        answer: action.answer,
+                    });
                     patchAction(messageId, action.id, {
                         status: "resolved",
                         ok: result.ok,

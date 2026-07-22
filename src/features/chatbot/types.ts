@@ -108,6 +108,17 @@ export type StreamHandlers = {
      * The function executed when the buddy *proposes* an action the hire must confirm
      * (e.g. "Start Task 0"). Nothing has changed — the surface renders a confirm
      * affordance and only mutates when the hire clicks it.
+     *
+     * The optional fields are the action's confirm payload (goal claim: `taskId`;
+     * verification: `moduleId` + `answer`), echoed back verbatim on confirm so the
+     * concrete target is the one the buddy proposed, never one the client picked.
      */
-    onActionProposal?: (proposal: { action: string; label: string; question?: string }) => void;
+    onActionProposal?: (proposal: {
+        action: string;
+        label: string;
+        question?: string;
+        taskId?: string;
+        moduleId?: string;
+        answer?: string;
+    }) => void;
 };
