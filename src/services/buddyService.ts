@@ -19,6 +19,7 @@ interface BuddyStreamChunk {
     type: "tool_use" | "token" | "citation" | "done" | "error";
     content?: string;
     message?: string;
+    name?: string;
     artifact_id?: string;
     filename?: string;
     source_url?: string;
@@ -85,6 +86,12 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
             ) as BuddyStreamChunk;
 
             switch (event.type) {
+                case "tool_use":
+                    if (event.name) {
+                        handlers.onToolUse?.(event.name);
+                    }
+                    break;
+
                 case "token":
                     if (event.content !== undefined) {
                         handlers.onToken(event.content);
