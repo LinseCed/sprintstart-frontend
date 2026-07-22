@@ -138,6 +138,7 @@ function SidebarContent({
         location.pathname.startsWith('/pm-dashboard') ||
         location.pathname.startsWith('/insights/faq') ||
         location.pathname.startsWith('/insights/knowledge-gaps') ||
+        location.pathname.startsWith('/insights/knowledge-requests') ||
         location.pathname.startsWith('/insights/competencies') ||
         location.pathname.startsWith('/insights/onboarding');
 

@@ -24,6 +24,7 @@ export type AppRoute =
     | '/team-management'
     | '/insights/faq'
     | '/insights/knowledge-gaps'
+    | '/insights/knowledge-requests'
     | '/insights/competencies'
     | '/insights/onboarding';
 
@@ -79,6 +80,13 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     '/team-management': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/faq': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/knowledge-gaps': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    // HR reads the escalation queue; answering (minting durable knowledge) is PM/ADMIN, enforced
+    // server-side too -- this only decides who sees the page.
+    '/insights/knowledge-requests': [
+        PermissionGroup.PM,
+        PermissionGroup.HR,
+        PermissionGroup.ADMIN,
+    ],
     '/insights/competencies': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/onboarding': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
 };
