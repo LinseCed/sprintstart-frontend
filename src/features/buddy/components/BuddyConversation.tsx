@@ -5,6 +5,7 @@ import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { BuddyMessageView, ProposedAction } from '../types';
 import { toolLabel } from '../toolLabel';
 import { BuddyActionProposals } from './BuddyActionProposals';
+import { BuddyMarkdown } from './BuddyMarkdown';
 
 type BuddyConversationProps = {
     messages: BuddyMessageView[];
@@ -46,6 +47,17 @@ export function BuddyConversation({
                 <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-4">
                     {messages.map(message => {
                         const isUser = message.role === 'USER';
+                        const hasText = message.content.trim().length > 0;
+                        const hasActions = (message.actions?.length ?? 0) > 0;
+
+                        // The send loop appends an empty assistant message up front and streams
+                        // into it. Until the first token (or an action proposal) arrives it has
+                        // nothing to show, and the `isThinking` indicator below already stands in
+                        // for it — so skip it, otherwise an empty second bubble appears while the
+                        // buddy is thinking.
+                        if (!isUser && !hasText && !hasActions) {
+                            return null;
+                        }
 
                         return (
                             <div
@@ -65,15 +77,21 @@ export function BuddyConversation({
                                 </div>
 
                                 <div className={`flex max-w-[80%] flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-                                    <div
-                                        className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                                            isUser
-                                                ? 'rounded-tr-none bg-app-brand text-white'
-                                                : 'rounded-tl-none bg-app-surface-muted text-app-text'
-                                        }`}
-                                    >
-                                        {message.content}
-                                    </div>
+                                    {hasText && (
+                                        <div
+                                            className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                                                isUser
+                                                    ? 'whitespace-pre-wrap rounded-tr-none bg-app-brand text-white'
+                                                    : 'rounded-tl-none bg-app-surface-muted text-app-text'
+                                            }`}
+                                        >
+                                            {isUser ? (
+                                                message.content
+                                            ) : (
+                                                <BuddyMarkdown content={message.content} />
+                                            )}
+                                        </div>
+                                    )}
 
                                     {!isUser && message.actions && message.actions.length > 0 && (
                                         <BuddyActionProposals
