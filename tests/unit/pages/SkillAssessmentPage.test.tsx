@@ -42,7 +42,7 @@ function renderPage() {
         <MemoryRouter initialEntries={['/onboarding/assessment']}>
             <Routes>
                 <Route path="/" element={<LocationDisplay />} />
-                <Route path="/first-week" element={<LocationDisplay />} />
+                <Route path="/buddy" element={<LocationDisplay />} />
                 <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
             </Routes>
         </MemoryRouter>,
@@ -112,7 +112,7 @@ describe('SkillAssessmentPage', () => {
         });
     });
 
-    it('skip for now returns to the first-week page without any gate to snooze', async () => {
+    it('skip for now returns to the buddy without any gate to snooze', async () => {
         vi.mocked(assessmentService.startAssessment).mockResolvedValue({
             sessionId: 'session1',
             question: 'Q1',
@@ -126,7 +126,7 @@ describe('SkillAssessmentPage', () => {
         await user.click(screen.getByRole('button', { name: 'Skip for now' }));
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/first-week');
+            expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
         });
     });
 });

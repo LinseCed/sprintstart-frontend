@@ -12,8 +12,6 @@ export type AppRoute =
     | '/onboarding'
     | '/onboarding/assessment'
     | '/buddy'
-    | '/first-week'
-    | '/my-path'
     | '/data-ingestion'
     | '/setup'
     | '/graph-studio'
@@ -55,18 +53,6 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.HR,
         PermissionGroup.ADMIN,
     ],
-    '/first-week': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
-    '/my-path': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     // The single front door to project setup; the stages below are reached from its ladder.
     '/setup': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
@@ -96,8 +82,6 @@ const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     // /setup/review (the unified proposal inbox) sits under the Setup surface's permissions.
     '/setup': ['/setup/'],
     '/onboarding': ['/onboarding/'],
-    // The focused module route (/my-path/module/:moduleId) sits under the map's permissions.
-    '/my-path': ['/my-path/'],
     '/team-management': ['/team/'],
     '/insights/faq': ['/insights/faq/'],
     '/insights/knowledge-gaps': ['/insights/knowledge-gaps/'],

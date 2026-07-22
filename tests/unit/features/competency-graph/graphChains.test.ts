@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { chainFor } from '../../../../src/features/competency-graph/layout';
-import { liveEdgeIds } from '../../../../src/features/my-path/pathGraph';
 import type { NodeState, PathNode, PathView } from '../../../../src/features/skill-assessment/types';
 
 function node(key: string, state: NodeState = 'AVAILABLE'): PathNode {
@@ -54,36 +53,5 @@ describe('chainFor', () => {
         const view = path([node('lonely'), node('other')], []);
 
         expect(chainFor(view, 'lonely')).toEqual(new Set(['lonely']));
-    });
-});
-
-describe('liveEdgeIds', () => {
-    it('counts edges from a mastered node to any open one, and none from an unmastered source', () => {
-        const view = path(
-            [
-                node('done', 'MASTERED'),
-                node('next', 'AVAILABLE'),
-                node('later', 'AVAILABLE'),
-                node('other', 'AVAILABLE')
-            ],
-            [
-                { from: 'done', to: 'next' },
-                { from: 'done', to: 'later' },
-                { from: 'other', to: 'later' }
-            ]
-        );
-
-        // Both edges out of the mastered node are live; the edge from the unmastered
-        // `other` is not. There is no locked target to withhold energy from anymore.
-        expect(liveEdgeIds(view)).toEqual(new Set(['done->next', 'done->later']));
-    });
-
-    it('is empty when nothing has been mastered yet', () => {
-        const view = path(
-            [node('a', 'AVAILABLE'), node('b', 'AVAILABLE')],
-            [{ from: 'a', to: 'b' }]
-        );
-
-        expect(liveEdgeIds(view)).toEqual(new Set());
     });
 });

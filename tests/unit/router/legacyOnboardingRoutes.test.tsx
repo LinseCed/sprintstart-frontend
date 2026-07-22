@@ -1,19 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
 
 /**
- * The phased journey under `/onboarding` is retired: `GET /me/path` serves the competency
- * `PathView` and the phases payload is PM-only, so the hire-facing journey page had no backend
- * left and returned a `400`. Old links must still land somewhere real.
+ * The hire-facing structured pages are retired: onboarding is one conversation now, so the
+ * phased journey, First Week, and the competency map all resolve to the buddy. Old links must
+ * still land somewhere real.
  *
  * These mirror the redirect wiring in `AppRouter` without mounting the whole authenticated shell.
  */
-function StepRedirect() {
-    const { stepId } = useParams<{ stepId: string }>();
-    return <Navigate to={`/my-path/module/${stepId ?? ''}`} replace />;
-}
-
 function LocationProbe() {
     const location = useLocation();
     return <p data-testid="location">{location.pathname}</p>;
@@ -23,38 +18,58 @@ function renderAt(path: string) {
     return render(
         <MemoryRouter initialEntries={[path]}>
             <Routes>
-                <Route path="/onboarding" element={<Navigate to="/my-path" replace />} />
-                <Route path="/onboarding/path" element={<Navigate to="/my-path" replace />} />
+                <Route path="/onboarding" element={<Navigate to="/buddy" replace />} />
+                <Route path="/onboarding/path" element={<Navigate to="/buddy" replace />} />
                 <Route path="/onboarding/assessment" element={<LocationProbe />} />
-                <Route path="/onboarding/:stepId" element={<StepRedirect />} />
-                <Route path="/my-path" element={<LocationProbe />} />
-                <Route path="/my-path/module/:stepId" element={<LocationProbe />} />
+                <Route path="/onboarding/:stepId" element={<Navigate to="/buddy" replace />} />
+                <Route path="/first-week" element={<Navigate to="/buddy" replace />} />
+                <Route path="/my-path" element={<Navigate to="/buddy" replace />} />
+                <Route path="/my-path/module/:moduleId" element={<Navigate to="/buddy" replace />} />
+                <Route path="/buddy" element={<LocationProbe />} />
             </Routes>
         </MemoryRouter>,
     );
 }
 
-describe('retired onboarding routes', () => {
-    it('sends the old journey page to the competency path', () => {
+describe('retired hire routes', () => {
+    it('sends the old journey page to the buddy', () => {
         renderAt('/onboarding');
 
-        expect(screen.getByTestId('location')).toHaveTextContent('/my-path');
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
     });
 
-    it('sends an old per-step link to the module that replaced it', () => {
+    it('sends an old per-step link to the buddy', () => {
         renderAt('/onboarding/step-123');
 
-        expect(screen.getByTestId('location')).toHaveTextContent('/my-path/module/step-123');
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
     });
 
-    it('keeps the previous competency-path redirect working', () => {
+    it('sends the old competency-path redirect to the buddy', () => {
         renderAt('/onboarding/path');
 
-        expect(screen.getByTestId('location')).toHaveTextContent('/my-path');
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
+    });
+
+    it('sends First Week to the buddy', () => {
+        renderAt('/first-week');
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
+    });
+
+    it('sends My Path to the buddy', () => {
+        renderAt('/my-path');
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
+    });
+
+    it('sends an old module deep link to the buddy', () => {
+        renderAt('/my-path/module/m1');
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
     });
 
     it('leaves the assessment where it is', () => {
-        // The assessment is still the front door and is not part of the retired journey.
+        // The assessment is still reachable and is not part of the retired surfaces.
         renderAt('/onboarding/assessment');
 
         expect(screen.getByTestId('location')).toHaveTextContent('/onboarding/assessment');

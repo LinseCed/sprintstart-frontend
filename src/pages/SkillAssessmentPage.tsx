@@ -12,7 +12,7 @@ import { useProjectSelection } from '../features/projects/useProjectSelection';
  * done. Its output is only a prior for matching (proof always outranks it); it
  * never gates the app.
  *
- * "Skip for now" simply returns to the first-week page -- there is no gate to
+ * "Skip for now" simply returns to the buddy -- there is no gate to
  * snooze. The in-progress session is left as-is, so coming back resumes where
  * the interview left off.
  */
@@ -25,7 +25,7 @@ export function SkillAssessmentPage() {
     const navigate = useNavigate();
 
     const skipForNow = () => {
-        void navigate('/first-week');
+        void navigate('/buddy');
     };
 
     if (error) {

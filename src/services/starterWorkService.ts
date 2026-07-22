@@ -2,9 +2,7 @@ import { apiClient } from './apiClient';
 import type {
     CreateStarterWorkTaskInput,
     GenerateStarterWorkResult,
-    PathGoal,
     ProposedStarterWork,
-    RankedStarterWorkTask,
     StarterWorkTask,
 } from '../features/starter-work/types';
 
@@ -56,36 +54,5 @@ export const starterWorkService = {
             method: 'POST',
             body: JSON.stringify({ reason }),
         });
-    },
-
-    /**
-     * The approved pool ranked for the authenticated hire on one project.
-     *
-     * Ranking is deterministic and local — no AI call — and every entry carries
-     * the `reasons` it was suggested. Project-scoped because two of the signals (prior involvement
-     * and how fast a repository answers pull requests) only mean anything inside one project.
-     *
-     * @param projectId The project to rank the pool for.
-     */
-    async fetchMyMatches(projectId: string): Promise<RankedStarterWorkTask[]> {
-        return await apiClient.fetch<RankedStarterWorkTask[]>(
-            `${BASE_URL}/me/matches?projectId=${encodeURIComponent(projectId)}`
-        );
-    },
-
-    /** Claims an approved task as this hire's goal for a project, replacing any previous one. */
-    async claimGoal(projectId: string, taskId: string): Promise<PathGoal> {
-        return await apiClient.fetch<PathGoal>(
-            `${BASE_URL}/me/goal?projectId=${encodeURIComponent(projectId)}`,
-            { method: 'POST', body: JSON.stringify({ taskId }) }
-        );
-    },
-
-    /** Drops this hire's goal; their path falls back to the project's baseline. */
-    async clearGoal(projectId: string): Promise<void> {
-        await apiClient.fetch<void>(
-            `${BASE_URL}/me/goal?projectId=${encodeURIComponent(projectId)}`,
-            { method: 'DELETE' }
-        );
     },
 };

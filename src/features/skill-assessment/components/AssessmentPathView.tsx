@@ -13,7 +13,7 @@ type AssessmentPathViewProps = {
     onSelectNode?: (node: PathNode) => void;
     /**
      * Keys of nodes whose state just changed (e.g. newly shown) since the
-     * previous load -- see `useCompetencyPath`. Drives a one-shot pulse on
+     * previous load. Drives a one-shot pulse on
      * exactly those nodes rather than the whole list; empty by default.
      */
     justChangedKeys?: Set<string>;

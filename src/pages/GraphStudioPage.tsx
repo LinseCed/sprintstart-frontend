@@ -25,11 +25,10 @@ const NO_MODULE: ModuleReadiness = { activeModuleId: null, pending: null };
 /**
  * The competency studio: the PM and admin surface for the graph itself.
  *
- * Deliberately separate from `/my-path`. That page is a hire's onboarding — their ledger, their
- * goal, their project's approved baseline — and authoring used to be bolted onto it, which meant
- * a PM edited the shared graph through their own progress, and saw nothing at all on a project
- * whose baseline selects nothing. Here the graph is the whole graph, and every node is shown by
- * how *finished* it is rather than by anyone's progress against it.
+ * The graph no longer has a hire-facing surface at all — hire-side it is the buddy's working
+ * memory, lesson plan and record, never something a hire looks at. Here the graph is the whole
+ * graph, and every node is shown by how *finished* it is rather than by anyone's progress
+ * against it.
  *
  * Three jobs on one canvas, because they are the same job:
  * - **structure** — add, edit, remove nodes and the prerequisites between them;

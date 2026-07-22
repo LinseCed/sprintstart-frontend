@@ -55,7 +55,7 @@ function renderEditor() {
     return render(
         <MemoryRouter initialEntries={['/competency-modules/m1']}>
             <Routes>
-                <Route path="/my-path" element={<p>map</p>} />
+                <Route path="/graph-studio" element={<p>studio</p>} />
                 <Route path="/competency-modules/:moduleId" element={<ModuleEditorPage />} />
             </Routes>
         </MemoryRouter>,

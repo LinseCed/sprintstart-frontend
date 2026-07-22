@@ -57,11 +57,11 @@ export function ModuleEditorPage() {
                 <div className="app-page-frame space-y-4 py-6">
                     <button
                         type="button"
-                        onClick={() => void navigate('/my-path')}
+                        onClick={() => void navigate('/graph-studio')}
                         className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Back to the path
+                        Back to the studio
                     </button>
 
                     {module && (

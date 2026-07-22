@@ -6,41 +6,16 @@ import type {
     ModulePageKind,
     ModuleStatus
 } from '../features/competency-module/types';
-import type {
-    VerificationAttemptResult,
-    VerificationEndpoint,
-    VerificationType
-} from '../features/learn-verify/types';
+import type { VerificationEndpoint, VerificationType } from '../features/learn-verify/types';
 
-const ME_URL = '/api/v1/onboarding/me/modules';
 const PM_URL = '/api/v1/onboarding/competency-modules';
 
+/**
+ * The module-authoring contract. The hire-side reads that used to live here
+ * (`/me/modules/...`) went away with the hire's module page: a module's teaching
+ * now reaches a hire through the buddy, not through a page they navigate to.
+ */
 export const competencyModuleService = {
-    // ── Hire side ───────────────────────────────────────────────────────────
-
-    /** Loads the live module behind a path node, with its ordered pages. */
-    async fetchModule(moduleId: string): Promise<CompetencyModule> {
-        return await apiClient.fetch<CompetencyModule>(`${ME_URL}/${moduleId}`);
-    },
-
-    /** The module's check, without its rubric or expected answer. */
-    async fetchVerification(moduleId: string): Promise<VerificationEndpoint> {
-        return await apiClient.fetch<VerificationEndpoint>(`${ME_URL}/${moduleId}/verification`);
-    },
-
-    /**
-     * Submits an answer to the module's check. On pass the backend writes the
-     * competency ledger -- there is no per-user step to complete.
-     */
-    async submitAttempt(moduleId: string, answer: string): Promise<VerificationAttemptResult> {
-        return await apiClient.fetch<VerificationAttemptResult>(
-            `${ME_URL}/${moduleId}/verification/attempts`,
-            { method: 'POST', body: JSON.stringify({ answer }) }
-        );
-    },
-
-    // ── Authoring ───────────────────────────────────────────────────────────
-
     async list(projectId: string, status: ModuleStatus): Promise<CompetencyModules> {
         const params = new URLSearchParams({ projectId, status });
         return await apiClient.fetch<CompetencyModules>(`${PM_URL}?${params.toString()}`);

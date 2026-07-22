@@ -146,19 +146,20 @@ describe('AuthGuard', () => {
                             </AuthGuard>
                         }
                     />
-                    <Route path="/first-week" element={<LocationDisplay />} />
+                    <Route path="/buddy" element={<LocationDisplay />} />
                 </Routes>
             </MemoryRouter>,
         );
     }
 
-    it('sends a USER landing on the root to their first-week onboarding home', async () => {
-        // A hire's home is their onboarding, not the generic dashboard. Role-based, no
-        // network, no assessment — so it can't recreate the retired-gate bug class.
+    it('sends a USER landing on the root to the buddy, their onboarding front door', async () => {
+        // The buddy *is* the onboarding now: a hire's home is the conversation, not the
+        // generic dashboard. Role-based, no network, no assessment — so it can't recreate
+        // the retired-gate bug class.
         renderAtRoot(mockProfile);
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/first-week');
+            expect(screen.getByTestId('location')).toHaveTextContent('/buddy');
         });
     });
 

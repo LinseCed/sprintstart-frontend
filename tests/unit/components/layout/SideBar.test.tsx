@@ -91,6 +91,23 @@ describe('SideBar', () => {
         expect(screen.queryByText('Access Management')).not.toBeInTheDocument();
     });
 
+    it('makes the buddy the onboarding nav item — First Week and Where I stand are retired', () => {
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
+            status: 'authenticated',
+            profile: mockProfile,
+            login: vi.fn(),
+            logout: vi.fn(),
+            refetchProfile: vi.fn(),
+        });
+
+        renderWithProviders(<SideBar />);
+
+        // Desktop and mobile copies both render, hence getAllBy*.
+        expect(screen.getAllByText('Buddy').length).toBeGreaterThan(0);
+        expect(screen.queryByText('Onboarding')).not.toBeInTheDocument();
+        expect(screen.queryByText('Where I stand')).not.toBeInTheDocument();
+    });
+
     it('renders admin nav items for admin user', () => {
         vi.mocked(useAuthHook.useAuth).mockReturnValue({
             status: 'authenticated',

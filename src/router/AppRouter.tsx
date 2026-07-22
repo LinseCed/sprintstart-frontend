@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
@@ -9,10 +9,7 @@ import { GraphStudioPage } from '../pages/GraphStudioPage.tsx';
 import { StarterWorkPage } from '../pages/StarterWorkPage';
 import { BlueprintAuthoringPage } from '../pages/BlueprintAuthoringPage.tsx';
 import { SkillAssessmentPage } from '../pages/SkillAssessmentPage';
-import { FirstWeekPage } from '../pages/FirstWeekPage';
 import { BuddyPage } from '../pages/BuddyPage';
-import { MyPathPage } from '../pages/MyPathPage';
-import { MyPathModulePage } from '../pages/MyPathModulePage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthGuard } from './AuthGuard';
 import { TeamManagementPage } from '../pages/TeamManagementPage.tsx';
@@ -29,16 +26,6 @@ import { OnboardingMetricsPage } from '../features/onboarding-metrics/components
 import { ProfilePage } from '../pages/ProfilePage.tsx';
 import { ModuleEditorPage } from '../pages/ModuleEditorPage.tsx';
 
-/**
- * Sends an old per-step journey link to the module that replaced it.
- *
- * `<Navigate>` cannot interpolate a route param, so the redirect needs a component.
- */
-function StepRedirect() {
-    const { stepId } = useParams<{ stepId: string }>();
-    return <Navigate to={`/my-path/module/${stepId ?? ''}`} replace />;
-}
-
 export function AppRouter() {
     return (
         <AuthGuard>
@@ -48,17 +35,16 @@ export function AppRouter() {
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />
                 <Route path="/onboarding/assessment" element={<SkillAssessmentPage />} />
-                {/* The phased journey is retired: a hire's path is the competency graph, and the
-                    phases view had no self-serve backend left (GET /me/path returns the competency
-                    PathView, and the phases payload is PM-only). These keep old links landing
-                    somewhere real instead of 400ing. */}
-                <Route path="/onboarding" element={<Navigate to="/my-path" replace />} />
-                <Route path="/onboarding/path" element={<Navigate to="/my-path" replace />} />
-                <Route path="/onboarding/:stepId" element={<StepRedirect />} />
+                {/* Retired hire surfaces: onboarding is one conversation now, so the phased
+                    journey, First Week, and the competency map all resolve to the buddy.
+                    Keeping the routes as redirects means old links land somewhere real. */}
+                <Route path="/onboarding" element={<Navigate to="/buddy" replace />} />
+                <Route path="/onboarding/path" element={<Navigate to="/buddy" replace />} />
+                <Route path="/onboarding/:stepId" element={<Navigate to="/buddy" replace />} />
                 <Route path="/buddy" element={<BuddyPage />} />
-                <Route path="/first-week" element={<FirstWeekPage />} />
-                <Route path="/my-path" element={<MyPathPage />} />
-                <Route path="/my-path/module/:moduleId" element={<MyPathModulePage />} />
+                <Route path="/first-week" element={<Navigate to="/buddy" replace />} />
+                <Route path="/my-path" element={<Navigate to="/buddy" replace />} />
+                <Route path="/my-path/module/:moduleId" element={<Navigate to="/buddy" replace />} />
                 <Route path="/competency-modules/:moduleId" element={<ModuleEditorPage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
                 <Route path="/data-ingestion" element={<DataIngestionPage />} />

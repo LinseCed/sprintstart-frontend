@@ -147,7 +147,8 @@ export function OrientationPanel({
         );
     }
 
-    // No current task is the first-week page's business, not this panel's.
+    // No current task means there is nothing to orient for; the caller's own
+    // empty state covers it.
     if (!orientation?.taskId) return null;
 
     if (!orientation.packet) {
