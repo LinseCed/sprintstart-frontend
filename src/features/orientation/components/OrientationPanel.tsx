@@ -157,8 +157,8 @@ export function OrientationPanel({
                     Nothing in this project&apos;s docs matched this task closely enough to be worth
                     handing you, so there is no guide here.{' '}
                     {orientation.reason ? `(${orientation.reason}.)` : ''} That is a gap in the
-                    documentation, not something you did — open the task itself and ask your buddy
-                    below.
+                    documentation, not something you did — open the task itself and ask your buddy: it
+                    knows this project, and it&apos;ll flag your PM if it can&apos;t help.
                 </p>
                 {orientation.taskUrl && (
                     <SourceLinks

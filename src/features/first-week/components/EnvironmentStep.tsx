@@ -7,8 +7,9 @@ import { openAiBuddy } from '../../buddy/aiBuddyBus';
  * There is no synthesised command and no readiness check — every stack builds
  * differently, and the product can't (and shouldn't pretend to) detect a local
  * build. So this step points at the repo's own setup and makes the real unblock —
- * a person — one action away, which is where the human loop matters most. It gates
- * nothing: the first task below is available whether or not the environment is up.
+ * the buddy — one action away: it knows this codebase and escalates to a person
+ * (your PM) when it can't answer. It gates nothing: the first task below is
+ * available whether or not the environment is up.
  */
 export function EnvironmentStep() {
     return (
@@ -21,11 +22,13 @@ export function EnvironmentStep() {
             <p className="mb-4 text-xs text-app-text-muted">
                 Setup is the thing most people get stuck on first, and that&apos;s normal — you
                 don&apos;t need to finish it before starting your first task below. The moment it
-                fights you, the fastest way through is to ask a person.
+                fights you, ask your buddy — it knows this codebase, and it&apos;ll flag your PM if
+                it can&apos;t answer.
             </p>
 
-            {/* Stuck is exactly when the human loop matters most — one action to start reaching a
-                person, with the AI helping word the question. */}
+            {/* Buddy-first: the AI buddy is the instant, always-on unblock — and it escalates to a
+                person (your PM) itself when it can't help, so a hire is never left to go chase a
+                colleague on their own. */}
             <button
                 type="button"
                 onClick={() =>
@@ -36,7 +39,7 @@ export function EnvironmentStep() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-app-brand px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
             >
                 <LifeBuoy className="h-4 w-4" aria-hidden="true" />
-                Can&apos;t get it working? Ask for help
+                Stuck? Ask your buddy
             </button>
         </StepShell>
     );
