@@ -4,11 +4,14 @@ import keycloak from '../config/keycloak';
  * One chunk of an AI generation's live progress — the frontend view of the backend's
  * `AiProgressEvent` (Seam 1 of the live-AI-visibility initiative).
  *
- * `item` and `result` are opaque here: the activity log shows an item's `label` while it lands, and
- * the surface re-reads its normal endpoint on `done` for the authoritative artifact rather than
- * reconstructing it from `result`. Field names are snake_case because the backend serialises the
- * stream with kotlinx (same wire convention as the buddy stream).
+ * `result` is opaque here: the surface re-reads its normal endpoint on `done` for the authoritative
+ * artifact rather than reconstructing it from `result`. `item` carries the finalized element as a
+ * loosely-typed bag — most surfaces only show its `label`, but the ones that assemble live (the
+ * competency graph) read its fields to draw each node/edge as it lands. Its keys are snake_case
+ * because the backend relays the AI's own payload untouched (same wire convention as the buddy).
  */
+export type AiProgressItem = Record<string, unknown>;
+
 export type AiProgressEvent = {
     type: 'stage' | 'item' | 'warning' | 'done' | 'error';
     operation?: string;
@@ -16,6 +19,7 @@ export type AiProgressEvent = {
     label?: string;
     stage?: string;
     message?: string;
+    item?: AiProgressItem;
 };
 
 export type AiStreamHandlers = {

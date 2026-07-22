@@ -44,15 +44,23 @@ describe('useGraphAuthoring', () => {
         expect(result.current.edges).toHaveLength(1);
     });
 
-    it('generate triggers a refetch and surfaces the result', async () => {
+    it('generate streams the assembling graph then refetches the authoritative proposals', async () => {
         let proposedCallCount = 0;
+        // The stream lands one competency then one edge as items, and a terminal done.
+        const sse =
+            'data: {"type":"stage","operation":"competency_graph","label":"Searching"}\n\n' +
+            'data: {"type":"item","operation":"competency_graph","label":"Competency: Kotlin",' +
+            '"item":{"key":"kotlin","label":"Kotlin","kind":"SKILL"}}\n\n' +
+            'data: {"type":"item","operation":"competency_graph","label":"kotlin → jpa",' +
+            '"item":{"from_key":"kotlin","to_key":"jpa","kind":"PREREQUISITE"}}\n\n' +
+            'data: {"type":"done","operation":"competency_graph","label":"done"}\n\n';
         server.use(
             http.get('/api/v1/onboarding/competency-graph/proposed', () => {
                 proposedCallCount += 1;
-                return HttpResponse.json({ competencies: [], edges: [] });
+                return HttpResponse.json({ competencies: [competency], edges: [edge] });
             }),
-            http.post('/api/v1/onboarding/competency-graph/generate', () =>
-                HttpResponse.json({ status: 'proposed', competenciesProposed: 2, edgesProposed: 1, notes: [] }),
+            http.post('/api/v1/onboarding/competency-graph/generate/stream', () =>
+                new HttpResponse(sse, { headers: { 'content-type': 'text/event-stream' } }),
             ),
         );
 
@@ -64,8 +72,14 @@ describe('useGraphAuthoring', () => {
             await result.current.generate();
         });
 
+        // The live items were collected as an assembling preview (one node, one edge)...
+        expect(result.current.streamingProposals.competencies).toHaveLength(1);
+        expect(result.current.streamingProposals.edges).toHaveLength(1);
+        expect(result.current.streamActivity.map((e) => e.kind)).toEqual(['stage', 'item', 'item']);
+        // ...and on done the authoritative proposals were re-read (the stream is only a view).
         expect(proposedCallCount).toBe(2);
-        expect(result.current.generateResult?.competenciesProposed).toBe(2);
+        expect(result.current.competencies).toHaveLength(1);
+        expect(result.current.edges).toHaveLength(1);
     });
 
     it('approveCompetency removes the item from pending state', async () => {

@@ -34,6 +34,36 @@ describe('useAiStream', () => {
         expect(result.current.entries.map((e) => e.kind)).toEqual(['stage', 'item']);
     });
 
+    it('collects raw item payloads for a surface that assembles live', async () => {
+        vi.spyOn(aiStreamService, 'streamAiProgress').mockImplementation(
+            (_endpoint: string, handlers: AiStreamHandlers) => {
+                handlers.onEvent({ type: 'stage', label: 'Searching' });
+                handlers.onEvent({ type: 'item', label: 'Kotlin', item: { key: 'kotlin' } });
+                handlers.onEvent({
+                    type: 'item',
+                    label: 'kotlin → jpa',
+                    item: { from_key: 'kotlin', to_key: 'jpa' }
+                });
+                handlers.onDone();
+                return Promise.resolve();
+            }
+        );
+
+        const { result } = renderHook(() => useAiStream());
+        await act(async () => {
+            await result.current.start('/x');
+        });
+
+        // Only item payloads are collected (stages carry none), in arrival order.
+        expect(result.current.items).toEqual([
+            { key: 'kotlin' },
+            { from_key: 'kotlin', to_key: 'jpa' }
+        ]);
+        // reset clears them alongside the log.
+        act(() => result.current.reset());
+        expect(result.current.items).toEqual([]);
+    });
+
     it('resolves false and surfaces the message on error', async () => {
         vi.spyOn(aiStreamService, 'streamAiProgress').mockImplementation(
             (_endpoint: string, handlers: AiStreamHandlers) => {
