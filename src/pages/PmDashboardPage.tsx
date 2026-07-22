@@ -7,6 +7,7 @@ import { AttentionWidget } from "../features/human-loop/components/AttentionWidg
 import { OnboardingMetricsWidget } from "../features/onboarding-metrics/components/OnboardingMetricsWidget";
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
+import { KnowledgeRequestWidget } from "../features/knowledge-request/components/KnowledgeRequestWidget";
 import { ProjectSelect } from "../features/projects/components/ProjectSelect";
 import { useProjectSelection } from "../features/projects/useProjectSelection";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
@@ -78,6 +79,7 @@ export function PmDashboardPage() {
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <OnboardingMetricsWidget projectId={selectedProjectId} />
+            <KnowledgeRequestWidget projectId={selectedProjectId} />
             <FaqWidget />
             <KnowledgeGapWidget />
             <CompetencyDashboardWidget />

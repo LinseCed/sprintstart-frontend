@@ -3,6 +3,7 @@ import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversati
 import { useBuddyNudge } from '../features/buddy/hooks/useBuddyNudge';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
 import { BuddyNudgeCard } from '../features/buddy/components/BuddyNudgeCard';
+import { FlagToPmButton } from '../features/knowledge-request/components/FlagToPmButton';
 
 /**
  * The buddy's home: the hire's onboarding front door as a full-page conversation.
@@ -38,6 +39,7 @@ export function BuddyPage() {
     const nudge = useBuddyNudge();
 
     const isEmpty = messages.length === 0 && !isThinking;
+    const lastQuestion = [...messages].reverse().find(m => m.role === 'USER')?.content ?? '';
 
     return (
         <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
@@ -79,6 +81,14 @@ export function BuddyPage() {
                                 </button>
                             ))}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {messages.length > 0 && (
+                <div className="shrink-0 px-4 pt-3">
+                    <div className="mx-auto w-full max-w-3xl">
+                        <FlagToPmButton defaultQuestion={lastQuestion} />
                     </div>
                 </div>
             )}
