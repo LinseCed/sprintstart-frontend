@@ -16,7 +16,7 @@ export async function getMessages(): Promise<BuddyMessage[]> {
  * and wire field names as the chat module's AiStreamMessage.
  */
 interface BuddyStreamChunk {
-    type: "tool_use" | "token" | "citation" | "done" | "error";
+    type: "tool_use" | "token" | "citation" | "action_proposal" | "done" | "error";
     content?: string;
     message?: string;
     name?: string;
@@ -25,6 +25,31 @@ interface BuddyStreamChunk {
     source_url?: string;
     start_line?: number;
     start_page?: number;
+    // Set only on an action_proposal chunk: the buddy is offering to do something, gated on confirm.
+    action?: string;
+    label?: string;
+    question?: string;
+}
+
+/** The outcome of confirming a buddy-proposed action — a single line to relay in the thread. */
+export interface BuddyActionResult {
+    ok: boolean;
+    message: string;
+}
+
+/**
+ * Confirms a buddy-proposed action. This is the only call that mutates — the proposal itself
+ * changed nothing. The project is re-resolved server-side from the caller, so only the action name
+ * (and, for flag-to-PM, the composed question; for logging contact, an optional note) is sent.
+ */
+export async function performAction(
+    action: string,
+    extras: { question?: string; note?: string } = {},
+): Promise<BuddyActionResult> {
+    return await apiClient.fetch<BuddyActionResult>(`/api/v1/onboarding/me/buddy/actions`, {
+        method: "POST",
+        body: JSON.stringify({ action, question: extras.question, note: extras.note }),
+    });
 }
 
 /**
@@ -106,6 +131,16 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
                             sourceUrl: event.source_url,
                             startLine: event.start_line,
                             startPage: event.start_page
+                        });
+                    }
+                    break;
+
+                case "action_proposal":
+                    if (event.action && event.label) {
+                        handlers.onActionProposal?.({
+                            action: event.action,
+                            label: event.label,
+                            question: event.question
                         });
                     }
                     break;

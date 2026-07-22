@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getMessages, streamMessage } from '../../../src/services/buddyService';
+import { getMessages, performAction, streamMessage } from '../../../src/services/buddyService';
 import { http, HttpResponse } from 'msw';
 import { mockKeycloakInstance, server } from '../../unit/setup/vitest.setup';
 
@@ -175,6 +175,76 @@ describe('buddyService', () => {
             });
 
             expect(onError).toHaveBeenCalledWith('Model overload');
+        });
+
+        it('surfaces an action proposal without mutating anything', async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(
+                        encoder.encode(
+                            'data: {"type":"action_proposal","action":"claim_task_zero","label":"Start Task 0"}\n\n',
+                        ),
+                    );
+                    controller.enqueue(encoder.encode('data: {"type":"token","content":"Confirm below."}\n\n'));
+                    controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                    controller.close();
+                },
+            });
+
+            server.use(
+                http.post('/api/v1/onboarding/me/buddy/messages', () =>
+                    new HttpResponse(stream, {
+                        headers: { 'Content-Type': 'text/event-stream' },
+                    }),
+                ),
+            );
+
+            const onActionProposal = vi.fn();
+            await streamMessage('help me start my first task', {
+                onToken: vi.fn(),
+                onCitation: vi.fn(),
+                onDone: vi.fn(),
+                onActionProposal,
+            });
+
+            expect(onActionProposal).toHaveBeenCalledWith({
+                action: 'claim_task_zero',
+                label: 'Start Task 0',
+                question: undefined,
+            });
+        });
+    });
+
+    describe('performAction', () => {
+        it('confirms an action and returns the outcome', async () => {
+            let capturedBody: unknown = null;
+            server.use(
+                http.post('/api/v1/onboarding/me/buddy/actions', async ({ request }) => {
+                    capturedBody = await request.json();
+                    return HttpResponse.json({ ok: true, message: 'Task 0 is yours.' });
+                }),
+            );
+
+            const result = await performAction('claim_task_zero');
+
+            expect(result).toEqual({ ok: true, message: 'Task 0 is yours.' });
+            expect(capturedBody).toMatchObject({ action: 'claim_task_zero' });
+        });
+
+        it('sends the composed question for a flag-to-PM confirmation', async () => {
+            let capturedBody: { action?: string; question?: string } = {};
+            server.use(
+                http.post('/api/v1/onboarding/me/buddy/actions', async ({ request }) => {
+                    capturedBody = (await request.json()) as { action?: string; question?: string };
+                    return HttpResponse.json({ ok: true, message: 'Flagged to your PM.' });
+                }),
+            );
+
+            await performAction('flag_to_pm', { question: 'How do we deploy?' });
+
+            expect(capturedBody.action).toBe('flag_to_pm');
+            expect(capturedBody.question).toBe('How do we deploy?');
         });
     });
 });

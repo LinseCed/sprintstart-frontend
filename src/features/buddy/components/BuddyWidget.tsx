@@ -9,7 +9,18 @@ import { BuddyPanel } from './BuddyPanel';
  * state for the lifetime of the session.
  */
 export function BuddyWidget() {
-    const { messages, isThinking, isOpen, toggleOpen, draft, setDraft, handleSubmit, bottomRef } = useBuddy();
+    const {
+        messages,
+        isThinking,
+        isOpen,
+        toggleOpen,
+        draft,
+        setDraft,
+        handleSubmit,
+        confirmAction,
+        dismissAction,
+        bottomRef,
+    } = useBuddy();
 
     return (
         <>
@@ -20,6 +31,8 @@ export function BuddyWidget() {
                     draft={draft}
                     setDraft={setDraft}
                     handleSubmit={handleSubmit}
+                    confirmAction={confirmAction}
+                    dismissAction={dismissAction}
                     bottomRef={bottomRef}
                     onClose={toggleOpen}
                 />

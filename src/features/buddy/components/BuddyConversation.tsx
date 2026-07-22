@@ -2,8 +2,9 @@ import { Bot, Send } from 'lucide-react';
 import type { RefObject } from 'react';
 import { AutoResizeTextarea } from '../../../components/ui/AutoResizeTextarea';
 import { UserAvatar } from '../../../components/common/UserAvatar';
-import type { BuddyMessageView } from '../types';
+import type { BuddyMessageView, ProposedAction } from '../types';
 import { toolLabel } from '../toolLabel';
+import { BuddyActionProposals } from './BuddyActionProposals';
 
 type BuddyConversationProps = {
     messages: BuddyMessageView[];
@@ -13,6 +14,10 @@ type BuddyConversationProps = {
     draft: string;
     setDraft: (value: string) => void;
     handleSubmit: (event: React.FormEvent) => void;
+    /** Confirms a buddy-proposed action (the only path that mutates). */
+    confirmAction: (messageId: string, action: ProposedAction) => void;
+    /** Declines a proposed action; nothing changes. */
+    dismissAction: (messageId: string, actionId: string) => void;
     bottomRef: RefObject<HTMLDivElement | null>;
 };
 
@@ -28,6 +33,8 @@ export function BuddyConversation({
     draft,
     setDraft,
     handleSubmit,
+    confirmAction,
+    dismissAction,
     bottomRef,
 }: BuddyConversationProps) {
     return (
@@ -64,6 +71,15 @@ export function BuddyConversation({
                                     >
                                         {message.content}
                                     </div>
+
+                                    {!isUser && message.actions && message.actions.length > 0 && (
+                                        <BuddyActionProposals
+                                            messageId={message.id}
+                                            actions={message.actions}
+                                            onConfirm={confirmAction}
+                                            onDismiss={dismissAction}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         );
