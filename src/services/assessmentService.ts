@@ -7,24 +7,25 @@ import type {
 
 export const assessmentService = {
     /**
-     * Whether the authenticated user has ever completed a placement interview.
-     * Drives the buddy's intake mode: no completed placement means the buddy
-     * opens with the interview; completed means it opens as the mentor. A hint,
-     * not a door — the assessment never gates anything.
+     * Whether the authenticated user has ever completed a placement interview for
+     * this project. Drives the buddy's intake mode: no completed placement means
+     * the buddy opens with the interview; completed means it opens as the mentor.
+     * A hint, not a door — the assessment never gates anything. Per-project: a
+     * placement for one project says nothing about another.
      */
-    async fetchAssessmentStatus(): Promise<AssessmentStatusResponse> {
+    async fetchAssessmentStatus(projectId: string): Promise<AssessmentStatusResponse> {
         return await apiClient.fetch<AssessmentStatusResponse>(
-            '/api/v1/onboarding/me/assessment/status'
+            `/api/v1/onboarding/me/assessment/status?projectId=${projectId}`
         );
     },
 
     /**
-     * Starts the authenticated user's skill-assessment interview, or resumes it
-     * if one is already in progress.
+     * Starts the authenticated user's skill-assessment interview for this project,
+     * or resumes it if one is already in progress.
      */
-    async startAssessment(): Promise<AssessmentStartResponse> {
+    async startAssessment(projectId: string): Promise<AssessmentStartResponse> {
         return await apiClient.fetch<AssessmentStartResponse>(
-            '/api/v1/onboarding/me/assessment/start',
+            `/api/v1/onboarding/me/assessment/start?projectId=${projectId}`,
             { method: 'POST' }
         );
     },

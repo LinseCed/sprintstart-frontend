@@ -1,4 +1,4 @@
-import { AlertCircle, Bot, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, Bot, Loader2, Sparkles, Users } from 'lucide-react';
 import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversation';
 import { useBuddyIntake } from '../features/buddy/hooks/useBuddyIntake';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
@@ -149,6 +149,21 @@ export function BuddyPage() {
 
     if (intake.mode === 'mentor') {
         return <BuddyMentorHome />;
+    }
+
+    if (intake.mode === 'no-project') {
+        return (
+            <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
+                <BuddyHeader subtitle="Your onboarding buddy, once you're on a project." />
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                    <Users className="h-8 w-8 text-app-text-muted" aria-hidden="true" />
+                    <p className="max-w-sm text-sm text-app-text-muted">
+                        You&rsquo;re not on a project yet — once you&rsquo;re added to one, your buddy will meet
+                        you here with a few quick questions to get started.
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     return (

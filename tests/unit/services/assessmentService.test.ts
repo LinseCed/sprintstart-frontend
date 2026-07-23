@@ -8,28 +8,46 @@ describe('assessmentService', () => {
         vi.clearAllMocks();
     });
 
-    it('fetchAssessmentStatus reads whether the caller has a completed placement', async () => {
+    it('fetchAssessmentStatus reads whether the caller has a completed placement for the project', async () => {
+        let capturedUrl: URL | undefined;
         server.use(
-            http.get('/api/v1/onboarding/me/assessment/status', () =>
-                HttpResponse.json({ completed: true }),
-            ),
+            http.get('/api/v1/onboarding/me/assessment/status', ({ request }) => {
+                capturedUrl = new URL(request.url);
+                return HttpResponse.json({ completed: true });
+            }),
         );
 
-        const result = await assessmentService.fetchAssessmentStatus();
+        const result = await assessmentService.fetchAssessmentStatus('project1');
 
         expect(result).toEqual({ completed: true });
+        expect(capturedUrl?.searchParams.get('projectId')).toBe('project1');
     });
 
-    it('startAssessment posts to the start endpoint and returns the session/question', async () => {
+    it('startAssessment posts to the start endpoint scoped to the project and returns the session/question', async () => {
+        let capturedUrl: URL | undefined;
+        server.use(
+            http.post('/api/v1/onboarding/me/assessment/start', ({ request }) => {
+                capturedUrl = new URL(request.url);
+                return HttpResponse.json({ sessionId: 'session1', question: 'Walk me through a recent PR.' });
+            }),
+        );
+
+        const result = await assessmentService.startAssessment('project1');
+
+        expect(result).toEqual({ sessionId: 'session1', question: 'Walk me through a recent PR.' });
+        expect(capturedUrl?.searchParams.get('projectId')).toBe('project1');
+    });
+
+    it('startAssessment returns done:true with no question when the project has nothing to assess', async () => {
         server.use(
             http.post('/api/v1/onboarding/me/assessment/start', () =>
-                HttpResponse.json({ sessionId: 'session1', question: 'Walk me through a recent PR.' }),
+                HttpResponse.json({ sessionId: 'session1', question: null, done: true }),
             ),
         );
 
-        const result = await assessmentService.startAssessment();
+        const result = await assessmentService.startAssessment('project1');
 
-        expect(result).toEqual({ sessionId: 'session1', question: 'Walk me through a recent PR.' });
+        expect(result).toEqual({ sessionId: 'session1', question: null, done: true });
     });
 
     it('answerAssessment posts the session id and answer, returning the next question', async () => {

@@ -12,6 +12,12 @@ vi.mock('../../../src/services/assessmentService', () => ({
     },
 }));
 
+vi.mock('../../../src/services/userService', () => ({
+    userService: {
+        getMyProjects: vi.fn(),
+    },
+}));
+
 vi.mock('../../../src/services/buddyService', () => ({
     getMessages: vi.fn().mockResolvedValue([]),
     openBuddy: vi.fn().mockResolvedValue({ greeting: 'Welcome back!', action: null }),
@@ -38,6 +44,7 @@ vi.mock('../../../src/features/projects/useProjectSelection', () => ({
 }));
 
 import { assessmentService } from '../../../src/services/assessmentService';
+import { userService } from '../../../src/services/userService';
 import { openBuddy } from '../../../src/services/buddyService';
 
 function renderPage() {
@@ -52,6 +59,17 @@ describe('BuddyPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         window.HTMLElement.prototype.scrollIntoView = vi.fn();
+        vi.mocked(userService.getMyProjects).mockResolvedValue([{ id: 'p1', name: 'Project One' }]);
+    });
+
+    it('shows the no-project state when the hire is not on a project yet', async () => {
+        vi.mocked(userService.getMyProjects).mockResolvedValue([]);
+
+        renderPage();
+
+        expect(await screen.findByText(/not on a project yet/)).toBeInTheDocument();
+        expect(assessmentService.fetchAssessmentStatus).not.toHaveBeenCalled();
+        expect(assessmentService.startAssessment).not.toHaveBeenCalled();
     });
 
     it('opens the mentor for a hire who already has a placement', async () => {
