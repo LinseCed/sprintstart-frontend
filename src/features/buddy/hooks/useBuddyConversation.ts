@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMessages, performAction, streamMessage } from "../../../services/buddyService";
+import {
+    getMessages,
+    openBuddy,
+    performAction,
+    streamMessage,
+    type BuddyOpeningAction,
+} from "../../../services/buddyService";
 import type { BuddyMessageView, ProposedAction } from "../types";
 
 /**
@@ -9,17 +15,26 @@ import type { BuddyMessageView, ProposedAction } from "../types";
  * full-page `/buddy` home both build on it, so a hire's one buddy session behaves the
  * same in either place.
  *
- * @param autoLoad When true, loads the conversation history on mount (the page). The
- *   widget leaves it false and calls [loadHistory] itself the first time it opens, so
- *   an unopened widget makes no request.
+ * @param autoLoad When true, loads the current visit's messages on mount (the widget).
+ *   Leave it false and call [loadHistory] on first open so an unopened surface makes no
+ *   request.
+ * @param open When true, *opens a visit* on mount instead: the buddy folds the previous
+ *   visit into its memory and greets proactively (the `/buddy` home). No transcript is
+ *   replayed — the greeting is the first message and continuity lives in the memory.
  */
-export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean } = {}) {
+export function useBuddyConversation(
+    { autoLoad = false, open = false }: { autoLoad?: boolean; open?: boolean } = {},
+) {
     const [messages, setMessages] = useState<BuddyMessageView[]>([]);
     const [isThinking, setIsThinking] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
     // The tool the buddy is running right now, if any -- drives "Checking your progress…"
     // in place of a generic spinner. Cleared as soon as the answer starts streaming.
     const [activeTool, setActiveTool] = useState<string | null>(null);
+    // The one suggested next step the opening greeting invites, until the hire acts or asks.
+    const [openerAction, setOpenerAction] = useState<BuddyOpeningAction | null>(null);
+    // True while the visit is being opened, so the page can show a greeting-loading state.
+    const [isOpening, setIsOpening] = useState(open);
     const [draft, setDraft] = useState("");
 
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -36,9 +51,38 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
         setMessages(history.map(message => ({ ...message, id: crypto.randomUUID() })));
     }, []);
 
+    /**
+     * Opens a visit: the buddy greets proactively, at most once. The greeting becomes the
+     * first (and only) message shown; the past transcript is deliberately not replayed.
+     */
+    const openVisit = useCallback(async () => {
+        if (loadedRef.current) return;
+        loadedRef.current = true;
+        try {
+            const opening = await openBuddy();
+            setMessages([{
+                id: crypto.randomUUID(),
+                role: "ASSISTANT",
+                content: opening.greeting,
+                createdAt: new Date().toISOString(),
+                citations: [],
+            }]);
+            setOpenerAction(opening.action);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsOpening(false);
+        }
+    }, []);
+
     useEffect(() => {
-        if (autoLoad) void loadHistory();
-    }, [autoLoad, loadHistory]);
+        // Deferred to a microtask (the repo's React-19 pattern) so the first setState never runs
+        // synchronously in the effect body.
+        void (async () => {
+            if (open) await openVisit();
+            else if (autoLoad) await loadHistory();
+        })();
+    }, [open, autoLoad, openVisit, loadHistory]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,6 +113,8 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
         setMessages(prev => [...prev, userMessage, assistantMessage]);
         setIsThinking(true);
         setActiveTool(null);
+        // Once the hire says anything, the opener's one-click suggestion has served its purpose.
+        setOpenerAction(null);
 
         try {
             await streamMessage(text, {
@@ -204,6 +250,8 @@ export function useBuddyConversation({ autoLoad = false }: { autoLoad?: boolean 
         isThinking,
         isStreaming,
         activeTool,
+        openerAction,
+        isOpening,
 
         draft,
         setDraft,

@@ -1,9 +1,7 @@
-import { AlertCircle, Bot, Loader2 } from 'lucide-react';
+import { AlertCircle, Bot, Loader2, Sparkles } from 'lucide-react';
 import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversation';
 import { useBuddyIntake } from '../features/buddy/hooks/useBuddyIntake';
-import { useBuddyNudge } from '../features/buddy/hooks/useBuddyNudge';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
-import { BuddyNudgeCard } from '../features/buddy/components/BuddyNudgeCard';
 import { FlagToPmButton } from '../features/knowledge-request/components/FlagToPmButton';
 
 /**
@@ -45,15 +43,17 @@ function BuddyHeader({ subtitle }: { subtitle: string }) {
 }
 
 /**
- * The mentor buddy: nudges, suggestions, escalation, and the persistent conversation.
- * Its hooks load the hire's buddy history — deliberately mounted only once the hire
- * is placed, so an intake thread and the mentor transcript never mix.
+ * The mentor buddy: opens each visit with a proactive, memory-grounded greeting rather than a
+ * replayed transcript, then carries the conversation. Deliberately mounted only once the hire is
+ * placed, so an intake thread and the mentor conversation never mix.
  */
 function BuddyMentorHome() {
     const {
         messages,
         isThinking,
+        isOpening,
         activeTool,
+        openerAction,
         draft,
         setDraft,
         sendMessage,
@@ -61,28 +61,49 @@ function BuddyMentorHome() {
         confirmAction,
         dismissAction,
         bottomRef,
-    } = useBuddyConversation({ autoLoad: true });
+    } = useBuddyConversation({ open: true });
 
-    const nudge = useBuddyNudge();
-
-    const isEmpty = messages.length === 0 && !isThinking;
+    const hasUserMessage = messages.some(m => m.role === 'USER');
     const lastQuestion = [...messages].reverse().find(m => m.role === 'USER')?.content ?? '';
+
+    if (isOpening) {
+        return (
+            <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
+                <BuddyHeader subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding." />
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-app-text-muted">
+                    <Loader2 className="h-6 w-6 animate-spin text-app-brand" aria-hidden="true" />
+                    <p className="text-sm">Catching up on where you are…</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
             <BuddyHeader subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding." />
 
-            {nudge && (
-                <div className="shrink-0 px-4 pt-5">
-                    <BuddyNudgeCard nudge={nudge} onAct={question => void sendMessage(question)} />
+            {/* The greeting invites one next step; offer it as a single prominent chip until the
+                hire acts or asks something of their own. */}
+            {openerAction && !hasUserMessage && (
+                <div className="shrink-0 px-4 pt-4">
+                    <div className="mx-auto w-full max-w-3xl">
+                        <button
+                            type="button"
+                            onClick={() => void sendMessage(openerAction.question)}
+                            className="inline-flex items-center gap-2 rounded-full bg-app-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                        >
+                            <Sparkles className="h-4 w-4" aria-hidden="true" />
+                            {openerAction.label}
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {isEmpty && (
-                <div className="shrink-0 px-4 pt-5">
+            {!hasUserMessage && (
+                <div className="shrink-0 px-4 pt-4">
                     <div className="mx-auto w-full max-w-3xl">
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-app-text-muted">
-                            Not sure where to start? Try one of these
+                            Or ask about something else
                         </p>
                         <div className="flex flex-wrap gap-2">
                             {SUGGESTIONS.map(suggestion => (
@@ -100,7 +121,7 @@ function BuddyMentorHome() {
                 </div>
             )}
 
-            {messages.length > 0 && (
+            {hasUserMessage && (
                 <div className="shrink-0 px-4 pt-3">
                     <div className="mx-auto w-full max-w-3xl">
                         <FlagToPmButton defaultQuestion={lastQuestion} />

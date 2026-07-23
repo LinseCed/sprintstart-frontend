@@ -4,10 +4,34 @@ import type { StreamHandlers } from "../features/chatbot/types";
 import type { BuddyMessage } from "../features/buddy/types";
 
 /**
- * Retrieves the authenticated user's buddy conversation so far, oldest first.
+ * Retrieves the current visit's buddy messages, oldest first (the window since the mentor last
+ * updated its memory — not the whole transcript).
  */
 export async function getMessages(): Promise<BuddyMessage[]> {
     return await apiClient.fetch<BuddyMessage[]>(`/api/v1/onboarding/me/buddy/messages`);
+}
+
+/** One suggested next step attached to a buddy greeting — one click sends `question`. */
+export interface BuddyOpeningAction {
+    label: string;
+    question: string;
+}
+
+/** The buddy's proactive opener for a visit: a greeting and an optional suggested next step. */
+export interface BuddyOpening {
+    greeting: string;
+    action: BuddyOpeningAction | null;
+}
+
+/**
+ * Opens a buddy visit: the mentor folds the previous visit into its durable memory and returns a
+ * proactive greeting grounded in the hire's current state. The past transcript is not replayed — a
+ * visit starts fresh with this greeting.
+ */
+export async function openBuddy(): Promise<BuddyOpening> {
+    return await apiClient.fetch<BuddyOpening>(`/api/v1/onboarding/me/buddy/open`, {
+        method: "POST",
+    });
 }
 
 /**

@@ -14,6 +14,7 @@ vi.mock('../../../src/services/assessmentService', () => ({
 
 vi.mock('../../../src/services/buddyService', () => ({
     getMessages: vi.fn().mockResolvedValue([]),
+    openBuddy: vi.fn().mockResolvedValue({ greeting: 'Welcome back!', action: null }),
     streamMessage: vi.fn(),
     performAction: vi.fn(),
 }));
@@ -37,7 +38,7 @@ vi.mock('../../../src/features/projects/useProjectSelection', () => ({
 }));
 
 import { assessmentService } from '../../../src/services/assessmentService';
-import { getMessages } from '../../../src/services/buddyService';
+import { openBuddy } from '../../../src/services/buddyService';
 
 function renderPage() {
     return render(
@@ -61,7 +62,7 @@ describe('BuddyPage', () => {
         // The mentor's empty state, not an interview: no session is started.
         expect(await screen.findByText('What should I work on?')).toBeInTheDocument();
         expect(assessmentService.startAssessment).not.toHaveBeenCalled();
-        expect(getMessages).toHaveBeenCalled();
+        expect(openBuddy).toHaveBeenCalled();
     });
 
     it('calibrates in-conversation when there is no placement, then flips to the mentor', async () => {
@@ -81,7 +82,7 @@ describe('BuddyPage', () => {
         // The interviewer speaks in the buddy thread — no separate app, no suggestions yet.
         expect(await screen.findByText('Walk me through a recent PR.')).toBeInTheDocument();
         expect(screen.queryByText('What should I work on?')).not.toBeInTheDocument();
-        expect(getMessages).not.toHaveBeenCalled();
+        expect(openBuddy).not.toHaveBeenCalled();
 
         await user.type(screen.getByPlaceholderText('Type your answer...'), 'It fixed a flaky test.');
         await user.click(screen.getByRole('button', { name: 'Send message' }));
@@ -91,7 +92,7 @@ describe('BuddyPage', () => {
         // Placement done: the same page is now the mentor, suggestions and all.
         expect(await screen.findByText('What should I work on?')).toBeInTheDocument();
         expect(screen.queryByText('Walk me through a recent PR.')).not.toBeInTheDocument();
-        expect(getMessages).toHaveBeenCalled();
+        expect(openBuddy).toHaveBeenCalled();
     });
 
     it('shows a retry when starting the interview fails', async () => {
