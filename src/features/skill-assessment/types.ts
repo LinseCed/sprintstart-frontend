@@ -1,7 +1,12 @@
 import type { PathGoal } from '../starter-work/types';
 export type AssessmentStartResponse = {
     sessionId: string;
-    question: string;
+    question?: string | null;
+    /**
+     * Set when the project has nothing configured to assess yet (no live competency
+     * module) -- the session finished immediately with no question and nothing placed.
+     */
+    done?: boolean;
 };
 
 export type AssessmentAnswerResponse = {

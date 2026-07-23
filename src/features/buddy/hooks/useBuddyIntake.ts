@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { assessmentService } from '../../../services/assessmentService';
+import { userService } from '../../../services/userService';
 import type { BuddyMessageView } from '../types';
 
-/** Which buddy the hire gets: still deciding, the calibrating interview, or the mentor. */
-export type BuddyIntakeMode = 'loading' | 'intake' | 'mentor';
+/**
+ * Which buddy the hire gets: still deciding, no project to onboard onto yet, the
+ * calibrating interview, or the mentor.
+ */
+export type BuddyIntakeMode = 'loading' | 'no-project' | 'intake' | 'mentor';
 
 type PendingAction = 'start' | 'answer';
 
@@ -20,10 +24,22 @@ function buddyMessage(role: BuddyMessageView['role'], content: string): BuddyMes
  * interview, and the interview itself when they do.
  *
  * The placement interview **is** the buddy's first conversation — it runs against
- * the existing assessment engine (unchanged), but its turns render in the buddy
- * thread and the hire answers in the buddy composer, so there is no second chat
- * surface to be handed to. The status read is the backend's (`GET
- * /me/assessment/status`), not a client-side flag: placement is a server fact.
+ * the existing assessment engine, but its turns render in the buddy thread and the
+ * hire answers in the buddy composer, so there is no second chat surface to be
+ * handed to. The status read is the backend's (`GET /me/assessment/status`), not a
+ * client-side flag: placement is a server fact.
+ *
+ * Assessment is per-project — the questions probe what *this* project's live
+ * modules teach, not a global catalog — so intake first resolves the hire's own
+ * project (`GET /users/me/projects`, first membership, mirroring how the buddy's
+ * own backend tools resolve "the" project for a hire). A hire with no project yet
+ * gets `no-project`, never a call to an endpoint that has nothing to scope itself
+ * to: starting an assessment before a project exists is exactly the failure this
+ * guards against, not something to retry into working.
+ *
+ * A project whose live modules haven't been authored yet answers `start` with
+ * `done: true` and no question — nothing to place the hire against — and intake
+ * treats that exactly like an already-completed placement, straight to `mentor`.
  *
  * The engine and endpoints stay; this hook is only the host. On `done` the
  * placement is already written server-side, and the mode flips to `mentor` —
@@ -50,14 +66,28 @@ export function useBuddyIntake() {
         setError(null);
         setIsThinking(true);
         try {
-            const status = await assessmentService.fetchAssessmentStatus();
+            const projects = await userService.getMyProjects();
+            const projectId = projects[0]?.id;
+            if (!projectId) {
+                setMode('no-project');
+                return;
+            }
+
+            const status = await assessmentService.fetchAssessmentStatus(projectId);
             if (status.completed) {
                 setMode('mentor');
                 return;
             }
             // Start resumes an in-progress session server-side, so a refresh
             // mid-interview lands on the current question, not a new session.
-            const response = await assessmentService.startAssessment();
+            const response = await assessmentService.startAssessment(projectId);
+            if (response.done || !response.question) {
+                // The project has nothing configured to assess yet -- an honest
+                // empty placement, not a failure. Same destination as "already
+                // completed": nothing here for the hire to answer.
+                setMode('mentor');
+                return;
+            }
             sessionIdRef.current = response.sessionId;
             setMessages([buddyMessage('ASSISTANT', response.question)]);
             setMode('intake');

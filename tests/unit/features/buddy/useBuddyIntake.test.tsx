@@ -10,12 +10,21 @@ vi.mock('../../../../src/services/assessmentService', () => ({
     },
 }));
 
+vi.mock('../../../../src/services/userService', () => ({
+    userService: {
+        getMyProjects: vi.fn(),
+    },
+}));
+
 import { assessmentService } from '../../../../src/services/assessmentService';
+import { userService } from '../../../../src/services/userService';
 
 describe('useBuddyIntake', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         window.HTMLElement.prototype.scrollIntoView = vi.fn();
+        // Most tests are about the interview itself, once the hire is on a project.
+        vi.mocked(userService.getMyProjects).mockResolvedValue([{ id: 'project1', name: 'Project 1' }]);
     });
 
     it('opens the mentor directly when the hire already has a placement', async () => {
@@ -27,6 +36,27 @@ describe('useBuddyIntake', () => {
         // Placed already: no interview is started, and no thread is fabricated.
         expect(assessmentService.startAssessment).not.toHaveBeenCalled();
         expect(result.current.messages).toHaveLength(0);
+    });
+
+    it('scopes the status/start calls to the hire\'s own project', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: false });
+        vi.mocked(assessmentService.startAssessment).mockResolvedValue({ sessionId: 's1', question: 'Q1' });
+
+        const { result } = renderHook(() => useBuddyIntake());
+
+        await waitFor(() => expect(result.current.mode).toBe('intake'));
+        expect(assessmentService.fetchAssessmentStatus).toHaveBeenCalledWith('project1');
+        expect(assessmentService.startAssessment).toHaveBeenCalledWith('project1');
+    });
+
+    it('shows the no-project state without ever calling the assessment endpoints', async () => {
+        vi.mocked(userService.getMyProjects).mockResolvedValue([]);
+
+        const { result } = renderHook(() => useBuddyIntake());
+
+        await waitFor(() => expect(result.current.mode).toBe('no-project'));
+        expect(assessmentService.fetchAssessmentStatus).not.toHaveBeenCalled();
+        expect(assessmentService.startAssessment).not.toHaveBeenCalled();
     });
 
     it('opens the interview in the buddy thread when there is no placement', async () => {
@@ -42,6 +72,20 @@ describe('useBuddyIntake', () => {
         expect(result.current.messages).toHaveLength(1);
         expect(result.current.messages[0].role).toBe('ASSISTANT');
         expect(result.current.messages[0].content).toBe('Walk me through a recent PR.');
+    });
+
+    it('goes straight to the mentor when the project has nothing to assess yet', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: false });
+        vi.mocked(assessmentService.startAssessment).mockResolvedValue({
+            sessionId: 's1',
+            question: null,
+            done: true,
+        });
+
+        const { result } = renderHook(() => useBuddyIntake());
+
+        await waitFor(() => expect(result.current.mode).toBe('mentor'));
+        expect(result.current.messages).toHaveLength(0);
     });
 
     it('walks the interview turns in the same thread and flips to the mentor on done', async () => {
