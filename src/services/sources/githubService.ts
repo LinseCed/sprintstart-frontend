@@ -331,6 +331,32 @@ export async function updateAllGithubRepositories(): Promise<
   );
 }
 
+export type AddRepositoryToProjectResponse = {
+  repositoryId: string;
+  /** The repository's resulting project assignment after the call. */
+  projectIds: string[];
+};
+
+/**
+ * Assigns an already-ingested repository to an additional project without
+ * re-fetching or re-ingesting it. Idempotent. Requires the PM or ADMIN role and
+ * access to the target project.
+ *
+ * @throws ApiError — 403 when the caller cannot access the project, 404 when the
+ *   repositoryId is unknown.
+ */
+export async function addRepositoryToProject(
+  repositoryId: string,
+  projectId: string,
+): Promise<AddRepositoryToProjectResponse> {
+  return apiClient.fetch<AddRepositoryToProjectResponse>(
+    `/api/v1/github/connections/${encodeURIComponent(repositoryId)}/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 export async function updateGithubRepository(
   request: UpdateGithubRepositoryRequest,
 ): Promise<UpdateGithubRepositoryResponse> {

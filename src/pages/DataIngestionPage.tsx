@@ -30,9 +30,11 @@ import {
   type ConnectorSource,
 } from "../services/connectorService.ts";
 import {
+  buildRunSourceLabels,
   deriveSourceStatus,
   formatDateTime,
   getBackendSourceStatusLabel,
+  getRunSourceLabel,
   getSourceStatus,
   getSourceStatusFromBackend,
   getSourceStatusLabel,
@@ -813,6 +815,11 @@ export function DataIngestionPage() {
     [runs, visibleSourceSystems],
   );
 
+  const runSourceLabels = useMemo(
+    () => buildRunSourceLabels(sources),
+    [sources],
+  );
+
   const loadConnectors = useCallback(async () => {
     setConnectorsLoadingState("loading");
     setConnectorsErrorMessage(null);
@@ -1079,13 +1086,14 @@ export function DataIngestionPage() {
     async (request: ConfigureGithubRepositoryRequest) => {
       await configureAllGithubRepositories(request);
       setGlobalGithubSyncConfig(request);
-      await Promise.all([
-        loadData(false),
-        reloadProjects(),
-        loadGithubConnectorSources(),
-      ]);
+      // Deliberately does NOT reloadProjects(): changing sync schedules does not
+      // affect the project switcher's data, and a project reload can transiently
+      // reset the selected project (e.g. a slow managed-projects fetch), which
+      // makes the page-data effect treat it as a project switch and blank the
+      // page. See the note on refreshSourceDetails.
+      await Promise.all([loadData(false), loadGithubConnectorSources()]);
     },
-    [loadData, loadGithubConnectorSources, reloadProjects],
+    [loadData, loadGithubConnectorSources],
   );
 
   const handleLoadGithubRepositoryConfig = useCallback(
@@ -1101,23 +1109,25 @@ export function DataIngestionPage() {
       request: ConfigureGithubRepositoryRequest,
     ) => {
       await configureGithubRepository(repository, request);
-      await Promise.all([
-        loadData(false),
-        reloadProjects(),
-        loadGithubConnectorSources(),
-      ]);
+      // No reloadProjects(): see refreshSourceDetails — a per-repo sync-schedule
+      // change never alters the project switcher, and reloading it can reset the
+      // selected project and blank the page mid-save.
+      await Promise.all([loadData(false), loadGithubConnectorSources()]);
     },
-    [loadData, loadGithubConnectorSources, reloadProjects],
+    [loadData, loadGithubConnectorSources],
   );
 
+  // Refreshes just this page's data after a source-level mutation (enable/disable,
+  // "Refresh details"). It intentionally does NOT reloadProjects(): the switcher's
+  // project list is unaffected by these actions, and reloading it can transiently
+  // drop the selected project (a slow/failed managed-projects fetch resets the
+  // selection), which the page-data effect then reads as a project switch — it
+  // clears the source list, shows the initial loading skeleton and closes the
+  // open details drawer. That reset is what read as "the whole page reloads".
   const refreshSourceDetails = useCallback(async () => {
-    await Promise.all([
-      loadData(false),
-      reloadProjects(),
-      loadGithubConnectorSources(),
-    ]);
+    await Promise.all([loadData(false), loadGithubConnectorSources()]);
     setProjectDataVersion((version) => version + 1);
-  }, [loadData, loadGithubConnectorSources, reloadProjects]);
+  }, [loadData, loadGithubConnectorSources]);
 
   // Enables/disables a connected repository as an ingestion source (the
   // connector allow/deny toggle), then refreshes so the drawer reflects it.
@@ -1307,6 +1317,7 @@ export function DataIngestionPage() {
                       runs={visibleRuns}
                       selectedRunId={selectedRunId}
                       onSelectRun={(run) => setSelectedRunId(run.runId)}
+                      sourceLabelByRunId={runSourceLabels}
                     />
                   </section>
                 ) : null}
@@ -1333,6 +1344,7 @@ export function DataIngestionPage() {
       {selectedRun && (
         <RunDetailsPanel
           run={selectedRun}
+          sourceLabel={getRunSourceLabel(selectedRun, runSourceLabels)}
           onClose={() => setSelectedRunId(null)}
         />
       )}

@@ -3,10 +3,15 @@ import type {
   Artifact,
   ArtifactPage,
   ArtifactType,
+  ConnectionStatus,
   FailedArtifact,
   IngestionRun,
+  IngestionRunFilter,
+  IngestionRunPage,
   IngestionRunStatus,
+  PageMetadata,
   SourceIngestionStatus,
+  SourceInstanceIngestionStatus,
   SourceSystem,
 } from "../features/data-ingestion/types.ts";
 import { apiClient } from "./apiClient.ts";
@@ -21,15 +26,26 @@ type CanonicalFailedArtifact = {
 type CanonicalIngestionRunResponse = {
   runId: string;
   sourceSystem: SourceSystem;
+  sourceId?: string | null;
+  owner?: string | null;
+  name?: string | null;
+  repositoryId?: string | null;
   startedAt: string;
   finishedAt: string | null;
   ingestedCount?: number;
   updatedCount?: number;
+  deletedCount?: number;
   failedCount?: number;
   failedItems?: CanonicalFailedArtifact[];
   status?: IngestionRunStatus | "SUCCESS" | null;
+  failureReason?: string | null;
   aiSyncStatus?: AiSyncStatus | null;
   aiSyncFailureReason?: string | null;
+};
+
+type CanonicalIngestionRunPageResponse = {
+  items?: CanonicalIngestionRunResponse[];
+  page?: Partial<PageMetadata> | null;
 };
 
 type CanonicalSourceIngestionStatusResponse = {
@@ -40,6 +56,27 @@ type CanonicalSourceIngestionStatusResponse = {
   failedCount?: number;
   failedItems?: CanonicalFailedArtifact[];
   status?: IngestionRunStatus | "SUCCESS" | null;
+};
+
+type CanonicalSourceInstanceIngestionStatusResponse = {
+  sourceSystem?: SourceSystem;
+  sourceId: string;
+  repositoryId: string;
+  owner: string;
+  name: string;
+  sourceUrl: string;
+  status?: ConnectionStatus | null;
+  enabled?: boolean;
+  lastRunTime?: string | null;
+  ingestedCount?: number;
+  updatedCount?: number;
+  deletedCount?: number;
+  failedCount?: number;
+  failedItems?: CanonicalFailedArtifact[];
+  artifactCount?: number;
+  lastCommitsSyncAt?: string | null;
+  lastIssuesSyncAt?: string | null;
+  lastPullRequestsSyncAt?: string | null;
 };
 
 type GetProjectArtifactsOptions = {
@@ -122,15 +159,83 @@ function mapIngestionRun(run: CanonicalIngestionRunResponse): IngestionRun {
   return {
     runId: run.runId,
     sourceSystem: run.sourceSystem,
+    sourceId: run.sourceId ?? null,
+    owner: run.owner ?? null,
+    name: run.name ?? null,
+    repositoryId: run.repositoryId ?? null,
     startedAt: run.startedAt,
     finishedAt: run.finishedAt,
     ingestedCount: run.ingestedCount ?? 0,
     updatedCount: run.updatedCount ?? 0,
+    deletedCount: run.deletedCount ?? 0,
     failedCount: run.failedCount ?? failedItems.length,
     status: inferRunStatus(run),
     failedItems: failedItems.map(mapFailedArtifact),
+    failureReason: run.failureReason ?? null,
     aiSyncStatus: normalizeAiSyncStatus(run.aiSyncStatus),
     aiSyncFailureReason: run.aiSyncFailureReason ?? null,
+  };
+}
+
+function normalizeConnectionStatus(
+  status: CanonicalSourceInstanceIngestionStatusResponse["status"],
+): ConnectionStatus {
+  switch (status) {
+    case "CONNECTED":
+    case "UPDATING":
+    case "OUT_OF_DATE":
+    case "FAILED":
+    case "DISABLED":
+      return status;
+    default:
+      return "CONNECTED";
+  }
+}
+
+function mapSourceInstanceStatus(
+  status: CanonicalSourceInstanceIngestionStatusResponse,
+): SourceInstanceIngestionStatus {
+  const failedItems = (status.failedItems ?? []).map(mapFailedArtifact);
+
+  return {
+    sourceSystem: status.sourceSystem ?? "GITHUB",
+    sourceId: status.sourceId,
+    repositoryId: status.repositoryId,
+    owner: status.owner,
+    name: status.name,
+    sourceUrl: status.sourceUrl,
+    status: normalizeConnectionStatus(status.status),
+    enabled: status.enabled ?? true,
+    lastRunTime: status.lastRunTime ?? null,
+    ingestedCount: status.ingestedCount ?? 0,
+    updatedCount: status.updatedCount ?? 0,
+    deletedCount: status.deletedCount ?? 0,
+    failedCount: status.failedCount ?? failedItems.length,
+    failedItems,
+    artifactCount: status.artifactCount ?? 0,
+    lastCommitsSyncAt: status.lastCommitsSyncAt ?? null,
+    lastIssuesSyncAt: status.lastIssuesSyncAt ?? null,
+    lastPullRequestsSyncAt: status.lastPullRequestsSyncAt ?? null,
+  };
+}
+
+function mapRunPageMetadata(
+  page: CanonicalIngestionRunPageResponse["page"],
+  itemCount: number,
+): PageMetadata {
+  const number = page?.number ?? 1;
+  const size = page?.size ?? Math.max(itemCount, 1);
+  const totalElements = page?.totalElements ?? itemCount;
+  const totalPages =
+    page?.totalPages ?? (size > 0 ? Math.ceil(totalElements / size) : 1);
+
+  return {
+    number,
+    size,
+    totalElements,
+    totalPages,
+    hasNext: page?.hasNext ?? number < totalPages,
+    hasPrevious: page?.hasPrevious ?? number > 1,
   };
 }
 
@@ -182,6 +287,89 @@ export async function getIngestionRuns(limit = 50): Promise<IngestionRun[]> {
   );
 
   return data.map(mapIngestionRun);
+}
+
+const DEFAULT_RUN_PAGE_SIZE = 20;
+const MAX_RUN_PAGE_SIZE = 100;
+
+function buildRunPageQuery(filter: IngestionRunFilter): string {
+  const params = new URLSearchParams();
+
+  params.set("page", String(clampPage(filter.page ?? 1)));
+  params.set(
+    "size",
+    String(
+      Math.min(
+        Math.max(Math.trunc(filter.size ?? DEFAULT_RUN_PAGE_SIZE), MIN_LIMIT),
+        MAX_RUN_PAGE_SIZE,
+      ),
+    ),
+  );
+
+  if (filter.sourceSystem) params.set("sourceSystem", filter.sourceSystem);
+  if (filter.repositoryId) params.set("repositoryId", filter.repositoryId);
+  if (filter.projectId) params.set("projectId", filter.projectId);
+  if (filter.status) params.set("status", filter.status);
+  if (filter.since) params.set("since", filter.since);
+
+  return params.toString();
+}
+
+/**
+ * Fetches a filtered, paginated page of ingestion runs. Unlike
+ * {@link getIngestionRuns}, each run carries its repository identity and the
+ * server applies the {@link IngestionRunFilter} (repo, project, status, since).
+ *
+ * @throws Error if the backend request fails.
+ */
+export async function getIngestionRunsPage(
+  filter: IngestionRunFilter = {},
+): Promise<IngestionRunPage> {
+  const query = buildRunPageQuery(filter);
+  const data = await apiClient.fetch<CanonicalIngestionRunPageResponse>(
+    `/api/v1/ingestion-runs/page?${query}`,
+  );
+
+  const items = (data.items ?? []).map(mapIngestionRun);
+
+  return {
+    items,
+    page: mapRunPageMetadata(data.page, items.length),
+  };
+}
+
+/**
+ * Fetches a single ingestion run by id, for the run drawer / deep links.
+ *
+ * @throws ApiError with status 404 when the run does not exist.
+ */
+export async function getIngestionRun(runId: string): Promise<IngestionRun> {
+  const data = await apiClient.fetch<CanonicalIngestionRunResponse>(
+    `/api/v1/ingestion-runs/${encodeURIComponent(runId)}`,
+  );
+
+  return mapIngestionRun(data);
+}
+
+/**
+ * Fetches per-connected-repo ingestion status, optionally scoped to a project.
+ * This is the authoritative source for the Data Ingestion source cards: one row
+ * per repository with its identity, connection status, enabled flag, last-run
+ * counters, total artifact count and per-artifact-type sync timestamps.
+ *
+ * @throws Error if the backend request fails.
+ */
+export async function getIngestionSourceStatuses(
+  projectId?: string,
+): Promise<SourceInstanceIngestionStatus[]> {
+  const query = projectId
+    ? `?${new URLSearchParams({ projectId }).toString()}`
+    : "";
+  const data = await apiClient.fetch<
+    CanonicalSourceInstanceIngestionStatusResponse[]
+  >(`/api/v1/ingestion-sources/status${query}`);
+
+  return data.map(mapSourceInstanceStatus);
 }
 
 /**

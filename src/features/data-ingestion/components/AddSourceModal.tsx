@@ -1,16 +1,18 @@
 import {
   AlertTriangle,
   ArrowLeft,
+  Check,
   CheckCircle2,
   ChevronRight,
   ExternalLink,
   GitBranch,
   Loader2,
   Lock,
+  Plus,
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal } from "../../../components/ui/Modal.tsx";
 import { ApiError } from "../../../services/apiClient.ts";
 import {
@@ -75,6 +77,24 @@ export function AddSourceModal({
   const [tokenName, setTokenName] = useState(tokenNames[0] ?? "");
   const [filter, setFilter] = useState("");
 
+  // The parent loads the saved token names asynchronously *after* opening the
+  // modal, so on the very first open `tokenNames` is empty and `tokenName`
+  // initialises to "" — which made discovery reject with "choose a token" until
+  // the modal was closed and reopened. Adopt the first token as soon as the list
+  // arrives (and heal a selection that is no longer available), instead of only
+  // reading the prop once at mount.
+  useEffect(() => {
+    if (tokenNames.length === 0) return;
+
+    // Deferred to a microtask so the state update does not run synchronously in
+    // the effect body and cascade a render (the pattern used across the app).
+    void Promise.resolve().then(() => {
+      setTokenName((current) =>
+        current && tokenNames.includes(current) ? current : tokenNames[0],
+      );
+    });
+  }, [tokenNames]);
+
   // The owner that actually produced the current results, used at connect time
   // (discovered repos carry only their name, not their owner).
   const [resolvedOwner, setResolvedOwner] = useState("");
@@ -82,8 +102,6 @@ export function AddSourceModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [effectiveOwnerType, setEffectiveOwnerType] =
-    useState<DiscoveryOwnerType>("auto");
 
   const [discoverState, setDiscoverState] = useState<
     "idle" | "loading" | "loadingMore" | "loaded" | "error"
@@ -130,7 +148,6 @@ export function AddSourceModal({
         );
 
         setResolvedOwner(owner);
-        setEffectiveOwnerType(result.resolvedOwnerType);
         setHasMore(result.hasMore);
         setPage(nextPage);
         setRepositories((current) =>
@@ -280,6 +297,18 @@ export function AddSourceModal({
       onClose={onClose}
       closeLabel="Close add source"
       bodyClassName="px-5 py-5 sm:px-7 sm:py-6"
+      headerActions={
+        step === "detail" && isGithub ? (
+          <button
+            type="button"
+            onClick={onSwitchToSingleRepo}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface px-3 py-2 text-xs font-semibold text-app-text transition hover:border-app-brand-border hover:bg-app-surface-hover"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add single repo
+          </button>
+        ) : undefined
+      }
       footer={
         step === "type" ? (
           <>
@@ -454,14 +483,6 @@ export function AddSourceModal({
             </button>
           </form>
 
-          <button
-            type="button"
-            onClick={onSwitchToSingleRepo}
-            className="text-sm font-medium text-app-brand-text underline decoration-app-brand-border underline-offset-4 transition hover:text-app-brand"
-          >
-            Add a single repository instead
-          </button>
-
           {discoverError && (
             <div className="flex items-start gap-2 rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -513,21 +534,20 @@ export function AddSourceModal({
 
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-app-text-muted">
-                    {selectedCount} selected · discovered as{" "}
-                    {effectiveOwnerType === "user" ? "user" : "organization"}
+                    {selectedCount} selected
                   </span>
                   <button
                     type="button"
                     onClick={toggleAllVisible}
                     disabled={selectableVisible.length === 0}
-                    className="rounded-lg px-2 py-1 font-medium text-app-brand-text transition hover:bg-app-brand-soft disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-lg px-2 py-1 font-semibold text-app-brand-text transition hover:bg-app-brand-soft disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {allVisibleSelected ? "Clear visible" : "Select visible"}
+                    {allVisibleSelected ? "Clear all" : "Select all"}
                   </button>
                 </div>
               </div>
 
-              <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
                 {filteredRepositories.map((repository) => {
                   const isSelected = selected.has(repository.name);
                   const disabledRow = repository.alreadyConnected;
@@ -539,17 +559,50 @@ export function AddSourceModal({
                           disabledRow
                             ? "cursor-not-allowed border-app-border bg-app-surface-muted opacity-70"
                             : isSelected
-                              ? "border-app-brand bg-app-brand-soft"
-                              : "border-app-border bg-app-surface hover:border-app-brand-border"
+                              ? "border-app-brand bg-app-brand-soft shadow-sm"
+                              : "border-app-border bg-app-surface hover:border-app-brand-border hover:bg-app-surface-hover"
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          disabled={disabledRow}
-                          onChange={() => toggleRepository(repository.name)}
-                          className="h-4 w-4 shrink-0 accent-app-brand"
-                        />
+                        <span className="relative flex shrink-0 items-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={disabledRow}
+                            onChange={() => toggleRepository(repository.name)}
+                            className="peer sr-only"
+                          />
+                          <span
+                            aria-hidden="true"
+                            className={`flex h-5 w-5 items-center justify-center rounded-md border transition peer-focus-visible:ring-2 peer-focus-visible:ring-app-focus peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-app-surface ${
+                              isSelected
+                                ? "border-app-brand bg-app-brand text-white"
+                                : "border-app-border-strong bg-app-surface"
+                            } ${disabledRow ? "opacity-60" : ""}`}
+                          >
+                            {isSelected && <Check className="h-3.5 w-3.5" />}
+                          </span>
+                        </span>
+
+                        {repository.alreadyConnected && (
+                          <span
+                            role="img"
+                            aria-label={
+                              repository.isEnabled === false
+                                ? "Disabled"
+                                : "Enabled"
+                            }
+                            title={
+                              repository.isEnabled === false
+                                ? "Disabled"
+                                : "Enabled"
+                            }
+                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                              repository.isEnabled === false
+                                ? "bg-app-text-disabled"
+                                : "bg-app-success-solid"
+                            }`}
+                          />
+                        )}
 
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-app-text">
                           {repository.name}

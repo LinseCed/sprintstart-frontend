@@ -383,6 +383,41 @@ export function getSourceLabel(sourceSystem: SourceSystem) {
   return SOURCE_META[sourceSystem].type;
 }
 
+/**
+ * Maps each ingestion run to the connected source it produced artifacts for, so
+ * run lists can show the repository (e.g. "sprintstart-frontend") instead of the
+ * generic source-system label ("GitHub").
+ *
+ * The backend does not yet persist a source instance on a run (see
+ * backend-ingestion-source-instance-issue.md), so the association is recovered
+ * from the source's `runIds`, which are collected from the artifacts each run
+ * ingested. Runs that produced no artifacts (empty/failed) won't be in the map
+ * and fall back to the source-system label.
+ */
+export function buildRunSourceLabels(
+  sources: DataSource[],
+): Map<string, string> {
+  const labels = new Map<string, string>();
+
+  sources.forEach((source) => {
+    source.runIds.forEach((runId) => {
+      if (!labels.has(runId)) {
+        labels.set(runId, source.name);
+      }
+    });
+  });
+
+  return labels;
+}
+
+/** Repository label for a run, falling back to the source-system label. */
+export function getRunSourceLabel(
+  run: IngestionRun,
+  labelByRunId?: Map<string, string>,
+) {
+  return labelByRunId?.get(run.runId) ?? getSourceLabel(run.sourceSystem);
+}
+
 export function formatDateTime(value: string | null) {
   if (!value) return "Never";
 

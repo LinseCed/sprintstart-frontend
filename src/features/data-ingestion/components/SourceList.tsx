@@ -80,12 +80,20 @@ export function SourceList({
                       {source.name}
                     </h3>
 
+                    {source.githubRepository?.owner && (
+                      <p className="mt-0.5 break-words text-xs text-app-text-subtle">
+                        {source.githubRepository.owner}
+                      </p>
+                    )}
+
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
                         {source.type}
                       </span>
 
                       <SourceStatusChip status={source.statusView} />
+
+                      <SyncStatusBadge source={source} />
                     </div>
                   </div>
                 </div>
@@ -138,6 +146,40 @@ export function SourceList({
         );
       })}
     </div>
+  );
+}
+
+const SYNC_TONE_CLASSNAMES: Record<DataSource["ingestionStatus"], string> = {
+  connected:
+    "border-app-success-border bg-app-success-bg text-app-success-text",
+  running: "border-app-brand-border bg-app-brand-soft text-app-brand-text",
+  warning: "border-app-warning-border bg-app-warning-bg text-app-warning-text",
+  disabled: "border-app-border bg-app-neutral-bg text-app-neutral-text",
+};
+
+/**
+ * Secondary badge showing the source's ingestion/sync outcome (Synced, Running,
+ * Failed, Partial, Not synced) next to the unified status chip. The chip conveys
+ * connection state (Connected/Disabled/Syncing); this adds the sync freshness the
+ * chip collapses away. Hidden when it would only repeat the chip's own label
+ * (e.g. an in-flight "Syncing"/"Running" pair, or a duplicated "Not synced").
+ */
+function SyncStatusBadge({ source }: { source: DataSource }) {
+  const label = source.ingestionStatusLabel;
+
+  if (
+    source.statusView.state === "syncing" ||
+    label === source.statusView.label
+  ) {
+    return null;
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${SYNC_TONE_CLASSNAMES[source.ingestionStatus]}`}
+    >
+      {label}
+    </span>
   );
 }
 

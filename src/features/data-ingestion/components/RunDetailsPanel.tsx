@@ -23,6 +23,12 @@ import type { AiSyncStatus, IngestionRun } from "../types.ts";
 
 type RunDetailsPanelProps = {
   run: IngestionRun;
+  /**
+   * The repository the run ingested, resolved best-effort from the run's
+   * artifacts (the backend does not persist a repo on a run). Falls back to the
+   * source-system label when the run produced no attributable artifacts.
+   */
+  sourceLabel?: string;
   onClose: () => void;
 };
 
@@ -43,16 +49,21 @@ const TONE_CHIP: Record<Tone, string> = {
  * (fetch → save → AI index) so the local run status and the separate AI-index
  * stage are legible at a glance rather than as two competing badges.
  */
-export function RunDetailsPanel({ run, onClose }: RunDetailsPanelProps) {
+export function RunDetailsPanel({
+  run,
+  sourceLabel,
+  onClose,
+}: RunDetailsPanelProps) {
   const runTone = getRunStatusTone(run.status) as Tone;
   const aiLabel = getAiSyncStatusLabel(run.aiSyncStatus);
   const duration = formatDuration(run.startedAt, run.finishedAt, run.status);
+  const repoLabel = sourceLabel ?? getSourceLabel(run.sourceSystem);
 
   return (
     <DetailsSideDrawer
       isOpen
       onClose={onClose}
-      title={`Run · ${getSourceLabel(run.sourceSystem)}`}
+      title={`Run · ${repoLabel}`}
       closeAriaLabel="Close run details"
       zIndexClassName="z-50"
       showOverlay
@@ -99,6 +110,7 @@ export function RunDetailsPanel({ run, onClose }: RunDetailsPanelProps) {
 
       <Section title="Timing">
         <dl className="overflow-hidden rounded-xl border border-app-border">
+          <InfoRow label="Repository" value={repoLabel} />
           <InfoRow label="Started" value={formatDateTime(run.startedAt)} />
           <InfoRow
             label="Finished"

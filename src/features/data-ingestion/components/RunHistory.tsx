@@ -4,9 +4,9 @@ import {
     formatRunFinishedAt,
     getAiSyncStatusLabel,
     getAiSyncStatusTone,
+    getRunSourceLabel,
     getRunStatusLabel,
     getRunStatusTone,
-    getSourceLabel,
 } from "../data.ts";
 import { ChevronRight } from "lucide-react";
 import type { IngestionRun } from "../types.ts";
@@ -15,6 +15,8 @@ type RunHistoryProps = {
     runs: IngestionRun[];
     selectedRunId?: string | null;
     onSelectRun?: (run: IngestionRun) => void;
+    /** Maps a run to its repository label; falls back to the source-system label. */
+    sourceLabelByRunId?: Map<string, string>;
 };
 
 /**
@@ -25,6 +27,7 @@ export function RunHistory({
     runs,
     selectedRunId = null,
     onSelectRun,
+    sourceLabelByRunId,
 }: RunHistoryProps) {
     if (runs.length === 0) {
         return (
@@ -68,7 +71,7 @@ export function RunHistory({
                         >
                             <div>
                                 <p className="text-sm font-semibold text-app-text">
-                                    {getSourceLabel(run.sourceSystem)}
+                                    {getRunSourceLabel(run, sourceLabelByRunId)}
                                 </p>
 
                                 <p className="mt-1 break-all text-xs text-app-text-subtle">

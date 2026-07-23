@@ -10,11 +10,12 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import {
+  buildRunSourceLabels,
   formatDateTime,
   formatNumber,
+  getRunSourceLabel,
   getRunStatusLabel,
   getRunStatusTone,
-  getSourceLabel,
 } from "../data.ts";
 import type { DataSource, IngestionRun, SectionKey } from "../types.ts";
 
@@ -52,6 +53,11 @@ export function OverviewSection({
         )
         .slice(0, 4),
     [runs],
+  );
+
+  const runSourceLabels = useMemo(
+    () => buildRunSourceLabels(sources),
+    [sources],
   );
 
   const bySource = useMemo(() => {
@@ -185,7 +191,11 @@ export function OverviewSection({
           {recentRuns.length > 0 ? (
             <ul className="mt-3">
               {recentRuns.map((run) => (
-                <ActivityRow key={run.runId} run={run} />
+                <ActivityRow
+                  key={run.runId}
+                  run={run}
+                  sourceLabel={getRunSourceLabel(run, runSourceLabels)}
+                />
               ))}
             </ul>
           ) : (
@@ -265,7 +275,13 @@ function Kpi({
   );
 }
 
-function ActivityRow({ run }: { run: IngestionRun }) {
+function ActivityRow({
+  run,
+  sourceLabel,
+}: {
+  run: IngestionRun;
+  sourceLabel: string;
+}) {
   const tone = getRunStatusTone(run.status);
   const label = getRunStatusLabel(run.status);
 
@@ -291,7 +307,7 @@ function ActivityRow({ run }: { run: IngestionRun }) {
       </span>
       <div className="min-w-0">
         <p className="truncate text-[13px] font-semibold text-app-text">
-          {getSourceLabel(run.sourceSystem)} · {label.toLowerCase()}
+          {sourceLabel} · {label.toLowerCase()}
         </p>
         <p className="text-[11.5px] text-app-text-subtle">
           {formatNumber(run.ingestedCount)} artifacts
