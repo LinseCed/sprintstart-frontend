@@ -16,11 +16,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal } from "../../../components/ui/Modal.tsx";
 import { ApiError } from "../../../services/apiClient.ts";
 import {
+  addRepositoryToProject,
   connectRepositories,
   discoverRepositories,
   type DiscoveredRepository,
   type DiscoveryOwnerType,
 } from "../../../services/sources/githubService.ts";
+import { getIngestionSourceStatuses } from "../../../services/ingestionService.ts";
 import { parseGithubOwnerInput } from "../../../services/sources/githubRepositoryInput.ts";
 import { SOURCE_META, SOURCE_SYSTEMS } from "../data.ts";
 import type { SourceSystem } from "../types.ts";
@@ -41,6 +43,24 @@ type AddSourceModalProps = {
 };
 
 type WizardStep = "type" | "detail";
+
+/**
+ * What connecting a discovered repository to the current project would mean.
+ *
+ * `alreadyConnected` from discovery is global: it says the repo is a SprintStart
+ * source *somewhere*, not that it belongs to this project. Such a repo can be
+ * linked to the current project without fetching or ingesting it again, which is
+ * why it stays selectable instead of being greyed out.
+ */
+type RepositoryLinkState =
+  /** Not a source yet: connecting fetches and ingests it. */
+  | "new"
+  /** Ingested elsewhere: connecting only links it, reusing its artifacts. */
+  | "linkable"
+  /** Already a source of this project: nothing left to do. */
+  | "in-project"
+  /** Ingested elsewhere, but its repository id could not be resolved. */
+  | "unresolved";
 
 const OWNER_TYPES: { value: DiscoveryOwnerType; label: string }[] = [
   { value: "auto", label: "Auto-detect" },
@@ -102,6 +122,14 @@ export function AddSourceModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  // "owner/name" (lowercased) -> repository id, for every repo connected anywhere,
+  // plus the subset already belonging to the current project.
+  const [repositoryIdsByFullName, setRepositoryIdsByFullName] = useState<
+    Map<string, string>
+  >(new Map());
+  const [projectFullNames, setProjectFullNames] = useState<Set<string>>(
+    new Set(),
+  );
 
   const [discoverState, setDiscoverState] = useState<
     "idle" | "loading" | "loadingMore" | "loaded" | "error"
@@ -114,6 +142,39 @@ export function AddSourceModal({
 
   const isBusy = discoverState === "loading" || connectState === "loading";
   const isGithub = selectedType === "GITHUB";
+
+  // Discovery only reports *that* a repo is already a source, not its id or which
+  // projects it belongs to. The per-repo status endpoint supplies both, so an
+  // already-ingested repo can be linked to this project instead of being blocked.
+  const loadConnectedRepositories = useCallback(async () => {
+    if (!projectId) return;
+
+    try {
+      const [allConnected, connectedToProject] = await Promise.all([
+        getIngestionSourceStatuses(),
+        getIngestionSourceStatuses(projectId),
+      ]);
+
+      setRepositoryIdsByFullName(
+        new Map(
+          allConnected.map((status) => [
+            status.sourceId.toLowerCase(),
+            status.repositoryId,
+          ]),
+        ),
+      );
+      setProjectFullNames(
+        new Set(
+          connectedToProject.map((status) => status.sourceId.toLowerCase()),
+        ),
+      );
+    } catch {
+      // Degrades gracefully: without ids, already-connected repos stay
+      // unselectable rather than offering an action that would fail.
+      setRepositoryIdsByFullName(new Map());
+      setProjectFullNames(new Set());
+    }
+  }, [projectId]);
 
   const runDiscovery = useCallback(
     async (nextPage: number) => {
@@ -154,6 +215,10 @@ export function AddSourceModal({
           loadingMore ? [...current, ...result.repositories] : result.repositories,
         );
         setDiscoverState("loaded");
+
+        if (!loadingMore) {
+          await loadConnectedRepositories();
+        }
       } catch (error) {
         setDiscoverState("error");
 
@@ -174,7 +239,7 @@ export function AddSourceModal({
         }
       }
     },
-    [ownerInput, ownerType, tokenName],
+    [loadConnectedRepositories, ownerInput, ownerType, tokenName],
   );
 
   const filteredRepositories = useMemo(() => {
@@ -186,8 +251,38 @@ export function AddSourceModal({
     );
   }, [filter, repositories]);
 
-  const selectableVisible = filteredRepositories.filter(
-    (repository) => !repository.alreadyConnected,
+  const linkStateByName = useMemo(() => {
+    const states = new Map<string, RepositoryLinkState>();
+
+    repositories.forEach((repository) => {
+      const fullName = `${resolvedOwner}/${repository.name}`.toLowerCase();
+
+      if (projectFullNames.has(fullName)) {
+        states.set(repository.name, "in-project");
+      } else if (!repository.alreadyConnected) {
+        states.set(repository.name, "new");
+      } else if (repositoryIdsByFullName.has(fullName)) {
+        states.set(repository.name, "linkable");
+      } else {
+        states.set(repository.name, "unresolved");
+      }
+    });
+
+    return states;
+  }, [
+    projectFullNames,
+    repositories,
+    repositoryIdsByFullName,
+    resolvedOwner,
+  ]);
+
+  const isSelectable = (name: string) => {
+    const state = linkStateByName.get(name) ?? "new";
+    return state === "new" || state === "linkable";
+  };
+
+  const selectableVisible = filteredRepositories.filter((repository) =>
+    isSelectable(repository.name),
   );
   const allVisibleSelected =
     selectableVisible.length > 0 &&
@@ -218,6 +313,9 @@ export function AddSourceModal({
   };
 
   const selectedCount = selected.size;
+  const selectedLinkCount = Array.from(selected).filter(
+    (name) => linkStateByName.get(name) === "linkable",
+  ).length;
 
   const handleConnect = async () => {
     if (!projectId) {
@@ -248,15 +346,36 @@ export function AddSourceModal({
     setConnectState("loading");
     setConnectError(null);
 
+    // Repos already ingested elsewhere are linked to this project (reusing their
+    // artifacts); only genuinely new ones go through fetch + ingestion.
+    const toLink = chosen.filter(
+      (repository) => linkStateByName.get(repository.name) === "linkable",
+    );
+    const toIngest = chosen.filter(
+      (repository) => linkStateByName.get(repository.name) !== "linkable",
+    );
+
     try {
-      await connectRepositories(
-        chosen.map((repository) => ({
-          owner: resolvedOwner,
-          name: repository.name,
-        })),
-        tokenName.trim(),
-        projectId,
-      );
+      for (const repository of toLink) {
+        const repositoryId = repositoryIdsByFullName.get(
+          `${resolvedOwner}/${repository.name}`.toLowerCase(),
+        );
+
+        if (!repositoryId) continue;
+
+        await addRepositoryToProject(repositoryId, projectId);
+      }
+
+      if (toIngest.length > 0) {
+        await connectRepositories(
+          toIngest.map((repository) => ({
+            owner: resolvedOwner,
+            name: repository.name,
+          })),
+          tokenName.trim(),
+          projectId,
+        );
+      }
 
       setConnectState("idle");
       onConnected();
@@ -547,10 +666,22 @@ export function AddSourceModal({
                 </div>
               </div>
 
+              {selectedLinkCount > 0 && (
+                <p className="rounded-xl border border-app-brand-border bg-app-brand-soft px-4 py-2.5 text-xs text-app-brand-text">
+                  {selectedLinkCount} of the selected{" "}
+                  {selectedLinkCount === 1 ? "repository is" : "repositories are"}{" "}
+                  already ingested and will be linked to
+                  {projectName ? ` ${projectName}` : " this project"} without
+                  fetching or ingesting again.
+                </p>
+              )}
+
               <ul className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
                 {filteredRepositories.map((repository) => {
                   const isSelected = selected.has(repository.name);
-                  const disabledRow = repository.alreadyConnected;
+                  const linkState =
+                    linkStateByName.get(repository.name) ?? "new";
+                  const disabledRow = !isSelectable(repository.name);
 
                   return (
                     <li key={repository.name}>
@@ -621,8 +752,34 @@ export function AddSourceModal({
                           {repository.isPrivate ? "Private" : "Public"}
                         </span>
 
-                        {repository.alreadyConnected && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-app-brand-border bg-app-brand-soft px-2 py-0.5 text-xs font-medium text-app-brand-text">
+                        {linkState === "in-project" && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-app-border bg-app-neutral-bg px-2 py-0.5 text-xs font-medium text-app-neutral-text">
+                            <CheckCircle2
+                              className="h-3 w-3"
+                              aria-hidden="true"
+                            />
+                            In this project
+                          </span>
+                        )}
+
+                        {linkState === "linkable" && (
+                          <span
+                            title="Already ingested — adding it here reuses its artifacts instead of ingesting again."
+                            className="inline-flex items-center gap-1 rounded-full border border-app-brand-border bg-app-brand-soft px-2 py-0.5 text-xs font-medium text-app-brand-text"
+                          >
+                            <CheckCircle2
+                              className="h-3 w-3"
+                              aria-hidden="true"
+                            />
+                            Already ingested
+                          </span>
+                        )}
+
+                        {linkState === "unresolved" && (
+                          <span
+                            title="Connected to another project, but its repository id could not be resolved."
+                            className="inline-flex items-center gap-1 rounded-full border border-app-border bg-app-neutral-bg px-2 py-0.5 text-xs font-medium text-app-neutral-text"
+                          >
                             <CheckCircle2
                               className="h-3 w-3"
                               aria-hidden="true"
