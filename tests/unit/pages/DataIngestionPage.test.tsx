@@ -356,18 +356,16 @@ describe('DataIngestionPage', () => {
         const sourcesSection = async () =>
             within(await screen.findByRole('region', { name: 'Sources' }));
 
-        // The banner explains the global cause...
-        expect(
-            await screen.findByText(/none of these sources are used to answer questions/i),
-        ).toBeInTheDocument();
-
-        // ...and the card no longer claims to be connected, even though the
-        // repository's own flag is enabled.
+        // The card stops claiming to be connected even though the repository's
+        // own flag is enabled — visible without opening the connectors modal.
         await waitFor(async () => {
             expect(
                 (await sourcesSection()).getByText('Connector disabled'),
             ).toBeInTheDocument();
         });
+        expect(
+            (await sourcesSection()).queryByText('Connected'),
+        ).not.toBeInTheDocument();
     });
 
     it('shows no connector warning when the connector endpoint is forbidden', async () => {
@@ -378,9 +376,7 @@ describe('DataIngestionPage', () => {
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
         await screen.findByText('octocat/hello-world');
-        expect(
-            screen.queryByText(/none of these sources are used to answer questions/i),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Connector disabled')).not.toBeInTheDocument();
     });
 
     it('scopes the run history to the selected project', async () => {
