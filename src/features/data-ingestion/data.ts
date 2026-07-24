@@ -5,6 +5,7 @@ import {
   Database,
   FileText,
   GitBranch,
+  History,
   Loader2,
 } from "lucide-react";
 import type {
@@ -278,6 +279,12 @@ type DeriveSourceStatusInput = {
   aiSyncStatus?: AiSyncStatus | null;
   hasErrors: boolean;
   hasNeverSynced: boolean;
+  /**
+   * Whether the source system's connector is globally enabled. `undefined` means
+   * "unknown" (e.g. HR may not read the connector endpoint) and is treated as
+   * enabled, so a permission gap never fakes a disabled source.
+   */
+  connectorEnabled?: boolean;
 };
 
 /**
@@ -297,6 +304,7 @@ export function deriveSourceStatus({
   aiSyncStatus,
   hasErrors,
   hasNeverSynced,
+  connectorEnabled,
 }: DeriveSourceStatusInput): SourceStatusPresentation {
   if (backendStatus === "DISABLED") {
     return {
@@ -305,6 +313,20 @@ export function deriveSourceStatus({
       icon: CircleSlash,
       // Red, not grey: a disabled source silently stops feeding the knowledge
       // base, which is a problem state rather than a neutral one.
+      tone: "danger",
+      spinning: false,
+    };
+  }
+
+  // Checked right after the source's own switch: the AI drops every chunk of a
+  // disabled connector regardless of the per-source flag, so a source under a
+  // disabled connector is not feeding chat either — saying "Connected" would be
+  // a lie. Distinct label so it is clear the cause is global, not this source.
+  if (connectorEnabled === false) {
+    return {
+      state: "disabled",
+      label: "Connector disabled",
+      icon: CircleSlash,
       tone: "danger",
       spinning: false,
     };
@@ -335,7 +357,6 @@ export function deriveSourceStatus({
     aiSyncStatus === "FAILED" ||
     runStatus === "FAILED" ||
     runStatus === "PARTIAL" ||
-    backendStatus === "OUT_OF_DATE" ||
     backendStatus === "FAILED" ||
     backendStatus === "ERROR" ||
     backendStatus === "DISCONNECTED";
@@ -348,6 +369,18 @@ export function deriveSourceStatus({
       // The danger palette keeps the label red on red; the warning palette pairs
       // an amber-yellow text with a red-looking background in dark mode.
       tone: "danger",
+      spinning: false,
+    };
+  }
+
+  // Checked after the failure cases so a repo that is both out of date *and*
+  // failing still reads as failing.
+  if (backendStatus === "OUT_OF_DATE") {
+    return {
+      state: "stale",
+      label: "Out of date",
+      icon: History,
+      tone: "warning",
       spinning: false,
     };
   }

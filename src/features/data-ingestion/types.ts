@@ -200,6 +200,13 @@ export type SourceStatus = "connected" | "running" | "warning" | "disabled";
 export type SourceStatusView =
   | "connected"
   | "syncing"
+  /**
+   * Connected and healthy, but the backend has flagged newer upstream changes
+   * that have not been pulled yet. Deliberately separate from `attention`:
+   * with auto-update off this is the *expected* state between syncs, so it must
+   * not read as a failure.
+   */
+  | "stale"
   | "attention"
   | "disabled";
 

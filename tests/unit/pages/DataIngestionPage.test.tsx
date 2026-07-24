@@ -55,6 +55,7 @@ const {
     mockGetAccessibleProject,
     mockGetIngestionSourceStatuses,
     mockGetUnifiedArtifacts,
+    mockListConnectors,
 } = vi.hoisted(() => ({
     mockGetIngestionRunsPage: vi.fn(),
     mockGetIngestionStatus: vi.fn(),
@@ -65,6 +66,7 @@ const {
     mockGetAccessibleProject: vi.fn(),
     mockGetIngestionSourceStatuses: vi.fn(),
     mockGetUnifiedArtifacts: vi.fn(),
+    mockListConnectors: vi.fn(),
 }));
 
 vi.mock('../../../src/services/ingestionService', () => ({
@@ -87,6 +89,14 @@ vi.mock('../../../src/services/sources/githubService', () => ({
     updateAllGithubRepositories: mockUpdateAllGithubRepositories,
     updateGithubRepository: mockUpdateGithubRepository,
 }));
+
+vi.mock('../../../src/services/connectorService', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../src/services/connectorService')>();
+    return {
+        ...actual,
+        connectorService: { ...actual.connectorService, listConnectors: mockListConnectors },
+    };
+});
 
 vi.mock('../../../src/services/knowledgeService', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../../src/services/knowledgeService')>();
@@ -117,6 +127,7 @@ describe('DataIngestionPage', () => {
         });
         mockGetIngestionSourceStatuses.mockResolvedValue([]);
         mockGetUnifiedArtifacts.mockResolvedValue([]);
+        mockListConnectors.mockResolvedValue([]);
         selectProject();
     });
 
@@ -224,6 +235,152 @@ describe('DataIngestionPage', () => {
         await waitFor(() => {
             expect(setSelectedProjectId).not.toHaveBeenCalled();
         });
+    });
+
+    it('does not let one repository\'s failed run colour another repository', async () => {
+        mockGetAccessibleProject.mockResolvedValue({
+            id: 'proj1',
+            name: 'Project Alpha',
+            description: '',
+            manager: null,
+            sources: [
+                { id: 'src1', name: 'octocat/healthy', type: 'GITHUB', status: 'CONNECTED' },
+                { id: 'src2', name: 'octocat/broken', type: 'GITHUB', status: 'CONNECTED' },
+            ],
+            users: [],
+        });
+
+        const instance = (name: string, repositoryId: string, failedCount: number) => ({
+            sourceSystem: 'GITHUB',
+            sourceId: `octocat/${name}`,
+            repositoryId,
+            owner: 'octocat',
+            name,
+            sourceUrl: `https://github.com/octocat/${name}`,
+            status: 'CONNECTED',
+            enabled: true,
+            lastRunTime: '2026-07-01T00:00:00Z',
+            ingestedCount: 5,
+            updatedCount: 0,
+            deletedCount: 0,
+            failedCount,
+            failedItems: [],
+            artifactCount: 10,
+            lastCommitsSyncAt: null,
+            lastIssuesSyncAt: null,
+            lastPullRequestsSyncAt: null,
+        });
+
+        mockGetIngestionSourceStatuses.mockResolvedValue([
+            instance('healthy', 'repo-healthy', 0),
+            instance('broken', 'repo-broken', 3),
+        ]);
+
+        // Only the broken repo has a failed run loaded.
+        mockGetIngestionRunsPage.mockResolvedValue(
+            createRunPage([
+                {
+                    runId: 'run-broken',
+                    sourceSystem: 'GITHUB',
+                    sourceId: 'octocat/broken',
+                    owner: 'octocat',
+                    name: 'broken',
+                    repositoryId: 'repo-broken',
+                    startedAt: '2026-07-05T10:00:00Z',
+                    finishedAt: '2026-07-05T10:05:00Z',
+                    ingestedCount: 0,
+                    updatedCount: 0,
+                    deletedCount: 0,
+                    failedCount: 3,
+                    status: 'FAILED',
+                    failedItems: [],
+                    failureReason: null,
+                    aiSyncStatus: 'FAILED',
+                    aiSyncFailureReason: null,
+                },
+            ]),
+        );
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        // Rendered both as a source card and in the overview breakdown.
+        await screen.findAllByText('octocat/healthy');
+
+        // Exactly one card needs attention — previously the newest GitHub run was
+        // applied to every GitHub source, marking the healthy repo as failing too.
+        // Scoped to the Sources section: the overview KPI carries the same label.
+        await waitFor(() => {
+            const sourcesSection = within(
+                screen.getByRole('region', { name: 'Sources' }),
+            );
+            expect(sourcesSection.getAllByText('Needs attention')).toHaveLength(1);
+            expect(sourcesSection.getAllByText('Connected').length).toBeGreaterThan(0);
+        });
+    });
+
+    it('surfaces a globally disabled connector without opening the connectors modal', async () => {
+        mockListConnectors.mockResolvedValue([
+            {
+                id: 'github',
+                name: 'GitHub',
+                enabled: false,
+                firstConfiguredAt: null,
+                lastConfiguredAt: null,
+            },
+        ]);
+        mockGetIngestionSourceStatuses.mockResolvedValue([
+            {
+                sourceSystem: 'GITHUB',
+                sourceId: 'octocat/hello-world',
+                repositoryId: 'repo-uuid',
+                owner: 'octocat',
+                name: 'hello-world',
+                sourceUrl: 'https://github.com/octocat/hello-world',
+                status: 'CONNECTED',
+                enabled: true,
+                lastRunTime: '2026-07-01T00:00:00Z',
+                ingestedCount: 1,
+                updatedCount: 0,
+                deletedCount: 0,
+                failedCount: 0,
+                failedItems: [],
+                artifactCount: 5,
+                lastCommitsSyncAt: null,
+                lastIssuesSyncAt: null,
+                lastPullRequestsSyncAt: null,
+            },
+        ]);
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        const sourcesSection = async () =>
+            within(await screen.findByRole('region', { name: 'Sources' }));
+
+        // The banner explains the global cause...
+        expect(
+            await screen.findByText(/none of these sources are used to answer questions/i),
+        ).toBeInTheDocument();
+
+        // ...and the card no longer claims to be connected, even though the
+        // repository's own flag is enabled.
+        await waitFor(async () => {
+            expect(
+                (await sourcesSection()).getByText('Connector disabled'),
+            ).toBeInTheDocument();
+        });
+    });
+
+    it('shows no connector warning when the connector endpoint is forbidden', async () => {
+        // HR may open the page but cannot read connectors — that must not be
+        // mistaken for "everything is disabled".
+        mockListConnectors.mockRejectedValue(new Error('Forbidden'));
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await screen.findByText('octocat/hello-world');
+        expect(
+            screen.queryByText(/none of these sources are used to answer questions/i),
+        ).not.toBeInTheDocument();
     });
 
     it('scopes the run history to the selected project', async () => {

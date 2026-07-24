@@ -289,7 +289,9 @@ export function ConnectorSourcesSection({
                     "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
                     source.enabled
                       ? "border-app-success-border bg-app-success-bg text-app-success-text hover:bg-app-success-solid hover:text-white"
-                      : "border-app-neutral-border bg-app-neutral-bg text-app-neutral-text hover:bg-app-surface-hover",
+                      // Red like every other "disabled" marker in the app, so the
+                      // excluded state reads the same here as on the source cards.
+                      : "border-app-danger-border bg-app-danger-bg text-app-danger-text hover:bg-app-danger-solid hover:text-white",
                   ].join(" ")}
                 >
                   {source.enabled ? (

@@ -185,6 +185,8 @@ function buildProjectDataSources(
   sourceInstances: SourceInstanceIngestionStatus[],
   sourceStatuses: SourceIngestionStatus[],
   runs: IngestionRun[],
+  /** Connector id (lowercase, e.g. "github") -> globally enabled. */
+  connectorEnabledById: Map<string, boolean>,
 ): DataSource[] {
   const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
   const latestRunBySource = new Map<SourceSystem, IngestionRun>();
@@ -204,10 +206,19 @@ function buildProjectDataSources(
     statusBySource.set(status.sourceSystem, status);
   });
 
+  // Runs arrive newest-first, so the first hit per key is the latest.
+  const latestRunByRepository = new Map<string, IngestionRun>();
+
   runs.forEach((run) => {
     if (!latestRunBySource.has(run.sourceSystem)) {
       latestRunBySource.set(run.sourceSystem, run);
     }
+
+    [run.repositoryId, run.sourceId?.toLowerCase()].forEach((key) => {
+      if (key && !latestRunByRepository.has(key)) {
+        latestRunByRepository.set(key, run);
+      }
+    });
   });
 
   return projectSources.flatMap((projectSource): DataSource[] => {
@@ -218,6 +229,9 @@ function buildProjectDataSources(
     const status = statusBySource.get(sourceSystem);
     const latestRun = latestRunBySource.get(sourceSystem);
     const sharesSourceSystem = (sourceCountBySystem.get(sourceSystem) ?? 1) > 1;
+    const connectorEnabled = connectorEnabledById.get(
+      sourceSystem.toLowerCase(),
+    );
     const instance =
       sourceSystem === "GITHUB"
         ? matchSourceInstance(projectSource, sourceInstances)
@@ -228,7 +242,17 @@ function buildProjectDataSources(
         instance.enabled === false ? "DISABLED" : instance.status;
       const hasErrors = instance.failedCount > 0;
       const hasNeverSynced = instance.lastRunTime === null;
-      const runStatus = latestRun?.status ?? status?.status ?? null;
+
+      // Strictly this repository's own latest run. Falling back to the newest
+      // run of the source system (or the per-system aggregate) would let one
+      // failing repo colour every other GitHub card. The per-repo status
+      // endpoint is authoritative for health anyway; a run only adds the
+      // AI-sync stage, and having none loaded simply means "unknown".
+      const repositoryRun =
+        latestRunByRepository.get(instance.repositoryId) ??
+        latestRunByRepository.get(instance.sourceId.toLowerCase()) ??
+        null;
+      const runStatus = repositoryRun?.status ?? null;
 
       return [
         {
@@ -249,9 +273,10 @@ function buildProjectDataSources(
           statusView: deriveSourceStatus({
             backendStatus: effectiveBackendStatus,
             runStatus,
-            aiSyncStatus: latestRun?.aiSyncStatus ?? null,
+            aiSyncStatus: repositoryRun?.aiSyncStatus ?? null,
             hasErrors,
             hasNeverSynced,
+            connectorEnabled,
           }),
           artifacts: instance.artifactCount,
           lastSync: formatDateTime(instance.lastRunTime),
@@ -308,6 +333,7 @@ function buildProjectDataSources(
           aiSyncStatus: latestRun?.aiSyncStatus ?? null,
           hasErrors: errors > 0,
           hasNeverSynced,
+          connectorEnabled,
         }),
         artifacts: latestIngestedCount,
         lastSync: formatDateTime(lastRunAt),
@@ -669,14 +695,32 @@ export function DataIngestionPage() {
     return () => window.clearInterval(intervalId);
   }, [loadData, pollingUntil, runs]);
 
+  const connectorEnabledById = useMemo(
+    () =>
+      new Map(
+        connectors.map((connector) => [
+          connector.id.toLowerCase(),
+          connector.enabled,
+        ]),
+      ),
+    [connectors],
+  );
+
   const sources = useMemo<DataSource[]>(() => {
     return buildProjectDataSources(
       projectSources,
       sourceInstances,
       sourceStatuses,
       runs,
+      connectorEnabledById,
     );
-  }, [projectSources, runs, sourceInstances, sourceStatuses]);
+  }, [
+    connectorEnabledById,
+    projectSources,
+    runs,
+    sourceInstances,
+    sourceStatuses,
+  ]);
 
   // Project-wide artifact total for the overview KPI, summed from the per-repo
   // status endpoint (#5) instead of paging the full artifact list.
@@ -793,6 +837,25 @@ export function DataIngestionPage() {
         error instanceof Error ? error.message : "Failed to load connectors",
       );
     }
+  }, []);
+
+  // The connector state decides whether a source reaches chat at all, so it is
+  // loaded with the page rather than only when the connectors modal opens —
+  // otherwise a globally disabled connector stays invisible while every card
+  // still claims "Connected".
+  //
+  // Failure is swallowed on purpose: the endpoint is PM/ADMIN-only, but HR may
+  // open this page. An unknown connector state must not fake a disabled source.
+  useEffect(() => {
+    void Promise.resolve().then(async () => {
+      try {
+        const response = await connectorService.listConnectors();
+        setConnectors(toConnectorListItems(response));
+        setHasLoadedConnectors(true);
+      } catch {
+        setConnectors([]);
+      }
+    });
   }, []);
 
   const handleSectionChange = useCallback((section: SectionKey) => {

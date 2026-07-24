@@ -68,12 +68,74 @@ describe('deriveSourceStatus', () => {
         ).toBe('attention');
     });
 
-    it('flags out-of-date / failed backend states and errors as attention', () => {
+    it('flags failed backend states and errors as attention', () => {
         expect(
-            deriveSourceStatus({ backendStatus: 'OUT_OF_DATE', hasErrors: false, hasNeverSynced: false }).state,
+            deriveSourceStatus({ backendStatus: 'FAILED', hasErrors: false, hasNeverSynced: false }).state,
         ).toBe('attention');
         expect(
             deriveSourceStatus({ hasErrors: true, hasNeverSynced: false }).state,
+        ).toBe('attention');
+    });
+
+    it('reports a source under a globally disabled connector as disabled', () => {
+        const status = deriveSourceStatus({
+            backendStatus: 'CONNECTED',
+            connectorEnabled: false,
+            hasErrors: false,
+            hasNeverSynced: false,
+        });
+
+        // The AI drops every chunk of a disabled connector, so "Connected"
+        // would claim the source still feeds chat.
+        expect(status.state).toBe('disabled');
+        expect(status.label).toBe('Connector disabled');
+    });
+
+    it('treats an unknown connector state as enabled', () => {
+        // HR may open the page but cannot read the connector endpoint — a
+        // permission gap must not fake a disabled source.
+        expect(
+            deriveSourceStatus({
+                backendStatus: 'CONNECTED',
+                connectorEnabled: undefined,
+                hasErrors: false,
+                hasNeverSynced: false,
+            }).state,
+        ).toBe('connected');
+    });
+
+    it('keeps the source-level label when the source itself is disabled too', () => {
+        expect(
+            deriveSourceStatus({
+                backendStatus: 'DISABLED',
+                connectorEnabled: false,
+                hasErrors: false,
+                hasNeverSynced: false,
+            }).label,
+        ).toBe('Disabled');
+    });
+
+    it('treats an out-of-date source as stale, not as a failure', () => {
+        const status = deriveSourceStatus({
+            backendStatus: 'OUT_OF_DATE',
+            hasErrors: false,
+            hasNeverSynced: false,
+        });
+
+        // With auto-update off this is the expected state between syncs, so it
+        // must not read as red "needs attention".
+        expect(status.state).toBe('stale');
+        expect(status.label).toBe('Out of date');
+        expect(status.tone).toBe('warning');
+    });
+
+    it('still reports a failing out-of-date source as attention', () => {
+        expect(
+            deriveSourceStatus({
+                backendStatus: 'OUT_OF_DATE',
+                hasErrors: true,
+                hasNeverSynced: false,
+            }).state,
         ).toBe('attention');
     });
 
