@@ -80,7 +80,10 @@ export function RunHistory({
                             </div>
 
                             <div className="flex flex-wrap items-center gap-1.5">
-                                <RunStatusBadge status={run.status} />
+                                <RunStatusBadge
+                                    status={run.status}
+                                    failureReason={run.failureReason}
+                                />
                                 <AiSyncStatusBadge
                                     status={run.aiSyncStatus}
                                     failureReason={run.aiSyncFailureReason}
@@ -124,6 +127,12 @@ export function RunHistory({
                                         Updated: {formatNumber(run.updatedCount)}
                                     </span>
 
+                                    {run.deletedCount > 0 && (
+                                        <span className="rounded-full bg-app-bg-soft px-2.5 py-1 text-app-text-muted">
+                                            Deleted: {formatNumber(run.deletedCount)}
+                                        </span>
+                                    )}
+
                                     <span
                                         className={`rounded-full px-2.5 py-1 ${
                                             run.failedCount > 0
@@ -149,9 +158,17 @@ export function RunHistory({
     );
 }
 
-function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
+function RunStatusBadge({
+    status,
+    failureReason,
+}: {
+    status: IngestionRun["status"];
+    failureReason?: IngestionRun["failureReason"];
+}) {
     const label = getRunStatusLabel(status);
     const tone = getRunStatusTone(status);
+    // Surfaces the run-level failure reason on hover; the full text is in the drawer.
+    const title = failureReason ?? undefined;
 
     if (tone === "success") {
         return (
@@ -170,7 +187,10 @@ function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
     }
 
     return (
-        <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
+        <span
+            title={title}
+            className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text"
+        >
             {label}
         </span>
     );

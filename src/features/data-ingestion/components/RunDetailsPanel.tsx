@@ -1,10 +1,10 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  Clock3,
   Database,
   GitBranch,
   Loader2,
+  Trash2,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -83,19 +83,30 @@ export function RunDetailsPanel({
         </>
       }
     >
+      {run.failureReason && (
+        <div className="mb-6 rounded-xl border border-app-warning-border bg-app-warning-bg px-4 py-3">
+          <p className="text-sm font-semibold text-app-warning-text">
+            This run failed
+          </p>
+          <p className="mt-1 wrap-break-word text-sm text-app-text-muted">
+            {run.failureReason}
+          </p>
+        </div>
+      )}
+
       <Section title="Result">
         <div className="grid grid-cols-2 gap-2.5">
           <Tile label="Ingested" icon={Database}>
             {formatNumber(run.ingestedCount)}
           </Tile>
-          <Tile label="Failed" icon={XCircle} warn={run.failedCount > 0}>
-            {formatNumber(run.failedCount)}
-          </Tile>
           <Tile label="Updated" icon={CheckCircle2}>
             {formatNumber(run.updatedCount)}
           </Tile>
-          <Tile label="Duration" icon={Clock3}>
-            {duration}
+          <Tile label="Deleted" icon={Trash2}>
+            {formatNumber(run.deletedCount)}
+          </Tile>
+          <Tile label="Failed" icon={XCircle} warn={run.failedCount > 0}>
+            {formatNumber(run.failedCount)}
           </Tile>
         </div>
       </Section>
@@ -122,6 +133,7 @@ export function RunDetailsPanel({
                   : "Not reported"
             }
           />
+          <InfoRow label="Duration" value={duration} />
           <InfoRow label="Run ID" value={run.runId} mono />
         </dl>
       </Section>
@@ -160,9 +172,15 @@ function buildStages(run: IngestionRun): StageInfo[] {
     meta: `${formatNumber(run.ingestedCount + run.failedCount)} items pulled`,
     state: "ok",
   };
+  const deletedNote =
+    run.deletedCount > 0 ? `, ${formatNumber(run.deletedCount)} deleted` : "";
   const saveStage: StageInfo = {
+    // A run-level failure reason explains the stage better than the counters do.
+    meta:
+      run.status === "FAILED" && run.failureReason
+        ? run.failureReason
+        : `${formatNumber(run.ingestedCount)} stored${deletedNote}${failedNote}`,
     title: "Saved locally",
-    meta: `${formatNumber(run.ingestedCount)} stored${failedNote}`,
     state: run.status === "FAILED" ? "warn" : "ok",
   };
 

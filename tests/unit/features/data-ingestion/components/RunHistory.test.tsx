@@ -120,6 +120,28 @@ describe('RunHistory', () => {
         expect(screen.getByText('Failed: 4')).toBeInTheDocument();
     });
 
+    it('renders a Deleted pill only when the run deleted artifacts', () => {
+        render(<RunHistory runs={[createMockRun({ deletedCount: 4 })]} />);
+        expect(screen.getByText('Deleted: 4')).toBeInTheDocument();
+    });
+
+    it('hides the Deleted pill when nothing was deleted', () => {
+        render(<RunHistory runs={[createMockRun({ deletedCount: 0 })]} />);
+        expect(screen.queryByText(/^Deleted:/)).not.toBeInTheDocument();
+    });
+
+    it('exposes the run-level failure reason on the failed status badge', () => {
+        render(
+            <RunHistory
+                runs={[
+                    createMockRun({ status: 'FAILED', failureReason: 'Token expired' }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Failed')).toHaveAttribute('title', 'Token expired');
+    });
+
     it('renders the finished timestamp for a completed run', () => {
         const runs: IngestionRun[] = [
             createMockRun({

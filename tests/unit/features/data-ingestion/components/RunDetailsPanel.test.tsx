@@ -61,6 +61,31 @@ describe('RunDetailsPanel', () => {
         expect(screen.getByText('Running…')).toBeInTheDocument();
     });
 
+    it('shows the deleted counter from the run', () => {
+        render(<RunDetailsPanel run={makeRun({ deletedCount: 17 })} onClose={vi.fn()} />);
+
+        expect(screen.getByText('Deleted')).toBeInTheDocument();
+        expect(screen.getByText('17')).toBeInTheDocument();
+    });
+
+    it('surfaces a run-level failure reason as a banner and in the pipeline', () => {
+        render(
+            <RunDetailsPanel
+                run={makeRun({ status: 'FAILED', failureReason: 'GitHub rate limit exceeded' })}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('This run failed')).toBeInTheDocument();
+        expect(screen.getAllByText('GitHub rate limit exceeded').length).toBeGreaterThan(0);
+    });
+
+    it('omits the failure banner when the run has no run-level failure', () => {
+        render(<RunDetailsPanel run={makeRun()} onClose={vi.fn()} />);
+
+        expect(screen.queryByText('This run failed')).not.toBeInTheDocument();
+    });
+
     it('closes when the close control is used', async () => {
         const onClose = vi.fn();
         render(<RunDetailsPanel run={makeRun()} onClose={onClose} />);
