@@ -112,7 +112,12 @@ export type SourceInstanceIngestionStatus = {
   owner: string;
   name: string;
   sourceUrl: string;
-  status: ConnectionStatus;
+  /**
+   * Connection health of the repo. Deliberately NOT called `status`: an
+   * ingestion run also has a `status`, with a different vocabulary, and the two
+   * were easy to confuse. Mirrors the backend's `connectionStatus` field.
+   */
+  connectionStatus: ConnectionStatus;
   enabled: boolean;
   lastRunTime: string | null;
   /** Counters of the LATEST run for this repo. */
@@ -164,16 +169,6 @@ export type GithubRepositoryDetails = GithubRepositoryReference & {
   fullName: string;
   url: string;
   enabled: boolean | null;
-};
-
-export type SourceIngestionStatus = {
-  sourceSystem: SourceSystem;
-  lastRunTime: string | null;
-  ingestedCount: number;
-  updatedCount: number;
-  failedCount: number;
-  status: IngestionRunStatus | null;
-  failedItems: FailedArtifact[];
 };
 
 export type ActiveTab = "sources" | "artifacts" | "runs" | "connectors";
@@ -242,7 +237,7 @@ export type SourceDetailsSource = {
   totalArtifactCount?: number;
   runIds?: string[];
   sharesSourceSystem?: boolean;
-  failedItems?: SourceIngestionStatus["failedItems"];
+  failedItems?: FailedArtifact[];
   githubRepository?: GithubRepositoryDetails | null;
   description?: string;
   nextSync?: string;
@@ -263,7 +258,7 @@ export type DataSource = SourceDetailsSource & {
   totalArtifactCount: number;
   runIds: string[];
   sharesSourceSystem: boolean;
-  failedItems: SourceIngestionStatus["failedItems"];
+  failedItems: FailedArtifact[];
   githubRepository: GithubRepositoryDetails | null;
   /** Per-artifact-type last-sync timestamps (GitHub, from endpoint #5). */
   lastCommitsSyncAt: string | null;

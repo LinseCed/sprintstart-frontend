@@ -51,14 +51,12 @@ import type {
   LoadingState,
   PageMetadata,
   SectionKey,
-  SourceIngestionStatus,
   SourceInstanceIngestionStatus,
   SourceSystem,
 } from "../features/data-ingestion/types.ts";
 import {
   getIngestionRunsPage,
   getIngestionSourceStatuses,
-  getIngestionStatus,
 } from "../services/ingestionService.ts";
 import { useAuth } from "../context/useAuth";
 import { useProjectContext } from "../features/projects/useProjectContext.ts";
@@ -177,18 +175,16 @@ function githubRepositoryFromInstance(
  * selection and deep links); for GitHub, the per-repo status endpoint (#5) is
  * the authoritative source of the repository identity, health, counters, total
  * artifact count, enabled flag and per-type sync times — no longer reconstructed
- * from artifact metadata. Non-GitHub sources fall back to the coarse per-system
- * aggregate status plus the latest matching run.
+ * from artifact metadata. Sources without a per-repo row (uploads, or an
+ * unresolvable repo) fall back to their source system's latest run.
  */
 function buildProjectDataSources(
   projectSources: ProjectSource[],
   sourceInstances: SourceInstanceIngestionStatus[],
-  sourceStatuses: SourceIngestionStatus[],
   runs: IngestionRun[],
   /** Connector id (lowercase, e.g. "github") -> globally enabled. */
   connectorEnabledById: Map<string, boolean>,
 ): DataSource[] {
-  const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
   const latestRunBySource = new Map<SourceSystem, IngestionRun>();
   const sourceCountBySystem = new Map<SourceSystem, number>();
 
@@ -200,10 +196,6 @@ function buildProjectDataSources(
       sourceSystem,
       (sourceCountBySystem.get(sourceSystem) ?? 0) + 1,
     );
-  });
-
-  sourceStatuses.forEach((status) => {
-    statusBySource.set(status.sourceSystem, status);
   });
 
   // Runs arrive newest-first, so the first hit per key is the latest.
@@ -226,7 +218,6 @@ function buildProjectDataSources(
     if (!sourceSystem) return [];
 
     const meta = SOURCE_META[sourceSystem];
-    const status = statusBySource.get(sourceSystem);
     const latestRun = latestRunBySource.get(sourceSystem);
     const sharesSourceSystem = (sourceCountBySystem.get(sourceSystem) ?? 1) > 1;
     const connectorEnabled = connectorEnabledById.get(
@@ -239,7 +230,7 @@ function buildProjectDataSources(
 
     if (instance) {
       const effectiveBackendStatus: BackendProjectSourceStatus =
-        instance.enabled === false ? "DISABLED" : instance.status;
+        instance.enabled === false ? "DISABLED" : instance.connectionStatus;
       const hasErrors = instance.failedCount > 0;
       const hasNeverSynced = instance.lastRunTime === null;
 
@@ -299,17 +290,17 @@ function buildProjectDataSources(
       ];
     }
 
+    // Fallback for sources without a per-repo status row (uploads, or a repo
+    // whose connection could not be resolved): everything comes from the
+    // source system's latest run.
     const backendStatus = projectSource.status;
-    const latestUpdatedCount =
-      latestRun?.updatedCount ?? status?.updatedCount ?? 0;
-    const failedItems = latestRun?.failedItems ?? status?.failedItems ?? [];
-    const errors =
-      latestRun?.failedCount ?? status?.failedCount ?? failedItems.length;
-    const lastRunAt = latestRun?.startedAt ?? status?.lastRunTime ?? null;
+    const latestUpdatedCount = latestRun?.updatedCount ?? 0;
+    const failedItems = latestRun?.failedItems ?? [];
+    const errors = latestRun?.failedCount ?? failedItems.length;
+    const lastRunAt = latestRun?.startedAt ?? null;
     const hasNeverSynced = lastRunAt === null;
-    const runStatus = latestRun?.status ?? status?.status ?? null;
-    const latestIngestedCount =
-      latestRun?.ingestedCount ?? status?.ingestedCount ?? 0;
+    const runStatus = latestRun?.status ?? null;
+    const latestIngestedCount = latestRun?.ingestedCount ?? 0;
 
     return [
       {
@@ -397,9 +388,6 @@ export function DataIngestionPage() {
   const [selectedRunSnapshot, setSelectedRunSnapshot] =
     useState<IngestionRun | null>(null);
 
-  const [sourceStatuses, setSourceStatuses] = useState<SourceIngestionStatus[]>(
-    [],
-  );
   const [runs, setRuns] = useState<IngestionRun[]>([]);
   const [runPageMeta, setRunPageMeta] = useState<PageMetadata | null>(null);
   const [runPageNumber, setRunPageNumber] = useState(1);
@@ -618,12 +606,7 @@ export function DataIngestionPage() {
       setErrorMessage(null);
 
       try {
-        const [statusData] = await Promise.all([
-          getIngestionStatus(),
-          loadRuns(runPageNumber),
-        ]);
-
-        setSourceStatuses(statusData);
+        await loadRuns(runPageNumber);
         setLoadingState("success");
       } catch (error) {
         if (showLoading) {
@@ -710,17 +693,10 @@ export function DataIngestionPage() {
     return buildProjectDataSources(
       projectSources,
       sourceInstances,
-      sourceStatuses,
       runs,
       connectorEnabledById,
     );
-  }, [
-    connectorEnabledById,
-    projectSources,
-    runs,
-    sourceInstances,
-    sourceStatuses,
-  ]);
+  }, [connectorEnabledById, projectSources, runs, sourceInstances]);
 
   // Project-wide artifact total for the overview KPI, summed from the per-repo
   // status endpoint (#5) instead of paging the full artifact list.

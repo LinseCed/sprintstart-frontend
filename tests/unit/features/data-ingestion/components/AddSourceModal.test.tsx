@@ -50,7 +50,7 @@ function sourceStatusHandler({
         owner: fullName.split('/')[0],
         name: fullName.split('/')[1],
         sourceUrl: `https://github.com/${fullName}`,
-        status: 'CONNECTED',
+        connectionStatus: 'CONNECTED',
         enabled: true,
         artifactCount: 5,
     });

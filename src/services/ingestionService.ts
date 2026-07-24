@@ -10,7 +10,6 @@ import type {
   IngestionRunPage,
   IngestionRunStatus,
   PageMetadata,
-  SourceIngestionStatus,
   SourceInstanceIngestionStatus,
   SourceSystem,
 } from "../features/data-ingestion/types.ts";
@@ -48,16 +47,6 @@ type CanonicalIngestionRunPageResponse = {
   page?: Partial<PageMetadata> | null;
 };
 
-type CanonicalSourceIngestionStatusResponse = {
-  sourceSystem: SourceSystem;
-  lastRunTime: string | null;
-  ingestedCount?: number;
-  updatedCount?: number;
-  failedCount?: number;
-  failedItems?: CanonicalFailedArtifact[];
-  status?: IngestionRunStatus | "SUCCESS" | null;
-};
-
 type CanonicalSourceInstanceIngestionStatusResponse = {
   sourceSystem?: SourceSystem;
   sourceId: string;
@@ -65,7 +54,7 @@ type CanonicalSourceInstanceIngestionStatusResponse = {
   owner: string;
   name: string;
   sourceUrl: string;
-  status?: ConnectionStatus | null;
+  connectionStatus?: ConnectionStatus | null;
   enabled?: boolean;
   lastRunTime?: string | null;
   ingestedCount?: number;
@@ -178,7 +167,7 @@ function mapIngestionRun(run: CanonicalIngestionRunResponse): IngestionRun {
 }
 
 function normalizeConnectionStatus(
-  status: CanonicalSourceInstanceIngestionStatusResponse["status"],
+  status: CanonicalSourceInstanceIngestionStatusResponse["connectionStatus"],
 ): ConnectionStatus {
   switch (status) {
     case "CONNECTED":
@@ -204,7 +193,7 @@ function mapSourceInstanceStatus(
     owner: status.owner,
     name: status.name,
     sourceUrl: status.sourceUrl,
-    status: normalizeConnectionStatus(status.status),
+    connectionStatus: normalizeConnectionStatus(status.connectionStatus),
     enabled: status.enabled ?? true,
     lastRunTime: status.lastRunTime ?? null,
     ingestedCount: status.ingestedCount ?? 0,
@@ -236,22 +225,6 @@ function mapRunPageMetadata(
     totalPages,
     hasNext: page?.hasNext ?? number < totalPages,
     hasPrevious: page?.hasPrevious ?? number > 1,
-  };
-}
-
-function mapIngestionStatus(
-  status: CanonicalSourceIngestionStatusResponse,
-): SourceIngestionStatus {
-  const failedItems = (status.failedItems ?? []).map(mapFailedArtifact);
-
-  return {
-    sourceSystem: status.sourceSystem,
-    lastRunTime: status.lastRunTime,
-    ingestedCount: status.ingestedCount ?? 0,
-    updatedCount: status.updatedCount ?? 0,
-    failedCount: status.failedCount ?? failedItems.length,
-    status: normalizeRunStatus(status.status),
-    failedItems,
   };
 }
 
@@ -372,19 +345,6 @@ export async function getIngestionSourceStatuses(
   return data.map(mapSourceInstanceStatus);
 }
 
-/**
- * Fetches the latest ingestion status for all available source systems.
- *
- * @returns A promise resolving to an array of SourceIngestionStatus objects.
- * @throws Error if the backend request fails.
- */
-export async function getIngestionStatus(): Promise<SourceIngestionStatus[]> {
-  const data = await apiClient.fetch<CanonicalSourceIngestionStatusResponse[]>(
-    "/api/v1/ingestion-status",
-  );
-
-  return data.map(mapIngestionStatus);
-}
 
 export async function getProjectArtifacts(
   projectId: string,

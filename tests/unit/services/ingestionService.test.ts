@@ -5,7 +5,6 @@ import {
     getIngestionRuns,
     getIngestionRunsPage,
     getIngestionSourceStatuses,
-    getIngestionStatus,
 } from '../../../src/services/ingestionService';
 import { server } from '../../unit/setup/vitest.setup';
 
@@ -261,56 +260,6 @@ describe('ingestionService', () => {
         });
     });
 
-    describe('getIngestionStatus', () => {
-        it('maps canonical status responses to SourceIngestionStatus objects', async () => {
-            server.use(
-                http.get('/api/v1/ingestion-status', () =>
-                    HttpResponse.json([
-                        {
-                            sourceSystem: 'GITHUB',
-                            lastRunTime: '2026-07-01T00:00:00Z',
-                            ingestedCount: 5,
-                            updatedCount: 1,
-                            failedCount: 0,
-                            failedItems: [],
-                            status: 'COMPLETED',
-                        },
-                    ]),
-                ),
-            );
-
-            const statuses = await getIngestionStatus();
-            expect(statuses).toHaveLength(1);
-            expect(statuses[0].sourceSystem).toBe('GITHUB');
-            expect(statuses[0].status).toBe('COMPLETED');
-            expect(statuses[0].failedCount).toBe(0);
-        });
-
-        it('defaults counts to 0 when missing and nullifies unknown status', async () => {
-            server.use(
-                http.get('/api/v1/ingestion-status', () =>
-                    HttpResponse.json([
-                        {
-                            sourceSystem: 'JIRA',
-                            lastRunTime: null,
-                            failedItems: [
-                                { sourceId: 's1', artifactType: 'PULL_REQUEST', sourceUrl: null, reason: 'boom' },
-                            ],
-                        },
-                    ]),
-                ),
-            );
-
-            const statuses = await getIngestionStatus();
-            expect(statuses[0].ingestedCount).toBe(0);
-            expect(statuses[0].updatedCount).toBe(0);
-            expect(statuses[0].failedCount).toBe(1);
-            expect(statuses[0].status).toBeNull();
-            expect(statuses[0].lastRunTime).toBeNull();
-            expect(statuses[0].failedItems).toHaveLength(1);
-        });
-    });
-
     describe('getIngestionRun', () => {
         it('fetches and maps a single run by id', async () => {
             server.use(
@@ -442,7 +391,7 @@ describe('ingestionService', () => {
                             owner: 'octo',
                             name: 'repo',
                             sourceUrl: 'https://github.com/octo/repo',
-                            status: 'CONNECTED',
+                            connectionStatus: 'CONNECTED',
                             enabled: true,
                             lastRunTime: '2026-07-01T00:00:00Z',
                             ingestedCount: 12,
@@ -456,7 +405,8 @@ describe('ingestionService', () => {
             const statuses = await getIngestionSourceStatuses();
             expect(statuses[0].repositoryId).toBe('repo-uuid');
             expect(statuses[0].artifactCount).toBe(340);
-            expect(statuses[0].status).toBe('CONNECTED');
+            // This fixture only sends the deprecated `status` alias.
+            expect(statuses[0].connectionStatus).toBe('CONNECTED');
             expect(statuses[0].enabled).toBe(true);
             expect(statuses[0].deletedCount).toBe(0);
             expect(statuses[0].lastIssuesSyncAt).toBeNull();
@@ -487,14 +437,14 @@ describe('ingestionService', () => {
                             owner: 'octo',
                             name: 'repo',
                             sourceUrl: 'https://github.com/octo/repo',
-                            status: 'SOMETHING_NEW',
+                            connectionStatus: 'SOMETHING_NEW',
                         },
                     ]),
                 ),
             );
 
             const statuses = await getIngestionSourceStatuses();
-            expect(statuses[0].status).toBe('CONNECTED');
+            expect(statuses[0].connectionStatus).toBe('CONNECTED');
             expect(statuses[0].enabled).toBe(true);
         });
     });

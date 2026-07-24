@@ -14,7 +14,6 @@ import type {
   DataSource,
   IngestionRun,
   IngestionRunStatus,
-  SourceIngestionStatus,
   SourceInstanceIngestionStatus,
   SourceMeta,
   SourceStatus,
@@ -51,66 +50,6 @@ export const SOURCE_META: Record<SourceSystem, SourceMeta> = {
 export const INGESTION_RUN_LIMIT = 50;
 export const DETAILS_RUN_LIMIT = 10;
 
-export function createDataSource(
-  sourceSystem: SourceSystem,
-  status?: SourceIngestionStatus,
-): DataSource {
-  const meta = SOURCE_META[sourceSystem];
-  const latestIngestedCount = status?.ingestedCount ?? 0;
-  const latestUpdatedCount = status?.updatedCount ?? 0;
-  const failedCount = status?.failedCount ?? 0;
-  const lastRunAt = status?.lastRunTime ?? null;
-
-  const hasNeverSynced = lastRunAt === null;
-  const hasErrors = failedCount > 0;
-  const sourceStatus = getSourceStatus(
-    hasNeverSynced,
-    hasErrors,
-    status?.status,
-  );
-
-  return {
-    sourceId: sourceSystem,
-    sourceSystem,
-    name: meta.name,
-    type: meta.type,
-    icon: meta.icon,
-    status: sourceStatus,
-    statusLabel: getSourceStatusLabel(
-      hasNeverSynced,
-      hasErrors,
-      status?.status,
-    ),
-    ingestionStatus: sourceStatus,
-    ingestionStatusLabel: getSourceStatusLabel(
-      hasNeverSynced,
-      hasErrors,
-      status?.status,
-    ),
-    statusView: deriveSourceStatus({
-      runStatus: status?.status,
-      hasErrors,
-      hasNeverSynced,
-    }),
-    artifacts: latestIngestedCount,
-    lastSync: formatDateTime(lastRunAt),
-    nextSync: "Not available",
-    errors: failedCount,
-    lastRunAt,
-    latestIngestedCount,
-    latestUpdatedCount,
-    deletedCount: 0,
-    totalArtifactCount: latestIngestedCount,
-    runIds: [],
-    sharesSourceSystem: false,
-    failedItems: status?.failedItems ?? [],
-    githubRepository: null,
-    lastCommitsSyncAt: null,
-    lastIssuesSyncAt: null,
-    lastPullRequestsSyncAt: null,
-  };
-}
-
 /**
  * Turns one per-repo ingestion status row (`/api/v1/ingestion-sources/status`)
  * into a {@link DataSource}. This is the shared mapping used wherever sources
@@ -122,7 +61,7 @@ export function createSourceFromInstance(
 ): DataSource {
   const meta = SOURCE_META[instance.sourceSystem];
   const backendStatus: BackendProjectSourceStatus =
-    instance.enabled === false ? "DISABLED" : instance.status;
+    instance.enabled === false ? "DISABLED" : instance.connectionStatus;
   const hasErrors = instance.failedCount > 0;
   const hasNeverSynced = instance.lastRunTime === null;
 
@@ -167,78 +106,6 @@ export function createSourceFromInstance(
     lastIssuesSyncAt: instance.lastIssuesSyncAt,
     lastPullRequestsSyncAt: instance.lastPullRequestsSyncAt,
   };
-}
-
-/**
- * Merges the latest per-source ingestion status with the latest matching
- * ingestion run to build the `DataSource[]` list consumed by the data
- * ingestion page and by dashboard widgets that surface ingestion health
- * (e.g. {@link IngestionMetrics}). Kept here so every consumer of the
- * `/api/v1/ingestion-status` + `/api/v1/ingestion-runs` endpoints shares the
- * same merge logic instead of re-implementing it.
- *
- * A source is only included once it has run at least once (either a
- * recorded `lastRunTime` in its status, or a matching run in `runs`).
- */
-export function buildDataSources(
-    sourceStatuses: SourceIngestionStatus[],
-    runs: IngestionRun[],
-): DataSource[] {
-    const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
-    const latestRunBySource = new Map<SourceSystem, IngestionRun>();
-
-    sourceStatuses.forEach((status) => {
-        statusBySource.set(status.sourceSystem, status);
-    });
-
-    runs.forEach((run) => {
-        if (!latestRunBySource.has(run.sourceSystem)) {
-            latestRunBySource.set(run.sourceSystem, run);
-        }
-    });
-
-    return SOURCE_SYSTEMS.filter((sourceSystem) => {
-        const status = statusBySource.get(sourceSystem);
-        return (
-            (status?.lastRunTime !== null &&
-                status?.lastRunTime !== undefined) ||
-            latestRunBySource.has(sourceSystem)
-        );
-    }).map((sourceSystem) => {
-        const source = createDataSource(
-            sourceSystem,
-            statusBySource.get(sourceSystem),
-        );
-        const latestRun = latestRunBySource.get(sourceSystem);
-
-        if (!latestRun) return source;
-
-        const hasErrors = latestRun.failedCount > 0;
-        const status = getSourceStatus(false, hasErrors, latestRun.status);
-
-        return {
-            ...source,
-            status,
-            statusLabel: getSourceStatusLabel(
-                false,
-                hasErrors,
-                latestRun.status,
-            ),
-            statusView: deriveSourceStatus({
-                runStatus: latestRun.status,
-                aiSyncStatus: latestRun.aiSyncStatus,
-                hasErrors,
-                hasNeverSynced: false,
-            }),
-            artifacts: latestRun.ingestedCount,
-            lastSync: formatDateTime(latestRun.startedAt),
-            errors: latestRun.failedCount,
-            lastRunAt: latestRun.startedAt,
-            latestIngestedCount: latestRun.ingestedCount,
-            latestUpdatedCount: latestRun.updatedCount,
-            failedItems: latestRun.failedItems,
-        };
-    });
 }
 
 export function getSourceStatus(
