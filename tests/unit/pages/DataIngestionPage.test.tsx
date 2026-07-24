@@ -30,8 +30,23 @@ vi.mock('../../../src/context/useAuth', () => ({
     }),
 }));
 
+function createRunPage(items: unknown[] = [], overrides = {}) {
+    return {
+        items,
+        page: {
+            number: 1,
+            size: 10,
+            totalElements: items.length,
+            totalPages: items.length > 0 ? 1 : 0,
+            hasNext: false,
+            hasPrevious: false,
+            ...overrides,
+        },
+    };
+}
+
 const {
-    mockGetIngestionRuns,
+    mockGetIngestionRunsPage,
     mockGetIngestionStatus,
     mockConnectGithubRepository,
     mockGetGithubPatNames,
@@ -41,7 +56,7 @@ const {
     mockGetIngestionSourceStatuses,
     mockGetUnifiedArtifacts,
 } = vi.hoisted(() => ({
-    mockGetIngestionRuns: vi.fn(),
+    mockGetIngestionRunsPage: vi.fn(),
     mockGetIngestionStatus: vi.fn(),
     mockConnectGithubRepository: vi.fn(),
     mockGetGithubPatNames: vi.fn(),
@@ -53,7 +68,7 @@ const {
 }));
 
 vi.mock('../../../src/services/ingestionService', () => ({
-    getIngestionRuns: mockGetIngestionRuns,
+    getIngestionRunsPage: mockGetIngestionRunsPage,
     getIngestionStatus: mockGetIngestionStatus,
     getIngestionSourceStatuses: mockGetIngestionSourceStatuses,
 }));
@@ -84,7 +99,7 @@ vi.mock('../../../src/services/knowledgeService', async (importOriginal) => {
 describe('DataIngestionPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetIngestionRuns.mockResolvedValue([]);
+        mockGetIngestionRunsPage.mockResolvedValue(createRunPage());
         mockGetIngestionStatus.mockResolvedValue([]);
         mockGetGithubPatNames.mockResolvedValue(['token1']);
         mockConnectGithubRepository.mockResolvedValue({ transactionId: 'tx1' });
@@ -165,6 +180,134 @@ describe('DataIngestionPage', () => {
         // Owner comes from the endpoint, not from parsed artifact metadata.
         expect(screen.getByText('octocat')).toBeInTheDocument();
         expect(mockGetIngestionSourceStatuses).toHaveBeenCalledWith('proj1');
+    });
+
+    it('scopes the run history to the selected project', async () => {
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await waitFor(() => {
+            expect(mockGetIngestionRunsPage).toHaveBeenCalledWith(
+                expect.objectContaining({ page: 1, size: 10, projectId: 'proj1' }),
+            );
+        });
+    });
+
+    it('requests the next page when a pagination control is used', async () => {
+        const run = (runId: string) => ({
+            runId,
+            sourceSystem: 'GITHUB',
+            sourceId: 'octocat/hello-world',
+            owner: 'octocat',
+            name: 'hello-world',
+            repositoryId: 'repo-uuid',
+            startedAt: '2026-07-05T10:00:00Z',
+            finishedAt: '2026-07-05T10:05:00Z',
+            ingestedCount: 1,
+            updatedCount: 0,
+            deletedCount: 0,
+            failedCount: 0,
+            status: 'COMPLETED',
+            failedItems: [],
+            failureReason: null,
+            aiSyncStatus: 'SUCCEEDED',
+            aiSyncFailureReason: null,
+        });
+
+        mockGetIngestionRunsPage.mockResolvedValueOnce(
+            createRunPage([run('run-page-1')], { totalElements: 2, totalPages: 2, hasNext: true }),
+        );
+
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        expect(await screen.findByText('run-page-1')).toBeInTheDocument();
+
+        mockGetIngestionRunsPage.mockResolvedValueOnce(
+            createRunPage([run('run-page-2')], {
+                number: 2,
+                totalElements: 2,
+                totalPages: 2,
+                hasNext: false,
+                hasPrevious: true,
+            }),
+        );
+
+        await user.click(screen.getByRole('button', { name: /next page/i }));
+
+        expect(await screen.findByText('run-page-2')).toBeInTheDocument();
+        // One page is shown at a time, so the previous page's rows are replaced.
+        expect(screen.queryByText('run-page-1')).not.toBeInTheDocument();
+        expect(mockGetIngestionRunsPage).toHaveBeenLastCalledWith(
+            expect.objectContaining({ page: 2 }),
+        );
+    });
+
+    it('keeps the newest response when refreshes resolve out of order', async () => {
+        const run = (runId: string) => ({
+            runId,
+            sourceSystem: 'GITHUB',
+            sourceId: 'octocat/hello-world',
+            owner: 'octocat',
+            name: 'hello-world',
+            repositoryId: 'repo-uuid',
+            startedAt: '2026-07-05T10:00:00Z',
+            finishedAt: '2026-07-05T10:05:00Z',
+            ingestedCount: 0,
+            updatedCount: 0,
+            deletedCount: 0,
+            failedCount: 0,
+            status: 'COMPLETED',
+            failedItems: [],
+            failureReason: null,
+            aiSyncStatus: 'SUCCEEDED',
+            aiSyncFailureReason: null,
+        });
+
+        // A stale in-flight request resolves *after* a newer one. Its result must
+        // be discarded, otherwise freshly created runs disappear again until the
+        // user reloads the browser.
+        let resolveStale: ((value: unknown) => void) | undefined;
+        mockGetIngestionRunsPage
+            .mockResolvedValueOnce(createRunPage([run('old-run')]))
+            .mockImplementationOnce(
+                () => new Promise((resolve) => { resolveStale = resolve; }),
+            )
+            .mockResolvedValueOnce(createRunPage([run('new-run')]));
+
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        expect(await screen.findByText('old-run')).toBeInTheDocument();
+
+        const statusSelect = screen.getByLabelText('Filter runs by status');
+        await user.selectOptions(statusSelect, 'FAILED');
+        await user.selectOptions(statusSelect, 'COMPLETED');
+
+        expect(await screen.findByText('new-run')).toBeInTheDocument();
+
+        resolveStale?.(createRunPage([run('old-run')]));
+
+        await waitFor(() => {
+            expect(screen.getByText('new-run')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('old-run')).not.toBeInTheDocument();
+    });
+
+    it('re-queries the backend with the chosen status filter', async () => {
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText('Filter runs by status')).toBeInTheDocument();
+        });
+
+        await user.selectOptions(screen.getByLabelText('Filter runs by status'), 'FAILED');
+
+        await waitFor(() => {
+            expect(mockGetIngestionRunsPage).toHaveBeenLastCalledWith(
+                expect.objectContaining({ status: 'FAILED', page: 1 }),
+            );
+        });
     });
 
     it('opens the connectors modal from Manage connectors', async () => {

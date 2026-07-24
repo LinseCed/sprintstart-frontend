@@ -42,6 +42,13 @@ describe('RunHistory', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows a filtered empty state when filters are active', () => {
+        render(<RunHistory runs={[]} isFiltered />);
+
+        expect(screen.getByText('No runs match these filters')).toBeInTheDocument();
+        expect(screen.queryByText('No ingestion runs found')).not.toBeInTheDocument();
+    });
+
     it('renders the table header row on desktop view', () => {
         const runs: IngestionRun[] = [createMockRun()];
 

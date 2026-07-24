@@ -23,7 +23,17 @@ vi.mock('../../../src/context/useAuth', () => ({
 }));
 
 vi.mock('../../../src/services/ingestionService', () => ({
-    getIngestionRuns: vi.fn().mockResolvedValue([]),
+    getIngestionRunsPage: vi.fn().mockResolvedValue({
+        items: [],
+        page: {
+            number: 1,
+            size: 20,
+            totalElements: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrevious: false,
+        },
+    }),
     getIngestionStatus: vi.fn().mockResolvedValue([]),
     getIngestionSourceStatuses: vi.fn().mockResolvedValue([]),
 }));

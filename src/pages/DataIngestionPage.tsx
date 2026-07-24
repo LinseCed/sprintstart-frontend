@@ -10,12 +10,17 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { CalendarClock, Plug } from "lucide-react";
 import { Modal } from "../components/ui/Modal.tsx";
+import { Pagination } from "../components/ui/Pagination.tsx";
 import { DataIngestionHeader } from "../features/data-ingestion/components/DataIngestionHeader.tsx";
 import { DataIngestionLoadingState } from "../features/data-ingestion/components/DataIngestionLoadingState.tsx";
 import { DataIngestionSectionFilter } from "../features/data-ingestion/components/DataIngestionSectionFilter.tsx";
 import { OverviewSection } from "../features/data-ingestion/components/OverviewSection.tsx";
 import { RunDetailsPanel } from "../features/data-ingestion/components/RunDetailsPanel.tsx";
 import { RunHistory } from "../features/data-ingestion/components/RunHistory.tsx";
+import {
+  RunHistoryFilters,
+  type RunStatusFilter,
+} from "../features/data-ingestion/components/RunHistoryFilters.tsx";
 import { GithubRepositorySyncSettings } from "../features/data-ingestion/components/GithubRepositorySyncSettings.tsx";
 import { AddSourceModal } from "../features/data-ingestion/components/AddSourceModal.tsx";
 import { SourceConnectModal } from "../features/data-ingestion/components/SourceConnectModal.tsx";
@@ -35,7 +40,6 @@ import {
   getSourceStatus,
   getSourceStatusFromBackend,
   getSourceStatusLabel,
-  INGESTION_RUN_LIMIT,
   isRunInProgress,
   SOURCE_META,
   SOURCE_SYSTEMS,
@@ -47,14 +51,16 @@ import type {
   GithubRepositoryDetails,
   GithubRepositoryReference,
   IngestionRun,
+  IngestionRunFilter,
   LoadingState,
+  PageMetadata,
   SectionKey,
   SourceIngestionStatus,
   SourceInstanceIngestionStatus,
   SourceSystem,
 } from "../features/data-ingestion/types.ts";
 import {
-  getIngestionRuns,
+  getIngestionRunsPage,
   getIngestionSourceStatuses,
   getIngestionStatus,
 } from "../services/ingestionService.ts";
@@ -85,14 +91,20 @@ const DEFAULT_GLOBAL_GITHUB_SYNC_CONFIG: ConfigureGithubRepositoryRequest = {
   schedule: { type: "INTERVAL", everyMinutes: 60 },
 };
 
-async function fetchIngestionData() {
-  const [statusData, runData] = await Promise.all([
-    getIngestionStatus(),
-    getIngestionRuns(INGESTION_RUN_LIMIT),
-  ]);
+// Small enough that the run table stays scannable and pagination is actually
+// reachable rather than a single page of rows.
+const RUN_PAGE_SIZE = 10;
 
-  return { statusData, runData };
-}
+type RunFilterState = {
+  status: RunStatusFilter;
+  /** A repository id, or `"ALL"`. */
+  repositoryId: string;
+};
+
+const DEFAULT_RUN_FILTER: RunFilterState = {
+  status: "ALL",
+  repositoryId: "ALL",
+};
 
 function storeGithubRepository(repository: GithubRepositoryReference) {
   window.localStorage.setItem(
@@ -367,12 +379,22 @@ export function DataIngestionPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState<SectionKey>("all");
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  // The selected run is captured as an object, not just an id: paging the
+  // history replaces the loaded rows, and looking it up only in the current page
+  // would snap an open run drawer shut as soon as the user moved to another page.
+  const [selectedRunSnapshot, setSelectedRunSnapshot] =
+    useState<IngestionRun | null>(null);
 
   const [sourceStatuses, setSourceStatuses] = useState<SourceIngestionStatus[]>(
     [],
   );
   const [runs, setRuns] = useState<IngestionRun[]>([]);
+  const [runPageMeta, setRunPageMeta] = useState<PageMetadata | null>(null);
+  const [runPageNumber, setRunPageNumber] = useState(1);
+  const [runFilter, setRunFilter] = useState<RunFilterState>(DEFAULT_RUN_FILTER);
+  // Monotonic id of the newest run request, so out-of-order responses are dropped.
+  const runRequestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
   const [projectSources, setProjectSources] = useState<ProjectSource[]>([]);
   const [sourceInstances, setSourceInstances] = useState<
     SourceInstanceIngestionStatus[]
@@ -528,12 +550,47 @@ export function DataIngestionPage() {
     };
   }, [projectDataVersion, selectedProjectId]);
 
-  const commitIngestionData = useCallback(
-    (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
-      setSourceStatuses(statusData);
-      setRuns(runData);
+  // Server-side query for the run history. Scoping by project is what keeps runs
+  // from other projects' repositories out of the list; the backend resolves the
+  // project to its connected repositories.
+  const buildRunQuery = useCallback(
+    (page: number): IngestionRunFilter => ({
+      page,
+      size: RUN_PAGE_SIZE,
+      projectId: selectedProjectId || undefined,
+      repositoryId:
+        runFilter.repositoryId !== "ALL" ? runFilter.repositoryId : undefined,
+      status: runFilter.status !== "ALL" ? runFilter.status : undefined,
+    }),
+    [runFilter.repositoryId, runFilter.status, selectedProjectId],
+  );
+
+  // Loads exactly the page currently being viewed.
+  //
+  // Starting a repository update fires several overlapping refreshes (an
+  // immediate one, a delayed one, plus the 3s poll). Their responses can resolve
+  // out of order, and an older snapshot landing last would drop the runs that
+  // were just created -- which looked like new runs only appearing after a
+  // manual browser refresh. The sequence guard keeps the newest response.
+  const loadRuns = useCallback(
+    async (page: number) => {
+      const requestId = ++runRequestIdRef.current;
+      const result = await getIngestionRunsPage(buildRunQuery(page));
+
+      if (requestId !== runRequestIdRef.current) return;
+
+      // The viewed page can fall out of range while the view is open (a filter
+      // narrowing the result set, runs being removed). Step back to the last
+      // page instead of showing an empty table; this re-triggers the load.
+      if (result.page.totalPages >= 1 && page > result.page.totalPages) {
+        setRunPageNumber(result.page.totalPages);
+        return;
+      }
+
+      setRuns(result.items);
+      setRunPageMeta(result.page);
     },
-    [],
+    [buildRunQuery],
   );
 
   const loadData = useCallback(
@@ -544,9 +601,12 @@ export function DataIngestionPage() {
       setErrorMessage(null);
 
       try {
-        const { statusData, runData } = await fetchIngestionData();
+        const [statusData] = await Promise.all([
+          getIngestionStatus(),
+          loadRuns(runPageNumber),
+        ]);
 
-        commitIngestionData(statusData, runData);
+        setSourceStatuses(statusData);
         setLoadingState("success");
       } catch (error) {
         if (showLoading) {
@@ -559,7 +619,7 @@ export function DataIngestionPage() {
         );
       }
     },
-    [commitIngestionData],
+    [loadRuns, runPageNumber],
   );
 
   // In-place refresh of the per-repo status (#5) after a source mutation, without
@@ -581,31 +641,16 @@ export function DataIngestionPage() {
     }
   }, [selectedProjectId]);
 
+  // Runs on mount and whenever the run query changes (project, filters or the
+  // selected page). Only the first load shows the page-level loading state, so
+  // paging and filtering refresh quietly.
   useEffect(() => {
-    let isMounted = true;
+    const showLoading = !hasLoadedOnceRef.current;
+    hasLoadedOnceRef.current = true;
 
-    void fetchIngestionData()
-      .then(({ statusData, runData }) => {
-        if (!isMounted) return;
+    void loadData(showLoading);
+  }, [loadData]);
 
-        commitIngestionData(statusData, runData);
-        setLoadingState("success");
-      })
-      .catch((error: unknown) => {
-        if (!isMounted) return;
-
-        setLoadingState("error");
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Failed to load ingestion data",
-        );
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [commitIngestionData]);
 
   useEffect(() => {
     const hasRunningRun = runs.some((run) => isRunInProgress(run.status));
@@ -713,15 +758,34 @@ export function DataIngestionPage() {
     profile?.permissionGroup === "ADMIN" ||
     (selectedProject?.isManaged ?? false);
 
-  const visibleRuns = useMemo(
-    () => runs.filter((run) => visibleSourceSystems.has(run.sourceSystem)),
-    [runs, visibleSourceSystems],
-  );
-
   const runSourceLabels = useMemo(
     () => buildRunSourceLabels(sources),
     [sources],
   );
+
+  // Repositories offered in the run filter, from the project's connected sources.
+  const runRepositoryOptions = useMemo(
+    () =>
+      sources.flatMap((source) =>
+        source.githubRepository?.repositoryId
+          ? [
+              {
+                repositoryId: source.githubRepository.repositoryId,
+                label: source.name,
+              },
+            ]
+          : [],
+      ),
+    [sources],
+  );
+
+  const isRunFilterActive =
+    runFilter.status !== "ALL" || runFilter.repositoryId !== "ALL";
+
+  const handleResetRunFilter = useCallback(() => {
+    setRunFilter(DEFAULT_RUN_FILTER);
+    setRunPageNumber(1);
+  }, []);
 
   const loadConnectors = useCallback(async () => {
     setConnectorsLoadingState("loading");
@@ -1054,10 +1118,19 @@ export function DataIngestionPage() {
     (isLoading || (isProjectDataLoading && showSources)) &&
     sources.length === 0;
 
-  const selectedRun = useMemo(
-    () => visibleRuns.find((run) => run.runId === selectedRunId) ?? null,
-    [selectedRunId, visibleRuns],
-  );
+  // Prefers the row from the currently loaded page, so an open drawer keeps
+  // updating while polling refreshes the list, and falls back to the captured
+  // run once the user pages away from it.
+  const selectedRun = useMemo(() => {
+    if (!selectedRunSnapshot) return null;
+
+    return (
+      runs.find((run) => run.runId === selectedRunSnapshot.runId) ??
+      selectedRunSnapshot
+    );
+  }, [runs, selectedRunSnapshot]);
+
+  const selectedRunId = selectedRun?.runId ?? null;
 
   const closeSourceDetails = () => {
     setSelectedSourceId(null);
@@ -1070,7 +1143,11 @@ export function DataIngestionPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-app-bg [scrollbar-gutter:stable] lg:h-screen">
+    // No own height or scroll container here: the app shell in App.tsx already
+    // provides `min-h-screen` and the document scroll. Nesting a `h-screen`
+    // scroller inside it produced a second scrollbar and dead space below the
+    // content once the viewport lost height to a horizontal scrollbar.
+    <div className="bg-app-bg">
       <div>
         <DataIngestionHeader
           isLoading={isLoading}
@@ -1124,7 +1201,7 @@ export function DataIngestionPage() {
               active={activeSection}
               onChange={handleSectionChange}
               sourceCount={sourceHealth.total}
-              runCount={visibleRuns.length}
+              runCount={runPageMeta?.totalElements ?? runs.length}
             />
 
             {shouldShowInitialLoading ? (
@@ -1135,7 +1212,7 @@ export function DataIngestionPage() {
                   <OverviewSection
                     sources={sources}
                     totalArtifactCount={totalArtifactCount}
-                    runs={visibleRuns}
+                    runs={runs}
                     onNavigate={handleSectionChange}
                   />
                 ) : null}
@@ -1208,20 +1285,52 @@ export function DataIngestionPage() {
 
                 {showRuns ? (
                   <section aria-label="Runs">
-                    <div className="mb-4 flex items-center gap-3">
-                      <h2 className="text-base font-bold tracking-tight text-app-text">
-                        Runs
-                      </h2>
-                      <span className="rounded-full border border-app-border bg-app-bg-soft px-2.5 py-0.5 text-xs font-semibold tabular-nums text-app-text-subtle">
-                        {visibleRuns.length} recent
-                      </span>
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-base font-bold tracking-tight text-app-text">
+                          Runs
+                        </h2>
+                        {runPageMeta ? (
+                          <span className="rounded-full border border-app-border bg-app-bg-soft px-2.5 py-0.5 text-xs font-semibold tabular-nums text-app-text-subtle">
+                            {runPageMeta.totalElements} total
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <RunHistoryFilters
+                        status={runFilter.status}
+                        repositoryId={runFilter.repositoryId}
+                        repositories={runRepositoryOptions}
+                        disabled={isLoading}
+                        onStatusChange={(status) => {
+                          setRunFilter((current) => ({ ...current, status }));
+                          setRunPageNumber(1);
+                        }}
+                        onRepositoryChange={(repositoryId) => {
+                          setRunFilter((current) => ({
+                            ...current,
+                            repositoryId,
+                          }));
+                          setRunPageNumber(1);
+                        }}
+                        onReset={handleResetRunFilter}
+                      />
                     </div>
                     <RunHistory
-                      runs={visibleRuns}
+                      runs={runs}
                       selectedRunId={selectedRunId}
-                      onSelectRun={(run) => setSelectedRunId(run.runId)}
+                      onSelectRun={setSelectedRunSnapshot}
                       sourceLabelByRunId={runSourceLabels}
+                      isFiltered={isRunFilterActive}
                     />
+
+                    {runPageMeta && runPageMeta.totalPages > 1 ? (
+                      <Pagination
+                        currentPage={runPageNumber}
+                        totalPages={runPageMeta.totalPages}
+                        onPageChange={setRunPageNumber}
+                      />
+                    ) : null}
                   </section>
                 ) : null}
 
@@ -1248,7 +1357,7 @@ export function DataIngestionPage() {
         <RunDetailsPanel
           run={selectedRun}
           sourceLabel={getRunSourceLabel(selectedRun, runSourceLabels)}
-          onClose={() => setSelectedRunId(null)}
+          onClose={() => setSelectedRunSnapshot(null)}
         />
       )}
 

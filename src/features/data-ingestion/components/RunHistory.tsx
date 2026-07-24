@@ -17,6 +17,8 @@ type RunHistoryProps = {
     onSelectRun?: (run: IngestionRun) => void;
     /** Maps a run to its repository label; falls back to the source-system label. */
     sourceLabelByRunId?: Map<string, string>;
+    /** Shown in the empty state when the emptiness is caused by active filters. */
+    isFiltered?: boolean;
 };
 
 /**
@@ -28,16 +30,21 @@ export function RunHistory({
     selectedRunId = null,
     onSelectRun,
     sourceLabelByRunId,
+    isFiltered = false,
 }: RunHistoryProps) {
     if (runs.length === 0) {
         return (
             <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted p-8 text-center">
                 <h3 className="text-lg font-semibold text-app-text">
-                    No ingestion runs found
+                    {isFiltered
+                        ? 'No runs match these filters'
+                        : 'No ingestion runs found'}
                 </h3>
 
                 <p className="mt-2 text-sm text-app-text-muted">
-                    The backend did not return any ingestion runs yet.
+                    {isFiltered
+                        ? 'Try a different status or repository, or reset the filters.'
+                        : 'The backend did not return any ingestion runs yet.'}
                 </p>
             </div>
         );
@@ -154,6 +161,7 @@ export function RunHistory({
                     );
                 })}
             </div>
+
         </div>
     );
 }
