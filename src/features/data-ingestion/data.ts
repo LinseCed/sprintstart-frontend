@@ -97,11 +97,15 @@ export function createDataSource(
     lastRunAt,
     latestIngestedCount,
     latestUpdatedCount,
+    deletedCount: 0,
     totalArtifactCount: latestIngestedCount,
     runIds: [],
     sharesSourceSystem: false,
     failedItems: status?.failedItems ?? [],
     githubRepository: null,
+    lastCommitsSyncAt: null,
+    lastIssuesSyncAt: null,
+    lastPullRequestsSyncAt: null,
   };
 }
 
@@ -410,12 +414,19 @@ export function buildRunSourceLabels(
   return labels;
 }
 
-/** Repository label for a run, falling back to the source-system label. */
+/**
+ * Repository label for a run. Prefers the repository identity the backend now
+ * persists on the run itself (`sourceId` = "owner/name"), falling back to the
+ * artifact-derived {@link buildRunSourceLabels} map for legacy runs that predate
+ * that field, and finally to the source-system label.
+ */
 export function getRunSourceLabel(
   run: IngestionRun,
   labelByRunId?: Map<string, string>,
 ) {
-  return labelByRunId?.get(run.runId) ?? getSourceLabel(run.sourceSystem);
+  return (
+    run.sourceId ?? labelByRunId?.get(run.runId) ?? getSourceLabel(run.sourceSystem)
+  );
 }
 
 export function formatDateTime(value: string | null) {

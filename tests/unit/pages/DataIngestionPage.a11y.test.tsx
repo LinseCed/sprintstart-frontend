@@ -25,7 +25,7 @@ vi.mock('../../../src/context/useAuth', () => ({
 vi.mock('../../../src/services/ingestionService', () => ({
     getIngestionRuns: vi.fn().mockResolvedValue([]),
     getIngestionStatus: vi.fn().mockResolvedValue([]),
-    getProjectArtifactSnapshot: vi.fn().mockResolvedValue({ artifacts: [], totalElements: 0 }),
+    getIngestionSourceStatuses: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../../src/services/projectService', async (importOriginal) => {

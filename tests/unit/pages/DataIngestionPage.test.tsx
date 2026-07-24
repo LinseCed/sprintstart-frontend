@@ -38,7 +38,7 @@ const {
     mockUpdateAllGithubRepositories,
     mockUpdateGithubRepository,
     mockGetAccessibleProject,
-    mockGetProjectArtifactSnapshot,
+    mockGetIngestionSourceStatuses,
     mockGetUnifiedArtifacts,
 } = vi.hoisted(() => ({
     mockGetIngestionRuns: vi.fn(),
@@ -48,14 +48,14 @@ const {
     mockUpdateAllGithubRepositories: vi.fn(),
     mockUpdateGithubRepository: vi.fn(),
     mockGetAccessibleProject: vi.fn(),
-    mockGetProjectArtifactSnapshot: vi.fn(),
+    mockGetIngestionSourceStatuses: vi.fn(),
     mockGetUnifiedArtifacts: vi.fn(),
 }));
 
 vi.mock('../../../src/services/ingestionService', () => ({
     getIngestionRuns: mockGetIngestionRuns,
     getIngestionStatus: mockGetIngestionStatus,
-    getProjectArtifactSnapshot: mockGetProjectArtifactSnapshot,
+    getIngestionSourceStatuses: mockGetIngestionSourceStatuses,
 }));
 
 vi.mock('../../../src/services/projectService', async (importOriginal) => {
@@ -100,7 +100,7 @@ describe('DataIngestionPage', () => {
             ],
             users: [],
         });
-        mockGetProjectArtifactSnapshot.mockResolvedValue({ artifacts: [], totalElements: 0 });
+        mockGetIngestionSourceStatuses.mockResolvedValue([]);
         mockGetUnifiedArtifacts.mockResolvedValue([]);
         selectProject();
     });
@@ -123,6 +123,48 @@ describe('DataIngestionPage', () => {
 
         expect(await screen.findByText('octocat/hello-world')).toBeInTheDocument();
         expect(mockGetAccessibleProject).toHaveBeenCalledWith('proj1');
+    });
+
+    it('builds the GitHub source card from the per-repo ingestion status endpoint', async () => {
+        mockGetIngestionSourceStatuses.mockResolvedValue([
+            {
+                sourceSystem: 'GITHUB',
+                sourceId: 'octocat/hello-world',
+                repositoryId: 'repo-uuid',
+                owner: 'octocat',
+                name: 'hello-world',
+                sourceUrl: 'https://github.com/octocat/hello-world',
+                status: 'CONNECTED',
+                enabled: true,
+                lastRunTime: '2026-07-01T00:00:00Z',
+                ingestedCount: 12,
+                updatedCount: 7,
+                deletedCount: 1,
+                failedCount: 0,
+                failedItems: [],
+                artifactCount: 340,
+                lastCommitsSyncAt: '2026-07-01T00:00:00Z',
+                lastIssuesSyncAt: null,
+                lastPullRequestsSyncAt: null,
+            },
+        ]);
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        // Rendered both as the source card and in the overview's per-source breakdown.
+        expect(
+            (await screen.findAllByText('octocat/hello-world')).length,
+        ).toBeGreaterThan(0);
+
+        // The repo's stored artifact count (#5) drives the card and the overview KPI,
+        // instead of being counted from a full artifact snapshot.
+        await waitFor(() => {
+            expect(screen.getAllByText('340').length).toBeGreaterThan(0);
+        });
+
+        // Owner comes from the endpoint, not from parsed artifact metadata.
+        expect(screen.getByText('octocat')).toBeInTheDocument();
+        expect(mockGetIngestionSourceStatuses).toHaveBeenCalledWith('proj1');
     });
 
     it('opens the connectors modal from Manage connectors', async () => {
@@ -189,7 +231,7 @@ describe('DataIngestionPage', () => {
         await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
         await user.click(await screen.findByRole('button', { name: /continue/i }));
         await user.click(
-            await screen.findByRole('button', { name: /add a single repository instead/i }),
+            await screen.findByRole('button', { name: /add single repo/i }),
         );
 
         await waitFor(() => {
@@ -223,7 +265,7 @@ describe('DataIngestionPage', () => {
         await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
         await user.click(await screen.findByRole('button', { name: /continue/i }));
         await user.click(
-            await screen.findByRole('button', { name: /add a single repository instead/i }),
+            await screen.findByRole('button', { name: /add single repo/i }),
         );
 
         await waitFor(() => {

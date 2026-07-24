@@ -251,11 +251,17 @@ export type DataSource = SourceDetailsSource & {
   lastRunAt: string | null;
   latestIngestedCount: number;
   latestUpdatedCount: number;
+  /** Artifacts removed by the latest run (from the per-repo status endpoint). */
+  deletedCount: number;
   totalArtifactCount: number;
   runIds: string[];
   sharesSourceSystem: boolean;
   failedItems: SourceIngestionStatus["failedItems"];
   githubRepository: GithubRepositoryDetails | null;
+  /** Per-artifact-type last-sync timestamps (GitHub, from endpoint #5). */
+  lastCommitsSyncAt: string | null;
+  lastIssuesSyncAt: string | null;
+  lastPullRequestsSyncAt: string | null;
 };
 
 export type SourceConnectMeta = SourceMeta;

@@ -78,6 +78,11 @@ export function SourceDetailsPanel({
     repository !== null &&
     onSetSourceEnabled !== undefined;
   const isTogglingEnabled = enabledState === "loading";
+  // Per-artifact-type sync timestamps only exist for GitHub repos (endpoint #5).
+  const hasArtifactTypeSyncTimes =
+    source.lastCommitsSyncAt !== null ||
+    source.lastIssuesSyncAt !== null ||
+    source.lastPullRequestsSyncAt !== null;
 
   const handleToggleEnabled = useCallback(
     async (enabled: boolean) => {
@@ -322,6 +327,25 @@ export function SourceDetailsPanel({
           )}
         </dl>
       </Section>
+
+      {hasArtifactTypeSyncTimes && (
+        <Section title="Last Synced">
+          <dl className="overflow-hidden rounded-xl border border-app-border">
+            <InfoRow
+              label="Commits"
+              value={formatDateTime(source.lastCommitsSyncAt)}
+            />
+            <InfoRow
+              label="Issues"
+              value={formatDateTime(source.lastIssuesSyncAt)}
+            />
+            <InfoRow
+              label="Pull requests"
+              value={formatDateTime(source.lastPullRequestsSyncAt)}
+            />
+          </dl>
+        </Section>
+      )}
 
       {canManageRepositoryConfig && repository && (
         <Section title="Sync Schedule">
