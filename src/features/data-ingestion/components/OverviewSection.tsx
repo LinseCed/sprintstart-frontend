@@ -285,12 +285,14 @@ function ActivityRow({
   const tone = getRunStatusTone(run.status);
   const label = getRunStatusLabel(run.status);
 
+  // Failed/partial runs use the danger palette so the label stays red on red;
+  // the warning palette pairs amber-yellow text with a red-looking background.
   const toneClass =
     tone === "success"
       ? "bg-app-success-bg text-app-success-text"
       : tone === "running"
         ? "bg-app-brand-soft text-app-brand-text"
-        : "bg-app-warning-bg text-app-warning-text";
+        : "bg-app-danger-bg text-app-danger-text";
 
   return (
     <li className="flex items-center gap-3 border-t border-app-border py-2 first:border-t-0">
@@ -307,15 +309,23 @@ function ActivityRow({
       </span>
       <div className="min-w-0">
         <p className="truncate text-[13px] font-semibold text-app-text">
-          {sourceLabel} · {label.toLowerCase()}
+          {sourceLabel}
         </p>
         <p className="text-[11.5px] text-app-text-subtle">
           {formatNumber(run.ingestedCount)} artifacts
         </p>
       </div>
-      <span className="ml-auto whitespace-nowrap text-[11.5px] text-app-text-subtle">
-        {formatDateTime(run.startedAt)}
-      </span>
+
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none ${toneClass}`}
+        >
+          {label}
+        </span>
+        <span className="whitespace-nowrap text-[11.5px] text-app-text-subtle">
+          {formatDateTime(run.startedAt)}
+        </span>
+      </div>
     </li>
   );
 }

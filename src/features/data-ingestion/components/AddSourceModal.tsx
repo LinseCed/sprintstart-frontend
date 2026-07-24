@@ -23,7 +23,12 @@ import {
   type DiscoveryOwnerType,
 } from "../../../services/sources/githubService.ts";
 import { getIngestionSourceStatuses } from "../../../services/ingestionService.ts";
-import { parseGithubOwnerInput } from "../../../services/sources/githubRepositoryInput.ts";
+import {
+  parseGithubOwnerInput,
+  parseGithubRepositoryInput,
+} from "../../../services/sources/githubRepositoryInput.ts";
+import { connectGithubRepository } from "../../../services/sources/githubService.ts";
+import { UploadArtifactPanel } from "../../knowledge-base/components/UploadArtifactPanel.tsx";
 import { SOURCE_META, SOURCE_SYSTEMS } from "../data.ts";
 import type { SourceSystem } from "../types.ts";
 
@@ -38,8 +43,6 @@ type AddSourceModalProps = {
   onClose: () => void;
   /** Called after a successful batch connect so the page can refresh. */
   onConnected: () => void;
-  /** Switches to the single-repository fallback form. */
-  onSwitchToSingleRepo: () => void;
 };
 
 type WizardStep = "type" | "detail";
@@ -63,7 +66,6 @@ type RepositoryLinkState =
   | "unresolved";
 
 const OWNER_TYPES: { value: DiscoveryOwnerType; label: string }[] = [
-  { value: "auto", label: "Auto-detect" },
   { value: "org", label: "Organization" },
   { value: "user", label: "User" },
 ];
@@ -85,15 +87,22 @@ export function AddSourceModal({
   ingestBlockedReason,
   onClose,
   onConnected,
-  onSwitchToSingleRepo,
 }: AddSourceModalProps) {
   const hasTokens = tokenNames.length > 0;
 
   const [step, setStep] = useState<WizardStep>("type");
   const [selectedType, setSelectedType] = useState<SourceSystem>("GITHUB");
+  // Within the GitHub step: browse an org/user, or add one known repository.
+  const [githubMode, setGithubMode] = useState<"discover" | "single">(
+    "discover",
+  );
+  const [singleOwner, setSingleOwner] = useState("");
+  const [singleName, setSingleName] = useState("");
+  // Locks Back/Cancel while an upload batch is in flight.
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   const [ownerInput, setOwnerInput] = useState("");
-  const [ownerType, setOwnerType] = useState<DiscoveryOwnerType>("auto");
+  const [ownerType, setOwnerType] = useState<DiscoveryOwnerType>("org");
   const [tokenName, setTokenName] = useState(tokenNames[0] ?? "");
   const [filter, setFilter] = useState("");
 
@@ -390,21 +399,92 @@ export function AddSourceModal({
     }
   };
 
+  const isSingleRepo = isGithub && githubMode === "single";
+  const isUpload = selectedType === "UPLOAD";
+
+  /**
+   * Connects one known repository. Kept inside this modal so the single-repo
+   * path shares the wizard's chrome, project guardrails and token picker instead
+   * of dropping the user into a separate, differently-shaped dialog.
+   */
+  const handleConnectSingle = async () => {
+    if (!projectId) {
+      setConnectState("error");
+      setConnectError("Select a project before connecting a repository.");
+      return;
+    }
+
+    if (!canIngest) {
+      setConnectState("error");
+      setConnectError(
+        ingestBlockedReason ??
+          "You can only connect sources to projects you manage.",
+      );
+      return;
+    }
+
+    const parsed = parseGithubRepositoryInput(singleOwner, singleName);
+
+    if (!parsed) {
+      setConnectState("error");
+      setConnectError(
+        "Enter the repository as owner/name, a GitHub URL, or fill in owner and repository name.",
+      );
+      return;
+    }
+
+    if (!tokenName.trim()) {
+      setConnectState("error");
+      setConnectError("Choose a stored GitHub access token.");
+      return;
+    }
+
+    setConnectState("loading");
+    setConnectError(null);
+
+    try {
+      await connectGithubRepository({
+        ...parsed,
+        tokenName: tokenName.trim(),
+        projectId,
+      });
+
+      setConnectState("idle");
+      onConnected();
+      onClose();
+    } catch (error) {
+      setConnectState("error");
+      setConnectError(
+        error instanceof Error
+          ? error.message
+          : "The repository could not be connected.",
+      );
+    }
+  };
+
   const modalTitle =
     step === "type"
       ? "Add a data source"
-      : isGithub
-        ? "Discover GitHub repositories"
-        : `Connect ${SOURCE_META[selectedType].type}`;
+      : isSingleRepo
+        ? "Add a single repository"
+        : isGithub
+          ? "Discover GitHub repositories"
+          : isUpload
+            ? "Upload Files"
+            : `Connect ${SOURCE_META[selectedType].type}`;
 
   const modalDescription =
     step === "type"
       ? projectName
         ? `Choose which source type to connect to ${projectName}.`
         : "Choose which source type you want to connect."
-      : isGithub
-        ? "Find and connect repositories from a GitHub organization or user."
-        : undefined;
+      : isSingleRepo
+        ? "Connect one repository you already know the name of."
+        : isGithub
+          ? "Find and connect repositories from a GitHub organization or user."
+          : isUpload
+            ? "Add documents to this project's knowledge base."
+            : undefined;
 
   return (
     <Modal
@@ -412,7 +492,7 @@ export function AddSourceModal({
       title={modalTitle}
       description={modalDescription}
       size="xl"
-      isDismissDisabled={connectState === "loading"}
+      isDismissDisabled={connectState === "loading" || isUploadingFiles}
       onClose={onClose}
       closeLabel="Close add source"
       bodyClassName="px-5 py-5 sm:px-7 sm:py-6"
@@ -420,11 +500,23 @@ export function AddSourceModal({
         step === "detail" && isGithub ? (
           <button
             type="button"
-            onClick={onSwitchToSingleRepo}
+            onClick={() => {
+              setConnectError(null);
+              setGithubMode(isSingleRepo ? "discover" : "single");
+            }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface px-3 py-2 text-xs font-semibold text-app-text transition hover:border-app-brand-border hover:bg-app-surface-hover"
           >
-            <Plus className="h-3.5 w-3.5" />
-            Add single repo
+            {isSingleRepo ? (
+              <>
+                <Search className="h-3.5 w-3.5" />
+                Discover repositories
+              </>
+            ) : (
+              <>
+                <Plus className="h-3.5 w-3.5" />
+                Add single repo
+              </>
+            )}
           </button>
         ) : undefined
       }
@@ -453,7 +545,7 @@ export function AddSourceModal({
             <button
               type="button"
               onClick={() => setStep("type")}
-              disabled={connectState === "loading"}
+              disabled={connectState === "loading" || isUploadingFiles}
               className="mr-auto inline-flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm font-semibold text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -463,13 +555,29 @@ export function AddSourceModal({
             <button
               type="button"
               onClick={onClose}
-              disabled={connectState === "loading"}
+              disabled={connectState === "loading" || isUploadingFiles}
               className="rounded-xl border border-app-border bg-app-surface px-4 py-3 text-sm font-semibold text-app-text transition hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
 
-            {isGithub && (
+            {isSingleRepo && (
+              <button
+                type="button"
+                onClick={() => void handleConnectSingle()}
+                disabled={connectState === "loading" || !canIngest}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {connectState === "loading" && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                {connectState === "loading"
+                  ? "Connecting…"
+                  : "Connect repository"}
+              </button>
+            )}
+
+            {isGithub && !isSingleRepo && (
               <button
                 type="button"
                 onClick={() => void handleConnect()}
@@ -497,6 +605,34 @@ export function AddSourceModal({
         <SourceTypeStep
           selectedType={selectedType}
           onSelectType={setSelectedType}
+        />
+      ) : isUpload ? (
+        projectId ? (
+          <UploadArtifactPanel
+            projectId={projectId}
+            onUploadSuccess={onConnected}
+            onFinished={onClose}
+            onUploadingChange={setIsUploadingFiles}
+          />
+        ) : (
+          <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
+            Select a project before uploading files.
+          </div>
+        )
+      ) : isSingleRepo ? (
+        <SingleRepositoryStep
+          owner={singleOwner}
+          repositoryName={singleName}
+          tokenName={tokenName}
+          tokenNames={tokenNames}
+          isBusy={connectState === "loading"}
+          canIngest={canIngest}
+          ingestBlockedReason={ingestBlockedReason}
+          errorMessage={connectError}
+          onOwnerChange={setSingleOwner}
+          onRepositoryNameChange={setSingleName}
+          onTokenNameChange={setTokenName}
+          onSubmit={() => void handleConnectSingle()}
         />
       ) : isGithub ? (
         <div className="space-y-5">
@@ -742,7 +878,7 @@ export function AddSourceModal({
                         <span
                           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${
                             repository.isPrivate
-                              ? "border-app-border bg-app-neutral-bg text-app-neutral-text"
+                              ? "border-app-orange-border bg-app-orange-bg text-app-orange-text"
                               : "border-app-success-border bg-app-success-bg text-app-success-text"
                           }`}
                         >
@@ -838,14 +974,14 @@ function SourceTypeStep({
   selectedType: SourceSystem;
   onSelectType: (system: SourceSystem) => void;
 }) {
-  const selectedMeta = SOURCE_META[selectedType];
-  const SelectedIcon = selectedMeta.icon;
-
   return (
     <div className="space-y-5">
       <div>
         <p className="text-sm font-medium text-app-text">Source type</p>
 
+        {/* Each card carries its own description: the previous separate panel
+            only ever described the selected type, so the differences between the
+            options -- the actual decision being made here -- were invisible. */}
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {SOURCE_SYSTEMS.map((sourceSystem) => {
             const meta = SOURCE_META[sourceSystem];
@@ -884,29 +1020,150 @@ function SourceTypeStep({
                 <p className="mt-3 text-sm font-semibold text-app-text">
                   {meta.type}
                 </p>
+                <p className="mt-1 text-xs leading-relaxed text-app-text-muted">
+                  {meta.description}
+                </p>
               </button>
             );
           })}
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="rounded-2xl border border-app-border bg-app-surface-muted p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-app-bg-soft">
-            <SelectedIcon size={20} className="text-app-text-muted" />
-          </div>
+/**
+ * Single-repository variant of the GitHub step. Mirrors the discovery step's
+ * layout and controls (same field styling, same token picker, same guardrails)
+ * so switching between the two feels like one flow rather than two dialogs.
+ */
+function SingleRepositoryStep({
+  owner,
+  repositoryName,
+  tokenName,
+  tokenNames,
+  isBusy,
+  canIngest,
+  ingestBlockedReason,
+  errorMessage,
+  onOwnerChange,
+  onRepositoryNameChange,
+  onTokenNameChange,
+  onSubmit,
+}: {
+  owner: string;
+  repositoryName: string;
+  tokenName: string;
+  tokenNames: string[];
+  isBusy: boolean;
+  canIngest: boolean;
+  ingestBlockedReason?: string;
+  errorMessage: string | null;
+  onOwnerChange: (value: string) => void;
+  onRepositoryNameChange: (value: string) => void;
+  onTokenNameChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const hasTokens = tokenNames.length > 0;
+  const fieldClassName =
+    "mt-2 h-11 w-full rounded-xl border border-app-border bg-app-surface px-4 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60";
 
-          <div>
-            <p className="text-sm font-semibold text-app-text">
-              {selectedMeta.name}
-            </p>
-            <p className="mt-1 text-sm text-app-text-muted">
-              {selectedMeta.description}
-            </p>
-          </div>
+  return (
+    <form
+      className="space-y-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      {!canIngest && (
+        <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
+          {ingestBlockedReason ??
+            "You can only connect sources to projects you manage."}
+        </div>
+      )}
+
+      {!hasTokens && (
+        <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
+          Add a GitHub personal access token in Settings first, then come back to
+          connect a repository.
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="single-repo-owner"
+            className="text-sm font-medium text-app-text"
+          >
+            Repository owner
+          </label>
+          <input
+            id="single-repo-owner"
+            value={owner}
+            onChange={(event) => onOwnerChange(event.target.value)}
+            disabled={isBusy || !hasTokens}
+            placeholder="octocat or octocat/hello-world"
+            className={fieldClassName}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="single-repo-name"
+            className="text-sm font-medium text-app-text"
+          >
+            Repository name
+          </label>
+          <input
+            id="single-repo-name"
+            value={repositoryName}
+            onChange={(event) => onRepositoryNameChange(event.target.value)}
+            disabled={isBusy || !hasTokens}
+            placeholder="hello-world"
+            className={fieldClassName}
+          />
         </div>
       </div>
-    </div>
+
+      <div>
+        <label
+          htmlFor="single-repo-token"
+          className="text-sm font-medium text-app-text"
+        >
+          Access token
+        </label>
+        <select
+          id="single-repo-token"
+          value={tokenName}
+          onChange={(event) => onTokenNameChange(event.target.value)}
+          disabled={isBusy || !hasTokens}
+          className="mt-2 h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none transition focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {hasTokens ? (
+            tokenNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))
+          ) : (
+            <option value="">No saved tokens</option>
+          )}
+        </select>
+      </div>
+
+      <p className="text-xs text-app-text-subtle">
+        Paste a full GitHub URL or <code>owner/name</code> into the owner field
+        and the repository name is filled in for you.
+      </p>
+
+      {errorMessage && (
+        <div className="flex items-start gap-2 rounded-2xl border border-app-danger-border bg-app-danger-bg px-4 py-3 text-sm text-app-danger-text">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+    </form>
   );
 }
 

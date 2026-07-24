@@ -2,6 +2,8 @@ import { ChevronRight, Plus } from "lucide-react";
 import { formatNumber } from "../data.ts";
 import type { DataSource } from "../types.ts";
 import { SourceStatusChip } from "./SourceStatusChip.tsx";
+import { SourceSyncBadge } from "./SourceSyncBadge.tsx";
+import { SourceTypeBadge } from "./SourceTypeBadge.tsx";
 
 type SourceListProps = {
   sources: DataSource[];
@@ -87,9 +89,7 @@ export function SourceList({
                     )}
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                        {source.type}
-                      </span>
+                      <SourceTypeBadge type={source.type} />
 
                       <SourceStatusChip status={source.statusView} />
 
@@ -149,19 +149,8 @@ export function SourceList({
   );
 }
 
-const SYNC_TONE_CLASSNAMES: Record<DataSource["ingestionStatus"], string> = {
-  connected:
-    "border-app-success-border bg-app-success-bg text-app-success-text",
-  running: "border-app-brand-border bg-app-brand-soft text-app-brand-text",
-  warning: "border-app-warning-border bg-app-warning-bg text-app-warning-text",
-  disabled: "border-app-border bg-app-neutral-bg text-app-neutral-text",
-};
-
 /**
- * Secondary badge showing the source's ingestion/sync outcome (Synced, Running,
- * Failed, Partial, Not synced) next to the unified status chip. The chip conveys
- * connection state (Connected/Disabled/Syncing); this adds the sync freshness the
- * chip collapses away. Hidden when it would only repeat the chip's own label
+ * Hides the sync badge when it would only repeat the status chip's own label
  * (e.g. an in-flight "Syncing"/"Running" pair, or a duplicated "Not synced").
  */
 function SyncStatusBadge({ source }: { source: DataSource }) {
@@ -174,13 +163,7 @@ function SyncStatusBadge({ source }: { source: DataSource }) {
     return null;
   }
 
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${SYNC_TONE_CLASSNAMES[source.ingestionStatus]}`}
-    >
-      {label}
-    </span>
-  );
+  return <SourceSyncBadge label={label} status={source.ingestionStatus} />;
 }
 
 function InfoBlock({

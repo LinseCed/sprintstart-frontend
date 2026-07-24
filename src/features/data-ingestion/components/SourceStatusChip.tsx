@@ -6,6 +6,8 @@ const TONE_CLASSNAMES: Record<SourceStatusPresentation["tone"], string> = {
   brand: "border border-app-brand-border bg-app-brand-soft text-app-brand-text",
   warning:
     "border border-app-warning-border bg-app-warning-bg text-app-warning-text",
+  danger:
+    "border border-app-danger-border bg-app-danger-bg text-app-danger-text",
   neutral: "border border-app-border bg-app-neutral-bg text-app-neutral-text",
 };
 

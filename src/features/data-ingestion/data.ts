@@ -14,6 +14,7 @@ import type {
   IngestionRun,
   IngestionRunStatus,
   SourceIngestionStatus,
+  SourceInstanceIngestionStatus,
   SourceMeta,
   SourceStatus,
   SourceStatusPresentation,
@@ -106,6 +107,64 @@ export function createDataSource(
     lastCommitsSyncAt: null,
     lastIssuesSyncAt: null,
     lastPullRequestsSyncAt: null,
+  };
+}
+
+/**
+ * Turns one per-repo ingestion status row (`/api/v1/ingestion-sources/status`)
+ * into a {@link DataSource}. This is the shared mapping used wherever sources
+ * are shown per repository rather than per source system — the Data Ingestion
+ * page overlays the project source's own id and display name on top of it.
+ */
+export function createSourceFromInstance(
+  instance: SourceInstanceIngestionStatus,
+): DataSource {
+  const meta = SOURCE_META[instance.sourceSystem];
+  const backendStatus: BackendProjectSourceStatus =
+    instance.enabled === false ? "DISABLED" : instance.status;
+  const hasErrors = instance.failedCount > 0;
+  const hasNeverSynced = instance.lastRunTime === null;
+
+  return {
+    sourceId: instance.repositoryId,
+    sourceSystem: instance.sourceSystem,
+    name: instance.sourceId,
+    type: meta.type,
+    icon: meta.icon,
+    status: getSourceStatusFromBackend(backendStatus),
+    backendStatus,
+    statusLabel: getBackendSourceStatusLabel(backendStatus),
+    ingestionStatus: getSourceStatus(hasNeverSynced, hasErrors, null),
+    ingestionStatusLabel: getSourceStatusLabel(hasNeverSynced, hasErrors, null),
+    statusView: deriveSourceStatus({
+      backendStatus,
+      hasErrors,
+      hasNeverSynced,
+    }),
+    artifacts: instance.artifactCount,
+    lastSync: formatDateTime(instance.lastRunTime),
+    nextSync: "Not available",
+    errors: instance.failedCount,
+    description: meta.description,
+    lastRunAt: instance.lastRunTime,
+    latestIngestedCount: instance.ingestedCount,
+    latestUpdatedCount: instance.updatedCount,
+    deletedCount: instance.deletedCount,
+    totalArtifactCount: instance.artifactCount,
+    runIds: [],
+    sharesSourceSystem: false,
+    failedItems: instance.failedItems,
+    githubRepository: {
+      owner: instance.owner,
+      name: instance.name,
+      repositoryId: instance.repositoryId,
+      fullName: instance.sourceId,
+      url: instance.sourceUrl,
+      enabled: instance.enabled,
+    },
+    lastCommitsSyncAt: instance.lastCommitsSyncAt,
+    lastIssuesSyncAt: instance.lastIssuesSyncAt,
+    lastPullRequestsSyncAt: instance.lastPullRequestsSyncAt,
   };
 }
 
@@ -244,7 +303,9 @@ export function deriveSourceStatus({
       state: "disabled",
       label: "Disabled",
       icon: CircleSlash,
-      tone: "neutral",
+      // Red, not grey: a disabled source silently stops feeding the knowledge
+      // base, which is a problem state rather than a neutral one.
+      tone: "danger",
       spinning: false,
     };
   }
@@ -284,7 +345,9 @@ export function deriveSourceStatus({
       state: "attention",
       label: hasNeverSynced ? "Not synced" : "Needs attention",
       icon: AlertTriangle,
-      tone: "warning",
+      // The danger palette keeps the label red on red; the warning palette pairs
+      // an amber-yellow text with a red-looking background in dark mode.
+      tone: "danger",
       spinning: false,
     };
   }

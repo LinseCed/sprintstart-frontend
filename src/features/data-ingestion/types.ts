@@ -179,11 +179,11 @@ export type SourceIngestionStatus = {
 export type ActiveTab = "sources" | "artifacts" | "runs" | "connectors";
 
 /**
- * The section the overview-first Data Ingestion page is filtered to. `all` is
- * the dashboard view (overview + sources + runs); the rest narrow to a single
- * section. Replaces the old tab model.
+ * The section the overview-first Data Ingestion page is filtered to. `overview`
+ * is the dashboard view and shows everything (overview + sources + runs); the
+ * other two narrow to a single section.
  */
-export type SectionKey = "all" | "overview" | "sources" | "runs";
+export type SectionKey = "overview" | "sources" | "runs";
 
 export type LoadingState = "idle" | "loading" | "success" | "error";
 
@@ -208,7 +208,7 @@ export type SourceStatusPresentation = {
   state: SourceStatusView;
   label: string;
   icon: LucideIcon;
-  tone: "success" | "brand" | "warning" | "neutral";
+  tone: "success" | "brand" | "warning" | "danger" | "neutral";
   /** True while `state === "syncing"`, so callers can spin the icon. */
   spinning: boolean;
 };

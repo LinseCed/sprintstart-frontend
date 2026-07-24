@@ -38,8 +38,10 @@ const TONE_CHIP: Record<Tone, string> = {
   success:
     "border border-app-success-border bg-app-success-bg text-app-success-text",
   running: "border border-app-brand-border bg-app-brand-soft text-app-brand-text",
+  // Danger palette: keeps failure labels red on red instead of amber-yellow on a
+  // red-looking background.
   warning:
-    "border border-app-warning-border bg-app-warning-bg text-app-warning-text",
+    "border border-app-danger-border bg-app-danger-bg text-app-danger-text",
   neutral: "border border-app-border bg-app-neutral-bg text-app-neutral-text",
 };
 

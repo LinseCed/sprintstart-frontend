@@ -197,7 +197,7 @@ function RunStatusBadge({
     return (
         <span
             title={title}
-            className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text"
+            className="rounded-full border border-app-danger-border bg-app-danger-bg px-3 py-1 text-xs font-medium text-app-danger-text"
         >
             {label}
         </span>
@@ -243,7 +243,7 @@ function AiSyncStatusBadge({
     return (
         <span
             title={title}
-            className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text"
+            className="rounded-full border border-app-danger-border bg-app-danger-bg px-3 py-1 text-xs font-medium text-app-danger-text"
         >
             {label}
         </span>

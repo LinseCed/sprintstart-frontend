@@ -19,6 +19,8 @@ import { formatDateTime, formatNumber, SOURCE_META } from "../data.ts";
 import type { DataSource, LoadingState } from "../types.ts";
 import { GithubRepositorySyncSettings } from "./GithubRepositorySyncSettings.tsx";
 import { SourceStatusChip } from "./SourceStatusChip.tsx";
+import { SourceSyncBadge } from "./SourceSyncBadge.tsx";
+import { SourceTypeBadge } from "./SourceTypeBadge.tsx";
 
 type SourceDetailsPanelProps = {
   source: DataSource;
@@ -212,8 +214,16 @@ export function SourceDetailsPanel({
       }
       badge={
         <>
-          <Badge>{source.type}</Badge>
+          <SourceTypeBadge type={source.type} />
           <SourceStatusChip status={source.statusView} />
+          {/* The chip conveys connection state; this adds the sync freshness it
+              collapses away, matching the pair shown on the source cards. */}
+          {source.ingestionStatusLabel !== source.statusView.label && (
+            <SourceSyncBadge
+              label={source.ingestionStatusLabel}
+              status={source.ingestionStatus}
+            />
+          )}
         </>
       }
       footer={
@@ -493,10 +503,3 @@ function Message({
   );
 }
 
-function Badge({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full bg-app-neutral-bg px-3 py-1 text-xs font-medium text-app-neutral-text">
-      {children}
-    </span>
-  );
-}

@@ -104,12 +104,17 @@ describe('KnowledgeBasePage', () => {
         });
     });
 
-    it('renders the upload button', async () => {
+    it('no longer offers uploading here — that moved into the Add source wizard', async () => {
+        mockGetUnifiedArtifacts.mockResolvedValue([makeArtifact({ id: 'a1', title: 'readme.md' })]);
+
         render(<MemoryRouter><KnowledgeBasePage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByLabelText('Upload new artifact')).toBeInTheDocument();
+            expect(screen.getByText('readme.md')).toBeInTheDocument();
         });
+
+        expect(screen.queryByLabelText('Upload new artifact')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('upload-modal')).not.toBeInTheDocument();
     });
 
     it('filters artifacts by search query', async () => {

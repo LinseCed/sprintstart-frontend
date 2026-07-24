@@ -1,11 +1,31 @@
 import { FileText } from "lucide-react";
 import type { ProjectSource } from "../types";
-import { SourceStatusBadge } from "./Badges";
+import {
+  deriveSourceStatus,
+  getBackendSourceStatusLabel,
+  getSourceStatusFromBackend,
+  SOURCE_META,
+} from "../../data-ingestion/data";
+import { SourceStatusChip } from "../../data-ingestion/components/SourceStatusChip";
+import { SourceSyncBadge } from "../../data-ingestion/components/SourceSyncBadge";
+import { SourceTypeBadge } from "../../data-ingestion/components/SourceTypeBadge";
+import type { SourceSystem } from "../../data-ingestion/types";
 
 type SourceListProps = {
   sources: ProjectSource[];
   onOpenSourceDetails?: (sourceId: string) => void;
 };
+
+/** Resolves a project source's raw type string to the shared source metadata. */
+function getMeta(type: string) {
+  const normalized = type.toUpperCase();
+
+  if (normalized in SOURCE_META) {
+    return SOURCE_META[normalized as SourceSystem];
+  }
+
+  return null;
+}
 
 export function SourceList({ sources, onOpenSourceDetails }: SourceListProps) {
   if (sources.length === 0) {
@@ -20,11 +40,24 @@ export function SourceList({ sources, onOpenSourceDetails }: SourceListProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {sources.map((source) => {
+        const meta = getMeta(source.type);
+        const Icon = meta?.icon ?? FileText;
+
+        // The admin view only has the project source's backend status, so both
+        // badges are derived from it — the same helpers the Data Ingestion page
+        // uses, so the two screens describe a source identically.
+        const statusView = deriveSourceStatus({
+          backendStatus: source.status,
+          hasErrors: false,
+          hasNeverSynced: false,
+        });
+        const syncLabel = getBackendSourceStatusLabel(source.status);
+
         const content = (
           <>
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-app-border bg-app-surface">
-                <FileText className="h-5 w-5 text-app-text-muted" />
+                <Icon className="h-5 w-5 text-app-text-muted" />
               </div>
 
               <div className="min-w-0 flex-1">
@@ -32,14 +65,22 @@ export function SourceList({ sources, onOpenSourceDetails }: SourceListProps) {
                   {source.name}
                 </p>
 
-                <p className="mt-1 font-mono text-xs text-app-text-muted">
-                  {source.type}
-                </p>
+                <div className="mt-2">
+                  <SourceTypeBadge type={meta?.type ?? source.type} size="sm" />
+                </div>
               </div>
             </div>
 
-            <div className="mt-auto pt-4">
-              <SourceStatusBadge status={source.status} />
+            <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+              <SourceStatusChip status={statusView} size="sm" />
+
+              {syncLabel !== statusView.label && (
+                <SourceSyncBadge
+                  label={syncLabel}
+                  status={getSourceStatusFromBackend(source.status)}
+                  size="sm"
+                />
+              )}
             </div>
           </>
         );

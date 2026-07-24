@@ -10,18 +10,26 @@ function filter() {
 describe('DataIngestionSectionFilter', () => {
     it('renders the dashboard sections with counts', () => {
         render(
-            <DataIngestionSectionFilter active="all" onChange={vi.fn()} sourceCount={4} runCount={3} />,
+            <DataIngestionSectionFilter active="overview" onChange={vi.fn()} sourceCount={4} runCount={3} />,
         );
 
-        expect(filter().getByRole('button', { name: /all/i })).toBeInTheDocument();
         expect(filter().getByRole('button', { name: /overview/i })).toBeInTheDocument();
         expect(filter().getByRole('button', { name: /sources/i })).toHaveTextContent('4');
         expect(filter().getByRole('button', { name: /runs/i })).toHaveTextContent('3');
     });
 
+    it('no longer offers a separate All section', () => {
+        render(
+            <DataIngestionSectionFilter active="overview" onChange={vi.fn()} sourceCount={4} runCount={3} />,
+        );
+
+        expect(filter().queryByRole('button', { name: /^all$/i })).not.toBeInTheDocument();
+        expect(filter().getAllByRole('button')).toHaveLength(3);
+    });
+
     it('does not expose connectors as a dashboard section', () => {
         render(
-            <DataIngestionSectionFilter active="all" onChange={vi.fn()} sourceCount={4} runCount={3} />,
+            <DataIngestionSectionFilter active="overview" onChange={vi.fn()} sourceCount={4} runCount={3} />,
         );
 
         expect(filter().queryByRole('button', { name: /connectors/i })).not.toBeInTheDocument();
@@ -40,7 +48,7 @@ describe('DataIngestionSectionFilter', () => {
     it('calls onChange with the clicked section', async () => {
         const onChange = vi.fn();
         render(
-            <DataIngestionSectionFilter active="all" onChange={onChange} sourceCount={4} runCount={3} />,
+            <DataIngestionSectionFilter active="sources" onChange={onChange} sourceCount={4} runCount={3} />,
         );
 
         await userEvent.click(filter().getByRole('button', { name: /overview/i }));

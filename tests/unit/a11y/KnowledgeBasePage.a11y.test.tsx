@@ -35,7 +35,7 @@ describe('KnowledgeBasePage Accessibility', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'Upload new artifact' })).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: /knowledge base/i })).toBeInTheDocument();
         });
 
         expect(await axe(baseElement)).toHaveNoViolations();

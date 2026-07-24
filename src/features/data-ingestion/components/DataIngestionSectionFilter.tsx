@@ -14,9 +14,10 @@ type DataIngestionSectionFilterProps = {
 };
 
 /**
- * Section navigation for the overview-first Data Ingestion page: `All` is the
- * dashboard (overview + sources + runs), the rest narrow to a single section.
- * Rendered as a group of toggle buttons (state via fill + weight + aria-pressed).
+ * Section navigation for the overview-first Data Ingestion page: `Overview` is
+ * the dashboard and shows everything (overview + sources + runs); the other two
+ * narrow to a single section. Rendered as a group of toggle buttons (state via
+ * fill + weight + aria-pressed).
  */
 export function DataIngestionSectionFilter({
   active,
@@ -25,7 +26,6 @@ export function DataIngestionSectionFilter({
   runCount,
 }: DataIngestionSectionFilterProps) {
   const options: SectionOption[] = [
-    { key: "all", label: "All" },
     { key: "overview", label: "Overview" },
     { key: "sources", label: "Sources", count: sourceCount },
     { key: "runs", label: "Runs", count: runCount },
@@ -52,11 +52,16 @@ export function DataIngestionSectionFilter({
                 : "text-app-text-muted hover:text-app-text"
             }`}
           >
-            {option.label}
+            <span className="leading-none">{option.label}</span>
             {typeof option.count === "number" && (
+              // `leading-none` on both the label and the count is what actually
+              // centres them: the count's smaller font otherwise brings a
+              // smaller line box, so flex centring lands them on different lines.
               <span
-                className={`text-xs font-bold tabular-nums ${
-                  isActive ? "text-white/75" : "text-app-text-subtle"
+                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold leading-none tabular-nums ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-app-surface text-app-text-subtle"
                 }`}
               >
                 {option.count}

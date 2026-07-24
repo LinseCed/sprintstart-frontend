@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { DataIngestionPage } from '../../../src/pages/DataIngestionPage';
 import { createProjectContextValue, createSelectableProject } from '../setup/projectContext';
 
@@ -180,6 +180,50 @@ describe('DataIngestionPage', () => {
         // Owner comes from the endpoint, not from parsed artifact metadata.
         expect(screen.getByText('octocat')).toBeInTheDocument();
         expect(mockGetIngestionSourceStatuses).toHaveBeenCalledWith('proj1');
+    });
+
+    it('applies a projectId deep link once and then releases the project switcher', async () => {
+        const setSelectedProjectId = vi.fn();
+        const project = createSelectableProject({ id: 'proj1', isManaged: true });
+        mockUseProjectContext.mockReturnValue(
+            createProjectContextValue({
+                projects: [project],
+                selectedProject: project,
+                selectedProjectId: 'proj1',
+                canManageSelected: true,
+                setSelectedProjectId,
+            }),
+        );
+
+        let search = '';
+        function SearchProbe() {
+            search = useLocation().search;
+            return null;
+        }
+
+        render(
+            <MemoryRouter initialEntries={['/data-ingestion?projectId=proj-from-admin']}>
+                <DataIngestionPage />
+                <SearchProbe />
+            </MemoryRouter>,
+        );
+
+        await waitFor(() => {
+            expect(setSelectedProjectId).toHaveBeenCalledWith('proj-from-admin');
+        });
+
+        // The parameter is consumed: while it stayed in the URL every switch was
+        // immediately forced back to the deep-linked project.
+        await waitFor(() => {
+            expect(search).not.toContain('projectId');
+        });
+
+        // The context still reports a different project (the user switched, or
+        // the deep link never resolved) — that must not be overridden again.
+        setSelectedProjectId.mockClear();
+        await waitFor(() => {
+            expect(setSelectedProjectId).not.toHaveBeenCalled();
+        });
     });
 
     it('scopes the run history to the selected project', async () => {
@@ -363,7 +407,7 @@ describe('DataIngestionPage', () => {
         });
     });
 
-    it('parses owner/repo format and calls connectGithubRepository via the single-repo fallback', async () => {
+    it('parses owner/repo format and connects it from the wizard single-repo mode', async () => {
         const user = userEvent.setup();
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
@@ -383,7 +427,7 @@ describe('DataIngestionPage', () => {
 
         await user.type(screen.getByLabelText('Repository owner'), 'octocat/hello-world');
 
-        await user.click(screen.getByRole('button', { name: 'Connect Source' }));
+        await user.click(screen.getByRole('button', { name: /connect repository/i }));
 
         await waitFor(() => {
             expect(mockConnectGithubRepository).toHaveBeenCalledWith(
@@ -416,9 +460,15 @@ describe('DataIngestionPage', () => {
         });
 
         await user.type(screen.getByLabelText('Repository owner'), 'octocat/hello-world');
-        await user.click(screen.getByRole('button', { name: 'Connect Source' }));
 
-        expect(await screen.findByText(/only connect sources to projects you manage/i)).toBeInTheDocument();
+        // The wizard states the reason up front and disables the action, rather
+        // than accepting the click and failing afterwards.
+        expect(
+            await screen.findByText(/only connect sources to projects you manage/i),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /connect repository/i })).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: /connect repository/i }));
         expect(mockConnectGithubRepository).not.toHaveBeenCalled();
     });
 });

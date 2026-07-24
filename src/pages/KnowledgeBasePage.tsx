@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Plus, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
+import { motion } from 'framer-motion';
+import { BookOpen, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer } from '../features/knowledge-base/components';
 import { Pagination } from '../components/ui/Pagination';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
@@ -44,7 +44,6 @@ export function KnowledgeBasePage() {
     } = useKnowledgeBase(projectId);
 
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
-    const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
 
     const selectedArtifact = useMemo(() =>
         artifacts.find(a => a.id === selectedArtifactId) ?? null,
@@ -154,33 +153,6 @@ export function KnowledgeBasePage() {
                         </>
                     )}
                 </div>
-
-                <AnimatePresence>
-                    {projectId && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsUploadScreenOpen(true)}
-                            className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-brand text-white shadow-lg shadow-app-brand/25 transition-colors hover:bg-app-brand-hover focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
-                            aria-label="Upload new artifact"
-                            data-testid="open-upload-modal-btn"
-                        >
-                            <Plus className="h-6 w-6" />
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-
-                {projectId && (
-                    <UploadArtifactModal
-                        isOpen={isUploadScreenOpen}
-                        onClose={() => setIsUploadScreenOpen(false)}
-                        projectId={projectId}
-                        onUploadSuccess={() => void fetchArtifacts()}
-                    />
-                )}
 
                 {projectId && (
                     <ArtifactViewerDrawer
