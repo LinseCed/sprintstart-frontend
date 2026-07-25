@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
-import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
+import { canAccessRoute, isOnboardingAccessible, type AppRoute } from '../../auth/accessPolicy';
 import { ThemeToggle } from '../common/ThemeToggle';
 
 type SidebarNavItem = {
@@ -91,7 +91,12 @@ function getNavLinkClass(isActive: boolean): string {
 function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigation' }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
     const location = useLocation();
-    const visibleNavItems = navItems.filter((item) => canAccessRoute(profile, item.path));
+    const visibleNavItems = navItems.filter(
+        (item) =>
+            canAccessRoute(profile, item.path) &&
+            // Hide onboarding once the user has completed it and been promoted.
+            (item.path !== '/onboarding' || isOnboardingAccessible(profile)),
+    );
     const visibleProjectManagerNavItems = projectManagerNavItems.filter((item) =>
         canAccessRoute(profile, item.path),
     );

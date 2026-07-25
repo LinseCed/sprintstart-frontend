@@ -63,6 +63,34 @@ describe('SideBar', () => {
         expect(screen.queryByText('Access Management')).not.toBeInTheDocument();
     });
 
+    it('hides the OnBoarding entry once onboarding is completed', () => {
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
+            status: 'authenticated',
+            profile: { ...mockProfile, hasCompletedOnboarding: true },
+            login: vi.fn(),
+            logout: vi.fn(),
+            refetchProfile: vi.fn(),
+        });
+
+        renderWithProviders(<SideBar />);
+
+        expect(screen.queryByText('OnBoarding')).not.toBeInTheDocument();
+    });
+
+    it('shows the OnBoarding entry while onboarding is still open', () => {
+        vi.mocked(useAuthHook.useAuth).mockReturnValue({
+            status: 'authenticated',
+            profile: { ...mockProfile, hasCompletedOnboarding: false },
+            login: vi.fn(),
+            logout: vi.fn(),
+            refetchProfile: vi.fn(),
+        });
+
+        renderWithProviders(<SideBar />);
+
+        expect(screen.getAllByText('OnBoarding').length).toBeGreaterThan(0);
+    });
+
     it('renders admin nav items for admin user', () => {
         vi.mocked(useAuthHook.useAuth).mockReturnValue({
             status: 'authenticated',
