@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { MessageSquareText, SkipForward } from 'lucide-react';
+import { Check, Hourglass, MessageSquareText, SkipForward } from 'lucide-react';
 import type { TeamOverviewUser } from '../types';
+import { Badge } from '../../../components/ui/Badge';
 
 type TeamMemberCardProps = {
     user: TeamOverviewUser;
@@ -35,6 +36,13 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
     const hasPendingSkipRequest =
         user.currentStep?.skip?.status === 'PENDING';
 
+    // Onboarding is complete once progress reaches 100% (kept in sync with the
+    // percentage shown below). Reuses progressPercentage — no extra data needed.
+    const isOnboardingComplete = progressPercentage >= 100;
+    const onboardingStatusLabel = isOnboardingComplete
+        ? 'Onboarding completed'
+        : 'Onboarding in progress';
+
     return (
         <Link
             to={`/team/${user.userId}`}
@@ -68,6 +76,26 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
                         <SkipForward className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
                     </span>
                 )}
+
+                {/* Compact cards show onboarding status as an icon badge (label via
+                    title/aria-label); the roomy card renders a text chip in the body. */}
+                {compact && (
+                    <span
+                        title={onboardingStatusLabel}
+                        aria-label={onboardingStatusLabel}
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border shadow-sm ${
+                            isOnboardingComplete
+                                ? 'border-app-success-border bg-app-success-bg text-app-success-text'
+                                : 'border-app-neutral-border bg-app-neutral-bg text-app-neutral-text'
+                        }`}
+                    >
+                        {isOnboardingComplete ? (
+                            <Check className="h-3 w-3" />
+                        ) : (
+                            <Hourglass className="h-2.5 w-2.5" />
+                        )}
+                    </span>
+                )}
             </div>
 
             <div className={`flex items-center gap-2 ${compact ? 'pr-7' : 'pr-14 gap-3'}`}>
@@ -92,6 +120,22 @@ export function TeamMemberCard({ user, compact = false }: TeamMemberCardProps) {
                     )}
                 </div>
             </div>
+
+            {!compact && (
+                <div className="mt-3">
+                    <Badge
+                        variant={isOnboardingComplete ? 'success' : 'neutral'}
+                        className="gap-1.5 px-2.5 py-1"
+                    >
+                        {isOnboardingComplete ? (
+                            <Check className="h-3.5 w-3.5" />
+                        ) : (
+                            <Hourglass className="h-3 w-3" />
+                        )}
+                        {isOnboardingComplete ? 'Onboarding completed' : 'In progress'}
+                    </Badge>
+                </div>
+            )}
 
             <div className={compact ? 'mt-2' : 'mt-3'}>
                 <div className="flex items-start justify-between gap-3">
