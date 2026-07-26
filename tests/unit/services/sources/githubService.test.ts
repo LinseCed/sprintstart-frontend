@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import {
     connectGithubRepository,
+    connectRepositories,
+    discoverRepositories,
+    discoverOrgRepositories,
     getGithubPatNames,
     addGithubPat,
     updateGithubPat,
@@ -132,6 +135,127 @@ describe('githubService', () => {
             const result = await updateGithubRepository({ owner: 'octocat', name: 'Hello-World' });
             expect(capturedBody).toEqual({ owner: 'octocat', name: 'Hello-World' });
             expect(result.transactionId).toBe('txn-one');
+        });
+    });
+
+    describe('discoverOrgRepositories', () => {
+        it('maps private/html_url and flags a full page as hasMore', async () => {
+            let capturedUrl = '';
+            server.use(
+                http.get('/api/v1/github/discover/org/:org', ({ request, params }) => {
+                    capturedUrl = request.url;
+                    expect(params.org).toBe('SprintStartProject');
+                    return HttpResponse.json({
+                        repositories: Array.from({ length: 20 }, (_, i) => ({
+                            name: `repo-${i}`,
+                            private: i % 2 === 0,
+                            html_url: `https://github.com/SprintStartProject/repo-${i}`,
+                            alreadyConnected: i === 0,
+                            isEnabled: i === 0 ? true : null,
+                        })),
+                    });
+                }),
+            );
+
+            const result = await discoverOrgRepositories('SprintStartProject', 'default', 0, 20);
+
+            expect(capturedUrl).toContain('tokenName=default');
+            expect(capturedUrl).toContain('page=0');
+            expect(capturedUrl).toContain('pageSize=20');
+            expect(result.repositories).toHaveLength(20);
+            expect(result.repositories[0]).toEqual({
+                name: 'repo-0',
+                isPrivate: true,
+                url: 'https://github.com/SprintStartProject/repo-0',
+                alreadyConnected: true,
+                isEnabled: true,
+            });
+            expect(result.hasMore).toBe(true);
+            expect(result.resolvedOwnerType).toBe('org');
+        });
+
+        it('does not flag hasMore for a partial page', async () => {
+            server.use(
+                http.get('/api/v1/github/discover/org/:org', () =>
+                    HttpResponse.json({
+                        repositories: [
+                            { name: 'only', private: false, html_url: 'https://github.com/o/only' },
+                        ],
+                    }),
+                ),
+            );
+
+            const result = await discoverOrgRepositories('o', 'default', 0, 20);
+            expect(result.hasMore).toBe(false);
+        });
+    });
+
+    describe('discoverRepositories (auto)', () => {
+        it('falls back to the user endpoint when the org endpoint 404s', async () => {
+            let userEndpointHit = false;
+            server.use(
+                http.get('/api/v1/github/discover/org/:org', () =>
+                    HttpResponse.json({}, { status: 404 }),
+                ),
+                http.get('/api/v1/github/discover/user/:user', ({ params }) => {
+                    userEndpointHit = true;
+                    expect(params.user).toBe('octocat');
+                    return HttpResponse.json({
+                        repositories: [
+                            { name: 'Hello-World', private: false, html_url: 'https://github.com/octocat/Hello-World' },
+                        ],
+                    });
+                }),
+            );
+
+            const result = await discoverRepositories('octocat', 'default', 'auto', 0, 20);
+
+            expect(userEndpointHit).toBe(true);
+            expect(result.resolvedOwnerType).toBe('user');
+            expect(result.repositories[0]?.name).toBe('Hello-World');
+        });
+
+        it('propagates a non-404 error without falling back', async () => {
+            server.use(
+                http.get('/api/v1/github/discover/org/:org', () =>
+                    HttpResponse.json({}, { status: 403 }),
+                ),
+            );
+
+            await expect(
+                discoverRepositories('octocat', 'default', 'auto', 0, 20),
+            ).rejects.toMatchObject({ name: 'ApiError', status: 403 });
+        });
+    });
+
+    describe('connectRepositories', () => {
+        it('POSTs one entry per repo with the shared token and project', async () => {
+            let capturedBody: unknown = null;
+            server.use(
+                http.post('/api/v1/github/connect/all', async ({ request }) => {
+                    capturedBody = await request.json();
+                    return HttpResponse.json({
+                        transactionIdsByRepositoryId: { 'octocat/a': 'txn-a', 'octocat/b': 'txn-b' },
+                    });
+                }),
+            );
+
+            const result = await connectRepositories(
+                [
+                    { owner: 'octocat', name: 'a' },
+                    { owner: 'octocat', name: 'b' },
+                ],
+                'default',
+                'project-1',
+            );
+
+            expect(capturedBody).toEqual({
+                repositories: [
+                    { owner: 'octocat', name: 'a', tokenName: 'default', projectId: 'project-1' },
+                    { owner: 'octocat', name: 'b', tokenName: 'default', projectId: 'project-1' },
+                ],
+            });
+            expect(result.transactionIdsByRepositoryId['octocat/a']).toBe('txn-a');
         });
     });
 });

@@ -13,6 +13,8 @@ type ConnectorListProps = {
   connectors: ConnectorListItem[];
   togglingConnectorId: string | null;
   expandedConnectorId: string | null;
+  /** Scopes the per-connector source list to a project. */
+  projectId?: string | null;
   onToggleEnabled: (connector: ConnectorListItem) => void;
   onToggleSources: (connector: ConnectorListItem) => void;
   onSourcesSaved?: () => void;
@@ -30,6 +32,7 @@ export function ConnectorList({
   connectors,
   togglingConnectorId,
   expandedConnectorId,
+  projectId,
   onToggleEnabled,
   onToggleSources,
   onSourcesSaved,
@@ -107,7 +110,7 @@ export function ConnectorList({
                   "flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
                   connector.enabled
                     ? "border-app-danger-border bg-app-danger-bg text-app-danger-text hover:bg-app-danger-solid hover:text-white"
-                    : "border-app-brand-border-strong bg-app-brand text-app-text-inverse hover:bg-app-brand-hover",
+                    : "border-app-brand-border-strong bg-app-brand text-white hover:bg-app-brand-hover",
                 ].join(" ")}
               >
                 {isToggling
@@ -136,6 +139,7 @@ export function ConnectorList({
             {isExpanded && (
               <ConnectorSourcesSection
                 connector={connector}
+                projectId={projectId}
                 onSourcesSaved={onSourcesSaved}
               />
             )}

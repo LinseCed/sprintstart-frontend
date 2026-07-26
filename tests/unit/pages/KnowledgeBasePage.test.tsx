@@ -5,6 +5,20 @@ import { MemoryRouter } from 'react-router-dom';
 import { KnowledgeBasePage } from '../../../src/pages/KnowledgeBasePage';
 import type { Artifact } from '../../../src/features/knowledge-base/types';
 
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import('../setup/projectContext');
+    const project = createSelectableProject({ id: 'proj1' });
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                projects: [project],
+                selectedProject: project,
+                selectedProjectId: 'proj1',
+                canManageSelected: true,
+            }),
+    };
+});
+
 const { mockProfile } = vi.hoisted(() => ({
     mockProfile: { id: 'user1', firstName: 'Test', lastName: 'User', projectIds: ['p1'] },
 }));

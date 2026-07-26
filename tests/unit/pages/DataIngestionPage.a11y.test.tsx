@@ -4,6 +4,20 @@ import { axe } from 'vitest-axe';
 import { MemoryRouter } from 'react-router-dom';
 import { DataIngestionPage } from '../../../src/pages/DataIngestionPage';
 
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import('../setup/projectContext');
+    const project = createSelectableProject({ id: 'proj1' });
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                projects: [project],
+                selectedProject: project,
+                selectedProjectId: 'proj1',
+                canManageSelected: true,
+            }),
+    };
+});
+
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', lastName: 'User' } }),
 }));
@@ -11,7 +25,26 @@ vi.mock('../../../src/context/useAuth', () => ({
 vi.mock('../../../src/services/ingestionService', () => ({
     getIngestionRuns: vi.fn().mockResolvedValue([]),
     getIngestionStatus: vi.fn().mockResolvedValue([]),
+    getProjectArtifactSnapshot: vi.fn().mockResolvedValue({ artifacts: [], totalElements: 0 }),
 }));
+
+vi.mock('../../../src/services/projectService', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../src/services/projectService')>();
+    return {
+        ...actual,
+        projectService: {
+            ...actual.projectService,
+            getAccessibleProject: vi.fn().mockResolvedValue({
+                id: 'proj1',
+                name: 'Project Alpha',
+                description: '',
+                manager: null,
+                sources: [],
+                users: [],
+            }),
+        },
+    };
+});
 
 vi.mock('../../../src/services/sources/githubService', () => ({
     connectGithubRepository: vi.fn().mockResolvedValue({ transactionId: 'tx1' }),
@@ -32,10 +65,6 @@ vi.mock('../../../src/features/data-ingestion/components/SourceList', () => ({
     SourceList: () => <div>No sources connected yet.</div>,
 }));
 
-vi.mock('../../../src/features/data-ingestion/components/ArtifactTable', () => ({
-    ArtifactTable: () => <div>No artifacts.</div>,
-}));
-
 vi.mock('../../../src/features/data-ingestion/components/RunHistory', () => ({
     RunHistory: () => <div>No runs.</div>,
 }));
@@ -47,7 +76,7 @@ describe('DataIngestionPage Accessibility', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'sources' })).toBeInTheDocument();
+            expect(screen.getByRole('group', { name: /filter sections/i })).toBeInTheDocument();
         });
 
         expect(await axe(baseElement)).toHaveNoViolations();

@@ -1,0 +1,144 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
+import { AddSourceModal } from '../../../../../src/features/data-ingestion/components/AddSourceModal';
+import { server } from '../../../setup/vitest.setup';
+
+function renderModal(overrides: Partial<Parameters<typeof AddSourceModal>[0]> = {}) {
+    const props = {
+        projectId: 'project-1',
+        projectName: 'Apollo',
+        tokenNames: ['default'],
+        canIngest: true,
+        onClose: vi.fn(),
+        onConnected: vi.fn(),
+        onSwitchToSingleRepo: vi.fn(),
+        ...overrides,
+    };
+    render(<AddSourceModal {...props} />);
+    return props;
+}
+
+const discoveryHandler = http.get('/api/v1/github/discover/org/:org', () =>
+    HttpResponse.json({
+        repositories: [
+            { name: 'repo-a', private: false, html_url: 'https://github.com/acme/repo-a' },
+            {
+                name: 'repo-connected',
+                private: true,
+                html_url: 'https://github.com/acme/repo-connected',
+                alreadyConnected: true,
+                isEnabled: true,
+            },
+        ],
+    }),
+);
+
+/** Advances the wizard from the source-type step into the GitHub discovery step. */
+async function gotoGithubStep(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+}
+
+describe('AddSourceModal', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('starts on the source-type step with GitHub, Jira and Upload choices', () => {
+        renderModal();
+        expect(screen.getByText('Source type')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /github/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /jira/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /upload/i })).toBeInTheDocument();
+    });
+
+    it('shows a coming-soon panel for a not-yet-available type', async () => {
+        const user = userEvent.setup();
+        renderModal();
+
+        await user.click(screen.getByRole('button', { name: /jira/i }));
+        await gotoGithubStep(user);
+
+        expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
+    });
+
+    it('discovers repositories and disables selection of already-connected ones', async () => {
+        server.use(discoveryHandler);
+        const user = userEvent.setup();
+        renderModal();
+        await gotoGithubStep(user);
+
+        await user.type(screen.getByLabelText('Organization or user'), 'acme');
+        await user.click(screen.getByRole('button', { name: 'Discover' }));
+
+        expect(await screen.findByText('repo-a')).toBeInTheDocument();
+        const connectedRow = screen.getByText('repo-connected').closest('label') as HTMLElement;
+        expect(within(connectedRow).getByText('Connected')).toBeInTheDocument();
+        expect(within(connectedRow).getByRole('checkbox')).toBeDisabled();
+    });
+
+    it('filters the discovered list by name', async () => {
+        server.use(discoveryHandler);
+        const user = userEvent.setup();
+        renderModal();
+        await gotoGithubStep(user);
+
+        await user.type(screen.getByLabelText('Organization or user'), 'acme');
+        await user.click(screen.getByRole('button', { name: 'Discover' }));
+        await screen.findByText('repo-a');
+
+        await user.type(screen.getByLabelText('Filter repositories'), 'connected');
+
+        expect(screen.queryByText('repo-a')).not.toBeInTheDocument();
+        expect(screen.getByText('repo-connected')).toBeInTheDocument();
+    });
+
+    it('batch-connects the selected repositories and reports success', async () => {
+        let capturedBody: unknown = null;
+        server.use(
+            discoveryHandler,
+            http.post('/api/v1/github/connect/all', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json({ transactionIdsByRepositoryId: { 'acme/repo-a': 'txn-a' } });
+            }),
+        );
+
+        const user = userEvent.setup();
+        const props = renderModal();
+        await gotoGithubStep(user);
+
+        await user.type(screen.getByLabelText('Organization or user'), 'acme');
+        await user.click(screen.getByRole('button', { name: 'Discover' }));
+        await screen.findByText('repo-a');
+
+        const repoRow = screen.getByText('repo-a').closest('label') as HTMLElement;
+        await user.click(within(repoRow).getByRole('checkbox'));
+        await user.click(screen.getByRole('button', { name: /connect 1 selected/i }));
+
+        await waitFor(() => expect(props.onConnected).toHaveBeenCalledTimes(1));
+        expect(props.onClose).toHaveBeenCalled();
+        expect(capturedBody).toEqual({
+            repositories: [
+                { owner: 'acme', name: 'repo-a', tokenName: 'default', projectId: 'project-1' },
+            ],
+        });
+    });
+
+    it('can go back from the GitHub step to the source-type step', async () => {
+        const user = userEvent.setup();
+        renderModal();
+        await gotoGithubStep(user);
+        expect(screen.getByLabelText('Organization or user')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /back/i }));
+        expect(screen.getByText('Source type')).toBeInTheDocument();
+    });
+
+    it('blocks connecting when the user may not ingest into the project', async () => {
+        const user = userEvent.setup();
+        renderModal({ canIngest: false, ingestBlockedReason: 'Not your project.' });
+        await gotoGithubStep(user);
+        expect(screen.getByText('Not your project.')).toBeInTheDocument();
+    });
+});

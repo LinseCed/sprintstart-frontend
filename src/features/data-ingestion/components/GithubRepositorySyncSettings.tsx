@@ -1,5 +1,6 @@
-import { CalendarClock, Loader2 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { CalendarClock } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { SaveButton } from "../../../components/ui/SaveButton.tsx";
 import { AccountEnabledToggle } from "../../admin/components/AccountEnabledToggle.tsx";
 import { formatDateTime } from "../data.ts";
 import type {
@@ -82,6 +83,20 @@ export function GithubRepositorySyncSettings({
   );
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Serialized snapshot of the last saved/loaded form values. Comparing the live
+  // form against it is how the Save button knows whether there are unsaved
+  // changes, so it can stay muted until the user actually edits something.
+  const [baseline, setBaseline] = useState<string>(() =>
+    serializeFormValues({
+      autoUpdate: true,
+      scheduleType: "INTERVAL",
+      everyMinutes: "60",
+      time: "02:00:00",
+      daysOfWeek: ["MONDAY"],
+      dayOfMonth: "1",
+      cron: "0 0 2 * * *",
+    }),
+  );
 
   useEffect(() => {
     if (loadConfig || !initialConfig) return;
@@ -96,13 +111,28 @@ export function GithubRepositorySyncSettings({
         setDayOfMonth,
         setCron,
       });
+      setBaseline(
+        serializeFormValues(
+          toFormValues(initialConfig.autoUpdate, initialConfig.schedule),
+        ),
+      );
     });
   }, [initialConfig, loadConfig]);
+
+  // Keep the latest loader in a ref so the load effect can depend only on the
+  // stable `loadKey`. Without this the effect re-ran on every parent render
+  // (the details page rebuilds `loadConfig`'s identity while polling), which
+  // reloaded the config and discarded whatever the user had just selected.
+  const loadConfigRef = useRef(loadConfig);
+  useEffect(() => {
+    loadConfigRef.current = loadConfig;
+  });
 
   useEffect(() => {
     let isMounted = true;
 
-    if (!loadConfig) return undefined;
+    const loader = loadConfigRef.current;
+    if (!loader) return undefined;
 
     void Promise.resolve().then(async () => {
       if (!isMounted) return;
@@ -111,7 +141,7 @@ export function GithubRepositorySyncSettings({
       setErrorMessage(null);
 
       try {
-        const config = await loadConfig();
+        const config = await loader();
 
         if (!isMounted) return;
 
@@ -124,6 +154,9 @@ export function GithubRepositorySyncSettings({
           setDayOfMonth,
           setCron,
         });
+        setBaseline(
+          serializeFormValues(toFormValues(config.autoUpdate, config.spec)),
+        );
         setNextSyncAt(config.nextSyncAt);
         setLoadState("idle");
       } catch (error) {
@@ -139,7 +172,7 @@ export function GithubRepositorySyncSettings({
     return () => {
       isMounted = false;
     };
-  }, [loadConfig, loadKey]);
+  }, [loadKey]);
 
   const saveSettings = async () => {
     setSaveState("loading");
@@ -161,6 +194,9 @@ export function GithubRepositorySyncSettings({
         schedule,
       });
 
+      // The save succeeded, so the current values are now the clean baseline.
+      setBaseline(serializeFormValues(toFormValues(autoUpdate, schedule)));
+
       if (loadConfig) {
         const config = await loadConfig();
         setAutoUpdate(config.autoUpdate);
@@ -172,6 +208,9 @@ export function GithubRepositorySyncSettings({
           setDayOfMonth,
           setCron,
         });
+        setBaseline(
+          serializeFormValues(toFormValues(config.autoUpdate, config.spec)),
+        );
         setNextSyncAt(config.nextSyncAt);
       }
 
@@ -187,6 +226,21 @@ export function GithubRepositorySyncSettings({
 
   const isBusy = loadState === "loading" || saveState === "loading";
   const usesTimeInput = ["DAILY", "WEEKLY", "MONTHLY"].includes(scheduleType);
+
+  const currentSnapshot = useMemo(
+    () =>
+      serializeFormValues({
+        autoUpdate,
+        scheduleType,
+        everyMinutes,
+        time,
+        daysOfWeek,
+        dayOfMonth,
+        cron,
+      }),
+    [autoUpdate, scheduleType, everyMinutes, time, daysOfWeek, dayOfMonth, cron],
+  );
+  const isDirty = currentSnapshot !== baseline;
 
   return (
     <div className="rounded-xl border border-app-border bg-app-surface-muted p-4">
@@ -328,7 +382,7 @@ export function GithubRepositorySyncSettings({
                   className={[
                     "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
                     isSelected
-                      ? "border-app-brand-border-strong bg-app-brand text-app-text-inverse"
+                      ? "border-app-brand-border-strong bg-app-brand text-white"
                       : "border-app-border bg-app-surface text-app-text-muted hover:text-app-text",
                   ].join(" ")}
                 >
@@ -356,21 +410,92 @@ export function GithubRepositorySyncSettings({
         </label>
       )}
 
-      <div className="mt-4 flex justify-end">
-        <button
-          type="button"
+      <div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+        {isDirty && !isBusy && (
+          <p className="text-xs font-medium text-app-text-muted sm:mr-1">
+            You have unsaved changes
+          </p>
+        )}
+
+        <SaveButton
+          dirty={isDirty}
+          saving={saveState === "loading"}
+          disabled={loadState === "loading"}
+          label={saveLabel}
+          cleanLabel={saveLabel}
           onClick={() => {
             void saveSettings();
           }}
-          disabled={isBusy}
-          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-app-brand px-4 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-        >
-          {saveState === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saveState === "loading" ? "Saving..." : saveLabel}
-        </button>
+          className="w-full sm:w-auto"
+        />
       </div>
     </div>
   );
+}
+
+type FormValues = {
+  autoUpdate: boolean;
+  scheduleType: ScheduleType;
+  everyMinutes: string;
+  time: string;
+  daysOfWeek: GithubScheduleDayOfWeek[];
+  dayOfMonth: string;
+  cron: string;
+};
+
+const DEFAULT_FORM_VALUES: FormValues = {
+  autoUpdate: true,
+  scheduleType: "INTERVAL",
+  everyMinutes: "60",
+  time: "02:00:00",
+  daysOfWeek: ["MONDAY"],
+  dayOfMonth: "1",
+  cron: "0 0 2 * * *",
+};
+
+/**
+ * Projects a stored/initial config into the full set of form field values
+ * (filling the fields the active schedule type does not use with defaults), so
+ * the saved baseline is comparable to the live form for dirty detection.
+ */
+function toFormValues(
+  autoUpdate: boolean,
+  spec: GithubRepositoryConfig["spec"] | ConfigureGithubRepositoryRequest["schedule"],
+): FormValues {
+  const base: FormValues = { ...DEFAULT_FORM_VALUES, autoUpdate };
+
+  if (!spec) return base;
+
+  switch (spec.type) {
+    case "INTERVAL":
+      return { ...base, scheduleType: "INTERVAL", everyMinutes: String(spec.everyMinutes) };
+    case "DAILY":
+      return { ...base, scheduleType: "DAILY", time: normalizeTimeInput(spec.time) };
+    case "WEEKLY":
+      return {
+        ...base,
+        scheduleType: "WEEKLY",
+        time: normalizeTimeInput(spec.time),
+        daysOfWeek: spec.daysOfWeek,
+      };
+    case "MONTHLY":
+      return {
+        ...base,
+        scheduleType: "MONTHLY",
+        time: normalizeTimeInput(spec.time),
+        dayOfMonth: String(spec.dayOfMonth),
+      };
+    case "CUSTOM":
+      return { ...base, scheduleType: "CUSTOM", cron: spec.cron };
+  }
+}
+
+/** Stable string key for a set of form values (weekday order is irrelevant). */
+function serializeFormValues(values: FormValues): string {
+  return JSON.stringify({
+    ...values,
+    daysOfWeek: [...values.daysOfWeek].sort(),
+  });
 }
 
 type ScheduleSetters = {
