@@ -92,6 +92,17 @@ export function canAccessRoute(
     return true;
 }
 
+/**
+ * Whether the onboarding experience is still available to this user.
+ *
+ * Onboarding is a one-time journey: once the user has completed it (i.e. passed the
+ * final knowledge check and been promoted to an existing member), the `/onboarding`
+ * routes and the sidebar entry are hidden. Independent of the permission group.
+ */
+export function isOnboardingAccessible(profile: UserProfile | null): boolean {
+    return !!profile && !profile.hasCompletedOnboarding;
+}
+
 export function getDefaultRoute(profile: UserProfile | null): AppRoute {
     if (!profile) {
         return '/';

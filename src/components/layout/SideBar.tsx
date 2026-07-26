@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
-import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
+import { canAccessRoute, isOnboardingAccessible, type AppRoute } from '../../auth/accessPolicy';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 import { useProjectContext } from '../../features/projects/useProjectContext';
 
@@ -93,8 +93,11 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
     const { profile, logout, status } = useAuth();
     const { canManageSelected } = useProjectContext();
     const location = useLocation();
-    const visibleNavItems = navItems.filter((item) =>
-        canAccessRoute(profile, item.path, canManageSelected),
+const visibleNavItems = navItems.filter(
+        (item) =>
+            canAccessRoute(profile, item.path, canManageSelected) &&
+            // Hide onboarding once the user has completed it and been promoted.
+            (item.path !== '/onboarding' || isOnboardingAccessible(profile)),
     );
     const visibleProjectManagerNavItems = projectManagerNavItems.filter((item) =>
         canAccessRoute(profile, item.path, canManageSelected),

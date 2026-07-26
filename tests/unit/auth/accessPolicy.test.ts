@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { canAccessRoute, getDefaultRoute, getMatchingProtectedRoute } from '../../../src/auth/accessPolicy';
+import {
+    canAccessRoute,
+    getDefaultRoute,
+    getMatchingProtectedRoute,
+    isOnboardingAccessible,
+} from '../../../src/auth/accessPolicy';
 import { PermissionGroup } from '../../../src/services/types';
 import type { UserProfile } from '../../../src/services/types';
 
@@ -68,6 +73,23 @@ describe('accessPolicy', () => {
             expect(canAccessRoute(hrProfile, '/data-ingestion', false)).toBe(true);
             expect(canAccessRoute(adminProfile, '/pm-dashboard', false)).toBe(true);
             expect(canAccessRoute(adminProfile, '/data-ingestion', false)).toBe(true);
+        });
+    });
+
+    describe('isOnboardingAccessible', () => {
+        it('is false when the user has completed onboarding', () => {
+            const profile = createMockProfile(PermissionGroup.USER);
+            expect(profile.hasCompletedOnboarding).toBe(true);
+            expect(isOnboardingAccessible(profile)).toBe(false);
+        });
+
+        it('is true when the user has not completed onboarding', () => {
+            const profile = { ...createMockProfile(PermissionGroup.USER), hasCompletedOnboarding: false };
+            expect(isOnboardingAccessible(profile)).toBe(true);
+        });
+
+        it('is false when profile is null', () => {
+            expect(isOnboardingAccessible(null)).toBe(false);
         });
     });
 
