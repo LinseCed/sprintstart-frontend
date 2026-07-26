@@ -41,6 +41,17 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     '/profile': ALL_GROUPS,
 };
 
+/**
+ * Routes that a PM may only reach for a project they manage. Both are scoped to
+ * the globally selected project, so holding the PM role while being a mere
+ * member of the selected project is not enough. Admins and HR are gated by role
+ * alone and are unaffected by this list.
+ */
+const MANAGER_ASSIGNMENT_ROUTES: readonly AppRoute[] = [
+    '/pm-dashboard',
+    '/data-ingestion',
+];
+
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/chat': ['/chat/'],
     '/onboarding': ['/onboarding/'],
@@ -49,12 +60,36 @@ const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/insights/knowledge-gaps': ['/insights/knowledge-gaps/'],
 };
 
-export function canAccessRoute(profile: UserProfile | null, route: AppRoute): boolean {
+/**
+ * Decides whether a profile may access a route.
+ *
+ * `managesSelectedProject` is only consulted for the PM role on the
+ * manager-scoped routes: a PM who is a mere member of the selected project
+ * cannot reach the PM dashboard or data ingestion. It defaults to `false` so
+ * callers without project context stay on the strict side, and it never widens
+ * access for other roles.
+ */
+export function canAccessRoute(
+    profile: UserProfile | null,
+    route: AppRoute,
+    managesSelectedProject = false,
+): boolean {
     if (!profile) {
         return false;
     }
 
-    return routePermissions[route].includes(profile.permissionGroup);
+    if (!routePermissions[route].includes(profile.permissionGroup)) {
+        return false;
+    }
+
+    if (
+        profile.permissionGroup === PermissionGroup.PM &&
+        MANAGER_ASSIGNMENT_ROUTES.includes(route)
+    ) {
+        return managesSelectedProject;
+    }
+
+    return true;
 }
 
 export function getDefaultRoute(profile: UserProfile | null): AppRoute {

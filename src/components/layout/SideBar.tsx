@@ -17,7 +17,8 @@ import {
 import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/useAuth';
 import { canAccessRoute, type AppRoute } from '../../auth/accessPolicy';
-import { ThemeToggle } from '../common/ThemeToggle';
+import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
+import { useProjectContext } from '../../features/projects/useProjectContext';
 
 type SidebarNavItem = {
     label: string;
@@ -90,13 +91,16 @@ function getNavLinkClass(isActive: boolean): string {
  */
 function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigation' }: SidebarContentProps) {
     const { profile, logout, status } = useAuth();
+    const { canManageSelected } = useProjectContext();
     const location = useLocation();
-    const visibleNavItems = navItems.filter((item) => canAccessRoute(profile, item.path));
+    const visibleNavItems = navItems.filter((item) =>
+        canAccessRoute(profile, item.path, canManageSelected),
+    );
     const visibleProjectManagerNavItems = projectManagerNavItems.filter((item) =>
-        canAccessRoute(profile, item.path),
+        canAccessRoute(profile, item.path, canManageSelected),
     );
     const visibleAdminNavItems = adminNavItems.filter((item) =>
-        canAccessRoute(profile, item.path),
+        canAccessRoute(profile, item.path, canManageSelected),
     );
 
     const isPmSectionActive =
@@ -255,7 +259,7 @@ function SidebarContent({ onNavigate, 'aria-label': ariaLabel = 'Primary Navigat
                     </div>
                 )}
 
-                <ThemeToggle className="w-full" />
+                <ProjectSwitcher className="w-full" />
 
                 <button
                     type="button"

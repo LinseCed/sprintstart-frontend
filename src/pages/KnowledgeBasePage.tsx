@@ -6,6 +6,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
 import { useKnowledgeBase } from '../features/knowledge-base/hooks/useKnowledgeBase';
+import { useProjectContext } from '../features/projects/useProjectContext';
 
 /**
  * Unified Knowledge Base view for project resources.
@@ -13,15 +14,16 @@ import { useKnowledgeBase } from '../features/knowledge-base/hooks/useKnowledgeB
  * Bound to the `/knowledge-base` route (accessible to all permission groups).
  * Displays all artifacts (uploads, github, etc.) in a filtered grid, with a side
  * drawer for viewing raw content and AI summaries. Artifacts are fetched via
- * `knowledgeService.getUnifiedArtifacts`, scoped to the user's first project id.
+ * `knowledgeService.getUnifiedArtifacts`, scoped to the globally selected
+ * project.
  *
- * @remarks Known limitation: only `profile.projectIds[0]` is used. Users with
- * multiple projects currently see artifacts for the first one only.
+ * Users without a project switcher fall back to their first assigned project,
+ * which is what the global selection resolves to for them anyway.
  */
 export function KnowledgeBasePage() {
     const { profile } = useAuth();
-    // TODO: support project switching — currently only the first project is scoped.
-    const projectId = profile?.projectIds?.[0] ?? null;
+    const { selectedProjectId } = useProjectContext();
+    const projectId = selectedProjectId || (profile?.projectIds?.[0] ?? null);
 
     const {
         artifacts,

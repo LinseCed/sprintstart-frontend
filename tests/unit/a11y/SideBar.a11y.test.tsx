@@ -31,6 +31,20 @@ vi.mock('../../../src/context/useTheme', () => ({
     })
 }));
 
+vi.mock('../../../src/features/projects/useProjectContext', () => ({
+    useProjectContext: () => ({
+        projects: [],
+        selectedProject: null,
+        selectedProjectId: '',
+        canManageSelected: false,
+        isSwitcherEnabled: true,
+        isLoading: false,
+        errorMessage: null,
+        setSelectedProjectId: vi.fn(),
+        reloadProjects: vi.fn()
+    })
+}));
+
 describe('SideBar Accessibility', () => {
     it('has no axe violations and keeps the closed mobile sidebar out of the tab flow', async () => {
         const user = userEvent.setup();

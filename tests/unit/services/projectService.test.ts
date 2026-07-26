@@ -59,6 +59,7 @@ describe("projectService", () => {
         id: "project-1",
         name: "SprintStart Frontend",
         description: "",
+        manager: null,
         sources: [
           {
             id: "source-1",
@@ -97,6 +98,7 @@ describe("projectService", () => {
         id: "12345678-abcd",
         name: "Project 12345678",
         description: "",
+        manager: null,
         sources: [],
         users: [],
       },

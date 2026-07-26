@@ -54,7 +54,7 @@ import {
   getProjectArtifactSnapshot,
 } from "../services/ingestionService.ts";
 import { useAuth } from "../context/useAuth";
-import { useProjectSelection } from "../features/projects/useProjectSelection.ts";
+import { useProjectContext } from "../features/projects/useProjectContext.ts";
 import {
   configureAllGithubRepositories,
   configureGithubRepository,
@@ -64,7 +64,14 @@ import {
   updateGithubRepository,
   type ConfigureGithubRepositoryRequest,
 } from "../services/sources/githubService.ts";
-import type { ProjectSource } from "../services/projectService.ts";
+import {
+  projectService,
+  type ProjectSource,
+} from "../services/projectService.ts";
+import {
+  parseGithubRepositoryInput,
+  parseGithubRepositoryReference,
+} from "../services/sources/githubRepositoryInput.ts";
 
 const GITHUB_REPOSITORY_STORAGE_KEY =
   "sprintstart:data-ingestion:last-github-repository";
@@ -80,47 +87,6 @@ async function fetchIngestionData() {
   ]);
 
   return { statusData, runData };
-}
-
-function parseGithubRepositoryInput(
-  ownerInput: string,
-  repositoryInput: string,
-) {
-  const trimmedOwnerInput = ownerInput.trim();
-  const trimmedRepositoryInput = repositoryInput.trim();
-  const parsedOwnerInput = parseGithubRepositoryReference(trimmedOwnerInput);
-
-  if (parsedOwnerInput) {
-    return parsedOwnerInput;
-  }
-
-  if (trimmedOwnerInput && trimmedRepositoryInput) {
-    return {
-      owner: trimmedOwnerInput,
-      name: trimmedRepositoryInput,
-    };
-  }
-
-  return null;
-}
-
-function parseGithubRepositoryReference(value: string) {
-  const normalizedInput = value
-    .replace(/^https?:\/\/github\.com\//i, "")
-    .replace(/^github\.com\//i, "")
-    .replace(/^git@github\.com:/i, "")
-    .replace(/\.git$/i, "")
-    .replace(/^\/+|\/+$/g, "");
-
-  const [owner, name] = normalizedInput
-    .split("/")
-    .filter((segment) => segment.length > 0);
-
-  if (owner && name) {
-    return { owner, name };
-  }
-
-  return null;
 }
 
 function storeGithubRepository(repository: GithubRepositoryReference) {
@@ -461,11 +427,15 @@ export function DataIngestionPage() {
     [],
   );
   const [runs, setRuns] = useState<IngestionRun[]>([]);
+  const [projectSources, setProjectSources] = useState<ProjectSource[]>([]);
   const [projectArtifacts, setProjectArtifacts] = useState<Artifact[]>([]);
   const [projectArtifactTotal, setProjectArtifactTotal] = useState(0);
-  const [artifactSnapshotVersion, setArtifactSnapshotVersion] = useState(0);
+  const [projectDataVersion, setProjectDataVersion] = useState(0);
   const [artifactSummaryErrorMessage, setArtifactSummaryErrorMessage] =
     useState<string | null>(null);
+  const [projectSourcesErrorMessage, setProjectSourcesErrorMessage] =
+    useState<string | null>(null);
+  const [isProjectDataLoading, setIsProjectDataLoading] = useState(false);
   const [loadingState, setLoadingState] = useState<LoadingState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -509,15 +479,15 @@ export function DataIngestionPage() {
     null,
   );
 
+  // The project is chosen globally in the sidebar switcher. The `?projectId=`
+  // search param is still honoured so deep links from the admin view land on
+  // the right project — it writes into the global selection below.
   const {
-    projects,
     selectedProject,
     selectedProjectId,
-    isLoading: isLoadingProjects,
-    errorMessage: projectErrorMessage,
     setSelectedProjectId,
     reloadProjects,
-  } = useProjectSelection({ isAdmin: profile?.permissionGroup === "ADMIN" });
+  } = useProjectContext();
 
   const requestedProjectId = searchParams.get("projectId") ?? "";
   const requestedSourceId = searchParams.get("sourceId") ?? "";
@@ -532,46 +502,72 @@ export function DataIngestionPage() {
     });
   }, [requestedProjectId, selectedProjectId, setSelectedProjectId]);
 
+  // A project's connected sources come from the project-scoped detail endpoint
+  // any member may reach, not from the admin-only project listing behind the
+  // switcher (which leaves `sources` empty for PM/member users). Sources and
+  // the artifact snapshot are fetched together so a project switch reveals the
+  // repo and its ingested files as one unit: the state is reset up front (no
+  // stale counts from the previous project) and a single loading flag covers
+  // both, so the list never renders "done but empty" while the heavier snapshot
+  // is still in flight.
   useEffect(() => {
     let isMounted = true;
 
+    // Deferred to a microtask so the resets below do not run synchronously in
+    // the effect body and cascade a render (same pattern as the provider).
     void Promise.resolve().then(async () => {
-      if (!selectedProjectId) {
-        if (!isMounted) return;
+      if (!isMounted) return;
 
-        setProjectArtifacts([]);
-        setProjectArtifactTotal(0);
-        setArtifactSummaryErrorMessage(null);
+      // Reset up front so a project switch never shows the previous project's
+      // sources or artifact counts while the new data is still loading.
+      setProjectSources([]);
+      setProjectArtifacts([]);
+      setProjectArtifactTotal(0);
+      setProjectSourcesErrorMessage(null);
+      setArtifactSummaryErrorMessage(null);
+
+      if (!selectedProjectId) {
+        setIsProjectDataLoading(false);
         return;
       }
 
+      setIsProjectDataLoading(true);
+
+      const [projectResult, snapshotResult] = await Promise.allSettled([
+        projectService.getAccessibleProject(selectedProjectId),
+        getProjectArtifactSnapshot(selectedProjectId),
+      ]);
+
       if (!isMounted) return;
-      setArtifactSummaryErrorMessage(null);
 
-      try {
-        const snapshot = await getProjectArtifactSnapshot(selectedProjectId);
+      if (projectResult.status === "fulfilled") {
+        setProjectSources(projectResult.value.sources);
+      } else {
+        setProjectSourcesErrorMessage(
+          projectResult.reason instanceof Error
+            ? projectResult.reason.message
+            : "Project sources could not be loaded.",
+        );
+      }
 
-        if (!isMounted) return;
-
-        setProjectArtifacts(snapshot.artifacts);
-        setProjectArtifactTotal(snapshot.totalElements);
-      } catch (error) {
-        if (!isMounted) return;
-
-        setProjectArtifacts([]);
-        setProjectArtifactTotal(0);
+      if (snapshotResult.status === "fulfilled") {
+        setProjectArtifacts(snapshotResult.value.artifacts);
+        setProjectArtifactTotal(snapshotResult.value.totalElements);
+      } else {
         setArtifactSummaryErrorMessage(
-          error instanceof Error
-            ? error.message
+          snapshotResult.reason instanceof Error
+            ? snapshotResult.reason.message
             : "Artifact summary could not be loaded.",
         );
       }
+
+      setIsProjectDataLoading(false);
     });
 
     return () => {
       isMounted = false;
     };
-  }, [artifactSnapshotVersion, selectedProjectId]);
+  }, [projectDataVersion, selectedProjectId]);
 
   const commitIngestionData = useCallback(
     (statusData: SourceIngestionStatus[], runData: IngestionRun[]) => {
@@ -674,7 +670,7 @@ export function DataIngestionPage() {
 
   const sources = useMemo<DataSource[]>(() => {
     return buildProjectDataSources(
-      selectedProject?.sources ?? [],
+      projectSources,
       sourceStatuses,
       runs,
       projectArtifacts,
@@ -683,8 +679,8 @@ export function DataIngestionPage() {
   }, [
     githubConnectorSources,
     projectArtifacts,
+    projectSources,
     runs,
-    selectedProject?.sources,
     sourceStatuses,
   ]);
 
@@ -724,6 +720,15 @@ export function DataIngestionPage() {
   const hasGithubSources = visibleSourceSystems.has("GITHUB");
   const canManageGithubSyncSettings =
     profile?.permissionGroup === "ADMIN" || profile?.permissionGroup === "PM";
+
+  // The `/github/connect` endpoint only checks the global PM/ADMIN role, so the
+  // backend accepts an ingest into a project the PM is merely a member of and
+  // then fails deep in the pipeline with a 500. Mirror the product rule up front
+  // instead: only the assigned project manager (or an admin) may connect a
+  // source to a project.
+  const canIngestIntoSelectedProject =
+    profile?.permissionGroup === "ADMIN" ||
+    (selectedProject?.isManaged ?? false);
 
   const visibleRuns = useMemo(
     () => runs.filter((run) => visibleSourceSystems.has(run.sourceSystem)),
@@ -847,6 +852,12 @@ export function DataIngestionPage() {
           );
         }
 
+        if (!canIngestIntoSelectedProject) {
+          throw new Error(
+            `You can only connect sources to projects you manage. You are a member of "${selectedProject?.name ?? "this project"}" but not its project manager`,
+          );
+        }
+
         if (selectedConnectSourceSystem !== "GITHUB") {
           throw new Error(
             `${SOURCE_META[selectedConnectSourceSystem].type} connection is not available yet.`,
@@ -893,13 +904,13 @@ export function DataIngestionPage() {
           reloadProjects(),
           loadGithubConnectorSources(),
         ]);
-        setArtifactSnapshotVersion((version) => version + 1);
+        setProjectDataVersion((version) => version + 1);
 
         window.setTimeout(() => {
           void loadData(false);
           void reloadProjects();
           void loadGithubConnectorSources();
-          setArtifactSnapshotVersion((version) => version + 1);
+          setProjectDataVersion((version) => version + 1);
         }, 1500);
       } catch (error) {
         setConnectState("error");
@@ -909,6 +920,7 @@ export function DataIngestionPage() {
       }
     },
     [
+      canIngestIntoSelectedProject,
       githubOwner,
       githubRepositoryName,
       githubTokenName,
@@ -937,12 +949,12 @@ export function DataIngestionPage() {
       );
 
       await Promise.all([loadData(false), loadGithubConnectorSources()]);
-      setArtifactSnapshotVersion((version) => version + 1);
+      setProjectDataVersion((version) => version + 1);
 
       window.setTimeout(() => {
         void loadData(false);
         void loadGithubConnectorSources();
-        setArtifactSnapshotVersion((version) => version + 1);
+        setProjectDataVersion((version) => version + 1);
       }, 1500);
     },
     [loadData, loadGithubConnectorSources],
@@ -989,12 +1001,13 @@ export function DataIngestionPage() {
       reloadProjects(),
       loadGithubConnectorSources(),
     ]);
-    setArtifactSnapshotVersion((version) => version + 1);
+    setProjectDataVersion((version) => version + 1);
   }, [loadData, loadGithubConnectorSources, reloadProjects]);
 
-  const isLoading = loadingState === "loading" || isLoadingProjects;
+  const isLoading = loadingState === "loading";
   const shouldShowInitialLoading =
-    isLoading && sources.every((source) => source.lastRunAt === null);
+    (isLoading || (isProjectDataLoading && activeTab === "sources")) &&
+    sources.length === 0;
 
   const closeSourceDetails = () => {
     setSelectedSourceId(null);
@@ -1011,11 +1024,6 @@ export function DataIngestionPage() {
       <div>
         <DataIngestionHeader
           isLoading={isLoading}
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          isLoadingProjects={isLoadingProjects}
-          projectErrorMessage={projectErrorMessage}
-          onProjectChange={setSelectedProjectId}
           onRefresh={() => {
             void loadData();
             void reloadProjects();
@@ -1023,9 +1031,8 @@ export function DataIngestionPage() {
             if (activeTab === "connectors") {
               void loadConnectors();
             }
-            setArtifactSnapshotVersion((version) => version + 1);
+            setProjectDataVersion((version) => version + 1);
           }}
-          showProjectSelect={profile?.permissionGroup === "ADMIN"}
         />
 
         <main className="app-page-shell">
@@ -1039,6 +1046,12 @@ export function DataIngestionPage() {
             {artifactSummaryErrorMessage && (
               <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-5 py-4 text-sm text-app-warning-text">
                 {artifactSummaryErrorMessage}
+              </div>
+            )}
+
+            {projectSourcesErrorMessage && (
+              <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-5 py-4 text-sm text-app-warning-text">
+                {projectSourcesErrorMessage}
               </div>
             )}
 
@@ -1078,7 +1091,7 @@ export function DataIngestionPage() {
                   <DataIngestionLoadingState />
                 ) : null}
 
-                {!isLoading && activeTab === "sources" ? (
+                {!isLoading && !isProjectDataLoading && activeTab === "sources" ? (
                   <SourceList
                     sources={sources}
                     selectedSourceId={selectedSourceId}
