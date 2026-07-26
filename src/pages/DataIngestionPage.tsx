@@ -2,18 +2,22 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import { useSearchParams } from "react-router-dom";
+import { CalendarClock, Plug } from "lucide-react";
 import { Modal } from "../components/ui/Modal.tsx";
-import { ArtifactTable } from "../features/data-ingestion/components/ArtifactTable.tsx";
 import { DataIngestionHeader } from "../features/data-ingestion/components/DataIngestionHeader.tsx";
 import { DataIngestionLoadingState } from "../features/data-ingestion/components/DataIngestionLoadingState.tsx";
-import { DataIngestionTabs } from "../features/data-ingestion/components/DataIngestionTabs.tsx";
-import { IngestionMetrics } from "../features/data-ingestion/components/IngestionMetrics.tsx";
+import { DataIngestionSectionFilter } from "../features/data-ingestion/components/DataIngestionSectionFilter.tsx";
+import { OverviewSection } from "../features/data-ingestion/components/OverviewSection.tsx";
+import { RunDetailsPanel } from "../features/data-ingestion/components/RunDetailsPanel.tsx";
 import { RunHistory } from "../features/data-ingestion/components/RunHistory.tsx";
 import { GithubRepositorySyncSettings } from "../features/data-ingestion/components/GithubRepositorySyncSettings.tsx";
+import { AddSourceModal } from "../features/data-ingestion/components/AddSourceModal.tsx";
 import { SourceConnectModal } from "../features/data-ingestion/components/SourceConnectModal.tsx";
 import { SourceDetailsPanel } from "../features/data-ingestion/components/SourceDetailsPanel.tsx";
 import { SourceList } from "../features/data-ingestion/components/SourceList.tsx";
@@ -26,6 +30,7 @@ import {
   type ConnectorSource,
 } from "../services/connectorService.ts";
 import {
+  deriveSourceStatus,
   formatDateTime,
   getBackendSourceStatusLabel,
   getSourceStatus,
@@ -37,7 +42,6 @@ import {
   SOURCE_SYSTEMS,
 } from "../features/data-ingestion/data.ts";
 import type {
-  ActiveTab,
   Artifact,
   ConnectState,
   DataSource,
@@ -45,6 +49,7 @@ import type {
   GithubRepositoryReference,
   IngestionRun,
   LoadingState,
+  SectionKey,
   SourceIngestionStatus,
   SourceSystem,
 } from "../features/data-ingestion/types.ts";
@@ -396,6 +401,13 @@ function buildProjectDataSources(
           errors > 0,
           runStatus,
         ),
+        statusView: deriveSourceStatus({
+          backendStatus,
+          runStatus,
+          aiSyncStatus: latestRun?.aiSyncStatus ?? null,
+          hasErrors: errors > 0,
+          hasNeverSynced,
+        }),
         artifacts: totalArtifactCount,
         lastSync: formatDateTime(lastRunAt),
         nextSync: "Not available",
@@ -417,11 +429,38 @@ function hasSourceId(sources: DataSource[], sourceId: string) {
   return sources.some((source) => source.sourceId === sourceId);
 }
 
+const STATUS_BADGE_TONE = {
+  success:
+    "border-app-success-border bg-app-success-bg text-app-success-text",
+  brand: "border-app-brand-border bg-app-brand-soft text-app-brand-text",
+  warning:
+    "border-app-warning-border bg-app-warning-bg text-app-warning-text",
+  neutral: "border-app-border bg-app-neutral-bg text-app-neutral-text",
+} as const;
+
+/** Small count badge summarising how many sources are in a given status. */
+function StatusBadge({
+  tone,
+  children,
+}: {
+  tone: keyof typeof STATUS_BADGE_TONE;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tabular-nums ${STATUS_BADGE_TONE[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function DataIngestionPage() {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("sources");
+  const [activeSection, setActiveSection] = useState<SectionKey>("all");
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   const [sourceStatuses, setSourceStatuses] = useState<SourceIngestionStatus[]>(
     [],
@@ -440,6 +479,8 @@ export function DataIngestionPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+  const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(false);
+  const [isConnectorsModalOpen, setIsConnectorsModalOpen] = useState(false);
   const [isSyncSettingsModalOpen, setIsSyncSettingsModalOpen] =
     useState(false);
   const [globalGithubSyncConfig, setGlobalGithubSyncConfig] =
@@ -492,6 +533,12 @@ export function DataIngestionPage() {
   const requestedProjectId = searchParams.get("projectId") ?? "";
   const requestedSourceId = searchParams.get("sourceId") ?? "";
 
+  // Tracks the last project we loaded data for, so an in-place refresh (a
+  // `projectDataVersion` bump after saving) can reload without wiping the source
+  // list — clearing it would drop `selectedSource` and close an open details
+  // drawer mid-save. Only a real project switch resets the lists.
+  const loadedProjectIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!requestedProjectId || requestedProjectId === selectedProjectId) {
       return;
@@ -518,11 +565,17 @@ export function DataIngestionPage() {
     void Promise.resolve().then(async () => {
       if (!isMounted) return;
 
-      // Reset up front so a project switch never shows the previous project's
-      // sources or artifact counts while the new data is still loading.
-      setProjectSources([]);
-      setProjectArtifacts([]);
-      setProjectArtifactTotal(0);
+      // Only a real project switch clears the current lists; an in-place refresh
+      // (same project, version bump) reloads without emptying them, so an open
+      // details drawer and its selection survive a save.
+      const isProjectSwitch = loadedProjectIdRef.current !== selectedProjectId;
+      loadedProjectIdRef.current = selectedProjectId;
+
+      if (isProjectSwitch) {
+        setProjectSources([]);
+        setProjectArtifacts([]);
+        setProjectArtifactTotal(0);
+      }
       setProjectSourcesErrorMessage(null);
       setArtifactSummaryErrorMessage(null);
 
@@ -531,7 +584,9 @@ export function DataIngestionPage() {
         return;
       }
 
-      setIsProjectDataLoading(true);
+      if (isProjectSwitch) {
+        setIsProjectDataLoading(true);
+      }
 
       const [projectResult, snapshotResult] = await Promise.allSettled([
         projectService.getAccessibleProject(selectedProjectId),
@@ -605,12 +660,17 @@ export function DataIngestionPage() {
 
   const loadGithubConnectorSources = useCallback(async () => {
     try {
-      const response = await connectorService.getConnectorSources("github");
+      // Scope to the selected project so a PM only sees their project's repos,
+      // not every project's connected sources (the backend `projectId` filter).
+      const response = await connectorService.getConnectorSources(
+        "github",
+        selectedProjectId || undefined,
+      );
       setGithubConnectorSources(response.sources);
     } catch {
       setGithubConnectorSources([]);
     }
-  }, []);
+  }, [selectedProjectId]);
 
   useEffect(() => {
     void Promise.resolve().then(() => loadGithubConnectorSources());
@@ -694,7 +754,7 @@ export function DataIngestionPage() {
         requestedSourceId.length > 0 && hasSourceId(sources, requestedSourceId);
 
       if (requestedSourceExists) {
-        setActiveTab("sources");
+        setActiveSection("sources");
       }
 
       setSelectedSourceId((currentSourceId) => {
@@ -702,9 +762,14 @@ export function DataIngestionPage() {
           return requestedSourceId;
         }
 
-        return currentSourceId && hasSourceId(sources, currentSourceId)
-          ? currentSourceId
-          : null;
+        // Keep the current selection while the list is transiently empty (an
+        // in-flight refresh), so an open details drawer isn't dropped. Only
+        // clear when the list is populated and the source is genuinely gone.
+        if (!currentSourceId || sources.length === 0) {
+          return currentSourceId;
+        }
+
+        return hasSourceId(sources, currentSourceId) ? currentSourceId : null;
       });
     });
 
@@ -718,6 +783,19 @@ export function DataIngestionPage() {
     [sources],
   );
   const hasGithubSources = visibleSourceSystems.has("GITHUB");
+
+  const sourceHealth = useMemo(() => {
+    const count = (state: DataSource["statusView"]["state"]) =>
+      sources.filter((source) => source.statusView.state === state).length;
+
+    return {
+      total: sources.length,
+      connected: count("connected"),
+      syncing: count("syncing"),
+      attention: count("attention"),
+      disabled: count("disabled"),
+    };
+  }, [sources]);
   const canManageGithubSyncSettings =
     profile?.permissionGroup === "ADMIN" || profile?.permissionGroup === "PM";
 
@@ -752,20 +830,17 @@ export function DataIngestionPage() {
     }
   }, []);
 
-  const handleTabChange = useCallback(
-    (tab: ActiveTab) => {
-      setActiveTab(tab);
+  const handleSectionChange = useCallback((section: SectionKey) => {
+    setActiveSection(section);
+  }, []);
 
-      if (
-        tab === "connectors" &&
-        !hasLoadedConnectors &&
-        connectorsLoadingState !== "loading"
-      ) {
-        void loadConnectors();
-      }
-    },
-    [connectorsLoadingState, hasLoadedConnectors, loadConnectors],
-  );
+  const handleOpenConnectorsModal = useCallback(() => {
+    setIsConnectorsModalOpen(true);
+
+    if (!hasLoadedConnectors && connectorsLoadingState !== "loading") {
+      void loadConnectors();
+    }
+  }, [connectorsLoadingState, hasLoadedConnectors, loadConnectors]);
 
   const handleToggleConnectorEnabled = useCallback(
     async (connector: ConnectorListItem) => {
@@ -811,12 +886,7 @@ export function DataIngestionPage() {
     );
   }, [selectedSourceId, sources]);
 
-  const handleOpenSourceModal = () => {
-    setConnectState("idle");
-    setConnectErrorMessage(null);
-    setSelectedConnectSourceSystem("GITHUB");
-    setIsSourceModalOpen(true);
-
+  const loadGithubTokenNames = useCallback(() => {
     void getGithubPatNames()
       .then((tokenNames) => {
         setGithubTokenNames(tokenNames);
@@ -827,6 +897,22 @@ export function DataIngestionPage() {
       .catch(() => {
         setGithubTokenNames([]);
       });
+  }, []);
+
+  // Discovery is the primary connect flow; the single-repo modal stays reachable
+  // from inside it as a fallback.
+  const handleOpenAddSourceModal = () => {
+    setConnectErrorMessage(null);
+    setIsAddSourceModalOpen(true);
+    loadGithubTokenNames();
+  };
+
+  const handleOpenSourceModal = () => {
+    setConnectState("idle");
+    setConnectErrorMessage(null);
+    setSelectedConnectSourceSystem("GITHUB");
+    setIsSourceModalOpen(true);
+    loadGithubTokenNames();
   };
 
   const handleCloseSourceModal = () => {
@@ -836,6 +922,35 @@ export function DataIngestionPage() {
     setConnectState("idle");
     setConnectErrorMessage(null);
   };
+
+  // Runs after the discovery modal batch-connects repositories: surface a
+  // success message, kick the polling window and refresh the same data the
+  // single-repo connect path refreshes.
+  const handleDiscoveryConnected = useCallback(() => {
+    setConnectSuccessMessage(
+      `Selected repositories are connecting to ${selectedProject?.name ?? "the project"}. Initial ingestion is running in the background.`,
+    );
+    setPollingUntil(Date.now() + 60000);
+    setActiveSection("sources");
+
+    void Promise.all([
+      loadData(false),
+      reloadProjects(),
+      loadGithubConnectorSources(),
+    ]).then(() => setProjectDataVersion((version) => version + 1));
+
+    window.setTimeout(() => {
+      void loadData(false);
+      void reloadProjects();
+      void loadGithubConnectorSources();
+      setProjectDataVersion((version) => version + 1);
+    }, 1500);
+  }, [
+    loadData,
+    loadGithubConnectorSources,
+    reloadProjects,
+    selectedProject,
+  ]);
 
   const handleConnectSource = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -897,7 +1012,7 @@ export function DataIngestionPage() {
         setGithubOwner("");
         setGithubRepositoryName("");
         setIsSourceModalOpen(false);
-        setActiveTab("sources");
+        setActiveSection("sources");
 
         await Promise.all([
           loadData(),
@@ -1004,10 +1119,32 @@ export function DataIngestionPage() {
     setProjectDataVersion((version) => version + 1);
   }, [loadData, loadGithubConnectorSources, reloadProjects]);
 
+  // Enables/disables a connected repository as an ingestion source (the
+  // connector allow/deny toggle), then refreshes so the drawer reflects it.
+  const handleSetSourceEnabled = useCallback(
+    async (repository: GithubRepositoryDetails, enabled: boolean) => {
+      await connectorService.patchConnectorSources("github", [
+        { sourceId: repository.fullName, enabled },
+      ]);
+      await refreshSourceDetails();
+    },
+    [refreshSourceDetails],
+  );
+
   const isLoading = loadingState === "loading";
+
+  const showOverview = activeSection === "all" || activeSection === "overview";
+  const showSources = activeSection === "all" || activeSection === "sources";
+  const showRuns = activeSection === "all" || activeSection === "runs";
+
   const shouldShowInitialLoading =
-    (isLoading || (isProjectDataLoading && activeTab === "sources")) &&
+    (isLoading || (isProjectDataLoading && showSources)) &&
     sources.length === 0;
+
+  const selectedRun = useMemo(
+    () => visibleRuns.find((run) => run.runId === selectedRunId) ?? null,
+    [selectedRunId, visibleRuns],
+  );
 
   const closeSourceDetails = () => {
     setSelectedSourceId(null);
@@ -1024,11 +1161,12 @@ export function DataIngestionPage() {
       <div>
         <DataIngestionHeader
           isLoading={isLoading}
+          onAddSource={handleOpenAddSourceModal}
           onRefresh={() => {
             void loadData();
             void reloadProjects();
             void loadGithubConnectorSources();
-            if (activeTab === "connectors") {
+            if (isConnectorsModalOpen) {
               void loadConnectors();
             }
             setProjectDataVersion((version) => version + 1);
@@ -1069,76 +1207,112 @@ export function DataIngestionPage() {
               </div>
             )}
 
-            <IngestionMetrics
-              sources={sources}
-              totalArtifactCount={projectArtifactTotal}
+            <DataIngestionSectionFilter
+              active={activeSection}
+              onChange={handleSectionChange}
+              sourceCount={sourceHealth.total}
+              runCount={visibleRuns.length}
             />
 
-            <section className="overflow-hidden rounded-3xl border border-app-border bg-app-surface">
-              <DataIngestionTabs
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-                onAddSource={handleOpenSourceModal}
-                onOpenSyncSettings={
-                  canManageGithubSyncSettings && hasGithubSources
-                    ? () => setIsSyncSettingsModalOpen(true)
-                    : undefined
-                }
-              />
-
-              <div className="space-y-4 p-5 sm:p-6">
-                {shouldShowInitialLoading ? (
-                  <DataIngestionLoadingState />
-                ) : null}
-
-                {!isLoading && !isProjectDataLoading && activeTab === "sources" ? (
-                  <SourceList
+            {shouldShowInitialLoading ? (
+              <DataIngestionLoadingState />
+            ) : (
+              <div className="space-y-8">
+                {showOverview ? (
+                  <OverviewSection
                     sources={sources}
-                    selectedSourceId={selectedSourceId}
-                    onSelectSource={setSelectedSourceId}
+                    totalArtifactCount={projectArtifactTotal}
+                    runs={visibleRuns}
+                    onNavigate={handleSectionChange}
                   />
                 ) : null}
 
-                {!isLoading && activeTab === "artifacts" ? (
-                  <ArtifactTable
-                    projectId={selectedProjectId}
-                    sources={sources}
-                  />
-                ) : null}
-
-                {!isLoading && activeTab === "runs" ? (
-                  <RunHistory runs={visibleRuns} />
-                ) : null}
-                {activeTab === "connectors" ? (
-                  <>
-                    {connectorsErrorMessage && (
-                      <div className="rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
-                        {connectorsErrorMessage}
+                {showSources ? (
+                  <section aria-label="Sources">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="mr-1 text-base font-bold tracking-tight text-app-text">
+                          Sources
+                        </h2>
+                        {sourceHealth.connected > 0 && (
+                          <StatusBadge tone="success">
+                            {sourceHealth.connected} connected
+                          </StatusBadge>
+                        )}
+                        {sourceHealth.syncing > 0 && (
+                          <StatusBadge tone="brand">
+                            {sourceHealth.syncing} syncing
+                          </StatusBadge>
+                        )}
+                        {sourceHealth.attention > 0 && (
+                          <StatusBadge tone="warning">
+                            {sourceHealth.attention} need
+                            {sourceHealth.attention === 1 ? "s" : ""} attention
+                          </StatusBadge>
+                        )}
+                        {sourceHealth.disabled > 0 && (
+                          <StatusBadge tone="neutral">
+                            {sourceHealth.disabled} disabled
+                          </StatusBadge>
+                        )}
                       </div>
-                    )}
 
-                    {connectorsLoadingState === "loading" &&
-                    !hasLoadedConnectors ? (
-                      <ConnectorsLoadingState />
-                    ) : (
-                      <ConnectorList
-                        connectors={connectors}
-                        togglingConnectorId={togglingConnectorId}
-                        expandedConnectorId={selectedConnectorId}
-                        onToggleEnabled={(connector) => {
-                          void handleToggleConnectorEnabled(connector);
-                        }}
-                        onToggleSources={handleToggleConnectorSources}
-                        onSourcesSaved={() => {
-                          void loadConnectors();
-                          void loadGithubConnectorSources();
-                        }}
+                      {canManageGithubSyncSettings ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                          <button
+                            type="button"
+                            onClick={handleOpenConnectorsModal}
+                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-app-brand-text transition hover:text-app-brand"
+                          >
+                            <Plug className="h-4 w-4" />
+                            Manage connectors
+                          </button>
+
+                          {hasGithubSources ? (
+                            <button
+                              type="button"
+                              onClick={() => setIsSyncSettingsModalOpen(true)}
+                              className="inline-flex items-center gap-1.5 text-sm font-semibold text-app-brand-text transition hover:text-app-brand"
+                            >
+                              <CalendarClock className="h-4 w-4" />
+                              Manage sync settings
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {!isProjectDataLoading ? (
+                      <SourceList
+                        sources={sources}
+                        selectedSourceId={selectedSourceId}
+                        onSelectSource={setSelectedSourceId}
+                        onAddSource={handleOpenAddSourceModal}
                       />
-                    )}
-                  </>
+                    ) : null}
+                  </section>
                 ) : null}
+
+                {showRuns ? (
+                  <section aria-label="Runs">
+                    <div className="mb-4 flex items-center gap-3">
+                      <h2 className="text-base font-bold tracking-tight text-app-text">
+                        Runs
+                      </h2>
+                      <span className="rounded-full border border-app-border bg-app-bg-soft px-2.5 py-0.5 text-xs font-semibold tabular-nums text-app-text-subtle">
+                        {visibleRuns.length} recent
+                      </span>
+                    </div>
+                    <RunHistory
+                      runs={visibleRuns}
+                      selectedRunId={selectedRunId}
+                      onSelectRun={(run) => setSelectedRunId(run.runId)}
+                    />
+                  </section>
+                ) : null}
+
               </div>
-            </section>
+            )}
           </div>
         </main>
       </div>
@@ -1151,9 +1325,51 @@ export function DataIngestionPage() {
           canManageSyncSettings={canManageGithubSyncSettings}
           onLoadRepositoryConfig={handleLoadGithubRepositoryConfig}
           onSaveRepositoryConfig={handleSaveGithubRepositoryConfig}
+          onSetSourceEnabled={handleSetSourceEnabled}
           onClose={closeSourceDetails}
         />
       )}
+
+      {selectedRun && (
+        <RunDetailsPanel
+          run={selectedRun}
+          onClose={() => setSelectedRunId(null)}
+        />
+      )}
+
+      <Modal
+        isOpen={isConnectorsModalOpen}
+        title="Connectors"
+        description="Enable or disable a connector, and choose which sources are in scope for this project."
+        size="lg"
+        bodyClassName="px-5 py-5 sm:px-7 sm:py-6"
+        onClose={() => setIsConnectorsModalOpen(false)}
+      >
+        {connectorsErrorMessage && (
+          <div className="mb-4 rounded-2xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
+            {connectorsErrorMessage}
+          </div>
+        )}
+
+        {connectorsLoadingState === "loading" && !hasLoadedConnectors ? (
+          <ConnectorsLoadingState />
+        ) : (
+          <ConnectorList
+            connectors={connectors}
+            togglingConnectorId={togglingConnectorId}
+            expandedConnectorId={selectedConnectorId}
+            projectId={selectedProjectId}
+            onToggleEnabled={(connector) => {
+              void handleToggleConnectorEnabled(connector);
+            }}
+            onToggleSources={handleToggleConnectorSources}
+            onSourcesSaved={() => {
+              void loadConnectors();
+              void loadGithubConnectorSources();
+            }}
+          />
+        )}
+      </Modal>
 
       <Modal
         isOpen={isSyncSettingsModalOpen}
@@ -1197,6 +1413,28 @@ export function DataIngestionPage() {
           onClose={handleCloseSourceModal}
           onSubmit={(event) => {
             void handleConnectSource(event);
+          }}
+        />
+      )}
+
+      {isAddSourceModalOpen && (
+        <AddSourceModal
+          projectId={selectedProjectId}
+          projectName={selectedProject?.name}
+          tokenNames={githubTokenNames}
+          canIngest={Boolean(selectedProjectId) && canIngestIntoSelectedProject}
+          ingestBlockedReason={
+            !selectedProjectId
+              ? "Select a project before connecting repositories."
+              : !canIngestIntoSelectedProject
+                ? `You can only connect sources to projects you manage. You are a member of "${selectedProject?.name ?? "this project"}" but not its project manager.`
+                : undefined
+          }
+          onClose={() => setIsAddSourceModalOpen(false)}
+          onConnected={handleDiscoveryConnected}
+          onSwitchToSingleRepo={() => {
+            setIsAddSourceModalOpen(false);
+            handleOpenSourceModal();
           }}
         />
       )}

@@ -101,12 +101,23 @@ export const connectorService = {
   /**
    * Retrieves the in-scope sources (e.g. connected repositories) of a
    * connector, along with their current allow/deny state.
+   *
+   * @param connectorId - Lowercase connector id, e.g. "github".
+   * @param projectId - When given, scopes the sources to that project (the
+   *   backend `projectId` query param). Omit only for a genuinely global view;
+   *   project-scoped screens must pass it, otherwise every project's sources
+   *   are returned.
    */
   async getConnectorSources(
     connectorId: string,
+    projectId?: string,
   ): Promise<GetSourcesOfConnectorResponse> {
+    const query = projectId
+      ? `?projectId=${encodeURIComponent(projectId)}`
+      : "";
+
     return apiClient.fetch<GetSourcesOfConnectorResponse>(
-      `/api/v1/connectors/${connectorId}/sources`,
+      `/api/v1/connectors/${connectorId}/sources${query}`,
     );
   },
 

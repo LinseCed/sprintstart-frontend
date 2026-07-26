@@ -83,7 +83,7 @@ export function SourceConnectModal({
                         type="submit"
                         form="source-connect-form"
                         disabled={isSubmitDisabled}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-app-text-inverse transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-app-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {isLoading && (
                             <RefreshCw size={16} className="animate-spin" />

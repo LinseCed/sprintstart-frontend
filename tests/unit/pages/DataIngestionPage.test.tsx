@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -25,7 +25,9 @@ function selectProject(overrides = {}) {
 }
 
 vi.mock('../../../src/context/useAuth', () => ({
-    useAuth: () => ({ profile: { id: 'user1', firstName: 'Test', lastName: 'User' } }),
+    useAuth: () => ({
+        profile: { id: 'user1', firstName: 'Test', lastName: 'User', permissionGroup: 'PM' },
+    }),
 }));
 
 const {
@@ -37,6 +39,7 @@ const {
     mockUpdateGithubRepository,
     mockGetAccessibleProject,
     mockGetProjectArtifactSnapshot,
+    mockGetUnifiedArtifacts,
 } = vi.hoisted(() => ({
     mockGetIngestionRuns: vi.fn(),
     mockGetIngestionStatus: vi.fn(),
@@ -46,6 +49,7 @@ const {
     mockUpdateGithubRepository: vi.fn(),
     mockGetAccessibleProject: vi.fn(),
     mockGetProjectArtifactSnapshot: vi.fn(),
+    mockGetUnifiedArtifacts: vi.fn(),
 }));
 
 vi.mock('../../../src/services/ingestionService', () => ({
@@ -69,6 +73,14 @@ vi.mock('../../../src/services/sources/githubService', () => ({
     updateGithubRepository: mockUpdateGithubRepository,
 }));
 
+vi.mock('../../../src/services/knowledgeService', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../src/services/knowledgeService')>();
+    return {
+        ...actual,
+        knowledgeService: { ...actual.knowledgeService, getUnifiedArtifacts: mockGetUnifiedArtifacts },
+    };
+});
+
 describe('DataIngestionPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -89,18 +101,21 @@ describe('DataIngestionPage', () => {
             users: [],
         });
         mockGetProjectArtifactSnapshot.mockResolvedValue({ artifacts: [], totalElements: 0 });
+        mockGetUnifiedArtifacts.mockResolvedValue([]);
         selectProject();
     });
 
-    it('renders sources, artifacts, and runs tabs after loading', async () => {
+    it('renders the section filter after loading', async () => {
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'sources' })).toBeInTheDocument();
+            expect(screen.getByRole('group', { name: /filter sections/i })).toBeInTheDocument();
         });
 
-        expect(screen.getByRole('button', { name: 'artifacts' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'runs' })).toBeInTheDocument();
+        const filter = within(screen.getByRole('group', { name: /filter sections/i }));
+        expect(filter.getByRole('button', { name: /overview/i })).toBeInTheDocument();
+        expect(filter.getByRole('button', { name: /sources/i })).toBeInTheDocument();
+        expect(filter.getByRole('button', { name: /runs/i })).toBeInTheDocument();
     });
 
     it('lists the project sources fetched from the accessible-project endpoint', async () => {
@@ -110,56 +125,72 @@ describe('DataIngestionPage', () => {
         expect(mockGetAccessibleProject).toHaveBeenCalledWith('proj1');
     });
 
-    it('switches to the artifacts tab when clicked', async () => {
+    it('opens the connectors modal from Manage connectors', async () => {
         const user = userEvent.setup();
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'artifacts' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /manage connectors/i })).toBeInTheDocument();
         });
 
-        await user.click(screen.getByRole('button', { name: 'artifacts' }));
-
-        expect(screen.getByRole('button', { name: 'artifacts' })).toHaveClass('bg-app-brand');
-    });
-
-    it('switches to the runs tab when clicked', async () => {
-        const user = userEvent.setup();
-        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+        await user.click(screen.getByRole('button', { name: /manage connectors/i }));
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'runs' })).toBeInTheDocument();
-        });
-
-        await user.click(screen.getByRole('button', { name: 'runs' }));
-
-        expect(screen.getByRole('button', { name: 'runs' })).toHaveClass('bg-app-brand');
-    });
-
-    it('opens the source connect modal when Add Source is clicked', async () => {
-        const user = userEvent.setup();
-        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
-
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: /Add Source/ })).toBeInTheDocument();
-        });
-
-        await user.click(screen.getByRole('button', { name: /Add Source/ }));
-
-        await waitFor(() => {
-            expect(screen.getByText('Add Data Source')).toBeInTheDocument();
+            expect(
+                screen.getByText('Enable or disable a connector, and choose which sources are in scope for this project.'),
+            ).toBeInTheDocument();
         });
     });
 
-    it('parses owner/repo format and calls connectGithubRepository on submit', async () => {
+    it('filters to the runs section when its control is clicked', async () => {
         const user = userEvent.setup();
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /Add Source/ })).toBeInTheDocument();
+            expect(screen.getByRole('group', { name: /filter sections/i })).toBeInTheDocument();
         });
 
-        await user.click(screen.getByRole('button', { name: /Add Source/ }));
+        const filter = () => within(screen.getByRole('group', { name: /filter sections/i }));
+        await user.click(filter().getByRole('button', { name: /runs/i }));
+
+        expect(filter().getByRole('button', { name: /runs/i })).toHaveClass('bg-app-brand');
+    });
+
+    it('opens the add-source wizard and reaches GitHub discovery via Continue', async () => {
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await waitFor(() => {
+            expect(screen.getAllByRole('button', { name: /Add sources/i }).length).toBeGreaterThan(0);
+        });
+
+        await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
+
+        // Step 1: the source-type chooser.
+        await waitFor(() => {
+            expect(screen.getByText('Add a data source')).toBeInTheDocument();
+        });
+
+        // Step 2 (GitHub is the default type): discovery.
+        await user.click(screen.getByRole('button', { name: /continue/i }));
+        await waitFor(() => {
+            expect(screen.getByText('Discover GitHub repositories')).toBeInTheDocument();
+        });
+    });
+
+    it('parses owner/repo format and calls connectGithubRepository via the single-repo fallback', async () => {
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await waitFor(() => {
+            expect(screen.getAllByRole('button', { name: /Add sources/i }).length).toBeGreaterThan(0);
+        });
+
+        await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
+        await user.click(await screen.findByRole('button', { name: /continue/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /add a single repository instead/i }),
+        );
 
         await waitFor(() => {
             expect(screen.getByLabelText('Repository owner')).toBeInTheDocument();
@@ -186,10 +217,14 @@ describe('DataIngestionPage', () => {
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /Add Source/ })).toBeInTheDocument();
+            expect(screen.getAllByRole('button', { name: /Add sources/i }).length).toBeGreaterThan(0);
         });
 
-        await user.click(screen.getByRole('button', { name: /Add Source/ }));
+        await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
+        await user.click(await screen.findByRole('button', { name: /continue/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /add a single repository instead/i }),
+        );
 
         await waitFor(() => {
             expect(screen.getByLabelText('Repository owner')).toBeInTheDocument();

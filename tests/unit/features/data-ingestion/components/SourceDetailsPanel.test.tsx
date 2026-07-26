@@ -4,6 +4,7 @@ import { GitBranch } from 'lucide-react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SourceDetailsPanel } from '../../../../../src/features/data-ingestion/components/SourceDetailsPanel';
 import type { DataSource, GithubRepositoryDetails } from '../../../../../src/features/data-ingestion/types';
+import { deriveSourceStatus } from '../../../../../src/features/data-ingestion/data';
 
 const githubRepository: GithubRepositoryDetails = {
     owner: 'acme',
@@ -24,6 +25,7 @@ const mockSource: DataSource = {
     statusLabel: 'Connected',
     ingestionStatus: 'connected',
     ingestionStatusLabel: 'Synced',
+    statusView: deriveSourceStatus({ hasErrors: false, hasNeverSynced: false }),
     artifacts: 10,
     lastSync: '2026-07-05',
     errors: 0,
