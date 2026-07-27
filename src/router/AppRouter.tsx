@@ -24,6 +24,7 @@ import { CompetencyDashboardPage } from '../features/competency-dashboard/compon
 import { OnboardingMetricsPage } from '../features/onboarding-metrics/components/OnboardingMetricsPage.tsx';
 import { ProfilePage } from '../pages/ProfilePage.tsx';
 import { ModuleEditorPage } from '../pages/ModuleEditorPage.tsx';
+import { BoardPage } from '../pages/BoardPage.tsx';
 
 export function AppRouter() {
     return (
@@ -43,6 +44,9 @@ export function AppRouter() {
                 <Route path="/onboarding/assessment" element={<Navigate to="/buddy" replace />} />
                 <Route path="/onboarding/:stepId" element={<Navigate to="/buddy" replace />} />
                 <Route path="/buddy" element={<BuddyPage />} />
+                {/* The board is the durable half of the buddy: the conversation opens fresh each
+                    visit, so what the mentor wants to keep in front of you lives here. */}
+                <Route path="/board" element={<BoardPage />} />
                 <Route path="/first-week" element={<Navigate to="/buddy" replace />} />
                 <Route path="/my-path" element={<Navigate to="/buddy" replace />} />
                 <Route path="/my-path/module/:moduleId" element={<Navigate to="/buddy" replace />} />

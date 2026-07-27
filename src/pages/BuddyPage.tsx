@@ -1,4 +1,5 @@
-import { AlertCircle, Bot, Loader2, Sparkles, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, Bot, LayoutDashboard, Loader2, Sparkles, Users } from 'lucide-react';
 import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversation';
 import { useBuddyIntake } from '../features/buddy/hooks/useBuddyIntake';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
@@ -26,17 +27,35 @@ const SUGGESTIONS: { label: string; question: string }[] = [
     { label: 'Show me around', question: 'Give me a quick tour of this codebase to get started.' },
 ];
 
-function BuddyHeader({ subtitle }: { subtitle: string }) {
+/**
+ * The conversation's header.
+ *
+ * `showBoardLink` is off during intake: the board is where durable things are kept, and a hire who
+ * has not been placed yet has nothing durable on it. Offering it then would send somebody to an
+ * almost empty page on their first minute here.
+ */
+function BuddyHeader({ subtitle, showBoardLink = false }: { subtitle: string; showBoardLink?: boolean }) {
     return (
         <header className="shrink-0 border-b border-app-border px-4 py-5">
             <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-app-brand/10">
                     <Bot className="h-5 w-5 text-app-brand-text" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                     <h1 className="text-lg font-bold leading-tight text-app-text">Buddy</h1>
                     <p className="text-sm text-app-text-muted">{subtitle}</p>
                 </div>
+                {/* This conversation opens fresh every visit by design, so anything worth keeping
+                    lives on the board. Linking it here is what stops it being a page nobody finds. */}
+                {showBoardLink && (
+                    <Link
+                        to="/board"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-app-border px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                    >
+                        <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                        Board
+                    </Link>
+                )}
             </div>
         </header>
     );
@@ -69,7 +88,10 @@ function BuddyMentorHome() {
     if (isOpening) {
         return (
             <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
-                <BuddyHeader subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding." />
+                <BuddyHeader
+                    subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding."
+                    showBoardLink
+                />
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 text-app-text-muted">
                     <Loader2 className="h-6 w-6 animate-spin text-app-brand" aria-hidden="true" />
                     <p className="text-sm">Catching up on where you are…</p>
@@ -80,7 +102,10 @@ function BuddyMentorHome() {
 
     return (
         <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
-            <BuddyHeader subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding." />
+            <BuddyHeader
+                subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding."
+                showBoardLink
+            />
 
             {/* The greeting invites one next step; offer it as a single prominent chip until the
                 hire acts or asks something of their own. */}

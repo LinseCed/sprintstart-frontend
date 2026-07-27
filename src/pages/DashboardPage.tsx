@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { Link } from 'react-router-dom';
-import { Bot, BookOpen, Sparkles, ChartColumn } from 'lucide-react';
+import { Bot, BookOpen, LayoutDashboard, Sparkles, ChartColumn } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { PendingAttestations } from '../features/attestation/components/PendingAttestations';
 import { usePendingAttestations } from '../features/attestation/hooks/usePendingAttestations';
@@ -101,6 +101,14 @@ export function DashboardPage() {
                             <Sparkles className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
                             <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Onboarding</h3>
                             <p className="text-app-text/60 text-center mt-2">Get set up and ship your first PR, with your buddy</p>
+                        </Link>
+
+                        {/* The buddy's conversation opens fresh each visit; the board is where what
+                            it wants to keep in front of you stays put. */}
+                        <Link to="/board" className="flex flex-col items-center justify-center p-8 bg-app-surface border border-app-border rounded-2xl hover:border-app-accent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+                            <LayoutDashboard className="w-10 h-10 mb-4 text-blue-500 group-hover:scale-110 transition-all duration-300" />
+                            <h3 className="text-xl font-semibold text-app-text group-hover:text-blue-600 transition-colors">Board</h3>
+                            <p className="text-app-text/60 text-center mt-2">Where you stand, and what&apos;s waiting on someone</p>
                         </Link>
                     </div>
                 </div>

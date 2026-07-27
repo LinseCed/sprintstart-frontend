@@ -7,6 +7,7 @@ import {
     Briefcase,
     ChartColumn,
     Database,
+    LayoutDashboard,
     ListChecks,
     LogOut,
     Menu,
@@ -45,6 +46,13 @@ const navItems: SidebarNavItem[] = [
         label: 'Buddy',
         path: '/buddy',
         icon: <Bot className="h-[18px] w-[18px] shrink-0 transition-colors" />,
+    },
+    // The durable half of the same surface. The conversation opens fresh each visit by design, so
+    // what is worth keeping in front of a hire between visits is kept here instead.
+    {
+        label: 'Board',
+        path: '/board',
+        icon: <LayoutDashboard className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
     {
         label: 'Chat',
