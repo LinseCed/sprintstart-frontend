@@ -1,18 +1,17 @@
 /** What a single proposal is. Competencies and edges both come from the skill-map generator. */
-export type ReviewKind = 'competency' | 'edge' | 'baseline' | 'task';
+export type ReviewKind = 'competency' | 'edge' | 'task';
 
 /** What a generator produces — also the key a Setup rung filters the inbox by. */
-export type GenerationKind = 'skill-map' | 'baseline' | 'starter-tasks';
+export type GenerationKind = 'skill-map' | 'starter-tasks';
 
 /** Which generator's output a review kind belongs to, for grouping and filtering. */
 export const GENERATION_OF: Record<ReviewKind, GenerationKind> = {
     competency: 'skill-map',
     edge: 'skill-map',
-    baseline: 'baseline',
     task: 'starter-tasks',
 };
 
-export const GENERATION_KINDS: GenerationKind[] = ['skill-map', 'baseline', 'starter-tasks'];
+export const GENERATION_KINDS: GenerationKind[] = ['skill-map', 'starter-tasks'];
 
 /** Human labels for a generation group and its generate action. */
 export const GENERATION_META: Record<
@@ -23,11 +22,6 @@ export const GENERATION_META: Record<
         title: 'Skill map',
         generateLabel: 'Generate skill map',
         workingLabel: 'Reading the corpus and drafting competencies',
-    },
-    baseline: {
-        title: 'Baseline',
-        generateLabel: 'Generate baseline',
-        workingLabel: 'Choosing the competencies a hire should reach',
     },
     'starter-tasks': {
         title: 'Starter tasks',
@@ -41,7 +35,7 @@ export const GENERATION_META: Record<
  * hook routes approve/reject by `kind` + `id`, so the view stays a plain, testable value.
  */
 export interface ReviewItemView {
-    /** Unique within its kind; the id approve/reject target (a `proposalId` for baseline entries). */
+    /** Unique within its kind; the id approve/reject targets. */
     id: string;
     kind: ReviewKind;
     title: string;

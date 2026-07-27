@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { competencyGraphService } from '../../../services/competencyGraphService';
-import { blueprintService } from '../../../services/blueprintService';
 import { starterWorkService } from '../../../services/starterWorkService';
 import type { ProposedGraph } from '../../graph-authoring/types';
-import type { ProposedBlueprints } from '../../blueprint-authoring/types';
 import type { ProposedStarterWork } from '../../starter-work/types';
 import { normalizeInbox } from '../normalize';
 import type { GenerationKind, ReviewItemView } from '../types';
 
 const EMPTY_GRAPH: ProposedGraph = { competencies: [], edges: [] };
-const EMPTY_BASELINE: ProposedBlueprints = { blueprints: [] };
 const EMPTY_TASKS: ProposedStarterWork = { tasks: [] };
 
 /** While a generator runs, re-read the queues on this cadence so proposals appear as they commit. */
@@ -36,9 +33,9 @@ export interface UseReviewInbox {
 }
 
 /**
- * One queue for the three proposal generators (skill map, baseline, starter tasks). Reads all three
- * `/proposed` endpoints, normalizes them into uniform cards, and routes approve/reject to the right
- * service by kind — so a PM reviews everything the AI proposed in one place with one pattern.
+ * One queue for both proposal generators (skill map, starter tasks). Reads both `/proposed`
+ * endpoints, normalizes them into uniform cards, and routes approve/reject to the right service by
+ * kind — so a PM reviews everything the AI proposed in one place with one pattern.
  *
  * A generator is a blocking call that can take ~a minute. `working` exposes which are running so the
  * UI can show real progress instead of a silent wait; while one runs the queues are re-polled, so a
@@ -54,13 +51,12 @@ export function useReviewInbox(): UseReviewInbox {
     const timers = useRef<Map<GenerationKind, ReturnType<typeof setInterval>>>(new Map());
 
     const loadProposed = useCallback(async () => {
-        // A failing queue degrades to empty rather than blanking the other two.
-        const [graph, baseline, tasks] = await Promise.all([
+        // A failing queue degrades to empty rather than blanking the other.
+        const [graph, tasks] = await Promise.all([
             competencyGraphService.fetchProposed().catch((): ProposedGraph => EMPTY_GRAPH),
-            blueprintService.fetchProposed().catch((): ProposedBlueprints => EMPTY_BASELINE),
             starterWorkService.fetchProposed().catch((): ProposedStarterWork => EMPTY_TASKS),
         ]);
-        setItems(normalizeInbox({ graph, baseline, tasks }));
+        setItems(normalizeInbox({ graph, tasks }));
     }, []);
 
     const reload = useCallback(async () => {
@@ -107,12 +103,6 @@ export function useReviewInbox(): UseReviewInbox {
                 const result = await competencyGraphService.generate();
                 return result.notes;
             }
-            case 'baseline': {
-                const result = await blueprintService.generate();
-                return result.outcomes.map((outcome) =>
-                    [`${outcome.scope}: ${outcome.status}`, outcome.message].filter(Boolean).join(' — '),
-                );
-            }
             case 'starter-tasks': {
                 const result = await starterWorkService.generate();
                 return result.notes;
@@ -154,9 +144,6 @@ export function useReviewInbox(): UseReviewInbox {
                     case 'edge':
                         await competencyGraphService.approveEdge(item.id);
                         break;
-                    case 'baseline':
-                        await blueprintService.approveCompetency(item.id);
-                        break;
                     case 'task':
                         await starterWorkService.approve(item.id);
                         break;
@@ -179,9 +166,6 @@ export function useReviewInbox(): UseReviewInbox {
                         break;
                     case 'edge':
                         await competencyGraphService.rejectEdge(item.id, reason);
-                        break;
-                    case 'baseline':
-                        await blueprintService.rejectCompetency(item.id, reason);
                         break;
                     case 'task':
                         await starterWorkService.reject(item.id, reason);

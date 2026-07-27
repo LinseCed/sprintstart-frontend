@@ -12,9 +12,9 @@ import { PermissionGroup } from '../services/types';
 /**
  * Onboarding Setup: the PM's single front door to making a project ready to onboard someone.
  *
- * The setup surfaces (skill map, baseline, starter tasks, buddies) grew as separate, co-equal nav
+ * The setup surfaces (skill map, starter tasks, buddies) grew as separate, co-equal nav
  * items that did not know about each other — so a PM could generate a competency map, never approve
- * it, and find the Baseline page "empty" with nothing explaining why. This page composes them into
+ * it, and find a page "empty" with nothing explaining why. This page composes them into
  * one ladder with one verdict, and every rung links into the page that advances it.
  */
 export function OnboardingSetupPage() {
@@ -43,7 +43,7 @@ export function OnboardingSetupPage() {
                     <PageHeader
                         icon={ListChecks}
                         title="Onboarding Setup"
-                        subtitle="Everything a project needs before a hire arrives — an approved skill map, a baseline, starter tasks and a buddy for every hire — as one pipeline with one readiness check."
+                        subtitle="Everything a project needs before a hire arrives — an approved skill map and a stocked pool of starter tasks — as one pipeline with one readiness check."
                         actions={
                             <ProjectSelect
                                 projects={projects}
