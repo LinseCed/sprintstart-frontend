@@ -4,6 +4,8 @@ import { UserAvatar } from '../components/common/UserAvatar';
 import { Link } from 'react-router-dom';
 import { Bot, BookOpen, Sparkles, ChartColumn } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { PendingAttestations } from '../features/attestation/components/PendingAttestations';
+import { usePendingAttestations } from '../features/attestation/hooks/usePendingAttestations';
 
 /**
  * Central hub displayed after login.
@@ -11,6 +13,7 @@ import { PageHeader } from '../components/layout/PageHeader';
  */
 export function DashboardPage() {
     const { profile } = useAuth();
+    const pendingAttestations = usePendingAttestations();
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -55,6 +58,12 @@ export function DashboardPage() {
             </header>
 
             <main className="app-page-frame flex min-h-[70vh] flex-col p-8">
+                {/* Anything a colleague is waiting on this person to confirm leads the page: it is
+                    somebody else's onboarding blocked on them, and it renders nothing when empty. */}
+                <div className="mx-auto w-full max-w-4xl">
+                    <PendingAttestations {...pendingAttestations} />
+                </div>
+
                 {/* Centered Greeting and Date/Time */}
                 <div className="flex flex-1 flex-col items-center justify-center space-y-6">
                     <div className="text-center space-y-2">
