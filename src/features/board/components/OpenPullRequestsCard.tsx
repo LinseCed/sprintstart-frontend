@@ -8,6 +8,9 @@ type OpenPullRequestsCardProps = {
     card: Pick<BoardCard, 'id' | 'owner' | 'placedAt'>;
     onDismiss?: (cardId: string) => void;
     dismissing?: boolean;
+    onMove?: (cardId: string, direction: 'up' | 'down') => void;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
 };
 
 /** A wait long enough that it is worth saying out loud rather than just showing. */
@@ -28,6 +31,9 @@ export function OpenPullRequestsCard({
     card,
     onDismiss,
     dismissing,
+    onMove,
+    canMoveUp,
+    canMoveDown,
 }: OpenPullRequestsCardProps) {
     const { pullRequests, attributionMissing } = content;
 
@@ -37,6 +43,9 @@ export function OpenPullRequestsCard({
             card={card}
             onDismiss={onDismiss}
             dismissing={dismissing}
+            onMove={onMove}
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
             subtitle={
                 pullRequests.length > 0
                     ? `${pullRequests.length} open`
