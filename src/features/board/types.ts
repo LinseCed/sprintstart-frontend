@@ -18,6 +18,7 @@ export type BoardCardKind =
     | 'SUGGESTED_TASKS'
     | 'COMPETENCY_PROGRESS'
     | 'MEMORY_RECAP'
+    | 'DIAGRAM'
     | AuthoredCardKind;
 
 /**
@@ -173,6 +174,80 @@ export type MemoryRecapContent = {
     messagesRemembered: number;
 };
 
+/** What a box is. `OTHER` is the honest answer when the evidence does not settle it. */
+export type DiagramNodeKind =
+    | 'COMPONENT'
+    | 'FILE'
+    | 'SERVICE'
+    | 'DATA'
+    | 'STEP'
+    | 'EXTERNAL'
+    | 'OTHER';
+
+/** How two boxes relate. `RELATES_TO` means connected in a way the evidence does not name. */
+export type DiagramEdgeKind = 'FLOWS_TO' | 'DEPENDS_ON' | 'CONTAINS' | 'RELATES_TO';
+
+/** Where a box came from. A source with no URL is still named: unopenable beats unattributed. */
+export type DiagramCitation = {
+    filename: string;
+    sourceUrl: string | null;
+};
+
+/**
+ * One box.
+ *
+ * `citations` is what separates a diagram from a drawing — every box asserts this project contains
+ * this part, and the citation is how a reader checks it. Never empty: an ungrounded box is dropped
+ * server-side rather than shown unsourced.
+ */
+export type DiagramNode = {
+    id: string;
+    label: string;
+    kind: DiagramNodeKind;
+    summary: string | null;
+    citations: DiagramCitation[];
+};
+
+/** One arrow. Both ends name a box in the same diagram. */
+export type DiagramEdge = {
+    fromId: string;
+    toId: string;
+    kind: DiagramEdgeKind;
+    label: string | null;
+};
+
+export type DiagramSource = {
+    filename: string;
+    sourceUrl: string | null;
+    artifactType: string | null;
+};
+
+/**
+ * A picture of how some part of the project fits together.
+ *
+ * The card that carries the one extension the board's rules ever got: **the buddy may choose the
+ * question, it never writes the answer.** `subject` is the mentor's — only the conversation knows
+ * what was just being explained — and every box is derived from the project's own material, one
+ * citation each.
+ *
+ * `assembledAt` is not decoration. The board serves the picture last drawn rather than waiting on
+ * one to be redrawn, so this is a claim about the code as it was at a moment, and the reader is
+ * entitled to know which. Null means it has never been drawn.
+ *
+ * An empty `nodes` with a `reason` is an ordinary state: the project may have nothing to say about
+ * this subject. An empty diagram is never dressed up as an explanation.
+ */
+export type DiagramContent = {
+    kind: 'DIAGRAM';
+    subject: string;
+    summary: string | null;
+    nodes: DiagramNode[];
+    edges: DiagramEdge[];
+    sources: DiagramSource[];
+    assembledAt: string | null;
+    reason: string | null;
+};
+
 /** Something the hire wrote down, in markdown. Theirs — never quoted back as fact. */
 export type NoteContent = {
     kind: 'NOTE';
@@ -208,6 +283,7 @@ export type BoardCardContent =
     | SuggestedTasksContent
     | CompetencyProgressContent
     | MemoryRecapContent
+    | DiagramContent
     | NoteContent
     | LinkContent
     | ChecklistContent;

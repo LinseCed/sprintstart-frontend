@@ -1,6 +1,7 @@
 import { ChecklistCard } from './ChecklistCard';
 import { CompetencyProgressCard } from './CompetencyProgressCard';
 import { CurrentTaskCard } from './CurrentTaskCard';
+import { DiagramCard } from './DiagramCard';
 import { LinkCard } from './LinkCard';
 import { MemoryRecapCard } from './MemoryRecapCard';
 import { NoteCard } from './NoteCard';
@@ -60,6 +61,8 @@ function BoardCardView({
             return <CompetencyProgressCard content={card.content} {...props} />;
         case 'MEMORY_RECAP':
             return <MemoryRecapCard content={card.content} {...props} />;
+        case 'DIAGRAM':
+            return <DiagramCard content={card.content} {...props} />;
         case 'NOTE':
             return <NoteCard content={card.content} onEdit={onEdit} {...props} />;
         case 'LINK':
