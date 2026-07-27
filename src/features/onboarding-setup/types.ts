@@ -39,8 +39,14 @@ export interface SetupLadder {
     ready: boolean;
 }
 
-/** What kind of evidence a track's work can produce. Mirrors the backend enum. */
-export type ContributionEvidenceKind = 'PULL_REQUEST';
+/**
+ * What kind of evidence a track's work can produce. Mirrors the backend enum.
+ *
+ * `ATTESTATION` is weaker than `PULL_REQUEST` and honestly labelled so: nothing observed it, a
+ * named colleague vouched for it. It exists because most roles produce nothing any connected
+ * system can see.
+ */
+export type ContributionEvidenceKind = 'PULL_REQUEST' | 'ATTESTATION';
 
 /**
  * One onboarding track: what onboarding means for a kind of role.

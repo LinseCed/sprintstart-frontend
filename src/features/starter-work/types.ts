@@ -18,6 +18,8 @@ export type StarterWorkTask = {
     /** Competencies the AI judged this task exercises; each becomes a prerequisite edge. */
     competencyKeys: string[];
     status: ProposalStatus;
+    /** Which track this work is for, or null when it suits any role. */
+    onboardingTrackKey: string | null;
 };
 
 export type ProposedStarterWork = {
@@ -37,6 +39,11 @@ export type CreateStarterWorkTaskInput = {
     summary?: string;
     sourceUrl?: string;
     competencyKeys?: string[];
+    /**
+     * Which track this work is for. Omitted means it suits any role — the honest default, and how
+     * every task behaved before tracks existed.
+     */
+    onboardingTrackKey?: string;
 };
 
 export type GenerateStarterWorkResult = {

@@ -2,6 +2,16 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { NewStarterTaskModal } from '../../../../src/features/starter-work/components/NewStarterTaskModal';
+import type { OnboardingTrack } from '../../../../src/features/onboarding-setup/types';
+
+const DELIVERY: OnboardingTrack = {
+    key: 'delivery',
+    label: 'Agile delivery',
+    contributionNoun: 'ceremony',
+    contributionNounPlural: 'ceremonies',
+    contributionVerbPast: 'facilitated',
+    evidenceKinds: ['ATTESTATION'],
+};
 
 function renderModal(overrides: Partial<Parameters<typeof NewStarterTaskModal>[0]> = {}) {
     const onCreate = overrides.onCreate ?? vi.fn().mockResolvedValue(true);
@@ -10,6 +20,7 @@ function renderModal(overrides: Partial<Parameters<typeof NewStarterTaskModal>[0
         <NewStarterTaskModal
             isSaving={false}
             error={null}
+            tracks={[DELIVERY]}
             onCreate={onCreate}
             onClose={onClose}
             {...overrides}
@@ -35,7 +46,9 @@ describe('NewStarterTaskModal', () => {
             title: 'Add dark mode',
             summary: undefined,
             sourceUrl: undefined,
-            competencyKeys: undefined
+            competencyKeys: undefined,
+            // "Any role" is the default, and it is sent as absent rather than as a sentinel.
+            onboardingTrackKey: undefined
         });
     });
 
@@ -73,5 +86,26 @@ describe('NewStarterTaskModal', () => {
         await user.click(screen.getByTestId('create-starter-task'));
 
         expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('scopes the task to a track when the PM picks one', async () => {
+        const user = userEvent.setup();
+        const { onCreate } = renderModal();
+
+        await user.type(screen.getByLabelText('Title'), 'Run the sprint retro');
+        await user.selectOptions(screen.getByLabelText('Who this is for'), 'delivery');
+        await user.click(screen.getByTestId('create-starter-task'));
+
+        expect(onCreate).toHaveBeenCalledWith(
+            expect.objectContaining({ onboardingTrackKey: 'delivery' })
+        );
+    });
+
+    it('defaults to any role rather than preselecting a track', () => {
+        renderModal();
+
+        // Scoping hides a task from other roles, so it has to be a deliberate choice rather than
+        // something a PM has to remember to undo.
+        expect(screen.getByLabelText('Who this is for')).toHaveValue('__any__');
     });
 });

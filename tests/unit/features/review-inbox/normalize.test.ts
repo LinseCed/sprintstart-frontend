@@ -49,6 +49,7 @@ const tasks: ProposedStarterWork = {
             title: 'Fix the flaky test',
             summary: 'A small, safe first task.',
             rationale: 'Well scoped.',
+            onboardingTrackKey: null,
             sourceUrl: null,
             competencyKeys: ['python', 'testing'],
             status: 'PROPOSED',

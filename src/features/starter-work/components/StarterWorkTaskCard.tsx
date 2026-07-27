@@ -61,6 +61,15 @@ export function StarterWorkTaskCard({ task, canAct, onApprove, onReject }: Start
                 </p>
             )}
 
+            {task.onboardingTrackKey && (
+                <p className="mt-3 text-xs text-app-text-muted">
+                    {/* Only shown when scoped: "any role" is the default and saying so on every
+                        unscoped card would be noise on the majority of them. */}
+                    Only suggested to hires on the{' '}
+                    <span className="font-medium text-app-text">{task.onboardingTrackKey}</span> track
+                </p>
+            )}
+
             {task.competencyKeys.length > 0 && (
                 <div className="mt-3">
                     <p className="mb-1.5 text-xs font-medium text-app-text-subtle">

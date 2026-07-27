@@ -15,7 +15,8 @@ const approvedTask: StarterWorkTask = {
     rationale: null,
     sourceUrl: 'https://github.com/acme/repo/issues/42',
     competencyKeys: [],
-    status: 'APPROVED'
+    status: 'APPROVED',
+    onboardingTrackKey: null
 };
 
 describe('TaskOrientationManager', () => {
