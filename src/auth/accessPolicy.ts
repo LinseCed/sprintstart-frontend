@@ -11,6 +11,7 @@ export type AppRoute =
     | '/knowledge-base'
     | '/onboarding'
     | '/buddy'
+    | '/board'
     | '/data-ingestion'
     | '/setup'
     | '/graph-studio'
@@ -41,6 +42,14 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
         PermissionGroup.ADMIN,
     ],
     '/buddy': [
+        PermissionGroup.USER,
+        PermissionGroup.PM,
+        PermissionGroup.HR,
+        PermissionGroup.ADMIN,
+    ],
+    // The hire's own board. Same audience as the buddy: it is the durable half of the same
+    // surface, and everybody onboards onto a project at some point.
+    '/board': [
         PermissionGroup.USER,
         PermissionGroup.PM,
         PermissionGroup.HR,
