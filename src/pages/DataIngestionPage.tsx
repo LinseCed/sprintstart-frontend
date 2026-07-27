@@ -65,6 +65,7 @@ import {
   configureGithubRepository,
   getGithubRepositoryConfig,
   getGithubPatNames,
+  removeRepositoryFromProject,
   updateGithubRepository,
   type ConfigureGithubRepositoryRequest,
 } from "../services/sources/githubService.ts";
@@ -698,8 +699,6 @@ export function DataIngestionPage() {
     );
   }, [connectorEnabledById, projectSources, runs, sourceInstances]);
 
-  // Project-wide artifact total for the overview KPI, summed from the per-repo
-  // status endpoint (#5) instead of paging the full artifact list.
   const totalArtifactCount = useMemo(
     () => sourceInstances.reduce((sum, s) => sum + s.artifactCount, 0),
     [sourceInstances],
@@ -1021,6 +1020,35 @@ export function DataIngestionPage() {
     [refreshSourceDetails],
   );
 
+  // Removes a GitHub repository's link to the selected project (the DELETE
+  // counterpart to linking it via the Add Source flow). The repository and its
+  // artifacts are kept; only this project stops using it. Closes the drawer and
+  // refreshes the project-scoped lists so the source card disappears.
+  const handleUnlinkSource = useCallback(
+    async (source: DataSource) => {
+      const repositoryId = source.githubRepository?.repositoryId;
+
+      if (
+        source.sourceSystem !== "GITHUB" ||
+        !repositoryId ||
+        !selectedProjectId
+      ) {
+        throw new Error(
+          "This repository cannot be removed from the project.",
+        );
+      }
+
+      await removeRepositoryFromProject(repositoryId, selectedProjectId);
+
+      setSelectedSourceId(null);
+      setConnectSuccessMessage(
+        `${source.githubRepository?.fullName ?? "Repository"} was removed from ${selectedProject?.name ?? "the project"}.`,
+      );
+      await refreshSourceDetails();
+    },
+    [refreshSourceDetails, selectedProject?.name, selectedProjectId],
+  );
+
   const isLoading = loadingState === "loading";
 
   const showOverview = activeSection === "overview";
@@ -1262,6 +1290,9 @@ export function DataIngestionPage() {
           onLoadRepositoryConfig={handleLoadGithubRepositoryConfig}
           onSaveRepositoryConfig={handleSaveGithubRepositoryConfig}
           onSetSourceEnabled={handleSetSourceEnabled}
+          onUnlinkSource={
+            canIngestIntoSelectedProject ? handleUnlinkSource : undefined
+          }
           onClose={closeSourceDetails}
         />
       )}
