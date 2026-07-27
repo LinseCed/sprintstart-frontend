@@ -8,6 +8,11 @@ type HireTimelineCardProps = {
 
 type Moment = { label: string; at: string | null };
 
+/** Track nouns arrive bare ("change", "facilitated") so a slot at the start of a label capitalises. */
+function capitalise(word: string): string {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
 /** Hours between two moments, when both have happened. */
 function gapHours(from: string | null, to: string | null): number | null {
     if (!from || !to) return null;
@@ -15,28 +20,34 @@ function gapHours(from: string | null, to: string | null): number | null {
 }
 
 /**
- * One hire's onboarding timeline: joined → task claimed → PR opened → first
- * review → merged, with the gap between each pair of moments that has actually
+ * One hire's onboarding timeline: joined → task claimed → work submitted → first
+ * response → accepted, with the gap between each pair of moments that has actually
  * happened. An unreached moment is a hollow dot and a dash, never a zero.
  *
- * Review latency is framed as waiting *on a review* — someone else's move — not
- * as the hire being slow, because "receiving a response" is the barrier (R1) and
- * the fix is a conversation with the reviewer.
+ * The moments are named from the hire's own track, because the numbers behind them are composed
+ * from contributions of any kind — only the wire field names still say "pull request". A Scrum
+ * Master reading "PR opened" over their own ceremonies learns nothing except that the tool was not
+ * built for them.
+ *
+ * Response latency is framed as waiting *on somebody else's move* — not as the
+ * hire being slow, because "receiving a response" is the barrier (R1) and the fix
+ * is a conversation with whoever owes it.
  *
  * Known contract gaps (slice 0 backend): there is no "environment ready" moment
  * yet (it arrives with slice 2), and the timeline carries no reviewer identity,
  * so the wait is attributed to "a reviewer" generically rather than by name.
  */
 export function HireTimelineCard({ hire }: HireTimelineCardProps) {
+    const { contributionNoun, contributionNounPlural, contributionVerbPast } = hire.vocabulary;
     const moments: Moment[] = [
         { label: 'Joined', at: hire.joinedAt },
         { label: 'Task claimed', at: hire.firstTaskClaimedAt },
-        { label: 'PR opened', at: hire.firstPullRequestOpenedAt },
-        { label: 'First review', at: hire.firstResponseAt },
-        { label: 'Merged', at: hire.firstPullRequestMergedAt }
+        { label: `${capitalise(contributionNoun)} started`, at: hire.firstPullRequestOpenedAt },
+        { label: 'First response', at: hire.firstResponseAt },
+        { label: capitalise(contributionVerbPast), at: hire.firstPullRequestMergedAt }
     ];
 
-    // A PR is open, was opened, but nobody has responded: the wait is on a reviewer.
+    // Something is in flight, was started, but nobody has responded: the wait is on somebody else.
     const awaitingReview =
         hire.firstPullRequestOpenedAt !== null &&
         hire.firstResponseAt === null &&
@@ -68,13 +79,17 @@ export function HireTimelineCard({ hire }: HireTimelineCardProps) {
                     {hire.mergedPullRequestCount > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-app-success-bg px-2 py-0.5 text-xs font-medium text-app-success-text">
                             <GitMerge className="h-3 w-3" aria-hidden="true" />
-                            {hire.mergedPullRequestCount} merged
+                            {hire.mergedPullRequestCount}{' '}
+                            {hire.mergedPullRequestCount === 1
+                                ? contributionNoun
+                                : contributionNounPlural}{' '}
+                            {contributionVerbPast}
                         </span>
                     )}
                     {awaitingReview && hire.longestOpenWaitHours !== null && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-app-warning-bg px-2 py-0.5 text-xs font-medium text-app-warning-text">
                             <Clock className="h-3 w-3" aria-hidden="true" />
-                            Waiting {formatDuration(hire.longestOpenWaitHours)} on a review
+                            Waiting {formatDuration(hire.longestOpenWaitHours)} on a response
                         </span>
                     )}
                 </div>

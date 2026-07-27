@@ -26,7 +26,7 @@ function hasActivity(hires: HireTimeline[]): boolean {
 
 /**
  * The PM readout for the numbers the onboarding redesign is judged on:
- * time-to-first-merged-PR, review latency, and — first, as the call to action —
+ * time-to-first-accepted-work, response latency, and — first, as the call to action —
  * who is stalled.
  *
  * Deliberately a measurement readout, not another dashboard: no completion
@@ -74,7 +74,7 @@ export function OnboardingMetricsPage() {
                 <PageHeader
                     icon={Gauge}
                     title="Onboarding metrics"
-                    subtitle="Time to a first merged pull request, review latency, and who is stalled — the measures the onboarding redesign is judged on."
+                    subtitle="Time to a first accepted piece of work, response latency, and who is stalled — the measures the onboarding redesign is judged on."
                     actions={
                         <ProjectSelect
                             projects={projects}
@@ -120,7 +120,7 @@ export function OnboardingMetricsPage() {
                     <EmptyState
                         icon={<Gauge className="h-8 w-8 text-app-text-disabled" />}
                         title="No data yet"
-                        body="These metrics fill in as hires claim tasks, open pull requests, and get reviews. Nothing has happened yet — that's different from nobody being here."
+                        body="These metrics fill in as hires claim tasks, submit work, and get responses. Nothing has happened yet — that's different from nobody being here."
                     />
                 ) : (
                     <>
@@ -182,9 +182,9 @@ export function OnboardingMetricsPage() {
                         {/* Aggregates. Medians throughout so one outlier can't move the number. */}
                         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                             <StatTile
-                                label="Median time to first merged PR"
+                                label="Median time to first accepted work"
                                 value={formatDuration(metrics.medianHoursToFirstMergedPullRequest)}
-                                hint={`${metrics.hiresWithMergedPullRequest} of ${metrics.memberCount} have merged one`}
+                                hint={`${metrics.hiresWithMergedPullRequest} of ${metrics.memberCount} have had work accepted`}
                             />
                             <StatTile
                                 label="Median first-review wait"
