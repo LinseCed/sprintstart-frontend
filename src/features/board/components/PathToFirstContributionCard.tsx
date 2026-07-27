@@ -14,6 +14,9 @@ type PathCardProps = {
     card: Pick<BoardCard, 'id' | 'owner' | 'placedAt'>;
     onDismiss?: (cardId: string) => void;
     dismissing?: boolean;
+    onMove?: (cardId: string, direction: 'up' | 'down') => void;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
 };
 
 /**
@@ -54,6 +57,9 @@ export function PathToFirstContributionCard({
     card,
     onDismiss,
     dismissing,
+    onMove,
+    canMoveUp,
+    canMoveDown,
 }: PathCardProps) {
     const { acceptedCount, autonomyReachedAt, stalledReason } = content;
 
@@ -63,6 +69,9 @@ export function PathToFirstContributionCard({
             card={card}
             onDismiss={onDismiss}
             dismissing={dismissing}
+            onMove={onMove}
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
             subtitle={
                 acceptedCount > 0
                     ? `${acceptedCount} ${

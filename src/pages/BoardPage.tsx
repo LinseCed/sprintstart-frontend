@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { AlertCircle, Bot, LayoutDashboard, Loader2, RefreshCw } from 'lucide-react';
 import { useBoard } from '../features/board/hooks/useBoard';
+import { AddCardForm } from '../features/board/components/AddCardForm';
 import { BoardGrid } from '../features/board/components/BoardGrid';
 import { ProjectSelect } from '../features/projects/components/ProjectSelect';
 import { useProjectSelection } from '../features/projects/useProjectSelection';
@@ -29,8 +30,19 @@ export function BoardPage() {
         setSelectedProjectId,
     } = useProjectSelection({ isAdmin });
 
-    const { board, loading, error, refresh, dismiss, dismissingId, dismissError } =
-        useBoard(selectedProjectId);
+    const {
+        board,
+        loading,
+        error,
+        refresh,
+        dismiss,
+        dismissingId,
+        dismissError,
+        addCard,
+        editCard,
+        reorder,
+        writeError,
+    } = useBoard(selectedProjectId);
 
     return (
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
@@ -94,15 +106,20 @@ export function BoardPage() {
             ) : board ? (
                 <>
                     {/* A card that looks gone but is not is worse than one that visibly refused. */}
-                    {dismissError && (
+                    {(dismissError || writeError) && (
                         <p className="mb-4 rounded-xl border border-app-danger-border bg-app-danger-bg/30 p-3 text-sm text-app-danger-text">
-                            That card couldn&apos;t be removed. It&apos;s still here — try again.
+                            {dismissError
+                                ? "That card couldn't be removed. It's still here — try again."
+                                : "That change didn't save. Your board is as it was — try again."}
                         </p>
                     )}
+                    <AddCardForm onAdd={addCard} />
                     <BoardGrid
                         board={board}
                         onDismiss={(cardId) => void dismiss(cardId)}
                         dismissingId={dismissingId}
+                        onEdit={(cardId, request) => void editCard(cardId, request)}
+                        onReorder={(cardIds) => void reorder(cardIds)}
                     />
                 </>
             ) : null}

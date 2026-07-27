@@ -15,7 +15,16 @@ export type BoardCardKind =
     | 'PATH_TO_FIRST_CONTRIBUTION'
     | 'OPEN_PULL_REQUESTS'
     | 'CURRENT_TASK'
-    | 'SUGGESTED_TASKS';
+    | 'SUGGESTED_TASKS'
+    | AuthoredCardKind;
+
+/**
+ * The kinds the hire writes themselves.
+ *
+ * The only ones with content the board did not read from anywhere, the only ones a board may hold
+ * several of, and the only ones the hire may edit.
+ */
+export type AuthoredCardKind = 'NOTE' | 'LINK' | 'CHECKLIST';
 
 /**
  * Who a card belongs to, which is what decides who may change it.
@@ -129,12 +138,58 @@ export type SuggestedTasksContent = {
     tasks: BoardSuggestedTask[];
 };
 
+/** Something the hire wrote down, in markdown. Theirs — never quoted back as fact. */
+export type NoteContent = {
+    kind: 'NOTE';
+    text: string;
+};
+
+/** A link the hire kept. A null `label` means show the URL: worse to read, but always true. */
+export type LinkContent = {
+    kind: 'LINK';
+    url: string;
+    label: string | null;
+};
+
+/** One checklist item, identified so ticking it is an edit to the line and not to a position. */
+export type ChecklistItem = {
+    id: string;
+    text: string;
+    done: boolean;
+};
+
+/** A list the hire ticks off — the only card whose content changes by being used. */
+export type ChecklistContent = {
+    kind: 'CHECKLIST';
+    title: string | null;
+    items: ChecklistItem[];
+};
+
 /** The rendered content of one card, discriminated by `kind`. */
 export type BoardCardContent =
     | PathToFirstContributionContent
     | OpenPullRequestsContent
     | CurrentTaskContent
-    | SuggestedTasksContent;
+    | SuggestedTasksContent
+    | NoteContent
+    | LinkContent
+    | ChecklistContent;
+
+/**
+ * What the hire wants a card of theirs to say.
+ *
+ * The same shape creates and edits, because an edit replaces the content outright — a patch
+ * language for a three-line note would be more machinery than the note. A new checklist item has no
+ * `id`; the server mints one, so two tabs adding a line cannot mint the same one.
+ */
+export type AuthoredCardRequest =
+    | { kind: 'NOTE'; text: string }
+    | { kind: 'LINK'; url: string; label?: string | null }
+    | {
+          kind: 'CHECKLIST';
+          title?: string | null;
+          items: { id?: string; text: string; done: boolean }[];
+      };
 
 export type BoardCard = {
     id: string;

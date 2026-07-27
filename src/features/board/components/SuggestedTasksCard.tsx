@@ -7,6 +7,9 @@ type SuggestedTasksCardProps = {
     card: Pick<BoardCard, 'id' | 'owner' | 'placedAt'>;
     onDismiss?: (cardId: string) => void;
     dismissing?: boolean;
+    onMove?: (cardId: string, direction: 'up' | 'down') => void;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
 };
 
 /**
@@ -25,6 +28,9 @@ export function SuggestedTasksCard({
     card,
     onDismiss,
     dismissing,
+    onMove,
+    canMoveUp,
+    canMoveDown,
 }: SuggestedTasksCardProps) {
     return (
         <BoardCardFrame
@@ -33,6 +39,9 @@ export function SuggestedTasksCard({
             subtitle={content.tasks.length > 0 ? 'Best fit first' : undefined}
             onDismiss={onDismiss}
             dismissing={dismissing}
+            onMove={onMove}
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
         >
             {content.tasks.length === 0 ? (
                 <p className="text-sm text-app-text-muted">

@@ -1,20 +1,28 @@
+import { ChecklistCard } from './ChecklistCard';
 import { CurrentTaskCard } from './CurrentTaskCard';
+import { LinkCard } from './LinkCard';
+import { NoteCard } from './NoteCard';
 import { OpenPullRequestsCard } from './OpenPullRequestsCard';
 import { PathToFirstContributionCard } from './PathToFirstContributionCard';
 import { SuggestedTasksCard } from './SuggestedTasksCard';
-import type { Board, BoardCard } from '../types';
+import type { AuthoredCardRequest, Board, BoardCard } from '../types';
 
 type BoardGridProps = {
     board: Board;
     onDismiss?: (cardId: string) => void;
     dismissingId?: string | null;
+    onEdit?: (cardId: string, request: AuthoredCardRequest) => void;
+    /** Applies a whole new order. Absent when the board is not arrangeable. */
+    onReorder?: (cardIds: string[]) => void;
 };
 
-type BoardCardViewProps = {
+type SharedProps = {
     card: BoardCard;
-    board: Board;
     onDismiss?: (cardId: string) => void;
     dismissing: boolean;
+    onMove?: (cardId: string, direction: 'up' | 'down') => void;
+    canMoveUp: boolean;
+    canMoveDown: boolean;
 };
 
 /**
@@ -24,23 +32,34 @@ type BoardCardViewProps = {
  * renders something visible rather than nothing: a card that silently disappears because the client
  * is a version behind is indistinguishable from the mentor never having placed it.
  */
-function BoardCardView({ card, board, onDismiss, dismissing }: BoardCardViewProps) {
-    const shared = { card, onDismiss, dismissing };
+function BoardCardView({
+    card,
+    board,
+    onEdit,
+    ...shared
+}: SharedProps & { board: Board; onEdit?: (cardId: string, request: AuthoredCardRequest) => void }) {
+    const props = { card, ...shared };
     switch (card.content.kind) {
         case 'PATH_TO_FIRST_CONTRIBUTION':
             return (
                 <PathToFirstContributionCard
                     content={card.content}
                     vocabulary={board.vocabulary}
-                    {...shared}
+                    {...props}
                 />
             );
         case 'OPEN_PULL_REQUESTS':
-            return <OpenPullRequestsCard content={card.content} {...shared} />;
+            return <OpenPullRequestsCard content={card.content} {...props} />;
         case 'CURRENT_TASK':
-            return <CurrentTaskCard content={card.content} {...shared} />;
+            return <CurrentTaskCard content={card.content} {...props} />;
         case 'SUGGESTED_TASKS':
-            return <SuggestedTasksCard content={card.content} {...shared} />;
+            return <SuggestedTasksCard content={card.content} {...props} />;
+        case 'NOTE':
+            return <NoteCard content={card.content} onEdit={onEdit} {...props} />;
+        case 'LINK':
+            return <LinkCard content={card.content} {...props} />;
+        case 'CHECKLIST':
+            return <ChecklistCard content={card.content} onEdit={onEdit} {...props} />;
         default:
             return (
                 <section className="rounded-2xl border border-dashed border-app-border p-4">
@@ -56,19 +75,45 @@ function BoardCardView({ card, board, onDismiss, dismissing }: BoardCardViewProp
  * The board's layout: a responsive grid, in board order.
  *
  * A grid rather than a free x/y canvas — each card can still contain a graph or a diagram, and a
- * canvas does not survive a phone screen. Drag-reorder is the hire's half of the board and arrives
- * with the cards they author.
+ * canvas does not survive a phone screen.
+ *
+ * Rearranging is a pair of move buttons on every card rather than a drag. A drag is the nicer
+ * gesture, but it is the *only* gesture in most implementations, and a board you can only arrange
+ * with a mouse is a board some people cannot arrange at all. Moving one card sends the whole
+ * resulting order, because that is what the board now looks like.
  */
-export function BoardGrid({ board, onDismiss, dismissingId = null }: BoardGridProps) {
+export function BoardGrid({
+    board,
+    onDismiss,
+    dismissingId = null,
+    onEdit,
+    onReorder,
+}: BoardGridProps) {
+    const move = onReorder
+        ? (cardId: string, direction: 'up' | 'down') => {
+              const ids = board.cards.map((card) => card.id);
+              const from = ids.indexOf(cardId);
+              const to = direction === 'up' ? from - 1 : from + 1;
+              if (from === -1 || to < 0 || to >= ids.length) return;
+              const next = [...ids];
+              [next[from], next[to]] = [next[to], next[from]];
+              onReorder(next);
+          }
+        : undefined;
+
     return (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {board.cards.map((card) => (
+            {board.cards.map((card, index) => (
                 <BoardCardView
                     key={card.id}
                     card={card}
                     board={board}
                     onDismiss={onDismiss}
                     dismissing={dismissingId === card.id}
+                    onEdit={onEdit}
+                    onMove={move}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < board.cards.length - 1}
                 />
             ))}
         </div>

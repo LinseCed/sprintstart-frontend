@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { Board } from '../features/board/types';
+import type { AuthoredCardRequest, Board, BoardCard } from '../features/board/types';
 
 const BASE = '/api/v1/onboarding';
 
@@ -36,5 +36,49 @@ export const boardService = {
         await apiClient.fetch<void>(`${BASE}/me/board/cards/${encodeURIComponent(cardId)}`, {
             method: 'DELETE',
         });
+    },
+
+    /**
+     * Puts a card of the hire's own on their board.
+     *
+     * It is theirs: they can edit it, the buddy never touches it, and a board holds as many as they
+     * like — unlike the live cards, of which there is one each.
+     *
+     * @throws ApiError 400 when the card would say nothing (an empty note, a link with no address).
+     */
+    async addCard(projectId: string, request: AuthoredCardRequest): Promise<BoardCard> {
+        return await apiClient.fetch<BoardCard>(
+            `${BASE}/me/board/cards?projectId=${encodeURIComponent(projectId)}`,
+            { method: 'POST', body: JSON.stringify(request) },
+        );
+    },
+
+    /**
+     * Replaces what one of the hire's own cards says — ticking a checklist item included.
+     *
+     * Replaces rather than patches: these are small and are read and written whole. Items keep
+     * their ids across the round trip, which is what makes a tick an edit to that line rather than
+     * to a position.
+     *
+     * @throws ApiError 404 when it is not a card of theirs.
+     */
+    async editCard(cardId: string, request: AuthoredCardRequest): Promise<BoardCard> {
+        return await apiClient.fetch<BoardCard>(
+            `${BASE}/me/board/cards/${encodeURIComponent(cardId)}`,
+            { method: 'PATCH', body: JSON.stringify(request) },
+        );
+    },
+
+    /**
+     * Sets the order of the hire's cards.
+     *
+     * Sends the whole order rather than one move: a drag is a statement about the board, and
+     * reconstructing that from a single move is how two clients end up disagreeing.
+     */
+    async reorder(projectId: string, cardIds: string[]): Promise<void> {
+        await apiClient.fetch<void>(
+            `${BASE}/me/board/order?projectId=${encodeURIComponent(projectId)}`,
+            { method: 'PUT', body: JSON.stringify({ cardIds }) },
+        );
     },
 };
