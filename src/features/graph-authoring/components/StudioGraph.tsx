@@ -1,18 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
-import {
-    Background,
-    Controls,
-    MarkerType,
-    ReactFlow,
-    type Connection,
-    type Edge,
-    type NodeMouseHandler
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { chainFor, type GraphShape } from '../../competency-graph/layout';
-import { useForceLayout } from '../../competency-graph/useForceLayout';
-import { StudioGraphNode, type AuthoringState, type StudioFlowNode } from './StudioGraphNode';
+import { useMemo } from 'react';
+import { type GraphShape } from '../../competency-graph/layout';
+import { DiagramCanvas, type DiagramCanvasEdge } from '../../graph-diagram/DiagramCanvas';
+import { StudioGraphNode, type AuthoringState } from './StudioGraphNode';
 import type { LiveCompetency, LiveGraph, ProposedGraph } from '../types';
 import type { ModuleReadiness } from '../hooks/useModuleAuthoring';
 
@@ -54,14 +43,15 @@ function authoringStateFor(key: string, readiness: Map<string, ModuleReadiness>)
  * The competency graph as the authoring surface: the whole live graph, plus what the AI has
  * proposed, drawn together so a PM approves a proposal in the context of the graph it would join.
  *
- * Two things separate it from the hire's map. Nodes are coloured by **authoring readiness** —
- * whether a module is published, drafted or missing — because "mastered/available/locked"
- * describes a person's progress and means nothing on the shared graph. And proposals are drawn
- * as dashed ghosts wired into the live nodes they connect to, rather than sitting in a list
- * beside a picture of the graph.
+ * Two things separate it from any other diagram in the app. Nodes are coloured by **authoring
+ * readiness** — whether a module is published, drafted or missing — because "mastered/available"
+ * describes a person's progress and means nothing on the shared graph. And proposals are drawn as
+ * dashed ghosts wired into the live nodes they connect to, rather than sitting in a list beside a
+ * picture of the graph.
  *
- * The layout engine is shared with the hire's map (`features/competency-graph`), so the two
- * surfaces can never disagree about where a node sits.
+ * Everything that is *not* specific to authoring — layout, the chain that lights on hover or
+ * selection, the dimming, reduced motion, the canvas itself — belongs to `DiagramCanvas`, so this
+ * surface and the hire's cannot drift into reading differently.
  */
 export function StudioGraph({
     graph,
@@ -71,9 +61,6 @@ export function StudioGraph({
     onSelectKey,
     onConnectNodes
 }: StudioGraphProps) {
-    const reduceMotion = useReducedMotion() ?? false;
-    const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-
     const liveKeys = useMemo(
         () => new Set(graph.competencies.map(competency => competency.key)),
         [graph.competencies]
@@ -99,118 +86,59 @@ export function StudioGraph({
         return { nodes, edges };
     }, [graph, proposedNodes, proposals.edges]);
 
-    const { positions } = useForceLayout(shape, !reduceMotion);
-
-    // Hover is pointer-only, so selection lights the same chain — otherwise this reading of the
-    // graph is unavailable by keyboard.
-    const chainKey = hoveredKey ?? selectedKey;
-    const chainKeys = useMemo(
-        () => (chainKey ? chainFor(shape, chainKey) : null),
-        [shape, chainKey]
-    );
-
-    const nodes = useMemo<StudioFlowNode[]>(() => {
+    const nodes = useMemo(() => {
         const live = graph.competencies.map(competency => ({
             id: competency.key,
-            type: 'studioCompetency' as const,
-            position: positions.get(competency.key) ?? { x: 0, y: 0 },
             data: {
                 competency,
                 authoringState: authoringStateFor(competency.key, readinessByKey),
                 selected: competency.key === selectedKey,
-                dimmed: chainKeys !== null && !chainKeys.has(competency.key),
                 isProposal: false
             },
             ariaLabel: `${competency.label}, ${competency.kind.toLowerCase()}`
         }));
         const proposed = proposedNodes.map(proposal => ({
             id: proposal.key,
-            type: 'studioCompetency' as const,
-            position: positions.get(proposal.key) ?? { x: 0, y: 0 },
             data: {
                 competency: proposalAsCompetency(proposal),
                 authoringState: 'PROPOSED' as const,
                 selected: proposal.key === selectedKey,
-                dimmed: chainKeys !== null && !chainKeys.has(proposal.key),
                 isProposal: true
             },
             ariaLabel: `${proposal.label}, proposed ${proposal.kind.toLowerCase()}`
         }));
         return [...live, ...proposed];
-    }, [graph.competencies, proposedNodes, positions, readinessByKey, selectedKey, chainKeys]);
+    }, [graph.competencies, proposedNodes, readinessByKey, selectedKey]);
 
-    const edges = useMemo<Edge[]>(() => {
-        const known = new Set(nodes.map(node => node.id));
-        const live = graph.edges
-            .filter(edge => known.has(edge.fromKey) && known.has(edge.toKey))
-            .map(edge => ({
-                id: `${edge.fromKey}->${edge.toKey}`,
-                source: edge.fromKey,
-                target: edge.toKey,
-                markerEnd: { type: MarkerType.ArrowClosed },
-                // A RELATED edge gates nothing, so it must not read like a prerequisite.
-                style: {
-                    opacity:
-                        chainKeys === null ||
-                        (chainKeys.has(edge.fromKey) && chainKeys.has(edge.toKey))
-                            ? 1
-                            : 0.12,
-                    strokeDasharray: edge.kind === 'RELATED' ? '2 4' : undefined
-                }
-            }));
-        const proposed = proposals.edges
-            .filter(edge => known.has(edge.fromKey) && known.has(edge.toKey))
-            .map(edge => ({
-                id: `proposed:${edge.fromKey}->${edge.toKey}`,
-                source: edge.fromKey,
-                target: edge.toKey,
-                markerEnd: { type: MarkerType.ArrowClosed },
-                style: { opacity: 0.6, strokeDasharray: '6 4' }
-            }));
+    const edges = useMemo<DiagramCanvasEdge[]>(() => {
+        const live = graph.edges.map(edge => ({
+            id: `${edge.fromKey}->${edge.toKey}`,
+            from: edge.fromKey,
+            to: edge.toKey,
+            // A RELATED edge gates nothing, so it must not read like a prerequisite.
+            dashed: edge.kind === 'RELATED'
+        }));
+        const proposed = proposals.edges.map(edge => ({
+            id: `proposed:${edge.fromKey}->${edge.toKey}`,
+            from: edge.fromKey,
+            to: edge.toKey,
+            ghost: true
+        }));
         return [...live, ...proposed];
-    }, [graph.edges, proposals.edges, nodes, chainKeys]);
-
-    const handleNodeClick = useCallback<NodeMouseHandler<StudioFlowNode>>(
-        (_event, node) => onSelectKey(node.id),
-        [onSelectKey]
-    );
-
-    const handleConnect = useCallback(
-        (connection: Connection) => {
-            if (!connection.source || !connection.target) return;
-            onConnectNodes(connection.source, connection.target);
-        },
-        [onConnectNodes]
-    );
+    }, [graph.edges, proposals.edges]);
 
     return (
-        <div
-            className="h-full w-full"
-            data-testid="studio-graph"
-            role="application"
-            aria-label="Competency graph editor"
-        >
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                onNodeClick={handleNodeClick}
-                onNodeMouseEnter={(_event, node) => setHoveredKey(node.id)}
-                onNodeMouseLeave={() => setHoveredKey(null)}
-                onPaneClick={() => onSelectKey(null)}
-                onConnect={handleConnect}
-                // Positions are derived from the layout on every render, so a dragged node would
-                // be pulled back under the pointer. Prerequisites are declared by dragging
-                // between the connection handles instead.
-                nodesDraggable={false}
-                nodesConnectable
-                edgesFocusable={false}
-                fitView
-                proOptions={{ hideAttribution: false }}
-            >
-                <Background />
-                <Controls showInteractive={false} />
-            </ReactFlow>
-        </div>
+        <DiagramCanvas
+            shape={shape}
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            nodeType="studioCompetency"
+            selectedId={selectedKey}
+            onSelect={onSelectKey}
+            onConnectNodes={onConnectNodes}
+            ariaLabel="Competency graph editor"
+            testId="studio-graph"
+        />
     );
 }
