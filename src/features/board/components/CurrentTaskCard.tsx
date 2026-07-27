@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { BoardCardFrame } from './BoardCardFrame';
+import { AskTheBuddy } from './AskTheBuddy';
 import type { BoardCard, CurrentTaskContent } from '../types';
 
 type CurrentTaskCardProps = {
@@ -75,6 +76,16 @@ export function CurrentTaskCard({
                     can suggest tasks that fit what you&apos;ve already shown.
                 </p>
             )}
+
+            {/* "How do I start this" is what makes the mentor offer to assemble the orientation
+                packet, so the card needs no orientation action of its own. */}
+            <AskTheBuddy
+                question={
+                    hasTask
+                        ? `How do I get started on "${content.title ?? 'my task'}"?`
+                        : 'What would be a good task for me to pick up?'
+                }
+            />
         </BoardCardFrame>
     );
 }
