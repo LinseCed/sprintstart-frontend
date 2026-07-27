@@ -21,12 +21,6 @@ const RUNG_META: Record<string, RungMeta> = {
         route: '/graph-studio',
         reviewKind: 'skill-map',
     },
-    baseline: {
-        title: 'Baseline set',
-        blurb: 'Mark which approved competencies a hire on this project is expected to reach.',
-        route: '/onboarding-baseline',
-        reviewKind: 'baseline',
-    },
     'starter-tasks': {
         title: 'Starter tasks stocked',
         blurb: 'Well-scoped first tasks a hire can aim at. Approving one turns it into a goal.',
@@ -36,7 +30,7 @@ const RUNG_META: Record<string, RungMeta> = {
 };
 
 /** The order rungs render in, matching the setup pipeline. */
-const RUNG_ORDER = ['corpus', 'skill-map', 'baseline', 'starter-tasks'];
+const RUNG_ORDER = ['corpus', 'skill-map', 'starter-tasks'];
 
 /**
  * Derives the corpus rung from the ingestion sources the Data Ingestion page already builds, so the

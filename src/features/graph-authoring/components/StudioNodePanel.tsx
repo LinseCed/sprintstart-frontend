@@ -3,14 +3,7 @@ import { ArrowRight, Sparkles, X } from 'lucide-react';
 import { CompetencyNodeEditor, type CompetencyEditInput } from './CompetencyNodeEditor';
 import { PrerequisiteEditor } from './PrerequisiteEditor';
 import { ModuleAuthoringSection } from './ModuleAuthoringSection';
-import { BaselineSection } from './BaselineSection';
-import type {
-    BaselineEntry,
-    CompetencyProposal,
-    LiveCompetency,
-    LiveGraph,
-    SetBaselineEntryInput,
-} from '../types';
+import type { CompetencyProposal, LiveCompetency, LiveGraph } from '../types';
 import type { ModuleReadiness } from '../hooks/useModuleAuthoring';
 import type { AiActivityEntry } from '../../ai-activity/useAiStream';
 
@@ -39,14 +32,6 @@ type StudioNodePanelProps = {
         isStreaming?: boolean;
         activity?: AiActivityEntry[];
     };
-    /** Direct baseline authoring for the selected project; null when no project is scoped. */
-    baselineProps: {
-        entry: BaselineEntry | null;
-        isBusy: boolean;
-        error: string | null;
-        onSetExpected: (input: SetBaselineEntryInput) => void;
-        onRemove: () => void;
-    } | null;
     /** Approve/reject for a selected proposal, so a PM can decide it on the canvas. */
     onApproveProposal?: (id: string) => void;
     onRejectProposal?: (id: string) => void;
@@ -80,7 +65,6 @@ export function StudioNodePanel({
     onSelectKey,
     onClose,
     moduleReadinessProps,
-    baselineProps,
     onApproveProposal,
     onRejectProposal
 }: StudioNodePanelProps) {
@@ -206,17 +190,6 @@ export function StudioNodePanel({
                             Pick a project above to author this competency&apos;s module — the graph
                             is shared, but a module is written against one project&apos;s corpus.
                         </p>
-                    )}
-
-                    {baselineProps && (
-                        <BaselineSection
-                            competency={competency}
-                            entry={baselineProps.entry}
-                            isBusy={baselineProps.isBusy}
-                            error={baselineProps.error}
-                            onSetExpected={baselineProps.onSetExpected}
-                            onRemove={baselineProps.onRemove}
-                        />
                     )}
 
                     {isEditing ? (

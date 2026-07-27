@@ -35,28 +35,24 @@ describe('deriveCorpusRung', () => {
 describe('buildLadder', () => {
     const corpusOk: SetupRung = { key: 'corpus', state: 'OK', count: 663, detail: '663 artifacts ingested.' };
 
-    it('renders the four stages corpus-first, in pipeline order', () => {
+    it('renders the three stages corpus-first, in pipeline order', () => {
         const ladder = buildLadder(
             readiness([
                 { key: 'skill-map', state: 'OK', count: 6, detail: '6 competencies approved.' },
-                { key: 'baseline', state: 'OK', count: 3, detail: '3 competencies expected on this project.' },
                 { key: 'starter-tasks', state: 'OK', count: 2, detail: '2 starter tasks ready to claim.' },
             ]),
             corpusOk,
         );
-        expect(ladder.rungs.map((r) => r.key)).toEqual([
-            'corpus',
-            'skill-map',
-            'baseline',
-            'starter-tasks',
-        ]);
+        // The baseline rung went when the path became goal-directed: it was asking a PM to make a
+        // selection nothing read, which looks like progress while somebody does it.
+        expect(ladder.rungs.map((r) => r.key)).toEqual(['corpus', 'skill-map', 'starter-tasks']);
         expect(ladder.rungs[1].title).toBe('Skill map approved');
         expect(ladder.rungs[1].route).toBe('/graph-studio');
         expect(ladder.ready).toBe(true);
     });
 
-    // The bug that started this: a map was generated but never approved, so the baseline read empty.
-    it('is not ready when proposals await review and the baseline is blocked', () => {
+    // The bug that started this: a map was generated but never approved, so a page read empty.
+    it('is not ready when proposals await review', () => {
         const ladder = buildLadder(
             readiness([
                 {
@@ -64,12 +60,6 @@ describe('buildLadder', () => {
                     state: 'WARN',
                     count: 0,
                     detail: '25 competencies and 19 edges are waiting for your review.',
-                },
-                {
-                    key: 'baseline',
-                    state: 'BLOCKED',
-                    count: 0,
-                    detail: 'Approve competencies first, then mark which ones matter on this project.',
                 },
                 { key: 'starter-tasks', state: 'WARN', count: 0, detail: 'No starter tasks yet.' },
             ]),
@@ -79,14 +69,12 @@ describe('buildLadder', () => {
         const skillMap = ladder.rungs.find((r) => r.key === 'skill-map');
         expect(skillMap?.state).toBe('WARN');
         expect(skillMap?.detail).toContain('waiting for your review');
-        expect(ladder.rungs.find((r) => r.key === 'baseline')?.state).toBe('BLOCKED');
     });
 
     it('is not ready when the corpus rung is not OK even if the backend rungs are', () => {
         const ladder = buildLadder(
             readiness([
                 { key: 'skill-map', state: 'OK', count: 6, detail: 'ok' },
-                { key: 'baseline', state: 'OK', count: 3, detail: 'ok' },
                 { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
             ]),
             { key: 'corpus', state: 'WARN', count: 0, detail: 'No corpus yet.' },

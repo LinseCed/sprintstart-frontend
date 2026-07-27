@@ -8,7 +8,7 @@ const EMPTY_GRAPH: LiveGraph = { competencies: [], edges: [], graphVersion: 0 };
  * Loads the whole live competency graph — the thing a PM authors.
  *
  * Deliberately not the hire's path projection (`GET /me/path`). That is scoped to a project's
- * approved baseline, carries per-user node state, and is resolved at the hire's pinned version.
+ * claimed goal, carries per-user node state, and is resolved at the hire's pinned version.
  * A PM needs the graph as it actually is, which is global and unfiltered.
  *
  * `reload` is handed to every write path, so the canvas re-reads after an edit rather than each

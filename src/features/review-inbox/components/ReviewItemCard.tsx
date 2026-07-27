@@ -4,14 +4,13 @@ import type { ReviewItemView, ReviewKind } from '../types';
 const KIND_LABEL: Record<ReviewKind, string> = {
     competency: 'Competency',
     edge: 'Prerequisite',
-    baseline: 'Baseline',
     task: 'Starter task',
 };
 
 /**
  * One proposal, whatever its kind, as the same card: what it is, the AI's reasoning, and the two
  * decisions. Keeping every kind identical is the point of the inbox — a PM learns one pattern, not
- * three. `busy` disables both actions while a decision is in flight so a card can't be double-acted.
+ * one per queue. `busy` disables both actions while a decision is in flight so a card can't be double-acted.
  */
 export function ReviewItemCard({
     item,

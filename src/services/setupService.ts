@@ -6,7 +6,7 @@ const BASE = '/api/v1/onboarding/setup';
 export const setupService = {
     /**
      * A project's onboarding-setup readiness: the four stages the onboarding backend owns
-     * (skill map, baseline, starter tasks, buddies) plus whether they are all done.
+     * (skill map, starter tasks) plus whether they are all done.
      *
      * Derived on request — an empty or WARN rung is a live state, never a stale cache. Corpus
      * health is intentionally absent (it lives with data ingestion); the caller composes the

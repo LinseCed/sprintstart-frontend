@@ -77,7 +77,7 @@ const projectManagerNavItems: SidebarNavItem[] = [
         path: '/data-ingestion',
         icon: <Database className="h-[18px] w-[18px] shrink-0 transition-colors" />,
     },
-    // One front door to project setup. The skill map, baseline and starter-work pages are still
+    // One front door to project setup. The skill map and starter-work pages are still
     // routable — they are reached from this page's readiness ladder, not from three co-equal nav
     // items that never told a PM they were stages of one pipeline.
     {

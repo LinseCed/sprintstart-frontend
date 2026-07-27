@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-    baselineItems,
-    graphItems,
-    normalizeInbox,
-    taskItems,
-} from '../../../../src/features/review-inbox/normalize';
+import { graphItems, normalizeInbox, taskItems } from '../../../../src/features/review-inbox/normalize';
 import type { ProposedGraph } from '../../../../src/features/graph-authoring/types';
-import type { ProposedBlueprints } from '../../../../src/features/blueprint-authoring/types';
 import type { ProposedStarterWork } from '../../../../src/features/starter-work/types';
 
 const graph: ProposedGraph = {
@@ -15,29 +9,6 @@ const graph: ProposedGraph = {
     ],
     edges: [
         { id: 'e1', fromKey: 'python', toKey: 'docker', kind: 'PREREQUISITE', rationale: 'Need it first.', status: 'PROPOSED' },
-    ],
-};
-
-const baseline: ProposedBlueprints = {
-    blueprints: [
-        {
-            scope: 'global',
-            version: 'v1',
-            competencies: [
-                {
-                    competencyKey: 'python',
-                    label: 'Python',
-                    description: 'The language.',
-                    targetLevel: 2,
-                    targetLevelOverridden: false,
-                    requirement: 'Reach level 2.',
-                    invariant: false,
-                    rationale: 'Everything here is Python.',
-                    proposalId: 'b1',
-                    status: 'PROPOSED',
-                },
-            ],
-        },
     ],
 };
 
@@ -65,21 +36,13 @@ describe('review-inbox normalize', () => {
         expect(items[1]).toMatchObject({ id: 'e1', kind: 'edge', title: 'python → docker', tag: 'PREREQUISITE' });
     });
 
-    it('keys a baseline card by its proposalId and prefers the rationale', () => {
-        const [item] = baselineItems(baseline);
-        expect(item.id).toBe('b1');
-        expect(item.kind).toBe('baseline');
-        expect(item.detail).toBe('Everything here is Python.');
-        expect(item.tag).toBe('L2');
-    });
-
     it('tags a task with its skill count', () => {
         const [item] = taskItems(tasks);
         expect(item).toMatchObject({ id: 't1', kind: 'task', title: 'Fix the flaky test', tag: '2 skills' });
     });
 
-    it('merges all three queues into one flat list', () => {
-        const items = normalizeInbox({ graph, baseline, tasks });
-        expect(items.map((item) => item.kind)).toEqual(['competency', 'edge', 'baseline', 'task']);
+    it('merges both queues into one flat list', () => {
+        const items = normalizeInbox({ graph, tasks });
+        expect(items.map((item) => item.kind)).toEqual(['competency', 'edge', 'task']);
     });
 });
