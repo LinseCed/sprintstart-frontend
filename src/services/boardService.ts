@@ -1,5 +1,10 @@
 import { apiClient } from './apiClient';
-import type { AuthoredCardRequest, Board, BoardCard } from '../features/board/types';
+import type {
+    AuthoredCardRequest,
+    Board,
+    BoardCard,
+    DiagramContent,
+} from '../features/board/types';
 
 const BASE = '/api/v1/onboarding';
 
@@ -18,6 +23,24 @@ export const boardService = {
     async fetchBoard(projectId: string): Promise<Board> {
         return await apiClient.fetch<Board>(
             `${BASE}/me/board?projectId=${encodeURIComponent(projectId)}`,
+        );
+    },
+
+    /**
+     * Checks a diagram card against the project's material as it is *now*.
+     *
+     * Separate from `fetchBoard` on purpose. Drawing a diagram costs a generation, so the board
+     * serves the picture last drawn — a page that waits on a model to open is a page nobody opens —
+     * and this is what makes sure it is still true. An unchanged project answers without redrawing
+     * anything, so calling it once per board load is cheap; a project that has moved comes back
+     * redrawn, and one that no longer supports the subject comes back with no picture and a reason.
+     *
+     * @param cardId The diagram card to revalidate.
+     * @throws ApiError 404 when it is not a diagram card on a board of theirs.
+     */
+    async refreshDiagram(cardId: string): Promise<DiagramContent> {
+        return await apiClient.fetch<DiagramContent>(
+            `${BASE}/me/board/cards/${encodeURIComponent(cardId)}/diagram`,
         );
     },
 
