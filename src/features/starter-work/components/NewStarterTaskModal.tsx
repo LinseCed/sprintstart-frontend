@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Loader2, Plus, X } from 'lucide-react';
 import type { CreateStarterWorkTaskInput } from '../types';
+import type { OnboardingTrack } from '../../onboarding-setup/types';
+
+const ANY_TRACK = '__any__';
 
 type NewStarterTaskModalProps = {
     isSaving: boolean;
     error: string | null;
+    tracks: OnboardingTrack[];
     onCreate: (input: CreateStarterWorkTaskInput) => Promise<boolean>;
     onClose: () => void;
 };
@@ -20,11 +24,20 @@ type NewStarterTaskModalProps = {
  * they are optional enrichment, and a key that isn't a live competency is skipped server-side, so
  * an over-eager entry costs an edge, not the task.
  */
-export function NewStarterTaskModal({ isSaving, error, onCreate, onClose }: NewStarterTaskModalProps) {
+export function NewStarterTaskModal({
+    isSaving,
+    error,
+    tracks,
+    onCreate,
+    onClose,
+}: NewStarterTaskModalProps) {
     const [title, setTitle] = useState('');
     const [summary, setSummary] = useState('');
     const [sourceUrl, setSourceUrl] = useState('');
     const [competencyKeysRaw, setCompetencyKeysRaw] = useState('');
+    // Defaults to "any role", which is the honest default rather than a placeholder: a task nobody
+    // has scoped is offered to everybody, exactly as every task behaved before tracks existed.
+    const [trackKey, setTrackKey] = useState(ANY_TRACK);
 
     const canSave = title.trim().length > 0 && !isSaving;
 
@@ -39,7 +52,8 @@ export function NewStarterTaskModal({ isSaving, error, onCreate, onClose }: NewS
             title: title.trim(),
             summary: summary.trim() || undefined,
             sourceUrl: sourceUrl.trim() || undefined,
-            competencyKeys: competencyKeys.length > 0 ? competencyKeys : undefined
+            competencyKeys: competencyKeys.length > 0 ? competencyKeys : undefined,
+            onboardingTrackKey: trackKey === ANY_TRACK ? undefined : trackKey
         });
         if (created) onClose();
     };
@@ -139,6 +153,33 @@ export function NewStarterTaskModal({ isSaving, error, onCreate, onClose }: NewS
                     <p className="mt-1 text-xs text-app-text-subtle">
                         Competency identifiers, comma-separated. Each becomes a prerequisite edge
                         into the task; any that isn&apos;t in the graph is quietly skipped.
+                    </p>
+                </div>
+
+                <div>
+                    <label
+                        htmlFor="new-task-track"
+                        className="mb-1 block text-xs font-medium text-app-text"
+                    >
+                        Who this is for
+                    </label>
+                    <select
+                        id="new-task-track"
+                        value={trackKey}
+                        onChange={event => setTrackKey(event.target.value)}
+                        className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                    >
+                        <option value={ANY_TRACK}>Any role</option>
+                        {tracks.map(track => (
+                            <option key={track.key} value={track.key}>
+                                {track.label}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="mt-1 text-xs text-app-text-subtle">
+                        Scoping a task hides it from hires in other roles, so they are only
+                        suggested work they can actually do. Leave it on any role unless the task
+                        genuinely belongs to one.
                     </p>
                 </div>
 

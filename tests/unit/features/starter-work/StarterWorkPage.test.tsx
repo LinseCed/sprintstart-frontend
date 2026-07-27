@@ -18,6 +18,7 @@ const task: StarterWorkTask = {
     title: 'Fix the login redirect',
     summary: 'Users land on the wrong page after signing in.',
     rationale: 'Touches one file and has clear acceptance criteria.',
+    onboardingTrackKey: null,
     sourceUrl: 'https://github.com/acme/repo/issues/42',
     competencyKeys: ['kotlin', 'auth'],
     status: 'PROPOSED'
