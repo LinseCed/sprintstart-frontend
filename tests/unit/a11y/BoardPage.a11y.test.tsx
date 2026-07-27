@@ -42,6 +42,7 @@ const board: Board = {
             kind: 'PATH_TO_FIRST_CONTRIBUTION',
             owner: 'AI',
             position: 0,
+            placedAt: null,
             content: {
                 kind: 'PATH_TO_FIRST_CONTRIBUTION',
                 moments: [{ key: 'JOINED', reachedAt: '2026-07-20T09:00:00Z' }],
@@ -55,6 +56,7 @@ const board: Board = {
             kind: 'OPEN_PULL_REQUESTS',
             owner: 'AI',
             position: 1,
+            placedAt: '2026-07-27T09:00:00Z',
             content: {
                 kind: 'OPEN_PULL_REQUESTS',
                 pullRequests: [

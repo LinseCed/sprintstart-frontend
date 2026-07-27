@@ -11,7 +11,11 @@
  */
 
 /** Every card kind the board understands. Closed set — see the module comment. */
-export type BoardCardKind = 'PATH_TO_FIRST_CONTRIBUTION' | 'OPEN_PULL_REQUESTS';
+export type BoardCardKind =
+    | 'PATH_TO_FIRST_CONTRIBUTION'
+    | 'OPEN_PULL_REQUESTS'
+    | 'CURRENT_TASK'
+    | 'SUGGESTED_TASKS';
 
 /**
  * Who a card belongs to, which is what decides who may change it.
@@ -95,14 +99,56 @@ export type OpenPullRequestsContent = {
     attributionMissing: boolean;
 };
 
+/**
+ * The task the hire is on, or the fact that they are on none.
+ *
+ * Present-but-empty rather than absent when there is no task: a card that vanishes when a goal is
+ * cleared reads as the board losing something.
+ */
+export type CurrentTaskContent = {
+    kind: 'CURRENT_TASK';
+    taskId: string | null;
+    title: string | null;
+    summary: string | null;
+    url: string | null;
+    /** True when the hire claimed this as their goal, false when it is the Task 0 they were handed. */
+    chosen: boolean;
+};
+
+/** One suggested task, with the plain reasons it was suggested. Never a score. */
+export type BoardSuggestedTask = {
+    taskId: string;
+    title: string;
+    url: string | null;
+    reasons: string[];
+};
+
+/** Good next tasks, ranked by fit — reasons only, because a number is not something to act on. */
+export type SuggestedTasksContent = {
+    kind: 'SUGGESTED_TASKS';
+    tasks: BoardSuggestedTask[];
+};
+
 /** The rendered content of one card, discriminated by `kind`. */
-export type BoardCardContent = PathToFirstContributionContent | OpenPullRequestsContent;
+export type BoardCardContent =
+    | PathToFirstContributionContent
+    | OpenPullRequestsContent
+    | CurrentTaskContent
+    | SuggestedTasksContent;
 
 export type BoardCard = {
     id: string;
     kind: BoardCardKind;
     owner: BoardCardOwner;
     position: number;
+    /**
+     * When the buddy put this card here; null when the board keeps it as part of the baseline.
+     *
+     * Drives the attribution line, and only this decides it. "Your buddy added this" about a card
+     * nobody chose is attribution the hire cannot check, and attribution they cannot check is
+     * attribution they cannot trust.
+     */
+    placedAt: string | null;
     content: BoardCardContent;
 };
 

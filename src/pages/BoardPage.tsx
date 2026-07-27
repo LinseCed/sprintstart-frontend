@@ -29,7 +29,8 @@ export function BoardPage() {
         setSelectedProjectId,
     } = useProjectSelection({ isAdmin });
 
-    const { board, loading, error, refresh } = useBoard(selectedProjectId);
+    const { board, loading, error, refresh, dismiss, dismissingId, dismissError } =
+        useBoard(selectedProjectId);
 
     return (
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
@@ -91,7 +92,19 @@ export function BoardPage() {
                     </span>
                 </div>
             ) : board ? (
-                <BoardGrid board={board} />
+                <>
+                    {/* A card that looks gone but is not is worse than one that visibly refused. */}
+                    {dismissError && (
+                        <p className="mb-4 rounded-xl border border-app-danger-border bg-app-danger-bg/30 p-3 text-sm text-app-danger-text">
+                            That card couldn&apos;t be removed. It&apos;s still here — try again.
+                        </p>
+                    )}
+                    <BoardGrid
+                        board={board}
+                        onDismiss={(cardId) => void dismiss(cardId)}
+                        dismissingId={dismissingId}
+                    />
+                </>
             ) : null}
 
             {/* The board is curated by the mentor, so it should always be one click from them. */}

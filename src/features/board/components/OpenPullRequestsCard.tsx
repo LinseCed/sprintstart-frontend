@@ -1,11 +1,13 @@
 import { ExternalLink } from 'lucide-react';
 import { formatDuration } from '../../onboarding-metrics/format';
 import { BoardCardFrame } from './BoardCardFrame';
-import type { BoardCardOwner, OpenPullRequestsContent } from '../types';
+import type { BoardCard, OpenPullRequestsContent } from '../types';
 
 type OpenPullRequestsCardProps = {
     content: OpenPullRequestsContent;
-    owner: BoardCardOwner;
+    card: Pick<BoardCard, 'id' | 'owner' | 'placedAt'>;
+    onDismiss?: (cardId: string) => void;
+    dismissing?: boolean;
 };
 
 /** A wait long enough that it is worth saying out loud rather than just showing. */
@@ -21,13 +23,20 @@ const LONG_WAIT_HOURS = 48;
  * — the last only when no GitHub username has been declared, which is the one of the three the hire
  * can fix themselves.
  */
-export function OpenPullRequestsCard({ content, owner }: OpenPullRequestsCardProps) {
+export function OpenPullRequestsCard({
+    content,
+    card,
+    onDismiss,
+    dismissing,
+}: OpenPullRequestsCardProps) {
     const { pullRequests, attributionMissing } = content;
 
     return (
         <BoardCardFrame
             title="Your open pull requests"
-            owner={owner}
+            card={card}
+            onDismiss={onDismiss}
+            dismissing={dismissing}
             subtitle={
                 pullRequests.length > 0
                     ? `${pullRequests.length} open`

@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatMoment } from '../../onboarding-metrics/format';
 import { BoardCardFrame } from './BoardCardFrame';
 import type {
-    BoardCardOwner,
+    BoardCard,
     BoardMomentKey,
     BoardVocabulary,
     PathToFirstContributionContent,
@@ -11,7 +11,9 @@ import type {
 type PathCardProps = {
     content: PathToFirstContributionContent;
     vocabulary: BoardVocabulary;
-    owner: BoardCardOwner;
+    card: Pick<BoardCard, 'id' | 'owner' | 'placedAt'>;
+    onDismiss?: (cardId: string) => void;
+    dismissing?: boolean;
 };
 
 /**
@@ -46,13 +48,21 @@ function momentLabel(key: BoardMomentKey, vocabulary: BoardVocabulary): string {
  * else can see is a stall only somebody else can fix. It is framed as what is waiting, never as a
  * verdict on the hire.
  */
-export function PathToFirstContributionCard({ content, vocabulary, owner }: PathCardProps) {
+export function PathToFirstContributionCard({
+    content,
+    vocabulary,
+    card,
+    onDismiss,
+    dismissing,
+}: PathCardProps) {
     const { acceptedCount, autonomyReachedAt, stalledReason } = content;
 
     return (
         <BoardCardFrame
             title="Your path here"
-            owner={owner}
+            card={card}
+            onDismiss={onDismiss}
+            dismissing={dismissing}
             subtitle={
                 acceptedCount > 0
                     ? `${acceptedCount} ${
