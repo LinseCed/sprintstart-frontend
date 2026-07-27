@@ -125,7 +125,8 @@ describe('BoardGrid', () => {
         );
 
         expect(screen.getByText(/no response in 5 days/)).toBeInTheDocument();
-        expect(screen.getByText(/ask your buddy/i)).toBeInTheDocument();
+        // Points at a person rather than leaving the hire with a diagnosis they cannot act on.
+        expect(screen.getByText(/a person unblocks in a minute/i)).toBeInTheDocument();
     });
 
     it('dates the end of onboarding rather than scoring it', () => {

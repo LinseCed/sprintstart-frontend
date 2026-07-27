@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { formatDuration } from '../../onboarding-metrics/format';
 import { BoardCardFrame } from './BoardCardFrame';
+import { AskTheBuddy } from './AskTheBuddy';
 import type { BoardCard, OpenPullRequestsContent } from '../types';
 
 type OpenPullRequestsCardProps = {
@@ -115,6 +116,16 @@ export function OpenPullRequestsCard({
                         );
                     })}
                 </ul>
+            )}
+
+            {!attributionMissing && (
+                <AskTheBuddy
+                    question={
+                        pullRequests.length > 0
+                            ? 'Is one of my pull requests stuck, and who should I ask about it?'
+                            : 'What should I be working on so I have something open?'
+                    }
+                />
             )}
         </BoardCardFrame>
     );

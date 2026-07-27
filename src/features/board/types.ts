@@ -16,6 +16,8 @@ export type BoardCardKind =
     | 'OPEN_PULL_REQUESTS'
     | 'CURRENT_TASK'
     | 'SUGGESTED_TASKS'
+    | 'COMPETENCY_PROGRESS'
+    | 'MEMORY_RECAP'
     | AuthoredCardKind;
 
 /**
@@ -138,6 +140,39 @@ export type SuggestedTasksContent = {
     tasks: BoardSuggestedTask[];
 };
 
+/** One competency, with the bar it is measured against — never a score out of a hundred. */
+export type BoardCompetency = {
+    competencyKey: string;
+    label: string;
+    level: number;
+    targetLevel: number;
+};
+
+/**
+ * What the hire has shown they can do, and what they are short of.
+ *
+ * Two lists rather than a percentage: a percentage of somebody's competence is a number nobody can
+ * act on. Level-0 rows never appear — that value means "asked, saw no evidence".
+ */
+export type CompetencyProgressContent = {
+    kind: 'COMPETENCY_PROGRESS';
+    held: BoardCompetency[];
+    inProgress: BoardCompetency[];
+};
+
+/**
+ * What the mentor remembers about the hire, in the mentor's own words.
+ *
+ * The one card whose content a model wrote, which is why it is labelled as such rather than shown
+ * as a fact about the hire. `memory` is null before the first visit has been folded.
+ */
+export type MemoryRecapContent = {
+    kind: 'MEMORY_RECAP';
+    memory: string | null;
+    /** How many messages the memory covers — the honest measure of how much it is working from. */
+    messagesRemembered: number;
+};
+
 /** Something the hire wrote down, in markdown. Theirs — never quoted back as fact. */
 export type NoteContent = {
     kind: 'NOTE';
@@ -171,6 +206,8 @@ export type BoardCardContent =
     | OpenPullRequestsContent
     | CurrentTaskContent
     | SuggestedTasksContent
+    | CompetencyProgressContent
+    | MemoryRecapContent
     | NoteContent
     | LinkContent
     | ChecklistContent;

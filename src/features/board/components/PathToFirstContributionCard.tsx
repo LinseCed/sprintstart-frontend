@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatMoment } from '../../onboarding-metrics/format';
 import { BoardCardFrame } from './BoardCardFrame';
+import { AskTheBuddy } from './AskTheBuddy';
 import type {
     BoardCard,
     BoardMomentKey,
@@ -119,6 +120,14 @@ export function PathToFirstContributionCard({
                     </span>
                 </p>
             )}
+
+            <AskTheBuddy
+                question={
+                    stalledReason
+                        ? `Something seems stuck: ${stalledReason}. What should I do about it?`
+                        : `What is the next step for me toward my first ${vocabulary.contributionNoun} here?`
+                }
+            />
 
             {autonomyReachedAt && (
                 <p className="mt-3 flex items-start gap-2 rounded-xl bg-app-success-bg/40 p-3 text-xs text-app-success-text">
