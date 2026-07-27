@@ -13,6 +13,33 @@ export class ApiError extends Error {
 }
 
 /**
+ * Derives a human-readable message from an error response body. The backend's
+ * custom exception handler returns `{ "message": string }` for errors such as
+ * 403/404, so when the body is such JSON we surface `message` instead of the
+ * raw JSON string. Non-JSON bodies (and JSON without a usable `message`) fall
+ * back to the raw text, then to the HTTP status text.
+ */
+function extractErrorMessage(body: string, statusText: string): string {
+    const trimmed = body.trim();
+
+    if (trimmed) {
+        try {
+            const parsed: unknown = JSON.parse(trimmed);
+            if (parsed !== null && typeof parsed === 'object' && 'message' in parsed) {
+                const { message } = parsed;
+                if (typeof message === 'string' && message.trim()) {
+                    return message;
+                }
+            }
+        } catch {
+            // Not JSON — fall through to the raw text.
+        }
+    }
+
+    return trimmed || statusText;
+}
+
+/**
  * A central API client wrapper around the native fetch API.
  * Automatically injects the Keycloak JWT token into the Authorization header.
  */
@@ -59,8 +86,8 @@ export const apiClient = {
         }
 
         if (!response.ok) {
-            const errorBody = await response.text().catch(() => 'Unknown error');
-            throw new ApiError(response.status, errorBody || response.statusText);
+            const errorBody = await response.text().catch(() => '');
+            throw new ApiError(response.status, extractErrorMessage(errorBody, response.statusText));
         }
 
         const text = await response.text();
