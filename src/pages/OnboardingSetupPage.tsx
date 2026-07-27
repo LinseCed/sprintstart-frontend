@@ -4,6 +4,8 @@ import { ProjectSelect } from '../features/projects/components/ProjectSelect';
 import { useProjectSelection } from '../features/projects/useProjectSelection';
 import { SetupReadinessLadder } from '../features/onboarding-setup/components/SetupReadinessLadder';
 import { useSetupReadiness } from '../features/onboarding-setup/hooks/useSetupReadiness';
+import { RoleTrackTable } from '../features/onboarding-setup/components/RoleTrackTable';
+import { useRoleTracks } from '../features/onboarding-setup/hooks/useRoleTracks';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 
@@ -26,6 +28,13 @@ export function OnboardingSetupPage() {
     } = useProjectSelection({ isAdmin: profile?.permissionGroup === PermissionGroup.ADMIN });
 
     const { ladder, loading, error } = useSetupReadiness(selectedProjectId);
+
+    // Roles are global, so this loads regardless of the selected project -- see RoleTrackTable for
+    // why that is stated in the copy rather than hidden behind the project picker.
+    const roleTracks = useRoleTracks();
+    const canEditTracks =
+        profile?.permissionGroup === PermissionGroup.ADMIN ||
+        profile?.permissionGroup === PermissionGroup.PM;
 
     return (
         <div className="min-h-screen bg-app-bg">
@@ -66,7 +75,10 @@ export function OnboardingSetupPage() {
                         </p>
                     </div>
                 ) : (
-                    <SetupReadinessLadder ladder={ladder} />
+                    <div className="space-y-8">
+                        <SetupReadinessLadder ladder={ladder} />
+                        <RoleTrackTable {...roleTracks} canEdit={canEditTracks} />
+                    </div>
                 )}
             </main>
         </div>

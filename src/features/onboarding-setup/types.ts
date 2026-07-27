@@ -38,3 +38,29 @@ export interface SetupLadder {
     rungs: LadderRung[];
     ready: boolean;
 }
+
+/** What kind of evidence a track's work can produce. Mirrors the backend enum. */
+export type ContributionEvidenceKind = 'PULL_REQUEST';
+
+/**
+ * One onboarding track: what onboarding means for a kind of role.
+ *
+ * An empty `evidenceKinds` is a real answer rather than missing data — nothing that role does can
+ * be observed by anything connected today, so their progress cannot be measured yet.
+ */
+export interface OnboardingTrack {
+    key: string;
+    label: string;
+    contributionNoun: string;
+    contributionNounPlural: string;
+    contributionVerbPast: string;
+    evidenceKinds: ContributionEvidenceKind[];
+}
+
+/** A project role as the roles endpoint returns it, carrying the track it points at. */
+export interface ProjectRoleWithTrack {
+    id: string;
+    name: string;
+    description: string;
+    onboardingTrackKey: string | null;
+}
