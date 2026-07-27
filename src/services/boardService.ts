@@ -20,4 +20,21 @@ export const boardService = {
             `${BASE}/me/board?projectId=${encodeURIComponent(projectId)}`,
         );
     },
+
+    /**
+     * Takes a card off the caller's board, for good.
+     *
+     * The buddy will not put it back — the backend keeps the dismissed row precisely so that both
+     * the baseline and the mentor consult it before adding anything. Dismissing is a decision, not
+     * a gesture the next page load undoes, which is why the affordance says "remove" rather than
+     * "hide".
+     *
+     * @param cardId The card to remove.
+     * @throws ApiError 404 when it is not a card on a board of theirs.
+     */
+    async dismissCard(cardId: string): Promise<void> {
+        await apiClient.fetch<void>(`${BASE}/me/board/cards/${encodeURIComponent(cardId)}`, {
+            method: 'DELETE',
+        });
+    },
 };

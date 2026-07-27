@@ -1,23 +1,38 @@
 import type { ReactNode } from 'react';
-import { Bot } from 'lucide-react';
-import type { BoardCardOwner } from '../types';
+import { Bot, Loader2, X } from 'lucide-react';
+import type { BoardCard } from '../types';
 
 type BoardCardFrameProps = {
     title: string;
-    owner: BoardCardOwner;
+    card: Pick<BoardCard, 'id' | 'owner' | 'placedAt'>;
     /** Optional one-line note under the title, e.g. what the card is counting. */
     subtitle?: string;
+    onDismiss?: (cardId: string) => void;
+    dismissing?: boolean;
     children: ReactNode;
 };
 
 /**
- * The shell every card renders inside: title, attribution, body.
+ * The shell every card renders inside: title, attribution, remove, body.
  *
- * Attribution is on the card rather than in a legend because a hire should never have to work out
- * whether they put something here. It deliberately does **not** say "Buddy added this" yet — in
- * this slice nothing is buddy-placed, and claiming otherwise would be the board's first lie.
+ * **Attribution is decided by `placedAt` alone.** A card the buddy put here says so; a card the
+ * board keeps as part of the baseline says that instead. Claiming the buddy added something it
+ * didn't would be attribution the hire cannot check, and attribution they cannot check is
+ * attribution they cannot trust — which would undermine the label everywhere it *is* true.
+ *
+ * The remove control says "Remove", not "Hide": the buddy will not put it back, and a word that
+ * suggested otherwise would misdescribe a decision as a gesture.
  */
-export function BoardCardFrame({ title, owner, subtitle, children }: BoardCardFrameProps) {
+export function BoardCardFrame({
+    title,
+    card,
+    subtitle,
+    onDismiss,
+    dismissing = false,
+    children,
+}: BoardCardFrameProps) {
+    const placedByBuddy = card.placedAt !== null;
+
     return (
         <section className="flex flex-col rounded-2xl border border-app-border bg-app-surface p-4">
             <header className="mb-3 flex items-start justify-between gap-3">
@@ -25,15 +40,39 @@ export function BoardCardFrame({ title, owner, subtitle, children }: BoardCardFr
                     <h2 className="truncate text-sm font-semibold text-app-text">{title}</h2>
                     {subtitle && <p className="mt-0.5 text-xs text-app-text-muted">{subtitle}</p>}
                 </div>
-                {owner === 'AI' && (
-                    <span
-                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-app-brand/10 px-2 py-0.5 text-[11px] font-medium text-app-brand-text"
-                        title="Kept up to date for you — this card reads your onboarding live"
-                    >
-                        <Bot className="h-3 w-3" aria-hidden="true" />
-                        Kept for you
-                    </span>
-                )}
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                    {card.owner === 'AI' && (
+                        <span
+                            className="inline-flex items-center gap-1 rounded-full bg-app-brand/10 px-2 py-0.5 text-[11px] font-medium text-app-brand-text"
+                            title={
+                                placedByBuddy
+                                    ? 'Your buddy put this here — it reads your onboarding live'
+                                    : 'Kept up to date for you — this card reads your onboarding live'
+                            }
+                        >
+                            <Bot className="h-3 w-3" aria-hidden="true" />
+                            {placedByBuddy ? 'Buddy added this' : 'Kept for you'}
+                        </span>
+                    )}
+
+                    {onDismiss && (
+                        <button
+                            type="button"
+                            onClick={() => onDismiss(card.id)}
+                            disabled={dismissing}
+                            title="Remove this card — your buddy won't put it back"
+                            aria-label={`Remove the ${title} card`}
+                            className="rounded-lg p-1 text-app-text-muted transition hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {dismissing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                                <X className="h-4 w-4" aria-hidden="true" />
+                            )}
+                        </button>
+                    )}
+                </div>
             </header>
             {children}
         </section>

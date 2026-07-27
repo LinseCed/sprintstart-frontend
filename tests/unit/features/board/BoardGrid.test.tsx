@@ -1,11 +1,13 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { BoardGrid } from '../../../../src/features/board/components/BoardGrid';
 import type {
     Board,
     BoardCard,
+    CurrentTaskContent,
     OpenPullRequestsContent,
     PathToFirstContributionContent,
+    SuggestedTasksContent,
 } from '../../../../src/features/board/types';
 
 const engineering: Board['vocabulary'] = {
@@ -48,7 +50,29 @@ const pullRequestContent = (
     ...over,
 });
 
-function board(cards: BoardCard['content'][], vocabulary = engineering): Board {
+const currentTaskContent = (over: Partial<CurrentTaskContent> = {}): CurrentTaskContent => ({
+    kind: 'CURRENT_TASK',
+    taskId: 't1',
+    title: 'Fix the flaky login test',
+    summary: 'It fails about one run in five.',
+    url: null,
+    chosen: true,
+    ...over,
+});
+
+const suggestedTasksContent = (
+    over: Partial<SuggestedTasksContent> = {},
+): SuggestedTasksContent => ({
+    kind: 'SUGGESTED_TASKS',
+    tasks: [],
+    ...over,
+});
+
+function board(
+    cards: BoardCard['content'][],
+    vocabulary = engineering,
+    placedAt: string | null = null,
+): Board {
     return {
         boardId: 'b1',
         projectId: 'p1',
@@ -58,6 +82,7 @@ function board(cards: BoardCard['content'][], vocabulary = engineering): Board {
             kind: content.kind,
             owner: 'AI',
             position: index,
+            placedAt,
             content,
         })),
     };
@@ -175,5 +200,87 @@ describe('BoardGrid', () => {
 
         // A card that silently vanishes is indistinguishable from one never placed.
         expect(screen.getByText(/needs a newer version/i)).toBeInTheDocument();
+    });
+
+    it('claims the buddy added a card only when the buddy actually placed it', () => {
+        const { rerender } = render(<BoardGrid board={board([pathContent()])} />);
+        expect(screen.getByText('Kept for you')).toBeInTheDocument();
+        expect(screen.queryByText('Buddy added this')).not.toBeInTheDocument();
+
+        rerender(
+            <BoardGrid board={board([pathContent()], engineering, '2026-07-27T09:00:00Z')} />,
+        );
+        // Attribution the hire cannot check is attribution they cannot trust, so the stronger
+        // label is reserved for cards that carry a placement.
+        expect(screen.getByText('Buddy added this')).toBeInTheDocument();
+    });
+
+    it('offers to remove a card, and says the buddy will not put it back', () => {
+        const onDismiss = vi.fn();
+        render(<BoardGrid board={board([pathContent()])} onDismiss={onDismiss} />);
+
+        const remove = screen.getByRole('button', { name: /remove the your path here card/i });
+        expect(remove).toHaveAttribute('title', expect.stringMatching(/won't put it back/i));
+
+        fireEvent.click(remove);
+        expect(onDismiss).toHaveBeenCalledWith('c0');
+    });
+
+    it('has no remove control when removing is not offered', () => {
+        render(<BoardGrid board={board([pathContent()])} />);
+
+        expect(screen.queryByRole('button', { name: /remove the/i })).not.toBeInTheDocument();
+    });
+
+    it('separates a task the hire picked from one they were handed', () => {
+        const { rerender } = render(
+            <BoardGrid board={board([currentTaskContent({ chosen: true })])} />,
+        );
+        expect(screen.getByText('You picked this one')).toBeInTheDocument();
+
+        rerender(<BoardGrid board={board([currentTaskContent({ chosen: false })])} />);
+        // Only one of the two is theirs to change their mind about.
+        expect(screen.getByText('Handed to you as a first task')).toBeInTheDocument();
+    });
+
+    it('keeps the current-task card when there is no task, and says so', () => {
+        render(
+            <BoardGrid
+                board={board([currentTaskContent({ taskId: null, title: null, summary: null })])}
+            />,
+        );
+
+        // Vanishing when the goal is cleared would read as the board losing things.
+        expect(screen.getByText(/nothing claimed yet/i)).toBeInTheDocument();
+    });
+
+    it('shows why each task was suggested, and never a score', () => {
+        render(
+            <BoardGrid
+                board={board([
+                    suggestedTasksContent({
+                        tasks: [
+                            {
+                                taskId: 't1',
+                                title: 'Fix the flaky login test',
+                                url: null,
+                                reasons: ['You have worked in this repository before'],
+                            },
+                        ],
+                    }),
+                ])}
+            />,
+        );
+
+        expect(
+            screen.getByText(/you have worked in this repository before/i),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Best fit first')).toBeInTheDocument();
+    });
+
+    it('explains an empty suggestions card as a PM step, not a dead end', () => {
+        render(<BoardGrid board={board([suggestedTasksContent()])} />);
+
+        expect(screen.getByText(/your pm approves the ones that fit your role/i)).toBeInTheDocument();
     });
 });
