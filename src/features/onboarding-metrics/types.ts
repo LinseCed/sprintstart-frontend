@@ -31,6 +31,26 @@ export type HireTimeline = {
     stalled: boolean;
     /** What the stall is attributed to, in plain words; null when not stalled. */
     stalledReason: string | null;
+    /**
+     * How this hire's work is named, from their track.
+     *
+     * The field names above still say "pull request" because that is the wire contract, but the
+     * numbers behind them are composed from contributions of any kind. This is what lets the card
+     * say the right word over them — "2 ceremonies facilitated" and "2 changes merged" are the same
+     * number about two different jobs.
+     */
+    vocabulary: HireVocabulary;
+};
+
+/** The words for one hire's work. Fixed slots in a sentence the app owns; never prose. */
+export type HireVocabulary = {
+    /** The track's own name, e.g. "Engineering". */
+    trackLabel: string;
+    /** One unit of accepted work, bare: "change", "ceremony". */
+    contributionNoun: string;
+    contributionNounPlural: string;
+    /** The hire's own act, past tense: "merged", "facilitated". */
+    contributionVerbPast: string;
 };
 
 /** A project's onboarding health: medians throughout, plus every hire's timeline. */
