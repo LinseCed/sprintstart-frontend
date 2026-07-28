@@ -1,12 +1,24 @@
 import { Loader2, Trash2, Users } from "lucide-react";
 import { UserAvatar } from "../../../components/common/UserAvatar";
 import type { ProjectUser, ProjectUserSummary } from "../types";
+import type { ProjectRole } from "../../team-management/types";
 import { RoleBadgeList } from "./RoleBadgeList";
+import { ProjectRoleEditor } from "./ProjectRoleEditor";
 
 type ProjectUserListProps = {
   users: Array<ProjectUser | ProjectUserSummary>;
   pendingUserId?: string | null;
   onRemoveUser?: (userId: string) => void;
+  /**
+   * Role editing, when the caller has a project in hand. Omitted on the summary list, which does
+   * not carry roles at all -- offering an editor there would show everybody as holding none.
+   */
+  roleEditing?: {
+    availableRoles: ProjectRole[];
+    savingKey: string | null;
+    onAddRole: (userId: string, roleId: string) => void;
+    onRemoveRole: (userId: string, roleId: string) => void;
+  };
 };
 
 function getProjectUserDisplayName(user: ProjectUser | ProjectUserSummary) {
@@ -25,6 +37,7 @@ export function ProjectUserList({
   users,
   pendingUserId = null,
   onRemoveUser,
+  roleEditing,
 }: ProjectUserListProps) {
   if (users.length === 0) {
     return (
@@ -41,7 +54,9 @@ export function ProjectUserList({
         const displayName = getProjectUserDisplayName(user);
         const globalRoles = "roles" in user ? (user.roles ?? []) : [];
         const hasGlobalRoles = globalRoles.length > 0;
-        const hasProjectRoles = user.projectRoles.length > 0;
+        // Absent (the summary payload) is "not loaded", not "holds none".
+        const projectRoles = user.projectRoles ?? [];
+        const hasProjectRoles = projectRoles.length > 0;
         const isPending = pendingUserId === user.id;
 
         return (
@@ -79,9 +94,12 @@ export function ProjectUserList({
                   <div className="hidden h-6 shrink-0 border-l-3 border-app-surface sm:block" />
                 )}
 
-                {hasProjectRoles && (
+                {hasProjectRoles && !roleEditing && (
                   <div className="flex min-w-0 items-center">
-                    <RoleBadgeList roles={user.projectRoles} variant="brand" />
+                    <RoleBadgeList
+                      roles={projectRoles.map((role) => role.name)}
+                      variant="brand"
+                    />
                   </div>
                 )}
               </div>
@@ -102,6 +120,18 @@ export function ProjectUserList({
                 </button>
               )}
             </div>
+
+            {roleEditing && (
+              <ProjectRoleEditor
+                userId={user.id}
+                displayName={displayName}
+                heldRoles={projectRoles}
+                availableRoles={roleEditing.availableRoles}
+                savingKey={roleEditing.savingKey}
+                onAddRole={roleEditing.onAddRole}
+                onRemoveRole={roleEditing.onRemoveRole}
+              />
+            )}
           </div>
         );
       })}

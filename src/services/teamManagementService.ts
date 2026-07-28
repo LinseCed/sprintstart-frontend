@@ -91,23 +91,53 @@ return await apiClient.fetch<ProjectRole>("/api/v1/projectRoles", {
 });
 }
 
-export async function assignProjectRoleToUser(
-userId: string,
-roleId: string,
-): Promise<void> {
-  await apiClient.fetch(`/api/v1/users/${userId}/project-roles`, {
-    method: "POST",
-    body: JSON.stringify({ roleId }),
-  });
+/**
+ * The roles someone holds on one project.
+ *
+ * The per-person surfaces show the union across somebody's projects, which cannot be edited:
+ * removing a role has to say *where*. 404 means they are not on that project at all, which is a
+ * different thing from holding no role there.
+ */
+export async function getProjectRolesForUserOnProject(
+  projectId: string,
+  userId: string,
+): Promise<ProjectRole[]> {
+  return await apiClient.fetch<ProjectRole[]>(
+    `/api/v1/projects/${projectId}/users/${userId}/project-roles`,
+  );
 }
 
-export async function unassignProjectRoleFromUser(
+/**
+ * Gives someone a role on one project.
+ *
+ * Roles are held per project, so the project is part of the path rather than optional context: a
+ * role means nothing without one. The backend 404s if the person is not on that project rather than
+ * quietly making them a member.
+ */
+export async function assignProjectRoleToUser(
+  projectId: string,
   userId: string,
   roleId: string,
 ): Promise<void> {
-  await apiClient.fetch(`/api/v1/users/${userId}/project-roles/${roleId}`, {
-    method: "DELETE",
-  });
+  await apiClient.fetch(
+    `/api/v1/projects/${projectId}/users/${userId}/project-roles`,
+    {
+      method: "POST",
+      body: JSON.stringify({ roleId }),
+    },
+  );
+}
+
+/** Takes a role off someone on one project, leaving what they hold elsewhere alone. */
+export async function unassignProjectRoleFromUser(
+  projectId: string,
+  userId: string,
+  roleId: string,
+): Promise<void> {
+  await apiClient.fetch(
+    `/api/v1/projects/${projectId}/users/${userId}/project-roles/${roleId}`,
+    { method: "DELETE" },
+  );
 
   return;
 }

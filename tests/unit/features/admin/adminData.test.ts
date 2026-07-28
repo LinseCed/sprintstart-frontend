@@ -57,7 +57,7 @@ const projects: ProjectOverview[] = [
                 id: 'user-1',
                 username: 'john.doe',
                 email: 'john@example.com',
-                projectRoles: ['MEMBER'],
+                projectRoles: [{ id: 'r1', name: 'MEMBER' }],
             },
         ],
     },

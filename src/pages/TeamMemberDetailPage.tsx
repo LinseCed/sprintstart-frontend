@@ -10,6 +10,7 @@ import { knowledgeGapService } from '../services/knowledgeGapService';
 import {
     assignProjectRoleToUser,
     getProjectRoles,
+    getProjectRolesForUserOnProject,
     getTeamMember,
     unassignProjectRoleFromUser,
     getUserOnboardingFeedback,
@@ -40,6 +41,13 @@ export function TeamMemberDetailPage() {
 
     const [user, setUser] = useState<TeamOverviewUser | undefined>(undefined);
     const [availableRoles, setAvailableRoles] = useState<ProjectRole[]>([]);
+    // Roles are held per project, so editing them needs one chosen. Held as "what the user picked",
+    // with the member's first project as the fallback -- derived rather than synced into state by an
+    // effect, which React 19's set-state-in-effect rule rejects and which would also fight a pick
+    // made before the member finished loading.
+    const [pickedProjectId, setPickedProjectId] = useState('');
+    const [projectRoles, setProjectRoles] = useState<ProjectRole[]>([]);
+    const [projectRolesError, setProjectRolesError] = useState('');
     const [selectedRoleId, setSelectedRoleId] = useState('');
     const [loading, setLoading] = useState(true);
     const [rolesModalOpen, setRolesModalOpen] = useState(false);
@@ -113,13 +121,42 @@ export function TeamMemberDetailPage() {
         }
     }
 
+    const roleProjectId = pickedProjectId || user?.projects?.[0]?.id || '';
+
+    // What they hold on the chosen project. Re-read per project rather than filtered from the
+    // header's union, which cannot say which project a role came from.
+    useEffect(() => {
+        let active = true;
+        void (async () => {
+            if (!user || !roleProjectId) {
+                if (active) setProjectRoles([]);
+                return;
+            }
+            try {
+                const roles = await getProjectRolesForUserOnProject(roleProjectId, user.userId);
+                if (active) {
+                    setProjectRoles(roles);
+                    setProjectRolesError('');
+                }
+            } catch {
+                if (active) {
+                    setProjectRoles([]);
+                    setProjectRolesError('Roles for this project could not be loaded.');
+                }
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [user, roleProjectId]);
+
     const unassignedRoles = useMemo(() => {
         if (!user) return [];
 
         return availableRoles.filter(
-            (role) => !user.roles.some((assignedRole) => assignedRole.id === role.id),
+            (role) => !projectRoles.some((assignedRole) => assignedRole.id === role.id),
         );
-    }, [availableRoles, user]);
+    }, [availableRoles, projectRoles, user]);
 
     // A competency counts as held once the ledger reaches its bar. This endpoint
     // (`GET /dashboard/users/{id}`) does not carry the per-competency
@@ -142,25 +179,45 @@ export function TeamMemberDetailPage() {
     const topKnowledgeGaps = useMemo(() => knowledgeGaps.slice(0, 3), [knowledgeGaps]);
 
     async function handleAddRole() {
-        if (!user || !selectedRoleId) return;
+        if (!user || !selectedRoleId || !roleProjectId) return;
 
         const roleToAdd = availableRoles.find((role) => role.id === selectedRoleId);
         if (!roleToAdd) return;
 
         setSavingRoleId(selectedRoleId);
-        await assignProjectRoleToUser(user.userId, selectedRoleId);
-        setUser({ ...user, roles: [...user.roles, roleToAdd] });
-        setSelectedRoleId('');
-        setSavingRoleId(null);
+        setProjectRolesError('');
+        try {
+            await assignProjectRoleToUser(roleProjectId, user.userId, selectedRoleId);
+            setProjectRoles((current) => [...current, roleToAdd]);
+            // The header shows the union across projects, so it grows with this too.
+            setUser((current) =>
+                current && current.roles.some((role) => role.id === roleToAdd.id)
+                    ? current
+                    : current && { ...current, roles: [...current.roles, roleToAdd] },
+            );
+            setSelectedRoleId('');
+        } catch {
+            setProjectRolesError('That role could not be added. Try again in a moment.');
+        } finally {
+            setSavingRoleId(null);
+        }
     }
 
     async function handleRemoveRole(roleId: string) {
-        if (!user) return;
+        if (!user || !roleProjectId) return;
 
         setSavingRoleId(roleId);
-        await unassignProjectRoleFromUser(user.userId, roleId);
-        setUser({ ...user, roles: user.roles.filter((role) => role.id !== roleId) });
-        setSavingRoleId(null);
+        setProjectRolesError('');
+        try {
+            await unassignProjectRoleFromUser(roleProjectId, user.userId, roleId);
+            setProjectRoles((current) => current.filter((role) => role.id !== roleId));
+            // Deliberately does not touch the union: they may still hold this role on another
+            // project, and this page cannot know without re-reading. The next load is authoritative.
+        } catch {
+            setProjectRolesError('That role could not be removed. Try again in a moment.');
+        } finally {
+            setSavingRoleId(null);
+        }
     }
 
     async function handleMarkFeedbackRead(feedbackId: string) {
@@ -408,13 +465,45 @@ export function TeamMemberDetailPage() {
             <Modal
                 isOpen={rolesModalOpen}
                 title="Manage Roles"
-                description={`Add or remove roles for ${user.firstname}.`}
+                description={`What ${user.firstname} does on a project. Roles are held per project, so pick which.`}
                 closeLabel="Close roles modal"
                 onClose={() => setRolesModalOpen(false)}
             >
+                {user.projects.length === 0 ? (
+                    <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
+                        {user.firstname} is not on a project yet. Roles are held on a project, so
+                        there is nothing to set until they are added to one.
+                    </p>
+                ) : (
+                    <>
+                <div className="mb-4">
+                    <label
+                        htmlFor="role-project"
+                        className="mb-1 block text-xs font-medium text-app-text-muted"
+                    >
+                        Project
+                    </label>
+                    <select
+                        id="role-project"
+                        value={roleProjectId}
+                        onChange={(event) => setPickedProjectId(event.target.value)}
+                        className="w-full rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
+                    >
+                        {user.projects.map((project) => (
+                            <option key={project.id} value={project.id}>
+                                {project.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {projectRolesError && (
+                    <p className="mb-3 text-xs text-app-danger-text">{projectRolesError}</p>
+                )}
+
                 <div className="space-y-2">
-                    {user.roles.length > 0 ? (
-                        user.roles.map((role) => (
+                    {projectRoles.length > 0 ? (
+                        projectRoles.map((role) => (
                             <div
                                 key={role.id}
                                 className="flex items-center justify-between gap-3 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3"
@@ -436,13 +525,14 @@ export function TeamMemberDetailPage() {
                         ))
                     ) : (
                         <p className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text-muted">
-                            No role assigned yet. Choose a role below.
+                            No role on this project yet — they onboard in the default wording.
                         </p>
                     )}
                 </div>
 
                 <div className="mt-6 flex gap-2">
                     <select
+                        aria-label="Role to add on this project"
                         value={selectedRoleId}
                         onChange={(event) => setSelectedRoleId(event.target.value)}
                         className="min-w-0 flex-1 rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand"
@@ -469,8 +559,10 @@ export function TeamMemberDetailPage() {
 
                 {unassignedRoles.length === 0 && (
                     <p className="mt-3 text-xs text-app-text-muted">
-                        All available roles are already assigned.
+                        Every role is already assigned on this project.
                     </p>
+                )}
+                    </>
                 )}
             </Modal>
 

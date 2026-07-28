@@ -95,13 +95,13 @@ describe('teamManagementService', () => {
     it('assignProjectRoleToUser sends request to backend', async () => {
         let captured = false;
         server.use(
-            http.post('/api/v1/users/user1/project-roles', () => {
+            http.post('/api/v1/projects/proj1/users/user1/project-roles', () => {
                 captured = true;
                 return new HttpResponse(null, { status: 200 });
             }),
         );
 
-        await assignProjectRoleToUser('user1', 'role1');
+        await assignProjectRoleToUser('proj1', 'user1', 'role1');
         expect(captured).toBe(true);
     });
 

@@ -194,7 +194,7 @@ export function filterAdminProjects(
         user.id,
         user.username,
         user.email,
-        ...user.projectRoles,
+        ...(user.projectRoles ?? []).map((role) => role.name),
       ]),
     ];
 

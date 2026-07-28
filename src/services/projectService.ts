@@ -33,13 +33,25 @@ export type ProjectSource = {
   status: ProjectSourceStatus;
 };
 
+/** A role as the project surfaces need it: the id to edit by, the name to show. */
+export type ProjectRoleRef = {
+  id: string;
+  name: string;
+};
+
 export type ProjectUserSummary = {
   id: string;
   username: string;
   email: string;
   profileIcon?: string;
   roles?: GlobalUserRole[];
-  projectRoles: ProjectRole[];
+  /**
+   * Optional because the summary payload does not carry it: `GET /admin/projects` returns id,
+   * username and email only, and `toProjectUserSummary` fills an empty list. Typed honestly here so
+   * callers treat "no roles listed" as "not loaded", not as "holds none" — the project details
+   * payload is what actually knows.
+   */
+  projectRoles?: ProjectRoleRef[];
 };
 
 export type ProjectUser = {
@@ -50,7 +62,8 @@ export type ProjectUser = {
   lastName: string;
   profileIcon?: string;
   roles: GlobalUserRole[];
-  projectRoles: ProjectRole[];
+  /** The roles held on *this* project — the only place roles live. */
+  projectRoles: ProjectRoleRef[];
   enabled: boolean;
 };
 
@@ -104,7 +117,7 @@ type BackendProjectUser = BackendProjectUserSummary & {
   firstName: string;
   lastName: string;
   roles: string[];
-  projectRoles: string[];
+  projectRoles: ProjectRoleRef[];
   enabled: boolean;
 };
 

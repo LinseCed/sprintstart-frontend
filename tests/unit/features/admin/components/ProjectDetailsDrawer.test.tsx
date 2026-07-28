@@ -34,7 +34,7 @@ const projectDetails: AdminProjectDetails = {
             firstName: 'Jane',
             lastName: 'Doe',
             roles: ['ADMIN'],
-            projectRoles: ['MEMBER'],
+            projectRoles: [{ id: 'r1', name: 'MEMBER' }],
             enabled: true,
         },
     ],

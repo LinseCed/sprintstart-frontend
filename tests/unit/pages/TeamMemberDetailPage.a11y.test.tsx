@@ -38,7 +38,8 @@ vi.mock('../../../src/services/teamManagementService', () => ({
             skip: null,
         },
         hasFeedback: false,
-        project: { id: 'proj1', name: 'Project 1' },
+        // `projects`, plural: the type has required it all along, and the roles editor now reads it.
+        projects: [{ id: 'proj1', name: 'Project 1' }],
     }),
     getProjectRoles: vi.fn().mockResolvedValue([
         { id: 'role1', name: 'Backend', description: 'Backend developer' },
@@ -53,6 +54,7 @@ vi.mock('../../../src/services/teamManagementService', () => ({
     getOnboardingTasksByStep: vi.fn().mockResolvedValue([]),
     assignProjectRoleToUser: vi.fn().mockResolvedValue(undefined),
     unassignProjectRoleFromUser: vi.fn().mockResolvedValue(undefined),
+    getProjectRolesForUserOnProject: vi.fn().mockResolvedValue([]),
     acceptOnboardingSkipRequest: vi.fn().mockResolvedValue(undefined),
     denyOnboardingSkipRequest: vi.fn().mockResolvedValue(undefined),
     markOnboardingFeedbackRead: vi.fn(),
