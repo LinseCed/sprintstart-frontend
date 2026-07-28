@@ -23,7 +23,7 @@ const projectOverview: ProjectOverview = {
             id: 'user-1',
             username: 'john.doe',
             email: 'john@example.com',
-            projectRoles: ['MEMBER'],
+            projectRoles: [{ id: 'r1', name: 'MEMBER' }],
         },
     ],
 };
@@ -45,7 +45,7 @@ describe('ProjectDetailsDrawer', () => {
                     firstName: 'John',
                     lastName: 'Doe',
                     roles: ['USER'],
-                    projectRoles: ['MEMBER'],
+                    projectRoles: [{ id: 'r1', name: 'MEMBER' }],
                     enabled: true,
                 },
             ],

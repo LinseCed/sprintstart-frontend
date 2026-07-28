@@ -26,6 +26,12 @@ import type {
 import { AccessBadge } from "./Badges";
 import { EditableDetailRow } from "./EditableDetailRow";
 import { ProjectUserList } from "./ProjectUserList";
+import {
+  assignProjectRoleToUser,
+  getProjectRoles,
+  unassignProjectRoleFromUser,
+} from "../../../services/teamManagementService";
+import type { ProjectRole as ProjectRoleOption } from "../../team-management/types";
 import { Section } from "./Section";
 import { SourceList } from "./SourceList";
 
@@ -97,12 +103,35 @@ export function ProjectDetailsDrawer({
   const [userSearch, setUserSearch] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [userAssignmentError, setUserAssignmentError] = useState("");
+  // Every role a PM could give somebody. Global catalog; which of them a person holds is per project.
+  const [roleOptions, setRoleOptions] = useState<ProjectRoleOption[]>([]);
+  // `${userId}:${roleId}` of the role change in flight, so only its own control spins.
+  const [savingRoleKey, setSavingRoleKey] = useState<string | null>(null);
   const [draftProjectState, setDraftProjectState] = useState<DraftProjectState>(
     () => ({
       projectId: project.id,
       draftProject: getProjectEditFormState(project),
     }),
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    void getProjectRoles()
+      .then((roles) => {
+        if (isMounted) setRoleOptions(roles);
+      })
+      // The catalog failing is not worth an error banner over the whole drawer: the list still
+      // reads, and the editor simply offers nothing to add.
+      .catch(() => {
+        if (isMounted) setRoleOptions([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -136,6 +165,38 @@ export function ProjectDetailsDrawer({
       isMounted = false;
     };
   }, [isOpen, project.id]);
+
+  /**
+   * Adds or removes a role for one person on this project, then re-reads the project.
+   *
+   * Re-reads rather than patching local state: the roles shown must be the roles the server holds,
+   * and a failed change that had already been applied optimistically would leave the drawer
+   * claiming something that is not true.
+   */
+  async function changeRole(
+    userId: string,
+    roleId: string,
+    action: "add" | "remove",
+  ) {
+    setSavingRoleKey(`${userId}:${roleId}`);
+    setUserAssignmentError("");
+    try {
+      if (action === "add") {
+        await assignProjectRoleToUser(project.id, userId, roleId);
+      } else {
+        await unassignProjectRoleFromUser(project.id, userId, roleId);
+      }
+      setProjectDetails(await projectService.getProjectById(project.id));
+    } catch (error: unknown) {
+      setUserAssignmentError(
+        error instanceof Error
+          ? error.message
+          : "That role change could not be saved.",
+      );
+    } finally {
+      setSavingRoleKey(null);
+    }
+  }
 
   const currentProjectDetails =
     projectDetails?.id === project.id ? projectDetails : null;
@@ -552,6 +613,14 @@ export function ProjectDetailsDrawer({
               users={visibleUsers}
               pendingUserId={pendingUserId}
               onRemoveUser={(userId) => void removeUserFromProject(userId)}
+              roleEditing={{
+                availableRoles: roleOptions,
+                savingKey: savingRoleKey,
+                onAddRole: (userId, roleId) =>
+                  void changeRole(userId, roleId, "add"),
+                onRemoveRole: (userId, roleId) =>
+                  void changeRole(userId, roleId, "remove"),
+              }}
             />
           </Section>
         </>

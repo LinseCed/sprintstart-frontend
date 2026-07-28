@@ -28,6 +28,7 @@ const {
     mockGetOnboardingTasksByStep,
     mockAssignProjectRoleToUser,
     mockUnassignProjectRoleFromUser,
+    mockGetProjectRolesForUserOnProject,
     mockAcceptOnboardingSkipRequest,
     mockDenyOnboardingSkipRequest,
 } = vi.hoisted(() => ({
@@ -39,6 +40,7 @@ const {
     mockGetOnboardingTasksByStep: vi.fn(),
     mockAssignProjectRoleToUser: vi.fn(),
     mockUnassignProjectRoleFromUser: vi.fn(),
+    mockGetProjectRolesForUserOnProject: vi.fn(),
     mockAcceptOnboardingSkipRequest: vi.fn(),
     mockDenyOnboardingSkipRequest: vi.fn(),
 }));
@@ -56,6 +58,7 @@ vi.mock('../../../src/services/teamManagementService', () => ({
     getUserOnboardingFeedback: mockGetUserOnboardingFeedback,
     getOnboardingTasksByStep: mockGetOnboardingTasksByStep,
     assignProjectRoleToUser: mockAssignProjectRoleToUser,
+    getProjectRolesForUserOnProject: mockGetProjectRolesForUserOnProject,
     unassignProjectRoleFromUser: mockUnassignProjectRoleFromUser,
     markOnboardingFeedbackRead: vi.fn(),
     deleteOnboardingStep: vi.fn(),
@@ -136,6 +139,10 @@ describe('TeamMemberDetailPage', () => {
         mockGetOnboardingTasksByStep.mockResolvedValue([]);
         mockAssignProjectRoleToUser.mockResolvedValue(undefined);
         mockUnassignProjectRoleFromUser.mockResolvedValue(undefined);
+        // Roles are held per project now; the modal reads the selected project's set.
+        mockGetProjectRolesForUserOnProject.mockResolvedValue([
+            { id: 'role1', name: 'Backend', description: 'Backend developer' },
+        ]);
         mockAcceptOnboardingSkipRequest.mockResolvedValue(undefined);
         mockDenyOnboardingSkipRequest.mockResolvedValue(undefined);
     });
@@ -165,13 +172,15 @@ describe('TeamMemberDetailPage', () => {
             expect(screen.getByText('Manage Roles')).toBeInTheDocument();
         });
 
-        const select = screen.getByRole('combobox');
-        await user.selectOptions(select, 'role2');
+        // Two comboboxes now: which project, then which role to add on it. A role is held on a
+        // project, so the picker is part of the question rather than context around it.
+        const roleSelect = screen.getByRole('combobox', { name: /Role to add/i });
+        await user.selectOptions(roleSelect, 'role2');
 
         await user.click(screen.getByRole('button', { name: /Add/ }));
 
         await waitFor(() => {
-            expect(mockAssignProjectRoleToUser).toHaveBeenCalledWith('user1', 'role2');
+            expect(mockAssignProjectRoleToUser).toHaveBeenCalledWith('proj1', 'user1', 'role2');
         });
     });
 
@@ -199,7 +208,7 @@ describe('TeamMemberDetailPage', () => {
         await user.click(screen.getByText('Confirm Remove Backend'));
 
         await waitFor(() => {
-            expect(mockUnassignProjectRoleFromUser).toHaveBeenCalledWith('user1', 'role1');
+            expect(mockUnassignProjectRoleFromUser).toHaveBeenCalledWith('proj1', 'user1', 'role1');
         });
     });
 
