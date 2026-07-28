@@ -10,11 +10,12 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import {
+  buildRunSourceLabels,
   formatDateTime,
   formatNumber,
+  getRunSourceLabel,
   getRunStatusLabel,
   getRunStatusTone,
-  getSourceLabel,
 } from "../data.ts";
 import type { DataSource, IngestionRun, SectionKey } from "../types.ts";
 
@@ -52,6 +53,11 @@ export function OverviewSection({
         )
         .slice(0, 4),
     [runs],
+  );
+
+  const runSourceLabels = useMemo(
+    () => buildRunSourceLabels(sources),
+    [sources],
   );
 
   const bySource = useMemo(() => {
@@ -185,7 +191,11 @@ export function OverviewSection({
           {recentRuns.length > 0 ? (
             <ul className="mt-3">
               {recentRuns.map((run) => (
-                <ActivityRow key={run.runId} run={run} />
+                <ActivityRow
+                  key={run.runId}
+                  run={run}
+                  sourceLabel={getRunSourceLabel(run, runSourceLabels)}
+                />
               ))}
             </ul>
           ) : (
@@ -265,16 +275,24 @@ function Kpi({
   );
 }
 
-function ActivityRow({ run }: { run: IngestionRun }) {
+function ActivityRow({
+  run,
+  sourceLabel,
+}: {
+  run: IngestionRun;
+  sourceLabel: string;
+}) {
   const tone = getRunStatusTone(run.status);
   const label = getRunStatusLabel(run.status);
 
+  // Failed/partial runs use the danger palette so the label stays red on red;
+  // the warning palette pairs amber-yellow text with a red-looking background.
   const toneClass =
     tone === "success"
       ? "bg-app-success-bg text-app-success-text"
       : tone === "running"
         ? "bg-app-brand-soft text-app-brand-text"
-        : "bg-app-warning-bg text-app-warning-text";
+        : "bg-app-danger-bg text-app-danger-text";
 
   return (
     <li className="flex items-center gap-3 border-t border-app-border py-2 first:border-t-0">
@@ -291,15 +309,23 @@ function ActivityRow({ run }: { run: IngestionRun }) {
       </span>
       <div className="min-w-0">
         <p className="truncate text-[13px] font-semibold text-app-text">
-          {getSourceLabel(run.sourceSystem)} · {label.toLowerCase()}
+          {sourceLabel}
         </p>
         <p className="text-[11.5px] text-app-text-subtle">
           {formatNumber(run.ingestedCount)} artifacts
         </p>
       </div>
-      <span className="ml-auto whitespace-nowrap text-[11.5px] text-app-text-subtle">
-        {formatDateTime(run.startedAt)}
-      </span>
+
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none ${toneClass}`}
+        >
+          {label}
+        </span>
+        <span className="whitespace-nowrap text-[11.5px] text-app-text-subtle">
+          {formatDateTime(run.startedAt)}
+        </span>
+      </div>
     </li>
   );
 }

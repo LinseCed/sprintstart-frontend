@@ -8,13 +8,19 @@ function makeRun(overrides: Partial<IngestionRun> = {}): IngestionRun {
     return {
         runId: 'run-1',
         sourceSystem: 'GITHUB',
+        sourceId: null,
+        owner: null,
+        name: null,
+        repositoryId: null,
         startedAt: '2026-07-05T10:00:00Z',
         finishedAt: '2026-07-05T10:03:12Z',
         ingestedCount: 543,
         updatedCount: 10,
+        deletedCount: 0,
         failedCount: 3,
         status: 'PARTIAL',
         failedItems: [{ artifactIdentifier: 'FILE: broken.md', reason: 'Parse error' }],
+        failureReason: null,
         aiSyncStatus: 'SUCCEEDED',
         aiSyncFailureReason: null,
         ...overrides,
@@ -53,6 +59,31 @@ describe('RunDetailsPanel', () => {
 
         expect(screen.getByText('Indexing into AI')).toBeInTheDocument();
         expect(screen.getByText('Running…')).toBeInTheDocument();
+    });
+
+    it('shows the deleted counter from the run', () => {
+        render(<RunDetailsPanel run={makeRun({ deletedCount: 17 })} onClose={vi.fn()} />);
+
+        expect(screen.getByText('Deleted')).toBeInTheDocument();
+        expect(screen.getByText('17')).toBeInTheDocument();
+    });
+
+    it('surfaces a run-level failure reason as a banner and in the pipeline', () => {
+        render(
+            <RunDetailsPanel
+                run={makeRun({ status: 'FAILED', failureReason: 'GitHub rate limit exceeded' })}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('This run failed')).toBeInTheDocument();
+        expect(screen.getAllByText('GitHub rate limit exceeded').length).toBeGreaterThan(0);
+    });
+
+    it('omits the failure banner when the run has no run-level failure', () => {
+        render(<RunDetailsPanel run={makeRun()} onClose={vi.fn()} />);
+
+        expect(screen.queryByText('This run failed')).not.toBeInTheDocument();
     });
 
     it('closes when the close control is used', async () => {

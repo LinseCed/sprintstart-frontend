@@ -101,7 +101,10 @@ describe('ProjectDetailsDrawer', () => {
             expect(screen.getByText('Detailed project description')).toBeInTheDocument(),
         );
         expect(screen.getByText('Repo A')).toBeInTheDocument();
-        expect(screen.getByText('GITHUB')).toBeInTheDocument();
+        // Shares the Data Ingestion source badges, so the raw enum is rendered
+        // as its display label alongside the connection status.
+        expect(screen.getByText('GitHub')).toBeInTheDocument();
+        expect(screen.getByText('Connected')).toBeInTheDocument();
         expect(screen.getByText('jane@example.com')).toBeInTheDocument();
     });
 

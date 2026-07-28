@@ -5,11 +5,13 @@ import {
   GitBranch,
   Loader2,
   RefreshCw,
+  Unlink,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
+import { AlertDialog } from "../../../components/ui/AlertDialog.tsx";
 import { AccountEnabledToggle } from "../../admin/components/AccountEnabledToggle.tsx";
 import type {
   ConfigureGithubRepositoryRequest,
@@ -19,6 +21,8 @@ import { formatDateTime, formatNumber, SOURCE_META } from "../data.ts";
 import type { DataSource, LoadingState } from "../types.ts";
 import { GithubRepositorySyncSettings } from "./GithubRepositorySyncSettings.tsx";
 import { SourceStatusChip } from "./SourceStatusChip.tsx";
+import { SourceSyncBadge } from "./SourceSyncBadge.tsx";
+import { SourceTypeBadge } from "./SourceTypeBadge.tsx";
 
 type SourceDetailsPanelProps = {
   source: DataSource;
@@ -37,6 +41,12 @@ type SourceDetailsPanelProps = {
     repository: NonNullable<DataSource["githubRepository"]>,
     enabled: boolean,
   ) => Promise<void>;
+  /**
+   * Removes the repository's link to the current project. Only passed when the
+   * caller is allowed to manage the project's sources; its presence gates the
+   * "Remove from project" action. The caller closes this drawer on success.
+   */
+  onUnlinkSource?: (source: DataSource) => Promise<void>;
   onClose: () => void;
 };
 
@@ -51,11 +61,15 @@ export function SourceDetailsPanel({
   onLoadRepositoryConfig,
   onSaveRepositoryConfig,
   onSetSourceEnabled,
+  onUnlinkSource,
   onClose,
 }: SourceDetailsPanelProps) {
   const [updateState, setUpdateState] = useState<LoadingState>("idle");
   const [refreshState, setRefreshState] = useState<LoadingState>("idle");
   const [enabledState, setEnabledState] = useState<LoadingState>("idle");
+  const [unlinkState, setUnlinkState] = useState<LoadingState>("idle");
+  const [isUnlinkDialogOpen, setIsUnlinkDialogOpen] = useState(false);
+  const [unlinkError, setUnlinkError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const Icon = SOURCE_META[source.sourceSystem].icon;
@@ -78,6 +92,20 @@ export function SourceDetailsPanel({
     repository !== null &&
     onSetSourceEnabled !== undefined;
   const isTogglingEnabled = enabledState === "loading";
+  // Unlink needs the connection's repositoryId (the DELETE path parameter);
+  // authorization is presence-based — the parent only passes onUnlinkSource when
+  // the caller may manage the project's sources.
+  const canUnlinkSource =
+    source.sourceSystem === "GITHUB" &&
+    repository !== null &&
+    repository.repositoryId !== null &&
+    onUnlinkSource !== undefined;
+  const isUnlinking = unlinkState === "loading";
+  // Per-artifact-type sync timestamps only exist for GitHub repos (endpoint #5).
+  const hasArtifactTypeSyncTimes =
+    source.lastCommitsSyncAt !== null ||
+    source.lastIssuesSyncAt !== null ||
+    source.lastPullRequestsSyncAt !== null;
 
   const handleToggleEnabled = useCallback(
     async (enabled: boolean) => {
@@ -153,6 +181,26 @@ export function SourceDetailsPanel({
     }
   }, [canUpdateRepository, onUpdateSource, source]);
 
+  const handleConfirmUnlink = useCallback(async () => {
+    if (!onUnlinkSource) return;
+
+    setUnlinkState("loading");
+    setUnlinkError(null);
+
+    try {
+      await onUnlinkSource(source);
+      // The parent closes this drawer on success, so there is nothing to reset
+      // here — the component unmounts.
+    } catch (error) {
+      setUnlinkState("error");
+      setUnlinkError(
+        error instanceof Error
+          ? error.message
+          : "Failed to remove the repository from the project.",
+      );
+    }
+  }, [onUnlinkSource, source]);
+
   const handleRefreshDetails = useCallback(async () => {
     if (!onRefreshDetails) return;
 
@@ -207,8 +255,16 @@ export function SourceDetailsPanel({
       }
       badge={
         <>
-          <Badge>{source.type}</Badge>
+          <SourceTypeBadge type={source.type} />
           <SourceStatusChip status={source.statusView} />
+          {/* The chip conveys connection state; this adds the sync freshness it
+              collapses away, matching the pair shown on the source cards. */}
+          {source.ingestionStatusLabel !== source.statusView.label && (
+            <SourceSyncBadge
+              label={source.ingestionStatusLabel}
+              status={source.ingestionStatus}
+            />
+          )}
         </>
       }
       footer={
@@ -323,6 +379,25 @@ export function SourceDetailsPanel({
         </dl>
       </Section>
 
+      {hasArtifactTypeSyncTimes && (
+        <Section title="Last Synced">
+          <dl className="overflow-hidden rounded-xl border border-app-border">
+            <InfoRow
+              label="Commits"
+              value={formatDateTime(source.lastCommitsSyncAt)}
+            />
+            <InfoRow
+              label="Issues"
+              value={formatDateTime(source.lastIssuesSyncAt)}
+            />
+            <InfoRow
+              label="Pull requests"
+              value={formatDateTime(source.lastPullRequestsSyncAt)}
+            />
+          </dl>
+        </Section>
+      )}
+
       {canManageRepositoryConfig && repository && (
         <Section title="Sync Schedule">
           <GithubRepositorySyncSettings
@@ -352,6 +427,54 @@ export function SourceDetailsPanel({
           </div>
         </Section>
       )}
+
+      {canUnlinkSource && (
+        <Section title="Project link">
+          <div className="rounded-xl border border-app-border px-4 py-3">
+            <p className="text-sm text-app-text-muted">
+              Remove this repository from the current project. The repository and
+              its artifacts are kept. You can
+              re-link it later.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsUnlinkDialogOpen(true)}
+              disabled={isUnlinking}
+              className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-danger-border bg-app-danger-bg px-5 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isUnlinking ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Unlink className="h-4 w-4" />
+              )}
+              Remove from project
+            </button>
+          </div>
+        </Section>
+      )}
+
+      <AlertDialog
+        isOpen={isUnlinkDialogOpen}
+        title="Remove repository from project?"
+        description={
+          repository
+            ? `"${repository.fullName}" will no longer feed this project's knowledge base. The repository and its artifacts are kept, and you can re-link it later.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        loadingLabel="Removing…"
+        variant="danger"
+        isLoading={isUnlinking}
+        errorMessage={unlinkError ?? undefined}
+        onClose={() => {
+          if (isUnlinking) return;
+          setIsUnlinkDialogOpen(false);
+          setUnlinkError(null);
+        }}
+        onConfirm={() => {
+          void handleConfirmUnlink();
+        }}
+      />
     </DetailsSideDrawer>
   );
 }
@@ -469,10 +592,3 @@ function Message({
   );
 }
 
-function Badge({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full bg-app-neutral-bg px-3 py-1 text-xs font-medium text-app-neutral-text">
-      {children}
-    </span>
-  );
-}

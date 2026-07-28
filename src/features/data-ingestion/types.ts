@@ -21,6 +21,19 @@ export type IngestionRunStatus =
   | "FAILED";
 
 /**
+ * The connection health a per-repo ingestion source reports (endpoint
+ * `/api/v1/ingestion-sources/status`). A narrower, source-instance-scoped set
+ * than {@link BackendProjectSourceStatus}; every value here is also a member of
+ * that broader union, so it flows through the same status-derivation helpers.
+ */
+export type ConnectionStatus =
+  | "CONNECTED"
+  | "UPDATING"
+  | "OUT_OF_DATE"
+  | "FAILED"
+  | "DISABLED";
+
+/**
  * Whether a run's artifacts have actually reached the AI service's index, separate
  * from `IngestionRunStatus`. A run can show COMPLETED (fetched and saved locally)
  * while this is still PENDING or has moved to FAILED -- that gap is why this exists.
@@ -40,7 +53,12 @@ export type Artifact = {
   ingestionRunId?: string | null;
 };
 
-export type ArtifactPageMetadata = {
+/**
+ * Standard page envelope metadata returned by the backend's paginated
+ * endpoints (`{ items, page }`). Shared by artifacts and the paginated
+ * ingestion-run history so both agree on the shape.
+ */
+export type PageMetadata = {
   number: number;
   size: number;
   totalElements: number;
@@ -48,6 +66,8 @@ export type ArtifactPageMetadata = {
   hasNext: boolean;
   hasPrevious: boolean;
 };
+
+export type ArtifactPageMetadata = PageMetadata;
 
 export type ArtifactPage = {
   items: Artifact[];
@@ -57,15 +77,81 @@ export type ArtifactPage = {
 export type IngestionRun = {
   runId: string;
   sourceSystem: SourceSystem;
+  /** `"owner/name"` for GitHub runs; null for uploads and legacy runs. */
+  sourceId: string | null;
+  owner: string | null;
+  name: string | null;
+  repositoryId: string | null;
   startedAt: string;
   finishedAt: string | null;
   ingestedCount: number;
   updatedCount: number;
+  deletedCount: number;
   failedCount: number;
   status: IngestionRunStatus;
   failedItems: FailedArtifact[];
+  /** Run-level failure reason, distinct from per-item failures. */
+  failureReason: string | null;
   aiSyncStatus: AiSyncStatus;
   aiSyncFailureReason: string | null;
+};
+
+/**
+ * Per-repo ingestion health from `/api/v1/ingestion-sources/status` — one row
+ * per connected GitHub repository. This is the authoritative source for the
+ * Data Ingestion source cards: it carries the repository identity, connection
+ * status, enabled flag, the last run's counters, the total stored artifact
+ * count and the per-artifact-type last-sync timestamps in a single call, so the
+ * UI no longer has to reconstruct any of it from artifact metadata.
+ */
+export type SourceInstanceIngestionStatus = {
+  sourceSystem: SourceSystem;
+  /** `"owner/name"`. */
+  sourceId: string;
+  repositoryId: string;
+  owner: string;
+  name: string;
+  sourceUrl: string;
+  /**
+   * Connection health of the repo. Deliberately NOT called `status`: an
+   * ingestion run also has a `status`, with a different vocabulary, and the two
+   * were easy to confuse. Mirrors the backend's `connectionStatus` field.
+   */
+  connectionStatus: ConnectionStatus;
+  enabled: boolean;
+  lastRunTime: string | null;
+  /** Counters of the LATEST run for this repo. */
+  ingestedCount: number;
+  updatedCount: number;
+  deletedCount: number;
+  failedCount: number;
+  failedItems: FailedArtifact[];
+  /** Total artifacts currently stored for the repo (not just the last run). */
+  artifactCount: number;
+  lastCommitsSyncAt: string | null;
+  lastIssuesSyncAt: string | null;
+  lastPullRequestsSyncAt: string | null;
+};
+
+/** A page of ingestion runs from `/api/v1/ingestion-runs/page`. */
+export type IngestionRunPage = {
+  items: IngestionRun[];
+  page: PageMetadata;
+};
+
+/**
+ * Filters for the paginated run-history endpoint. All optional and AND-combined
+ * server-side; `projectId` is resolved to that project's connected repos.
+ */
+export type IngestionRunFilter = {
+  page?: number;
+  size?: number;
+  sourceSystem?: SourceSystem;
+  repositoryId?: string;
+  projectId?: string;
+  status?: IngestionRunStatus;
+  /** ISO datetime; inclusive lower bound on `startedAt`. */
+  since?: string;
 };
 
 export type FailedArtifact = {
@@ -85,24 +171,14 @@ export type GithubRepositoryDetails = GithubRepositoryReference & {
   enabled: boolean | null;
 };
 
-export type SourceIngestionStatus = {
-  sourceSystem: SourceSystem;
-  lastRunTime: string | null;
-  ingestedCount: number;
-  updatedCount: number;
-  failedCount: number;
-  status: IngestionRunStatus | null;
-  failedItems: FailedArtifact[];
-};
-
 export type ActiveTab = "sources" | "artifacts" | "runs" | "connectors";
 
 /**
- * The section the overview-first Data Ingestion page is filtered to. `all` is
- * the dashboard view (overview + sources + runs); the rest narrow to a single
- * section. Replaces the old tab model.
+ * The section the overview-first Data Ingestion page is filtered to. `overview`
+ * is the dashboard view and shows everything (overview + sources + runs); the
+ * other two narrow to a single section.
  */
-export type SectionKey = "all" | "overview" | "sources" | "runs";
+export type SectionKey = "overview" | "sources" | "runs";
 
 export type LoadingState = "idle" | "loading" | "success" | "error";
 
@@ -119,6 +195,13 @@ export type SourceStatus = "connected" | "running" | "warning" | "disabled";
 export type SourceStatusView =
   | "connected"
   | "syncing"
+  /**
+   * Connected and healthy, but the backend has flagged newer upstream changes
+   * that have not been pulled yet. Deliberately separate from `attention`:
+   * with auto-update off this is the *expected* state between syncs, so it must
+   * not read as a failure.
+   */
+  | "stale"
   | "attention"
   | "disabled";
 
@@ -127,7 +210,7 @@ export type SourceStatusPresentation = {
   state: SourceStatusView;
   label: string;
   icon: LucideIcon;
-  tone: "success" | "brand" | "warning" | "neutral";
+  tone: "success" | "brand" | "warning" | "danger" | "neutral";
   /** True while `state === "syncing"`, so callers can spin the icon. */
   spinning: boolean;
 };
@@ -154,7 +237,7 @@ export type SourceDetailsSource = {
   totalArtifactCount?: number;
   runIds?: string[];
   sharesSourceSystem?: boolean;
-  failedItems?: SourceIngestionStatus["failedItems"];
+  failedItems?: FailedArtifact[];
   githubRepository?: GithubRepositoryDetails | null;
   description?: string;
   nextSync?: string;
@@ -170,11 +253,17 @@ export type DataSource = SourceDetailsSource & {
   lastRunAt: string | null;
   latestIngestedCount: number;
   latestUpdatedCount: number;
+  /** Artifacts removed by the latest run (from the per-repo status endpoint). */
+  deletedCount: number;
   totalArtifactCount: number;
   runIds: string[];
   sharesSourceSystem: boolean;
-  failedItems: SourceIngestionStatus["failedItems"];
+  failedItems: FailedArtifact[];
   githubRepository: GithubRepositoryDetails | null;
+  /** Per-artifact-type last-sync timestamps (GitHub, from endpoint #5). */
+  lastCommitsSyncAt: string | null;
+  lastIssuesSyncAt: string | null;
+  lastPullRequestsSyncAt: string | null;
 };
 
 export type SourceConnectMeta = SourceMeta;

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { DataIngestionPage } from '../../../src/pages/DataIngestionPage';
 import { createProjectContextValue, createSelectableProject } from '../setup/projectContext';
 
@@ -30,32 +30,49 @@ vi.mock('../../../src/context/useAuth', () => ({
     }),
 }));
 
+function createRunPage(items: unknown[] = [], overrides = {}) {
+    return {
+        items,
+        page: {
+            number: 1,
+            size: 10,
+            totalElements: items.length,
+            totalPages: items.length > 0 ? 1 : 0,
+            hasNext: false,
+            hasPrevious: false,
+            ...overrides,
+        },
+    };
+}
+
 const {
-    mockGetIngestionRuns,
+    mockGetIngestionRunsPage,
     mockGetIngestionStatus,
     mockConnectGithubRepository,
     mockGetGithubPatNames,
     mockUpdateAllGithubRepositories,
     mockUpdateGithubRepository,
     mockGetAccessibleProject,
-    mockGetProjectArtifactSnapshot,
+    mockGetIngestionSourceStatuses,
     mockGetUnifiedArtifacts,
+    mockListConnectors,
 } = vi.hoisted(() => ({
-    mockGetIngestionRuns: vi.fn(),
+    mockGetIngestionRunsPage: vi.fn(),
     mockGetIngestionStatus: vi.fn(),
     mockConnectGithubRepository: vi.fn(),
     mockGetGithubPatNames: vi.fn(),
     mockUpdateAllGithubRepositories: vi.fn(),
     mockUpdateGithubRepository: vi.fn(),
     mockGetAccessibleProject: vi.fn(),
-    mockGetProjectArtifactSnapshot: vi.fn(),
+    mockGetIngestionSourceStatuses: vi.fn(),
     mockGetUnifiedArtifacts: vi.fn(),
+    mockListConnectors: vi.fn(),
 }));
 
 vi.mock('../../../src/services/ingestionService', () => ({
-    getIngestionRuns: mockGetIngestionRuns,
+    getIngestionRunsPage: mockGetIngestionRunsPage,
     getIngestionStatus: mockGetIngestionStatus,
-    getProjectArtifactSnapshot: mockGetProjectArtifactSnapshot,
+    getIngestionSourceStatuses: mockGetIngestionSourceStatuses,
 }));
 
 vi.mock('../../../src/services/projectService', async (importOriginal) => {
@@ -73,6 +90,14 @@ vi.mock('../../../src/services/sources/githubService', () => ({
     updateGithubRepository: mockUpdateGithubRepository,
 }));
 
+vi.mock('../../../src/services/connectorService', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../src/services/connectorService')>();
+    return {
+        ...actual,
+        connectorService: { ...actual.connectorService, listConnectors: mockListConnectors },
+    };
+});
+
 vi.mock('../../../src/services/knowledgeService', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../../src/services/knowledgeService')>();
     return {
@@ -84,7 +109,7 @@ vi.mock('../../../src/services/knowledgeService', async (importOriginal) => {
 describe('DataIngestionPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetIngestionRuns.mockResolvedValue([]);
+        mockGetIngestionRunsPage.mockResolvedValue(createRunPage());
         mockGetIngestionStatus.mockResolvedValue([]);
         mockGetGithubPatNames.mockResolvedValue(['token1']);
         mockConnectGithubRepository.mockResolvedValue({ transactionId: 'tx1' });
@@ -100,8 +125,9 @@ describe('DataIngestionPage', () => {
             ],
             users: [],
         });
-        mockGetProjectArtifactSnapshot.mockResolvedValue({ artifacts: [], totalElements: 0 });
+        mockGetIngestionSourceStatuses.mockResolvedValue([]);
         mockGetUnifiedArtifacts.mockResolvedValue([]);
+        mockListConnectors.mockResolvedValue([]);
         selectProject();
     });
 
@@ -123,6 +149,362 @@ describe('DataIngestionPage', () => {
 
         expect(await screen.findByText('octocat/hello-world')).toBeInTheDocument();
         expect(mockGetAccessibleProject).toHaveBeenCalledWith('proj1');
+    });
+
+    it('builds the GitHub source card from the per-repo ingestion status endpoint', async () => {
+        mockGetIngestionSourceStatuses.mockResolvedValue([
+            {
+                sourceSystem: 'GITHUB',
+                sourceId: 'octocat/hello-world',
+                repositoryId: 'repo-uuid',
+                owner: 'octocat',
+                name: 'hello-world',
+                sourceUrl: 'https://github.com/octocat/hello-world',
+                status: 'CONNECTED',
+                enabled: true,
+                lastRunTime: '2026-07-01T00:00:00Z',
+                ingestedCount: 12,
+                updatedCount: 7,
+                deletedCount: 1,
+                failedCount: 0,
+                failedItems: [],
+                artifactCount: 340,
+                lastCommitsSyncAt: '2026-07-01T00:00:00Z',
+                lastIssuesSyncAt: null,
+                lastPullRequestsSyncAt: null,
+            },
+        ]);
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        // Rendered both as the source card and in the overview's per-source breakdown.
+        expect(
+            (await screen.findAllByText('octocat/hello-world')).length,
+        ).toBeGreaterThan(0);
+
+        // The repo's stored artifact count (#5) drives the card and the overview KPI,
+        // instead of being counted from a full artifact snapshot.
+        await waitFor(() => {
+            expect(screen.getAllByText('340').length).toBeGreaterThan(0);
+        });
+
+        // Owner comes from the endpoint, not from parsed artifact metadata.
+        expect(screen.getByText('octocat')).toBeInTheDocument();
+        expect(mockGetIngestionSourceStatuses).toHaveBeenCalledWith('proj1');
+    });
+
+    it('applies a projectId deep link once and then releases the project switcher', async () => {
+        const setSelectedProjectId = vi.fn();
+        const project = createSelectableProject({ id: 'proj1', isManaged: true });
+        mockUseProjectContext.mockReturnValue(
+            createProjectContextValue({
+                projects: [project],
+                selectedProject: project,
+                selectedProjectId: 'proj1',
+                canManageSelected: true,
+                setSelectedProjectId,
+            }),
+        );
+
+        let search = '';
+        function SearchProbe() {
+            search = useLocation().search;
+            return null;
+        }
+
+        render(
+            <MemoryRouter initialEntries={['/data-ingestion?projectId=proj-from-admin']}>
+                <DataIngestionPage />
+                <SearchProbe />
+            </MemoryRouter>,
+        );
+
+        await waitFor(() => {
+            expect(setSelectedProjectId).toHaveBeenCalledWith('proj-from-admin');
+        });
+
+        // The parameter is consumed: while it stayed in the URL every switch was
+        // immediately forced back to the deep-linked project.
+        await waitFor(() => {
+            expect(search).not.toContain('projectId');
+        });
+
+        // The context still reports a different project (the user switched, or
+        // the deep link never resolved) — that must not be overridden again.
+        setSelectedProjectId.mockClear();
+        await waitFor(() => {
+            expect(setSelectedProjectId).not.toHaveBeenCalled();
+        });
+    });
+
+    it('does not let one repository\'s failed run colour another repository', async () => {
+        mockGetAccessibleProject.mockResolvedValue({
+            id: 'proj1',
+            name: 'Project Alpha',
+            description: '',
+            manager: null,
+            sources: [
+                { id: 'src1', name: 'octocat/healthy', type: 'GITHUB', status: 'CONNECTED' },
+                { id: 'src2', name: 'octocat/broken', type: 'GITHUB', status: 'CONNECTED' },
+            ],
+            users: [],
+        });
+
+        const instance = (name: string, repositoryId: string, failedCount: number) => ({
+            sourceSystem: 'GITHUB',
+            sourceId: `octocat/${name}`,
+            repositoryId,
+            owner: 'octocat',
+            name,
+            sourceUrl: `https://github.com/octocat/${name}`,
+            status: 'CONNECTED',
+            enabled: true,
+            lastRunTime: '2026-07-01T00:00:00Z',
+            ingestedCount: 5,
+            updatedCount: 0,
+            deletedCount: 0,
+            failedCount,
+            failedItems: [],
+            artifactCount: 10,
+            lastCommitsSyncAt: null,
+            lastIssuesSyncAt: null,
+            lastPullRequestsSyncAt: null,
+        });
+
+        mockGetIngestionSourceStatuses.mockResolvedValue([
+            instance('healthy', 'repo-healthy', 0),
+            instance('broken', 'repo-broken', 3),
+        ]);
+
+        // Only the broken repo has a failed run loaded.
+        mockGetIngestionRunsPage.mockResolvedValue(
+            createRunPage([
+                {
+                    runId: 'run-broken',
+                    sourceSystem: 'GITHUB',
+                    sourceId: 'octocat/broken',
+                    owner: 'octocat',
+                    name: 'broken',
+                    repositoryId: 'repo-broken',
+                    startedAt: '2026-07-05T10:00:00Z',
+                    finishedAt: '2026-07-05T10:05:00Z',
+                    ingestedCount: 0,
+                    updatedCount: 0,
+                    deletedCount: 0,
+                    failedCount: 3,
+                    status: 'FAILED',
+                    failedItems: [],
+                    failureReason: null,
+                    aiSyncStatus: 'FAILED',
+                    aiSyncFailureReason: null,
+                },
+            ]),
+        );
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        // Rendered both as a source card and in the overview breakdown.
+        await screen.findAllByText('octocat/healthy');
+
+        // Exactly one card needs attention — previously the newest GitHub run was
+        // applied to every GitHub source, marking the healthy repo as failing too.
+        // Scoped to the Sources section: the overview KPI carries the same label.
+        await waitFor(() => {
+            const sourcesSection = within(
+                screen.getByRole('region', { name: 'Sources' }),
+            );
+            expect(sourcesSection.getAllByText('Needs attention')).toHaveLength(1);
+            expect(sourcesSection.getAllByText('Connected').length).toBeGreaterThan(0);
+        });
+    });
+
+    it('surfaces a globally disabled connector without opening the connectors modal', async () => {
+        mockListConnectors.mockResolvedValue([
+            {
+                id: 'github',
+                name: 'GitHub',
+                enabled: false,
+                firstConfiguredAt: null,
+                lastConfiguredAt: null,
+            },
+        ]);
+        mockGetIngestionSourceStatuses.mockResolvedValue([
+            {
+                sourceSystem: 'GITHUB',
+                sourceId: 'octocat/hello-world',
+                repositoryId: 'repo-uuid',
+                owner: 'octocat',
+                name: 'hello-world',
+                sourceUrl: 'https://github.com/octocat/hello-world',
+                status: 'CONNECTED',
+                enabled: true,
+                lastRunTime: '2026-07-01T00:00:00Z',
+                ingestedCount: 1,
+                updatedCount: 0,
+                deletedCount: 0,
+                failedCount: 0,
+                failedItems: [],
+                artifactCount: 5,
+                lastCommitsSyncAt: null,
+                lastIssuesSyncAt: null,
+                lastPullRequestsSyncAt: null,
+            },
+        ]);
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        const sourcesSection = async () =>
+            within(await screen.findByRole('region', { name: 'Sources' }));
+
+        // The card stops claiming to be connected even though the repository's
+        // own flag is enabled — visible without opening the connectors modal.
+        await waitFor(async () => {
+            expect(
+                (await sourcesSection()).getByText('Connector disabled'),
+            ).toBeInTheDocument();
+        });
+        expect(
+            (await sourcesSection()).queryByText('Connected'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows no connector warning when the connector endpoint is forbidden', async () => {
+        // HR may open the page but cannot read connectors — that must not be
+        // mistaken for "everything is disabled".
+        mockListConnectors.mockRejectedValue(new Error('Forbidden'));
+
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await screen.findByText('octocat/hello-world');
+        expect(screen.queryByText('Connector disabled')).not.toBeInTheDocument();
+    });
+
+    it('scopes the run history to the selected project', async () => {
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await waitFor(() => {
+            expect(mockGetIngestionRunsPage).toHaveBeenCalledWith(
+                expect.objectContaining({ page: 1, size: 10, projectId: 'proj1' }),
+            );
+        });
+    });
+
+    it('requests the next page when a pagination control is used', async () => {
+        const run = (runId: string) => ({
+            runId,
+            sourceSystem: 'GITHUB',
+            sourceId: 'octocat/hello-world',
+            owner: 'octocat',
+            name: 'hello-world',
+            repositoryId: 'repo-uuid',
+            startedAt: '2026-07-05T10:00:00Z',
+            finishedAt: '2026-07-05T10:05:00Z',
+            ingestedCount: 1,
+            updatedCount: 0,
+            deletedCount: 0,
+            failedCount: 0,
+            status: 'COMPLETED',
+            failedItems: [],
+            failureReason: null,
+            aiSyncStatus: 'SUCCEEDED',
+            aiSyncFailureReason: null,
+        });
+
+        mockGetIngestionRunsPage.mockResolvedValueOnce(
+            createRunPage([run('run-page-1')], { totalElements: 2, totalPages: 2, hasNext: true }),
+        );
+
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        expect(await screen.findByText('run-page-1')).toBeInTheDocument();
+
+        mockGetIngestionRunsPage.mockResolvedValueOnce(
+            createRunPage([run('run-page-2')], {
+                number: 2,
+                totalElements: 2,
+                totalPages: 2,
+                hasNext: false,
+                hasPrevious: true,
+            }),
+        );
+
+        await user.click(screen.getByRole('button', { name: /next page/i }));
+
+        expect(await screen.findByText('run-page-2')).toBeInTheDocument();
+        // One page is shown at a time, so the previous page's rows are replaced.
+        expect(screen.queryByText('run-page-1')).not.toBeInTheDocument();
+        expect(mockGetIngestionRunsPage).toHaveBeenLastCalledWith(
+            expect.objectContaining({ page: 2 }),
+        );
+    });
+
+    it('keeps the newest response when refreshes resolve out of order', async () => {
+        const run = (runId: string) => ({
+            runId,
+            sourceSystem: 'GITHUB',
+            sourceId: 'octocat/hello-world',
+            owner: 'octocat',
+            name: 'hello-world',
+            repositoryId: 'repo-uuid',
+            startedAt: '2026-07-05T10:00:00Z',
+            finishedAt: '2026-07-05T10:05:00Z',
+            ingestedCount: 0,
+            updatedCount: 0,
+            deletedCount: 0,
+            failedCount: 0,
+            status: 'COMPLETED',
+            failedItems: [],
+            failureReason: null,
+            aiSyncStatus: 'SUCCEEDED',
+            aiSyncFailureReason: null,
+        });
+
+        // A stale in-flight request resolves *after* a newer one. Its result must
+        // be discarded, otherwise freshly created runs disappear again until the
+        // user reloads the browser.
+        let resolveStale: ((value: unknown) => void) | undefined;
+        mockGetIngestionRunsPage
+            .mockResolvedValueOnce(createRunPage([run('old-run')]))
+            .mockImplementationOnce(
+                () => new Promise((resolve) => { resolveStale = resolve; }),
+            )
+            .mockResolvedValueOnce(createRunPage([run('new-run')]));
+
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        expect(await screen.findByText('old-run')).toBeInTheDocument();
+
+        const statusSelect = screen.getByLabelText('Filter runs by status');
+        await user.selectOptions(statusSelect, 'FAILED');
+        await user.selectOptions(statusSelect, 'COMPLETED');
+
+        expect(await screen.findByText('new-run')).toBeInTheDocument();
+
+        resolveStale?.(createRunPage([run('old-run')]));
+
+        await waitFor(() => {
+            expect(screen.getByText('new-run')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('old-run')).not.toBeInTheDocument();
+    });
+
+    it('re-queries the backend with the chosen status filter', async () => {
+        const user = userEvent.setup();
+        render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText('Filter runs by status')).toBeInTheDocument();
+        });
+
+        await user.selectOptions(screen.getByLabelText('Filter runs by status'), 'FAILED');
+
+        await waitFor(() => {
+            expect(mockGetIngestionRunsPage).toHaveBeenLastCalledWith(
+                expect.objectContaining({ status: 'FAILED', page: 1 }),
+            );
+        });
     });
 
     it('opens the connectors modal from Manage connectors', async () => {
@@ -178,7 +560,7 @@ describe('DataIngestionPage', () => {
         });
     });
 
-    it('parses owner/repo format and calls connectGithubRepository via the single-repo fallback', async () => {
+    it('parses owner/repo format and connects it from the wizard single-repo mode', async () => {
         const user = userEvent.setup();
         render(<MemoryRouter><DataIngestionPage /></MemoryRouter>);
 
@@ -189,7 +571,7 @@ describe('DataIngestionPage', () => {
         await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
         await user.click(await screen.findByRole('button', { name: /continue/i }));
         await user.click(
-            await screen.findByRole('button', { name: /add a single repository instead/i }),
+            await screen.findByRole('button', { name: /add single repo/i }),
         );
 
         await waitFor(() => {
@@ -198,7 +580,7 @@ describe('DataIngestionPage', () => {
 
         await user.type(screen.getByLabelText('Repository owner'), 'octocat/hello-world');
 
-        await user.click(screen.getByRole('button', { name: 'Connect Source' }));
+        await user.click(screen.getByRole('button', { name: /connect repository/i }));
 
         await waitFor(() => {
             expect(mockConnectGithubRepository).toHaveBeenCalledWith(
@@ -223,7 +605,7 @@ describe('DataIngestionPage', () => {
         await user.click(screen.getAllByRole('button', { name: /Add sources/i })[0]);
         await user.click(await screen.findByRole('button', { name: /continue/i }));
         await user.click(
-            await screen.findByRole('button', { name: /add a single repository instead/i }),
+            await screen.findByRole('button', { name: /add single repo/i }),
         );
 
         await waitFor(() => {
@@ -231,9 +613,15 @@ describe('DataIngestionPage', () => {
         });
 
         await user.type(screen.getByLabelText('Repository owner'), 'octocat/hello-world');
-        await user.click(screen.getByRole('button', { name: 'Connect Source' }));
 
-        expect(await screen.findByText(/only connect sources to projects you manage/i)).toBeInTheDocument();
+        // The wizard states the reason up front and disables the action, rather
+        // than accepting the click and failing afterwards.
+        expect(
+            await screen.findByText(/only connect sources to projects you manage/i),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /connect repository/i })).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: /connect repository/i }));
         expect(mockConnectGithubRepository).not.toHaveBeenCalled();
     });
 });

@@ -35,6 +35,39 @@ const discoveryHandler = http.get('/api/v1/github/discover/org/:org', () =>
     }),
 );
 
+/**
+ * The per-repo status endpoint resolves repository ids for repos that are
+ * already ingested. `repo-connected` belongs to another project, so it can be
+ * linked to this one; `repo-here` is already a source of the current project.
+ */
+function sourceStatusHandler({
+    inThisProject = [] as string[],
+} = {}) {
+    const row = (fullName: string, repositoryId: string) => ({
+        sourceSystem: 'GITHUB',
+        sourceId: fullName,
+        repositoryId,
+        owner: fullName.split('/')[0],
+        name: fullName.split('/')[1],
+        sourceUrl: `https://github.com/${fullName}`,
+        connectionStatus: 'CONNECTED',
+        enabled: true,
+        artifactCount: 5,
+    });
+
+    return http.get('/api/v1/ingestion-sources/status', ({ request }) => {
+        const projectId = new URL(request.url).searchParams.get('projectId');
+
+        if (projectId) {
+            return HttpResponse.json(
+                inThisProject.map((fullName) => row(fullName, `id-${fullName}`)),
+            );
+        }
+
+        return HttpResponse.json([row('acme/repo-connected', 'id-acme/repo-connected')]);
+    });
+}
+
 /** Advances the wizard from the source-type step into the GitHub discovery step. */
 async function gotoGithubStep(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole('button', { name: /continue/i }));
@@ -63,8 +96,8 @@ describe('AddSourceModal', () => {
         expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
     });
 
-    it('discovers repositories and disables selection of already-connected ones', async () => {
-        server.use(discoveryHandler);
+    it('lets an already-ingested repository be selected for linking', async () => {
+        server.use(discoveryHandler, sourceStatusHandler());
         const user = userEvent.setup();
         renderModal();
         await gotoGithubStep(user);
@@ -73,9 +106,83 @@ describe('AddSourceModal', () => {
         await user.click(screen.getByRole('button', { name: 'Discover' }));
 
         expect(await screen.findByText('repo-a')).toBeInTheDocument();
+
         const connectedRow = screen.getByText('repo-connected').closest('label') as HTMLElement;
-        expect(within(connectedRow).getByText('Connected')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(within(connectedRow).getByText('Already ingested')).toBeInTheDocument();
+        });
+        expect(within(connectedRow).getByRole('checkbox')).toBeEnabled();
+    });
+
+    it('keeps repositories already in this project unselectable', async () => {
+        server.use(
+            discoveryHandler,
+            sourceStatusHandler({ inThisProject: ['acme/repo-connected'] }),
+        );
+        const user = userEvent.setup();
+        renderModal();
+        await gotoGithubStep(user);
+
+        await user.type(screen.getByLabelText('Organization or user'), 'acme');
+        await user.click(screen.getByRole('button', { name: 'Discover' }));
+        await screen.findByText('repo-a');
+
+        const connectedRow = screen.getByText('repo-connected').closest('label') as HTMLElement;
+        await waitFor(() => {
+            expect(within(connectedRow).getByText('In this project')).toBeInTheDocument();
+        });
         expect(within(connectedRow).getByRole('checkbox')).toBeDisabled();
+    });
+
+    it('links an already-ingested repository instead of re-ingesting it', async () => {
+        let linkedPath: string | null = null;
+        let connectAllCalled = false;
+
+        server.use(
+            discoveryHandler,
+            sourceStatusHandler(),
+            http.post(
+                '/api/v1/github/connections/:repositoryId/projects/:projectId',
+                ({ request }) => {
+                    linkedPath = new URL(request.url).pathname;
+                    return HttpResponse.json({
+                        repositoryId: 'id-acme/repo-connected',
+                        projectIds: ['project-1'],
+                    });
+                },
+            ),
+            http.post('/api/v1/github/connect/all', () => {
+                connectAllCalled = true;
+                return HttpResponse.json({ transactionIdsByRepositoryId: {} });
+            }),
+        );
+
+        const user = userEvent.setup();
+        const props = renderModal();
+        await gotoGithubStep(user);
+
+        await user.type(screen.getByLabelText('Organization or user'), 'acme');
+        await user.click(screen.getByRole('button', { name: 'Discover' }));
+        await screen.findByText('repo-a');
+
+        const connectedRow = screen.getByText('repo-connected').closest('label') as HTMLElement;
+        await waitFor(() => {
+            expect(within(connectedRow).getByRole('checkbox')).toBeEnabled();
+        });
+        await user.click(within(connectedRow).getByRole('checkbox'));
+
+        expect(
+            await screen.findByText(/already ingested and will be linked/i),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /connect 1 selected/i }));
+
+        await waitFor(() => expect(props.onConnected).toHaveBeenCalledTimes(1));
+        expect(linkedPath).toBe(
+            `/api/v1/github/connections/${encodeURIComponent('id-acme/repo-connected')}/projects/project-1`,
+        );
+        // No fetch + ingestion for a repository that is already ingested.
+        expect(connectAllCalled).toBe(false);
     });
 
     it('filters the discovered list by name', async () => {

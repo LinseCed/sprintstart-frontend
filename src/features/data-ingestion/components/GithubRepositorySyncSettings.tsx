@@ -491,11 +491,52 @@ function toFormValues(
 }
 
 /** Stable string key for a set of form values (weekday order is irrelevant). */
+/**
+ * Serializes only the values the selected schedule type actually persists, so
+ * dirty detection answers "would saving change anything?".
+ *
+ * Serializing the whole form instead produced "You have unsaved changes" that
+ * could never be cleared: the fields belonging to *other* schedule types keep
+ * whatever was last loaded or typed (switching from INTERVAL 120 to WEEKLY
+ * leaves `everyMinutes` at "120"), while the post-save baseline is rebuilt from
+ * the saved spec and falls back to {@link DEFAULT_FORM_VALUES} for them.
+ *
+ * `time` is normalized here too: the time input yields "02:00" while a spec
+ * round-trip yields "02:00:00", which otherwise never compared equal.
+ */
 function serializeFormValues(values: FormValues): string {
-  return JSON.stringify({
-    ...values,
-    daysOfWeek: [...values.daysOfWeek].sort(),
-  });
+  const { autoUpdate, scheduleType } = values;
+
+  switch (scheduleType) {
+    case "INTERVAL":
+      return JSON.stringify({
+        autoUpdate,
+        scheduleType,
+        everyMinutes: values.everyMinutes,
+      });
+    case "DAILY":
+      return JSON.stringify({
+        autoUpdate,
+        scheduleType,
+        time: normalizeTimeInput(values.time),
+      });
+    case "WEEKLY":
+      return JSON.stringify({
+        autoUpdate,
+        scheduleType,
+        time: normalizeTimeInput(values.time),
+        daysOfWeek: [...values.daysOfWeek].sort(),
+      });
+    case "MONTHLY":
+      return JSON.stringify({
+        autoUpdate,
+        scheduleType,
+        time: normalizeTimeInput(values.time),
+        dayOfMonth: values.dayOfMonth,
+      });
+    case "CUSTOM":
+      return JSON.stringify({ autoUpdate, scheduleType, cron: values.cron });
+  }
 }
 
 type ScheduleSetters = {

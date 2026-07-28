@@ -88,7 +88,9 @@ export function ConnectorList({
                     Enabled
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-app-neutral-border bg-app-neutral-bg px-3 py-1 text-sm font-medium text-app-neutral-text">
+                  // Red, matching the source badges: a disabled connector stops
+                  // every one of its sources from reaching chat.
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-app-danger-border bg-app-danger-bg px-3 py-1 text-sm font-medium text-app-danger-text">
                     <XCircle className="h-4 w-4" />
                     Disabled
                   </span>

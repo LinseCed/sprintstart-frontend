@@ -11,6 +11,8 @@ import {
     deleteGithubPat,
     updateAllGithubRepositories,
     updateGithubRepository,
+    addRepositoryToProject,
+    removeRepositoryFromProject,
 } from '../../../../src/services/sources/githubService';
 import { server } from '../../../unit/setup/vitest.setup';
 
@@ -56,6 +58,98 @@ describe('githubService', () => {
                     projectId: 'project-1',
                 }),
             ).rejects.toMatchObject({ name: 'ApiError', status: 400 });
+        });
+    });
+
+    describe('addRepositoryToProject', () => {
+        it('POSTs to the connections endpoint and returns the project assignment', async () => {
+            let capturedPath: string | null = null;
+            let capturedMethod: string | null = null;
+            server.use(
+                http.post(
+                    '/api/v1/github/connections/:repositoryId/projects/:projectId',
+                    ({ request }) => {
+                        const url = new URL(request.url);
+                        capturedPath = url.pathname;
+                        capturedMethod = request.method;
+                        return HttpResponse.json({
+                            repositoryId: 'repo-uuid',
+                            projectIds: ['project-1', 'project-2'],
+                        });
+                    },
+                ),
+            );
+
+            const result = await addRepositoryToProject('repo-uuid', 'project-2');
+
+            expect(capturedMethod).toBe('POST');
+            expect(capturedPath).toBe(
+                '/api/v1/github/connections/repo-uuid/projects/project-2',
+            );
+            expect(result.projectIds).toEqual(['project-1', 'project-2']);
+        });
+
+        it('propagates a 403 as an ApiError', async () => {
+            server.use(
+                http.post(
+                    '/api/v1/github/connections/:repositoryId/projects/:projectId',
+                    () => HttpResponse.json({}, { status: 403 }),
+                ),
+            );
+
+            await expect(
+                addRepositoryToProject('repo-uuid', 'project-2'),
+            ).rejects.toMatchObject({ name: 'ApiError', status: 403 });
+        });
+    });
+
+    describe('removeRepositoryFromProject', () => {
+        it('DELETEs the connections endpoint and returns the project assignment', async () => {
+            let capturedPath: string | null = null;
+            let capturedMethod: string | null = null;
+            server.use(
+                http.delete(
+                    '/api/v1/github/connections/:repositoryId/projects/:projectId',
+                    ({ request }) => {
+                        const url = new URL(request.url);
+                        capturedPath = url.pathname;
+                        capturedMethod = request.method;
+                        return HttpResponse.json({
+                            repositoryId: 'repo-uuid',
+                            projectIds: ['project-1'],
+                        });
+                    },
+                ),
+            );
+
+            const result = await removeRepositoryFromProject('repo-uuid', 'project-2');
+
+            expect(capturedMethod).toBe('DELETE');
+            expect(capturedPath).toBe(
+                '/api/v1/github/connections/repo-uuid/projects/project-2',
+            );
+            expect(result.projectIds).toEqual(['project-1']);
+        });
+
+        it('surfaces the { message } body of a 404 as the ApiError message', async () => {
+            server.use(
+                http.delete(
+                    '/api/v1/github/connections/:repositoryId/projects/:projectId',
+                    () =>
+                        HttpResponse.json(
+                            { message: 'Repository connection not found.' },
+                            { status: 404 },
+                        ),
+                ),
+            );
+
+            await expect(
+                removeRepositoryFromProject('repo-uuid', 'project-2'),
+            ).rejects.toMatchObject({
+                name: 'ApiError',
+                status: 404,
+                message: 'Repository connection not found.',
+            });
         });
     });
 

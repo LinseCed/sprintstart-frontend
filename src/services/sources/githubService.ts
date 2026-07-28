@@ -331,6 +331,60 @@ export async function updateAllGithubRepositories(): Promise<
   );
 }
 
+/**
+ * The project assignment a repository connection reports after a link/unlink
+ * call: the connection's id and its full set of project ids afterwards. Both
+ * `addRepositoryToProject` (link) and `removeRepositoryFromProject` (unlink)
+ * return this identical shape.
+ */
+export type RepositoryProjectAssignmentResponse = {
+  repositoryId: string;
+  /** The repository's resulting project assignment after the call. */
+  projectIds: string[];
+};
+
+/**
+ * Assigns an already-ingested repository to an additional project without
+ * re-fetching or re-ingesting it. Idempotent. Requires the PM or ADMIN role and
+ * access to the target project.
+ *
+ * @throws ApiError — 403 when the caller cannot access the project, 404 when the
+ *   repository connection is unknown.
+ */
+export async function addRepositoryToProject(
+  repositoryId: string,
+  projectId: string,
+): Promise<RepositoryProjectAssignmentResponse> {
+  return apiClient.fetch<RepositoryProjectAssignmentResponse>(
+    `/api/v1/github/connections/${encodeURIComponent(repositoryId)}/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+/**
+ * Removes the link between an already-ingested repository and a project, the
+ * counterpart to {@link addRepositoryToProject}. The repository and its
+ * artifacts are kept; only the project assignment is dropped. Idempotent.
+ * Requires the PM or ADMIN role and access to the target project.
+ *
+ * @returns The repository connection's remaining project ids after the unlink.
+ * @throws ApiError — 403 when the caller cannot access the project, 404 when the
+ *   repository connection is unknown.
+ */
+export async function removeRepositoryFromProject(
+  repositoryId: string,
+  projectId: string,
+): Promise<RepositoryProjectAssignmentResponse> {
+  return apiClient.fetch<RepositoryProjectAssignmentResponse>(
+    `/api/v1/github/connections/${encodeURIComponent(repositoryId)}/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export async function updateGithubRepository(
   request: UpdateGithubRepositoryRequest,
 ): Promise<UpdateGithubRepositoryResponse> {

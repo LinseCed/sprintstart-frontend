@@ -10,6 +10,8 @@ type ModalProps = {
     description?: ReactNode;
     children?: ReactNode;
     footer?: ReactNode;
+    /** Optional controls shown in the header, left of the close button. */
+    headerActions?: ReactNode;
     size?: ModalSize;
     zIndexClassName?: string;
     bodyClassName?: string;
@@ -50,6 +52,7 @@ export function Modal({
     description,
     children,
     footer,
+    headerActions,
     size = "md",
     zIndexClassName = "z-50",
     bodyClassName = "px-7 py-6",
@@ -182,15 +185,19 @@ export function Modal({
                         )}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isDismissDisabled}
-                        className="rounded-lg border border-app-border p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={closeLabel}
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                        {headerActions}
+
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isDismissDisabled}
+                            className="rounded-lg border border-app-border p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={closeLabel}
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {children && (

@@ -32,8 +32,12 @@ const mockSource: DataSource = {
     latestIngestedCount: 10,
     latestUpdatedCount: 3,
     totalArtifactCount: 10,
+    deletedCount: 0,
     runIds: ['run-1'],
     sharesSourceSystem: false,
+    lastCommitsSyncAt: null,
+    lastIssuesSyncAt: null,
+    lastPullRequestsSyncAt: null,
     lastRunAt: '2026-07-05T10:00:00Z',
     failedItems: [],
     githubRepository,
@@ -111,6 +115,84 @@ describe('SourceDetailsPanel', () => {
         );
 
         expect(screen.getByRole('button', { name: /Update repo/ })).toBeDisabled();
+    });
+
+    it('does not show the remove-from-project action without onUnlinkSource', () => {
+        render(<SourceDetailsPanel source={mockSource} onClose={vi.fn()} />);
+
+        expect(
+            screen.queryByRole('button', { name: /Remove from project/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('unlinks the source after confirming the dialog', async () => {
+        const user = userEvent.setup();
+        const onUnlinkSource = vi.fn().mockResolvedValue(undefined);
+
+        render(
+            <SourceDetailsPanel
+                source={mockSource}
+                onUnlinkSource={onUnlinkSource}
+                onClose={vi.fn()}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /Remove from project/ }),
+        );
+
+        // The confirmation dialog gates the destructive call.
+        expect(onUnlinkSource).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole('alertdialog', { name: /Remove repository from project/ }),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /^Remove$/ }));
+
+        expect(onUnlinkSource).toHaveBeenCalledWith(mockSource);
+    });
+
+    it('surfaces the error message when unlinking fails', async () => {
+        const user = userEvent.setup();
+        const onUnlinkSource = vi
+            .fn()
+            .mockRejectedValue(new Error('You cannot access this project.'));
+
+        render(
+            <SourceDetailsPanel
+                source={mockSource}
+                onUnlinkSource={onUnlinkSource}
+                onClose={vi.fn()}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /Remove from project/ }),
+        );
+        await user.click(screen.getByRole('button', { name: /^Remove$/ }));
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('You cannot access this project.'),
+            ).toBeInTheDocument();
+        });
+    });
+
+    it('hides the remove-from-project action when the repository has no id', () => {
+        render(
+            <SourceDetailsPanel
+                source={{
+                    ...mockSource,
+                    githubRepository: { ...githubRepository, repositoryId: null },
+                }}
+                onUnlinkSource={vi.fn().mockResolvedValue(undefined)}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: /Remove from project/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('renders failed items from the source', () => {

@@ -1,10 +1,10 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  Clock3,
   Database,
   GitBranch,
   Loader2,
+  Trash2,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +23,12 @@ import type { AiSyncStatus, IngestionRun } from "../types.ts";
 
 type RunDetailsPanelProps = {
   run: IngestionRun;
+  /**
+   * The repository the run ingested, resolved best-effort from the run's
+   * artifacts (the backend does not persist a repo on a run). Falls back to the
+   * source-system label when the run produced no attributable artifacts.
+   */
+  sourceLabel?: string;
   onClose: () => void;
 };
 
@@ -32,8 +38,10 @@ const TONE_CHIP: Record<Tone, string> = {
   success:
     "border border-app-success-border bg-app-success-bg text-app-success-text",
   running: "border border-app-brand-border bg-app-brand-soft text-app-brand-text",
+  // Danger palette: keeps failure labels red on red instead of amber-yellow on a
+  // red-looking background.
   warning:
-    "border border-app-warning-border bg-app-warning-bg text-app-warning-text",
+    "border border-app-danger-border bg-app-danger-bg text-app-danger-text",
   neutral: "border border-app-border bg-app-neutral-bg text-app-neutral-text",
 };
 
@@ -43,16 +51,21 @@ const TONE_CHIP: Record<Tone, string> = {
  * (fetch → save → AI index) so the local run status and the separate AI-index
  * stage are legible at a glance rather than as two competing badges.
  */
-export function RunDetailsPanel({ run, onClose }: RunDetailsPanelProps) {
+export function RunDetailsPanel({
+  run,
+  sourceLabel,
+  onClose,
+}: RunDetailsPanelProps) {
   const runTone = getRunStatusTone(run.status) as Tone;
   const aiLabel = getAiSyncStatusLabel(run.aiSyncStatus);
   const duration = formatDuration(run.startedAt, run.finishedAt, run.status);
+  const repoLabel = sourceLabel ?? getSourceLabel(run.sourceSystem);
 
   return (
     <DetailsSideDrawer
       isOpen
       onClose={onClose}
-      title={`Run · ${getSourceLabel(run.sourceSystem)}`}
+      title={`Run · ${repoLabel}`}
       closeAriaLabel="Close run details"
       zIndexClassName="z-50"
       showOverlay
@@ -72,19 +85,30 @@ export function RunDetailsPanel({ run, onClose }: RunDetailsPanelProps) {
         </>
       }
     >
+      {run.failureReason && (
+        <div className="mb-6 rounded-xl border border-app-warning-border bg-app-warning-bg px-4 py-3">
+          <p className="text-sm font-semibold text-app-warning-text">
+            This run failed
+          </p>
+          <p className="mt-1 wrap-break-word text-sm text-app-text-muted">
+            {run.failureReason}
+          </p>
+        </div>
+      )}
+
       <Section title="Result">
         <div className="grid grid-cols-2 gap-2.5">
           <Tile label="Ingested" icon={Database}>
             {formatNumber(run.ingestedCount)}
           </Tile>
-          <Tile label="Failed" icon={XCircle} warn={run.failedCount > 0}>
-            {formatNumber(run.failedCount)}
-          </Tile>
           <Tile label="Updated" icon={CheckCircle2}>
             {formatNumber(run.updatedCount)}
           </Tile>
-          <Tile label="Duration" icon={Clock3}>
-            {duration}
+          <Tile label="Deleted" icon={Trash2}>
+            {formatNumber(run.deletedCount)}
+          </Tile>
+          <Tile label="Failed" icon={XCircle} warn={run.failedCount > 0}>
+            {formatNumber(run.failedCount)}
           </Tile>
         </div>
       </Section>
@@ -99,6 +123,7 @@ export function RunDetailsPanel({ run, onClose }: RunDetailsPanelProps) {
 
       <Section title="Timing">
         <dl className="overflow-hidden rounded-xl border border-app-border">
+          <InfoRow label="Repository" value={repoLabel} />
           <InfoRow label="Started" value={formatDateTime(run.startedAt)} />
           <InfoRow
             label="Finished"
@@ -110,6 +135,7 @@ export function RunDetailsPanel({ run, onClose }: RunDetailsPanelProps) {
                   : "Not reported"
             }
           />
+          <InfoRow label="Duration" value={duration} />
           <InfoRow label="Run ID" value={run.runId} mono />
         </dl>
       </Section>
@@ -148,9 +174,15 @@ function buildStages(run: IngestionRun): StageInfo[] {
     meta: `${formatNumber(run.ingestedCount + run.failedCount)} items pulled`,
     state: "ok",
   };
+  const deletedNote =
+    run.deletedCount > 0 ? `, ${formatNumber(run.deletedCount)} deleted` : "";
   const saveStage: StageInfo = {
+    // A run-level failure reason explains the stage better than the counters do.
+    meta:
+      run.status === "FAILED" && run.failureReason
+        ? run.failureReason
+        : `${formatNumber(run.ingestedCount)} stored${deletedNote}${failedNote}`,
     title: "Saved locally",
-    meta: `${formatNumber(run.ingestedCount)} stored${failedNote}`,
     state: run.status === "FAILED" ? "warn" : "ok",
   };
 

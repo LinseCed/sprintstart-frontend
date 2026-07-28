@@ -2,6 +2,8 @@ import { ChevronRight, Plus } from "lucide-react";
 import { formatNumber } from "../data.ts";
 import type { DataSource } from "../types.ts";
 import { SourceStatusChip } from "./SourceStatusChip.tsx";
+import { SourceSyncBadge } from "./SourceSyncBadge.tsx";
+import { SourceTypeBadge } from "./SourceTypeBadge.tsx";
 
 type SourceListProps = {
   sources: DataSource[];
@@ -80,12 +82,18 @@ export function SourceList({
                       {source.name}
                     </h3>
 
+                    {source.githubRepository?.owner && (
+                      <p className="mt-0.5 break-words text-xs text-app-text-subtle">
+                        {source.githubRepository.owner}
+                      </p>
+                    )}
+
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                        {source.type}
-                      </span>
+                      <SourceTypeBadge type={source.type} />
 
                       <SourceStatusChip status={source.statusView} />
+
+                      <SyncStatusBadge source={source} />
                     </div>
                   </div>
                 </div>
@@ -139,6 +147,23 @@ export function SourceList({
       })}
     </div>
   );
+}
+
+/**
+ * Hides the sync badge when it would only repeat the status chip's own label
+ * (e.g. an in-flight "Syncing"/"Running" pair, or a duplicated "Not synced").
+ */
+function SyncStatusBadge({ source }: { source: DataSource }) {
+  const label = source.ingestionStatusLabel;
+
+  if (
+    source.statusView.state === "syncing" ||
+    label === source.statusView.label
+  ) {
+    return null;
+  }
+
+  return <SourceSyncBadge label={label} status={source.ingestionStatus} />;
 }
 
 function InfoBlock({
