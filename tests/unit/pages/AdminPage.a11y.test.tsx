@@ -5,6 +5,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { AdminPage } from '../../../src/pages/AdminPage';
 import type { AdminUser } from '../../../src/services/adminUserService';
 
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue } = await import('../setup/projectContext');
+    return { useProjectContext: () => createProjectContextValue() };
+});
+
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { id: 'admin1', firstName: 'Admin', lastName: 'User' } }),
 }));

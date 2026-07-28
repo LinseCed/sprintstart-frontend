@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { GitBranch, Database } from 'lucide-react';
 import { IngestionMetrics } from '../../../../../src/features/data-ingestion/components/IngestionMetrics';
 import type { DataSource } from '../../../../../src/features/data-ingestion/types';
+import { deriveSourceStatus } from '../../../../../src/features/data-ingestion/data';
 
 function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
     return {
@@ -15,14 +16,19 @@ function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
         statusLabel: 'Synced',
         ingestionStatus: 'connected',
         ingestionStatusLabel: 'Synced',
+        statusView: deriveSourceStatus({ hasErrors: false, hasNeverSynced: false }),
         artifacts: 10,
         lastSync: '2026-07-05',
         errors: 0,
         latestIngestedCount: 10,
         latestUpdatedCount: 3,
         totalArtifactCount: 10,
+        deletedCount: 0,
         runIds: [],
         sharesSourceSystem: false,
+        lastCommitsSyncAt: null,
+        lastIssuesSyncAt: null,
+        lastPullRequestsSyncAt: null,
         lastRunAt: '2026-07-05T10:00:00Z',
         failedItems: [],
         githubRepository: null,

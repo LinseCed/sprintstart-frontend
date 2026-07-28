@@ -1,13 +1,28 @@
-import { GitBranch, Loader2, RefreshCw } from "lucide-react";
+import {
+  ArrowUp,
+  Clock3,
+  Database,
+  GitBranch,
+  Loader2,
+  RefreshCw,
+  Unlink,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { DetailsSideDrawer } from "../../../components/layout/DetailsSideDrawer";
+import { AlertDialog } from "../../../components/ui/AlertDialog.tsx";
+import { AccountEnabledToggle } from "../../admin/components/AccountEnabledToggle.tsx";
 import type {
   ConfigureGithubRepositoryRequest,
   GithubRepositoryConfig,
 } from "../../../services/sources/githubService.ts";
 import { formatDateTime, formatNumber, SOURCE_META } from "../data.ts";
-import type { DataSource, LoadingState, SourceStatus } from "../types.ts";
+import type { DataSource, LoadingState } from "../types.ts";
 import { GithubRepositorySyncSettings } from "./GithubRepositorySyncSettings.tsx";
+import { SourceStatusChip } from "./SourceStatusChip.tsx";
+import { SourceSyncBadge } from "./SourceSyncBadge.tsx";
+import { SourceTypeBadge } from "./SourceTypeBadge.tsx";
 
 type SourceDetailsPanelProps = {
   source: DataSource;
@@ -21,6 +36,17 @@ type SourceDetailsPanelProps = {
     repository: NonNullable<DataSource["githubRepository"]>,
     request: ConfigureGithubRepositoryRequest,
   ) => Promise<void>;
+  /** Enables/disables the source in the connector (allow/deny for ingestion). */
+  onSetSourceEnabled?: (
+    repository: NonNullable<DataSource["githubRepository"]>,
+    enabled: boolean,
+  ) => Promise<void>;
+  /**
+   * Removes the repository's link to the current project. Only passed when the
+   * caller is allowed to manage the project's sources; its presence gates the
+   * "Remove from project" action. The caller closes this drawer on success.
+   */
+  onUnlinkSource?: (source: DataSource) => Promise<void>;
   onClose: () => void;
 };
 
@@ -34,10 +60,16 @@ export function SourceDetailsPanel({
   canManageSyncSettings = false,
   onLoadRepositoryConfig,
   onSaveRepositoryConfig,
+  onSetSourceEnabled,
+  onUnlinkSource,
   onClose,
 }: SourceDetailsPanelProps) {
   const [updateState, setUpdateState] = useState<LoadingState>("idle");
   const [refreshState, setRefreshState] = useState<LoadingState>("idle");
+  const [enabledState, setEnabledState] = useState<LoadingState>("idle");
+  const [unlinkState, setUnlinkState] = useState<LoadingState>("idle");
+  const [isUnlinkDialogOpen, setIsUnlinkDialogOpen] = useState(false);
+  const [unlinkError, setUnlinkError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const Icon = SOURCE_META[source.sourceSystem].icon;
@@ -54,6 +86,54 @@ export function SourceDetailsPanel({
     repository !== null &&
     onLoadRepositoryConfig !== undefined &&
     onSaveRepositoryConfig !== undefined;
+  const canToggleEnabled =
+    canManageSyncSettings &&
+    source.sourceSystem === "GITHUB" &&
+    repository !== null &&
+    onSetSourceEnabled !== undefined;
+  const isTogglingEnabled = enabledState === "loading";
+  // Unlink needs the connection's repositoryId (the DELETE path parameter);
+  // authorization is presence-based — the parent only passes onUnlinkSource when
+  // the caller may manage the project's sources.
+  const canUnlinkSource =
+    source.sourceSystem === "GITHUB" &&
+    repository !== null &&
+    repository.repositoryId !== null &&
+    onUnlinkSource !== undefined;
+  const isUnlinking = unlinkState === "loading";
+  // Per-artifact-type sync timestamps only exist for GitHub repos (endpoint #5).
+  const hasArtifactTypeSyncTimes =
+    source.lastCommitsSyncAt !== null ||
+    source.lastIssuesSyncAt !== null ||
+    source.lastPullRequestsSyncAt !== null;
+
+  const handleToggleEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (!repository || !onSetSourceEnabled) return;
+
+      setEnabledState("loading");
+      setMessage(null);
+      setErrorMessage(null);
+
+      try {
+        await onSetSourceEnabled(repository, enabled);
+        setEnabledState("success");
+        setMessage(
+          enabled
+            ? "Source enabled. It is included in ingestion again."
+            : "Source disabled. It is excluded from ingestion.",
+        );
+      } catch (error) {
+        setEnabledState("error");
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Failed to update the source.",
+        );
+      }
+    },
+    [onSetSourceEnabled, repository],
+  );
 
   const loadRepositoryConfig = useCallback(async () => {
     if (!canManageRepositoryConfig || !repository || !onLoadRepositoryConfig) {
@@ -100,6 +180,26 @@ export function SourceDetailsPanel({
       );
     }
   }, [canUpdateRepository, onUpdateSource, source]);
+
+  const handleConfirmUnlink = useCallback(async () => {
+    if (!onUnlinkSource) return;
+
+    setUnlinkState("loading");
+    setUnlinkError(null);
+
+    try {
+      await onUnlinkSource(source);
+      // The parent closes this drawer on success, so there is nothing to reset
+      // here — the component unmounts.
+    } catch (error) {
+      setUnlinkState("error");
+      setUnlinkError(
+        error instanceof Error
+          ? error.message
+          : "Failed to remove the repository from the project.",
+      );
+    }
+  }, [onUnlinkSource, source]);
 
   const handleRefreshDetails = useCallback(async () => {
     if (!onRefreshDetails) return;
@@ -155,11 +255,16 @@ export function SourceDetailsPanel({
       }
       badge={
         <>
-          <Badge>{source.type}</Badge>
-          <StatusBadge status={source.status}>{source.statusLabel}</StatusBadge>
-          <StatusBadge status={source.ingestionStatus}>
-            {source.ingestionStatusLabel}
-          </StatusBadge>
+          <SourceTypeBadge type={source.type} />
+          <SourceStatusChip status={source.statusView} />
+          {/* The chip conveys connection state; this adds the sync freshness it
+              collapses away, matching the pair shown on the source cards. */}
+          {source.ingestionStatusLabel !== source.statusView.label && (
+            <SourceSyncBadge
+              label={source.ingestionStatusLabel}
+              status={source.ingestionStatus}
+            />
+          )}
         </>
       }
       footer={
@@ -207,22 +312,91 @@ export function SourceDetailsPanel({
 
       {errorMessage && <Message tone="warning">{errorMessage}</Message>}
 
+      <Section title="Ingestion">
+        {source.statusView.state === "syncing" && (
+          <div className="mb-3 rounded-xl border border-app-brand-border bg-app-brand-soft px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-medium text-app-brand-text">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              {source.statusView.label === "Indexing"
+                ? "Indexing artifacts into the knowledge base…"
+                : "Syncing the latest changes…"}
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <Tile label="Artifacts" icon={Database}>
+            {formatNumber(details.artifactCount)}
+          </Tile>
+          <Tile label="Last sync" icon={Clock3}>
+            {details.lastSync}
+          </Tile>
+          <Tile label="Updated" icon={ArrowUp}>
+            {formatNumber(details.latestUpdatedCount)}
+          </Tile>
+          <Tile label="Failed" icon={XCircle} warn={details.errors > 0}>
+            {formatNumber(details.errors)}
+          </Tile>
+        </div>
+      </Section>
+
       <Section title="Repository">
-        <dl>
-          <DetailRow label="Full name" value={repository?.fullName} />
-          <DetailRow label="Owner" value={repository?.owner} />
-          <DetailLinkRow label="GitHub URL" value={repository?.url} />
-          <DetailRow
+        <dl className="overflow-hidden rounded-xl border border-app-border">
+          <InfoRow label="Full name" value={repository?.fullName} />
+          <InfoRow label="Owner" value={repository?.owner} />
+          <InfoLinkRow label="URL" value={repository?.url} />
+          <InfoRow
             label="Repository ID"
             value={repository?.repositoryId ?? source.sourceId}
             mono
           />
-          <DetailRow
-            label="Source enabled"
-            value={formatEnabled(repository?.enabled)}
-          />
+          {canToggleEnabled && repository ? (
+            <div className="flex items-center gap-3 border-t border-app-border px-4 py-2.5">
+              <dt className="w-24 shrink-0 text-[12.5px] text-app-text-muted">
+                Source
+              </dt>
+              <dd className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                <span className="text-[13px] font-semibold text-app-text">
+                  {repository.enabled === false ? "Disabled" : "Enabled"}
+                  <span className="ml-1 font-normal text-app-text-subtle">
+                    · {repository.enabled === false ? "excluded from" : "included in"}{" "}
+                    ingestion
+                  </span>
+                </span>
+                <AccountEnabledToggle
+                  enabled={repository.enabled !== false}
+                  disabled={isTogglingEnabled}
+                  ariaLabel={`Toggle ingestion for ${repository.fullName}`}
+                  onChange={(next) => {
+                    void handleToggleEnabled(next);
+                  }}
+                />
+              </dd>
+            </div>
+          ) : (
+            <InfoRow label="Source" value={formatEnabled(repository?.enabled)} />
+          )}
         </dl>
       </Section>
+
+      {hasArtifactTypeSyncTimes && (
+        <Section title="Last Synced">
+          <dl className="overflow-hidden rounded-xl border border-app-border">
+            <InfoRow
+              label="Commits"
+              value={formatDateTime(source.lastCommitsSyncAt)}
+            />
+            <InfoRow
+              label="Issues"
+              value={formatDateTime(source.lastIssuesSyncAt)}
+            />
+            <InfoRow
+              label="Pull requests"
+              value={formatDateTime(source.lastPullRequestsSyncAt)}
+            />
+          </dl>
+        </Section>
+      )}
 
       {canManageRepositoryConfig && repository && (
         <Section title="Sync Schedule">
@@ -233,21 +407,6 @@ export function SourceDetailsPanel({
           />
         </Section>
       )}
-
-      <Section title="Ingestion">
-        <dl>
-          <DetailRow label="Last sync" value={details.lastSync} />
-          <DetailRow
-            label="Artifacts"
-            value={formatNumber(details.artifactCount)}
-          />
-          <DetailRow
-            label="Latest updated"
-            value={formatNumber(details.latestUpdatedCount)}
-          />
-          <DetailRow label="Failed" value={formatNumber(details.errors)} />
-        </dl>
-      </Section>
 
       {source.failedItems.length > 0 && (
         <Section title="Failed Items">
@@ -268,6 +427,54 @@ export function SourceDetailsPanel({
           </div>
         </Section>
       )}
+
+      {canUnlinkSource && (
+        <Section title="Project link">
+          <div className="rounded-xl border border-app-border px-4 py-3">
+            <p className="text-sm text-app-text-muted">
+              Remove this repository from the current project. The repository and
+              its artifacts are kept. You can
+              re-link it later.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsUnlinkDialogOpen(true)}
+              disabled={isUnlinking}
+              className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-danger-border bg-app-danger-bg px-5 text-sm font-medium text-app-danger-text transition-colors hover:bg-app-danger-solid hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isUnlinking ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Unlink className="h-4 w-4" />
+              )}
+              Remove from project
+            </button>
+          </div>
+        </Section>
+      )}
+
+      <AlertDialog
+        isOpen={isUnlinkDialogOpen}
+        title="Remove repository from project?"
+        description={
+          repository
+            ? `"${repository.fullName}" will no longer feed this project's knowledge base. The repository and its artifacts are kept, and you can re-link it later.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        loadingLabel="Removing…"
+        variant="danger"
+        isLoading={isUnlinking}
+        errorMessage={unlinkError ?? undefined}
+        onClose={() => {
+          if (isUnlinking) return;
+          setIsUnlinkDialogOpen(false);
+          setUnlinkError(null);
+        }}
+        onConfirm={() => {
+          void handleConfirmUnlink();
+        }}
+      />
     </DetailsSideDrawer>
   );
 }
@@ -283,7 +490,35 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function DetailRow({
+function Tile({
+  label,
+  icon: Icon,
+  warn = false,
+  children,
+}: {
+  label: string;
+  icon: LucideIcon;
+  warn?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-app-border bg-app-surface-muted px-4 py-3">
+      <p className="flex items-center gap-1.5 text-[11px] text-app-text-subtle">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </p>
+      <p
+        className={`mt-1.5 break-words text-lg font-bold tabular-nums ${
+          warn ? "text-app-danger-text" : "text-app-text"
+        }`}
+      >
+        {children}
+      </p>
+    </div>
+  );
+}
+
+function InfoRow({
   label,
   value,
   mono = false,
@@ -293,11 +528,13 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-1 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:gap-4">
-      <dt className="text-sm text-app-text-muted">{label}</dt>
+    <div className="flex items-start gap-3 border-t border-app-border px-4 py-2.5 first:border-t-0">
+      <dt className="w-24 shrink-0 text-[12.5px] text-app-text-muted">
+        {label}
+      </dt>
       <dd
-        className={`wrap-break-word text-sm font-medium text-app-text ${
-          mono ? "font-mono text-xs" : ""
+        className={`min-w-0 wrap-break-word text-[13px] font-semibold text-app-text ${
+          mono ? "font-mono text-xs font-medium" : ""
         }`}
       >
         {value || "Not available"}
@@ -306,22 +543,24 @@ function DetailRow({
   );
 }
 
-function DetailLinkRow({ label, value }: { label: string; value?: string }) {
+function InfoLinkRow({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-1 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:gap-4">
-      <dt className="text-sm text-app-text-muted">{label}</dt>
-      <dd className="wrap-break-word text-sm font-medium text-app-text">
+    <div className="flex items-start gap-3 border-t border-app-border px-4 py-2.5 first:border-t-0">
+      <dt className="w-24 shrink-0 text-[12.5px] text-app-text-muted">
+        {label}
+      </dt>
+      <dd className="min-w-0 wrap-break-word text-[13px] font-semibold">
         {value ? (
           <a
             href={value}
             target="_blank"
             rel="noreferrer"
-            className="text-app-brand-text underline decoration-app-brand-border underline-offset-4 hover:text-app-brand"
+            className="font-mono text-xs text-app-brand-text underline decoration-app-brand-border underline-offset-4 hover:text-app-brand"
           >
             {value}
           </a>
         ) : (
-          "Not available"
+          <span className="text-app-text">Not available</span>
         )}
       </dd>
     </div>
@@ -332,19 +571,6 @@ function formatEnabled(value?: boolean | null) {
   if (value === true) return "Enabled";
   if (value === false) return "Disabled";
   return "Not available";
-}
-
-function StatusBadge({
-  status,
-  children,
-}: {
-  status: SourceStatus;
-  children: ReactNode;
-}) {
-  if (status === "connected") return <BadgeSuccess>{children}</BadgeSuccess>;
-  if (status === "running") return <BadgeRunning>{children}</BadgeRunning>;
-  if (status === "disabled") return <Badge>{children}</Badge>;
-  return <BadgeWarning>{children}</BadgeWarning>;
 }
 
 function Message({
@@ -366,34 +592,3 @@ function Message({
   );
 }
 
-function Badge({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full bg-app-neutral-bg px-3 py-1 text-xs font-medium text-app-neutral-text">
-      {children}
-    </span>
-  );
-}
-
-function BadgeSuccess({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-      {children}
-    </span>
-  );
-}
-
-function BadgeRunning({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-      {children}
-    </span>
-  );
-}
-
-function BadgeWarning({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-      {children}
-    </span>
-  );
-}

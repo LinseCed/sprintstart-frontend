@@ -4,7 +4,6 @@ import {
     SOURCE_META,
     INGESTION_RUN_LIMIT,
     DETAILS_RUN_LIMIT,
-    createDataSource,
     getSourceStatus,
     getSourceStatusLabel,
     getRunStatusLabel,
@@ -17,7 +16,6 @@ import {
 } from '../../../../src/features/data-ingestion/data';
 import type {
     IngestionRunStatus,
-    SourceIngestionStatus,
 } from '../../../../src/features/data-ingestion/types';
 
 describe('data-ingestion data helpers', () => {
@@ -185,60 +183,6 @@ describe('data-ingestion data helpers', () => {
     describe('formatNumber', () => {
         it('formats an integer with locale separators', () => {
             expect(formatNumber(1234567)).toMatch(/1.234.567|1,234,567/);
-        });
-    });
-
-    describe('createDataSource', () => {
-        it('builds a data source with the right meta fields', () => {
-            const source = createDataSource('GITHUB');
-            expect(source.sourceSystem).toBe('GITHUB');
-            expect(source.name).toBe(SOURCE_META.GITHUB.name);
-            expect(source.type).toBe(SOURCE_META.GITHUB.type);
-            expect(source.icon).toBe(SOURCE_META.GITHUB.icon);
-            expect(source.statusLabel).toBe('Not synced');
-            expect(source.artifacts).toBe(0);
-            expect(source.lastSync).toBe('Never');
-            expect(source.errors).toBe(0);
-            expect(source.latestIngestedCount).toBe(0);
-            expect(source.latestUpdatedCount).toBe(0);
-            expect(source.failedItems).toEqual([]);
-            expect(source.lastRunAt).toBeNull();
-        });
-
-        it('maps a synced status onto the data source', () => {
-            const status: SourceIngestionStatus = {
-                sourceSystem: 'GITHUB',
-                lastRunTime: '2026-07-05T10:00:00Z',
-                ingestedCount: 12,
-                updatedCount: 3,
-                failedCount: 0,
-                status: 'COMPLETED',
-                failedItems: [],
-            };
-            const source = createDataSource('GITHUB', status);
-            expect(source.artifacts).toBe(12);
-            expect(source.latestUpdatedCount).toBe(3);
-            expect(source.errors).toBe(0);
-            expect(source.status).toBe('connected');
-            expect(source.statusLabel).toBe('Synced');
-            expect(source.lastRunAt).toBe('2026-07-05T10:00:00Z');
-            expect(source.lastSync).not.toBe('Never');
-        });
-
-        it('reflects errors in the warning status', () => {
-            const status: SourceIngestionStatus = {
-                sourceSystem: 'GITHUB',
-                lastRunTime: '2026-07-05T10:00:00Z',
-                ingestedCount: 5,
-                updatedCount: 1,
-                failedCount: 2,
-                status: 'COMPLETED',
-                failedItems: [{ artifactIdentifier: 'x', reason: 'boom' }],
-            };
-            const source = createDataSource('GITHUB', status);
-            expect(source.status).toBe('warning');
-            expect(source.errors).toBe(2);
-            expect(source.failedItems).toHaveLength(1);
         });
     });
 

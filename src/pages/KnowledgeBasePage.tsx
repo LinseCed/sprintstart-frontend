@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Plus, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
+import { motion } from 'framer-motion';
+import { BookOpen, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer } from '../features/knowledge-base/components';
 import { Pagination } from '../components/ui/Pagination';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 import { useKnowledgeBase } from '../features/knowledge-base/hooks/useKnowledgeBase';
+import { useProjectContext } from '../features/projects/useProjectContext';
 
 /** Roles allowed to delete uploaded artifacts. Pattern A gate mirroring
  *  `SettingsPage`'s PAT_ALLOWED_GROUPS — keeps destructive uploads deletion
@@ -23,15 +24,16 @@ const DELETE_ALLOWED_GROUPS: ReadonlySet<PermissionGroup> = new Set([
  * Bound to the `/knowledge-base` route (accessible to all permission groups).
  * Displays all artifacts (uploads, github, etc.) in a filtered grid, with a side
  * drawer for viewing raw content and AI summaries. Artifacts are fetched via
- * `knowledgeService.getUnifiedArtifacts`, scoped to the user's first project id.
+ * `knowledgeService.getUnifiedArtifacts`, scoped to the globally selected
+ * project.
  *
- * @remarks Known limitation: only `profile.projectIds[0]` is used. Users with
- * multiple projects currently see artifacts for the first one only.
+ * Users without a project switcher fall back to their first assigned project,
+ * which is what the global selection resolves to for them anyway.
  */
 export function KnowledgeBasePage() {
     const { profile } = useAuth();
-    // TODO: support project switching — currently only the first project is scoped.
-    const projectId = profile?.projectIds?.[0] ?? null;
+    const { selectedProjectId } = useProjectContext();
+    const projectId = selectedProjectId || (profile?.projectIds?.[0] ?? null);
 
     const canDeleteUpload =
         profile !== null && DELETE_ALLOWED_GROUPS.has(profile.permissionGroup);
@@ -55,7 +57,6 @@ export function KnowledgeBasePage() {
     } = useKnowledgeBase(projectId);
 
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
-    const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
 
     const selectedArtifact = useMemo(() =>
         artifacts.find(a => a.id === selectedArtifactId) ?? null,
@@ -165,33 +166,6 @@ export function KnowledgeBasePage() {
                         </>
                     )}
                 </div>
-
-                <AnimatePresence>
-                    {projectId && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsUploadScreenOpen(true)}
-                            className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-brand text-white shadow-lg shadow-app-brand/25 transition-colors hover:bg-app-brand-hover focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
-                            aria-label="Upload new artifact"
-                            data-testid="open-upload-modal-btn"
-                        >
-                            <Plus className="h-6 w-6" />
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-
-                {projectId && (
-                    <UploadArtifactModal
-                        isOpen={isUploadScreenOpen}
-                        onClose={() => setIsUploadScreenOpen(false)}
-                        projectId={projectId}
-                        onUploadSuccess={() => void fetchArtifacts()}
-                    />
-                )}
 
                 {projectId && (
                     <ArtifactViewerDrawer

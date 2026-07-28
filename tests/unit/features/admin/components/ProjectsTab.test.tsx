@@ -9,6 +9,7 @@ const projects: ProjectOverview[] = [
         id: 'proj-1',
         name: 'Alpha',
         description: 'Alpha project description',
+        manager: null,
         sources: [
             { id: 'src-1', name: 'Repo A', type: 'GITHUB', status: 'CONNECTED' },
             { id: 'src-2', name: 'Repo B', type: 'JIRA', status: 'CONNECTED' },
@@ -21,6 +22,7 @@ const projects: ProjectOverview[] = [
         id: 'proj-2',
         name: 'Beta',
         description: '',
+        manager: null,
         sources: [],
         users: [],
     },

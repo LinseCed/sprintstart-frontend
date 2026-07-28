@@ -4,30 +4,47 @@ import {
     formatRunFinishedAt,
     getAiSyncStatusLabel,
     getAiSyncStatusTone,
+    getRunSourceLabel,
     getRunStatusLabel,
     getRunStatusTone,
-    getSourceLabel,
 } from "../data.ts";
+import { ChevronRight } from "lucide-react";
 import type { IngestionRun } from "../types.ts";
 
 type RunHistoryProps = {
     runs: IngestionRun[];
+    selectedRunId?: string | null;
+    onSelectRun?: (run: IngestionRun) => void;
+    /** Maps a run to its repository label; falls back to the source-system label. */
+    sourceLabelByRunId?: Map<string, string>;
+    /** Shown in the empty state when the emptiness is caused by active filters. */
+    isFiltered?: boolean;
 };
 
 /**
  * Displays a historical log of all recent ingestion runs.
  * Useful for tracking when syncs occurred and their overall success or failure status.
  */
-export function RunHistory({ runs }: RunHistoryProps) {
+export function RunHistory({
+    runs,
+    selectedRunId = null,
+    onSelectRun,
+    sourceLabelByRunId,
+    isFiltered = false,
+}: RunHistoryProps) {
     if (runs.length === 0) {
         return (
             <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted p-8 text-center">
                 <h3 className="text-lg font-semibold text-app-text">
-                    No ingestion runs found
+                    {isFiltered
+                        ? 'No runs match these filters'
+                        : 'No ingestion runs found'}
                 </h3>
 
                 <p className="mt-2 text-sm text-app-text-muted">
-                    The backend did not return any ingestion runs yet.
+                    {isFiltered
+                        ? 'Try a different status or repository, or reset the filters.'
+                        : 'The backend did not return any ingestion runs yet.'}
                 </p>
             </div>
         );
@@ -44,87 +61,122 @@ export function RunHistory({ runs }: RunHistoryProps) {
             </div>
 
             <div className="divide-y divide-app-border">
-                {runs.map((run) => (
-                    <article
-                        key={run.runId}
-                        className="grid gap-4 bg-app-surface px-5 py-5 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1fr] lg:items-center"
-                    >
-                        <div>
-                            <p className="text-sm font-semibold text-app-text">
-                                {getSourceLabel(run.sourceSystem)}
-                            </p>
+                {runs.map((run) => {
+                    const isSelected = selectedRunId === run.runId;
 
-                            <p className="mt-1 break-all text-xs text-app-text-subtle">
-                                {run.runId}
-                            </p>
-                        </div>
+                    return (
+                        <button
+                            key={run.runId}
+                            type="button"
+                            onClick={() => onSelectRun?.(run)}
+                            aria-pressed={isSelected}
+                            className={`grid w-full gap-4 px-5 py-5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-app-focus lg:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto] lg:items-center ${
+                                isSelected
+                                    ? "bg-app-brand-soft"
+                                    : "bg-app-surface hover:bg-app-surface-hover"
+                            }`}
+                        >
+                            <div>
+                                <p className="text-sm font-semibold text-app-text">
+                                    {getRunSourceLabel(run, sourceLabelByRunId)}
+                                </p>
 
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <RunStatusBadge status={run.status} />
-                            <AiSyncStatusBadge
-                                status={run.aiSyncStatus}
-                                failureReason={run.aiSyncFailureReason}
-                            />
-                        </div>
-
-                        <div>
-                            <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
-                                Started
-                            </p>
-
-                            <p className="mt-1 text-sm text-app-text">
-                                {formatDateTime(run.startedAt)}
-                            </p>
-                        </div>
-
-                        <div>
-                            <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
-                                Finished
-                            </p>
-
-                            <p className="mt-1 text-sm text-app-text">
-                                {formatRunFinishedAt(
-                                    run.finishedAt,
-                                    run.status,
-                                )}
-                            </p>
-                        </div>
-
-                        <div>
-                            <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
-                                Counts
-                            </p>
-
-                            <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                                <span className="rounded-full bg-app-bg-soft px-2.5 py-1 text-app-text-muted">
-                                    Ingested: {formatNumber(run.ingestedCount)}
-                                </span>
-
-                                <span className="rounded-full bg-app-bg-soft px-2.5 py-1 text-app-text-muted">
-                                    Updated: {formatNumber(run.updatedCount)}
-                                </span>
-
-                                <span
-                                    className={`rounded-full px-2.5 py-1 ${
-                                        run.failedCount > 0
-                                            ? "bg-app-warning-bg text-app-warning-text"
-                                            : "bg-app-bg-soft text-app-text-muted"
-                                    }`}
-                                >
-                                    Failed: {formatNumber(run.failedCount)}
-                                </span>
+                                <p className="mt-1 break-all text-xs text-app-text-subtle">
+                                    {run.runId}
+                                </p>
                             </div>
-                        </div>
-                    </article>
-                ))}
+
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <RunStatusBadge
+                                    status={run.status}
+                                    failureReason={run.failureReason}
+                                />
+                                <AiSyncStatusBadge
+                                    status={run.aiSyncStatus}
+                                    failureReason={run.aiSyncFailureReason}
+                                />
+                            </div>
+
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
+                                    Started
+                                </p>
+
+                                <p className="mt-1 text-sm text-app-text">
+                                    {formatDateTime(run.startedAt)}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
+                                    Finished
+                                </p>
+
+                                <p className="mt-1 text-sm text-app-text">
+                                    {formatRunFinishedAt(
+                                        run.finishedAt,
+                                        run.status,
+                                    )}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-app-text-subtle lg:hidden">
+                                    Counts
+                                </p>
+
+                                <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                                    <span className="rounded-full bg-app-bg-soft px-2.5 py-1 text-app-text-muted">
+                                        Ingested: {formatNumber(run.ingestedCount)}
+                                    </span>
+
+                                    <span className="rounded-full bg-app-bg-soft px-2.5 py-1 text-app-text-muted">
+                                        Updated: {formatNumber(run.updatedCount)}
+                                    </span>
+
+                                    {run.deletedCount > 0 && (
+                                        <span className="rounded-full bg-app-bg-soft px-2.5 py-1 text-app-text-muted">
+                                            Deleted: {formatNumber(run.deletedCount)}
+                                        </span>
+                                    )}
+
+                                    <span
+                                        className={`rounded-full px-2.5 py-1 ${
+                                            run.failedCount > 0
+                                                ? "bg-app-warning-bg text-app-warning-text"
+                                                : "bg-app-bg-soft text-app-text-muted"
+                                        }`}
+                                    >
+                                        Failed: {formatNumber(run.failedCount)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <ChevronRight
+                                className={`hidden h-5 w-5 justify-self-end text-app-text-disabled transition group-hover:translate-x-1 lg:block ${
+                                    isSelected ? "text-app-brand" : ""
+                                }`}
+                            />
+                        </button>
+                    );
+                })}
             </div>
+
         </div>
     );
 }
 
-function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
+function RunStatusBadge({
+    status,
+    failureReason,
+}: {
+    status: IngestionRun["status"];
+    failureReason?: IngestionRun["failureReason"];
+}) {
     const label = getRunStatusLabel(status);
     const tone = getRunStatusTone(status);
+    // Surfaces the run-level failure reason on hover; the full text is in the drawer.
+    const title = failureReason ?? undefined;
 
     if (tone === "success") {
         return (
@@ -143,7 +195,10 @@ function RunStatusBadge({ status }: { status: IngestionRun["status"] }) {
     }
 
     return (
-        <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
+        <span
+            title={title}
+            className="rounded-full border border-app-danger-border bg-app-danger-bg px-3 py-1 text-xs font-medium text-app-danger-text"
+        >
             {label}
         </span>
     );
@@ -188,7 +243,7 @@ function AiSyncStatusBadge({
     return (
         <span
             title={title}
-            className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text"
+            className="rounded-full border border-app-danger-border bg-app-danger-bg px-3 py-1 text-xs font-medium text-app-danger-text"
         >
             {label}
         </span>

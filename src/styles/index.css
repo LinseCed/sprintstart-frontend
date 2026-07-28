@@ -55,6 +55,12 @@
   --danger-text: #b91c1c;
   --danger-solid: #dc2626;
 
+  /* Orange — a distinct accent for informational markers (e.g. "Private"),
+     kept separate from Warning so it carries no "something is wrong" meaning. */
+  --orange-bg: rgba(249, 115, 22, 0.12);
+  --orange-border: rgba(249, 115, 22, 0.35);
+  --orange-text: #c2410c;
+
   /* Neutral */
   --neutral-bg: #f3f4f6;
   --neutral-border: #e5e7eb;
@@ -130,6 +136,11 @@
   --danger-text: #f87171;
   --danger-solid: #dc2626;
 
+  /* Orange */
+  --orange-bg: rgba(249, 115, 22, 0.15);
+  --orange-border: rgba(249, 115, 22, 0.4);
+  --orange-text: #fdba74;
+
   /* Neutral */
   --neutral-bg: #1f2937;
   --neutral-border: #374151;
@@ -186,6 +197,10 @@
   --color-app-danger-border: var(--danger-border);
   --color-app-danger-text: var(--danger-text);
   --color-app-danger-solid: var(--danger-solid);
+
+  --color-app-orange-bg: var(--orange-bg);
+  --color-app-orange-border: var(--orange-border);
+  --color-app-orange-text: var(--orange-text);
 
   --color-app-neutral-bg: var(--neutral-bg);
   --color-app-neutral-border: var(--neutral-border);

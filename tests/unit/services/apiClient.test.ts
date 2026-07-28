@@ -134,6 +134,35 @@ describe('apiClient', () => {
         await expect(apiClient.fetch('/api/v1/broken')).rejects.toMatchObject({
             name: 'ApiError',
             status: 500,
+            message: 'boom',
+        });
+    });
+
+    it('extracts `message` from a JSON error body', async () => {
+        server.use(
+            http.delete('/api/v1/github/connections/repo/projects/proj', () =>
+                HttpResponse.json({ message: 'You cannot access this project.' }, { status: 403 }),
+            ),
+        );
+
+        await expect(
+            apiClient.fetch('/api/v1/github/connections/repo/projects/proj', { method: 'DELETE' }),
+        ).rejects.toMatchObject({
+            name: 'ApiError',
+            status: 403,
+            message: 'You cannot access this project.',
+        });
+    });
+
+    it('keeps the raw JSON body when it has no usable `message`', async () => {
+        server.use(
+            http.get('/api/v1/broken', () => HttpResponse.json({ error: 'nope' }, { status: 400 })),
+        );
+
+        await expect(apiClient.fetch('/api/v1/broken')).rejects.toMatchObject({
+            name: 'ApiError',
+            status: 400,
+            message: '{"error":"nope"}',
         });
     });
 

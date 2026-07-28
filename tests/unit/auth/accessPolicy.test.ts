@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { canAccessRoute, getDefaultRoute, getMatchingProtectedRoute } from '../../../src/auth/accessPolicy';
+import {
+    canAccessRoute,
+    getDefaultRoute,
+    getMatchingProtectedRoute,
+    isOnboardingAccessible,
+} from '../../../src/auth/accessPolicy';
 import { PermissionGroup } from '../../../src/services/types';
 import type { UserProfile } from '../../../src/services/types';
 
@@ -35,6 +40,56 @@ describe('accessPolicy', () => {
 
         it('returns false when profile is null', () => {
             expect(canAccessRoute(null, '/chat')).toBe(false);
+        });
+
+        it('blocks a PM who only has member access to the selected project from the manager-scoped routes', () => {
+            const pmProfile = createMockProfile(PermissionGroup.PM);
+
+            expect(canAccessRoute(pmProfile, '/pm-dashboard', false)).toBe(false);
+            expect(canAccessRoute(pmProfile, '/data-ingestion', false)).toBe(false);
+            // Defaults to the strict side when no project context is supplied.
+            expect(canAccessRoute(pmProfile, '/pm-dashboard')).toBe(false);
+        });
+
+        it('allows a PM into the manager-scoped routes when they manage the selected project', () => {
+            const pmProfile = createMockProfile(PermissionGroup.PM);
+
+            expect(canAccessRoute(pmProfile, '/pm-dashboard', true)).toBe(true);
+            expect(canAccessRoute(pmProfile, '/data-ingestion', true)).toBe(true);
+        });
+
+        it('does not gate a PM out of other permitted routes by project management', () => {
+            const pmProfile = createMockProfile(PermissionGroup.PM);
+
+            expect(canAccessRoute(pmProfile, '/team-management', false)).toBe(true);
+            expect(canAccessRoute(pmProfile, '/insights/faq', false)).toBe(true);
+        });
+
+        it('keeps HR and ADMIN access to manager-scoped routes independent of project management', () => {
+            const hrProfile = createMockProfile(PermissionGroup.HR);
+            const adminProfile = createMockProfile(PermissionGroup.ADMIN);
+
+            expect(canAccessRoute(hrProfile, '/pm-dashboard', false)).toBe(true);
+            expect(canAccessRoute(hrProfile, '/data-ingestion', false)).toBe(true);
+            expect(canAccessRoute(adminProfile, '/pm-dashboard', false)).toBe(true);
+            expect(canAccessRoute(adminProfile, '/data-ingestion', false)).toBe(true);
+        });
+    });
+
+    describe('isOnboardingAccessible', () => {
+        it('is false when the user has completed onboarding', () => {
+            const profile = createMockProfile(PermissionGroup.USER);
+            expect(profile.hasCompletedOnboarding).toBe(true);
+            expect(isOnboardingAccessible(profile)).toBe(false);
+        });
+
+        it('is true when the user has not completed onboarding', () => {
+            const profile = { ...createMockProfile(PermissionGroup.USER), hasCompletedOnboarding: false };
+            expect(isOnboardingAccessible(profile)).toBe(true);
+        });
+
+        it('is false when profile is null', () => {
+            expect(isOnboardingAccessible(null)).toBe(false);
         });
     });
 

@@ -138,6 +138,9 @@ export function OnBoardingPage() {
       OnBoardingPathEndpoint?.phases.at(-1)?.id === checkPhase.id;
     setCheckPhase(null);
     if (passed && wasFinalPhase) setCelebrate(true);
+    // Only refresh the path here, never the auth profile: the backend has flagged the
+    // user as onboarded, but keeping the in-memory profile stale until the next reload
+    // lets the celebration play out before the onboarding UI is gated away.
     if (submittedAttempt) void refreshPath();
   };
 

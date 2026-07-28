@@ -13,6 +13,8 @@ type ConnectorListProps = {
   connectors: ConnectorListItem[];
   togglingConnectorId: string | null;
   expandedConnectorId: string | null;
+  /** Scopes the per-connector source list to a project. */
+  projectId?: string | null;
   onToggleEnabled: (connector: ConnectorListItem) => void;
   onToggleSources: (connector: ConnectorListItem) => void;
   onSourcesSaved?: () => void;
@@ -30,6 +32,7 @@ export function ConnectorList({
   connectors,
   togglingConnectorId,
   expandedConnectorId,
+  projectId,
   onToggleEnabled,
   onToggleSources,
   onSourcesSaved,
@@ -85,7 +88,9 @@ export function ConnectorList({
                     Enabled
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-app-neutral-border bg-app-neutral-bg px-3 py-1 text-sm font-medium text-app-neutral-text">
+                  // Red, matching the source badges: a disabled connector stops
+                  // every one of its sources from reaching chat.
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-app-danger-border bg-app-danger-bg px-3 py-1 text-sm font-medium text-app-danger-text">
                     <XCircle className="h-4 w-4" />
                     Disabled
                   </span>
@@ -107,7 +112,7 @@ export function ConnectorList({
                   "flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
                   connector.enabled
                     ? "border-app-danger-border bg-app-danger-bg text-app-danger-text hover:bg-app-danger-solid hover:text-white"
-                    : "border-app-brand-border-strong bg-app-brand text-app-text-inverse hover:bg-app-brand-hover",
+                    : "border-app-brand-border-strong bg-app-brand text-white hover:bg-app-brand-hover",
                 ].join(" ")}
               >
                 {isToggling
@@ -136,6 +141,7 @@ export function ConnectorList({
             {isExpanded && (
               <ConnectorSourcesSection
                 connector={connector}
+                projectId={projectId}
                 onSourcesSaved={onSourcesSaved}
               />
             )}
