@@ -4,6 +4,7 @@ import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversati
 import { useBuddyIntake } from '../features/buddy/hooks/useBuddyIntake';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
 import { FlagToPmButton } from '../features/knowledge-request/components/FlagToPmButton';
+import { MyEscalations } from '../features/knowledge-request/components/MyEscalations';
 
 /**
  * The buddy's home: the hire's onboarding front door as a full-page conversation.
@@ -106,6 +107,12 @@ function BuddyMentorHome() {
                 subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding."
                 showBoardLink
             />
+
+            {/* Directly under the header, and not conditioned on the hire having spoken: an
+                escalation is the last-resort channel, so a hire with an answer waiting is the one
+                most likely to be blocked. Owns its own spacing because it renders nothing at all
+                when they have never flagged anything — a wrapper here would leave a gap instead. */}
+            <MyEscalations />
 
             {/* The greeting invites one next step; offer it as a single prominent chip until the
                 hire acts or asks something of their own. */}
