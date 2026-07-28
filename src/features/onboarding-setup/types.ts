@@ -5,7 +5,7 @@ export type RungState = 'OK' | 'WARN' | 'BLOCKED';
 
 /** One setup stage's state, as returned by `GET /api/v1/onboarding/setup/status`. */
 export interface SetupRung {
-    /** Stable key: `skill-map`, `starter-tasks` — plus `corpus`, added client-side. */
+    /** Stable key: `skill-map`, `starter-tasks`, `tracks` — plus `corpus`, added client-side. */
     key: string;
     state: RungState;
     /** The positive quantity for this rung (approved competencies, ingested artifacts, ...). */

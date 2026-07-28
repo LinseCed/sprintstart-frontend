@@ -27,10 +27,17 @@ const RUNG_META: Record<string, RungMeta> = {
         route: '/starter-work',
         reviewKind: 'starter-tasks',
     },
+    // The only rung whose route is this page: the role-track table sits directly beneath the
+    // ladder, so acting on it is scrolling down rather than navigating away.
+    tracks: {
+        title: 'Roles say which track they onboard on',
+        blurb: 'A role with no track onboards its people in the default wording. Set one per role so a hire’s work is named the way their own role names it.',
+        route: '/setup',
+    },
 };
 
 /** The order rungs render in, matching the setup pipeline. */
-const RUNG_ORDER = ['corpus', 'skill-map', 'starter-tasks'];
+const RUNG_ORDER = ['corpus', 'skill-map', 'starter-tasks', 'tracks'];
 
 /**
  * Derives the corpus rung from the ingestion sources the Data Ingestion page already builds, so the

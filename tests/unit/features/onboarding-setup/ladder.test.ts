@@ -71,6 +71,46 @@ describe('buildLadder', () => {
         expect(skillMap?.detail).toContain('waiting for your review');
     });
 
+    it('renders the tracks rung last, pointing at the role table on this same page', () => {
+        const ladder = buildLadder(
+            readiness([
+                { key: 'skill-map', state: 'OK', count: 6, detail: 'ok' },
+                { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
+                {
+                    key: 'tracks',
+                    state: 'WARN',
+                    count: 1,
+                    detail: '2 of 3 people here have no track on their role.',
+                },
+            ]),
+            corpusOk,
+        );
+        expect(ladder.rungs.map((r) => r.key)).toEqual([
+            'corpus',
+            'skill-map',
+            'starter-tasks',
+            'tracks',
+        ]);
+        // The role-track table sits under the ladder, so "open" stays put rather than navigating.
+        expect(ladder.rungs[3].route).toBe('/setup');
+        expect(ladder.ready).toBe(false);
+    });
+
+    // A rung the client does not know is dropped rather than rendered blank, so a backend that
+    // grows a stage cannot put an unlabelled row in front of a PM.
+    it('ignores a rung it has no metadata for', () => {
+        const ladder = buildLadder(
+            readiness([
+                { key: 'skill-map', state: 'OK', count: 6, detail: 'ok' },
+                { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
+                { key: 'something-new', state: 'WARN', count: 0, detail: 'from a newer backend' },
+            ]),
+            corpusOk,
+        );
+        expect(ladder.rungs.map((r) => r.key)).toEqual(['corpus', 'skill-map', 'starter-tasks']);
+        expect(ladder.ready).toBe(true);
+    });
+
     it('is not ready when the corpus rung is not OK even if the backend rungs are', () => {
         const ladder = buildLadder(
             readiness([
