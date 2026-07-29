@@ -4,38 +4,81 @@ import keycloak from "../config/keycloak";
 import type { Chat, ChatMessage, StreamHandlers } from "../features/chatbot/types";
 
 /**
- * Retrieves all created chats.
+ * Retrieves created chats for the current user (personal `/me` endpoint).
  *
  * @throws Error if the backend request fails
  */
-export async function getChats() {
-    const response = await apiClient.fetch<{ chats: Chat[] }>(`/api/v1/chats`);
+export async function getMyChats() {
+    const response = await apiClient.fetch<{ chats: Chat[] }>(`/api/v1/chats/me`);
     return response;
 }
 
 /**
- * Creates a new chat for a specific user.
+ * Admin-only: retrieves chats across all users (metadata only, no messages).
  *
- * @param userId The user starting the conversation.
- * @returns The backend returns only `{ id }` — callers must synthesize the
- *   remaining `Chat` fields (`title`, `userId`, `createdAt`) client-side.
+ * The response includes `userId` for each chat so the caller can filter
+ * client-side to a specific user. No messages are included — use
+ * {@link getChatMessagesAdmin} to load a specific chat's thread.
+ *
+ * @param limit Optional maximum number of chats to return.
+ * @throws Error if the backend request fails (403 for non-admin callers).
  */
-export async function createChat(userId: string) {
-    return await apiClient.fetch<{ id: string }>(`/api/v1/chats`, {
+export async function getChatsAdmin(limit?: number) {
+    const query = limit ? `?limit=${limit}` : '';
+    const response = await apiClient.fetch<{ chats: Chat[] }>(`/api/v1/chats${query}`);
+    return response;
+}
+
+/**
+ * Admin-only: retrieves messages for any chat by id (read-only).
+ *
+ * Unlike {@link getMessages} (which hits the `/me` endpoint and verifies
+ * ownership), this hits the admin endpoint and can load any user's chat.
+ * There is no streaming/prompting counterpart — admins can only *read*
+ * another user's conversation, not interact as them.
+ *
+ * @param chatId The chat whose messages to load.
+ * @note The backend's `ChatMessageResponse` omits `id` — we generate stable
+ *   client-side ids here so React keys work, mirroring {@link getMessages}.
+ */
+export async function getChatMessagesAdmin(chatId: string, limit?: number) {
+    const query = limit ? `?limit=${limit}` : '';
+    const response = await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}${query}`);
+    return {
+        messages: response.messages.map((msg) => ({
+            ...msg,
+            id: msg.id ?? crypto.randomUUID(),
+            citations: msg.citations?.map((c) => ({
+                ...c,
+                startLine: c.startLine ?? undefined,
+                startPage: c.startPage ?? undefined,
+                sourceUrl: c.sourceUrl ?? undefined,
+            })),
+        })),
+    };
+}
+
+/**
+ * Creates a new chat for the authenticated user.
+ *
+ * @param _userId Ignored parameter kept for signature compatibility (owner derived from JWT).
+ * @returns The backend returns `{ id }`.
+ */
+export async function createChat(_userId?: string) {
+    return await apiClient.fetch<{ id: string }>(`/api/v1/chats/me`, {
         method: "POST",
-        body: JSON.stringify({ userId }),
     });
 }
 
 /**
- * Retrieves all messages from a specific chat.
+ * Retrieves all messages from a specific chat owned by the authenticated user.
  *
  * @param chatId The chat the messages belong to.
  * @note The backend's `ChatMessageResponse` omits `id` — we generate stable
  *   client-side ids here so React keys and the streaming-message tracking work.
  */
 export async function getMessages(chatId: string) {
-    const response = await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
+    const response = await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/me/${chatId}`);
     return {
         messages: response.messages.map((msg) => ({
             ...msg,
@@ -121,7 +164,7 @@ export async function streamMessage(
             }
             : undefined;
 
-    const res = await fetch(`/api/v1/chats/prompt`, {
+    const res = await fetch(`/api/v1/chats/me/prompt`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

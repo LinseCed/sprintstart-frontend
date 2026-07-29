@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getChats, createChat, getMessages, streamMessage } from '../../../src/services/chatService';
+import { getMyChats, getChatsAdmin, getChatMessagesAdmin, createChat, getMessages, streamMessage } from '../../../src/services/chatService';
 import { http, HttpResponse } from 'msw';
 import { mockKeycloakInstance, server } from '../../unit/setup/vitest.setup';
 
@@ -12,25 +12,64 @@ describe('chatService', () => {
     });
 
     describe('REST endpoints', () => {
-        it('getChats returns chat list', async () => {
+        it('getMyChats returns chat list', async () => {
             server.use(
-                http.get('/api/v1/chats', () =>
+                http.get('/api/v1/chats/me', () =>
                     HttpResponse.json({
                         chats: [{ id: 'chat1', userId: 'user1', title: 'Test', createdAt: new Date().toISOString() }],
                     }),
                 ),
             );
 
-            const result = await getChats();
+            const result = await getMyChats();
             expect(result.chats).toHaveLength(1);
             expect(result.chats[0].id).toBe('chat1');
         });
 
+        it('getChatsAdmin returns all chats across users', async () => {
+            server.use(
+                http.get('/api/v1/chats', (req) => {
+                    const url = new URL(req.request.url);
+                    const limit = url.searchParams.get('limit');
+                    return HttpResponse.json({
+                        chats: limit
+                            ? [{ id: 'c1', userId: 'u1', title: 'A', createdAt: new Date().toISOString() }]
+                            : [
+                                { id: 'c1', userId: 'u1', title: 'A', createdAt: new Date().toISOString() },
+                                { id: 'c2', userId: 'u2', title: 'B', createdAt: new Date().toISOString() },
+                            ],
+                    });
+                }),
+            );
+
+            const all = await getChatsAdmin();
+            expect(all.chats).toHaveLength(2);
+
+            const limited = await getChatsAdmin(1);
+            expect(limited.chats).toHaveLength(1);
+            expect(limited.chats[0].id).toBe('c1');
+        });
+
+        it('getChatMessagesAdmin loads messages for any chat by id', async () => {
+            server.use(
+                http.get('/api/v1/chats/:chatId', () =>
+                    HttpResponse.json({
+                        messages: [
+                            { id: 'm1', role: 'USER', content: 'hello', createdAt: new Date().toISOString() },
+                            { id: 'm2', role: 'ASSISTANT', content: 'hi there', createdAt: new Date().toISOString() },
+                        ],
+                    }),
+                ),
+            );
+
+            const result = await getChatMessagesAdmin('c1');
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0].content).toBe('hello');
+        });
+
         it('createChat returns created chat', async () => {
             server.use(
-                http.post('/api/v1/chats', async ({ request }) => {
-                    const body = (await request.json()) as { userId: string };
-                    expect(body.userId).toBe('user1');
+                http.post('/api/v1/chats/me', () => {
                     return HttpResponse.json({
                         id: 'chat2',
                         userId: 'user1',
@@ -46,7 +85,7 @@ describe('chatService', () => {
 
         it('getMessages returns messages for a chat', async () => {
             server.use(
-                http.get('/api/v1/chats/chat1', () =>
+                http.get('/api/v1/chats/me/chat1', () =>
                     HttpResponse.json({
                         messages: [{ id: 'msg1', content: 'hello', role: 'USER', chat: null }],
                     }),
@@ -74,7 +113,7 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', async ({ request }) => {
+                http.post('/api/v1/chats/me/prompt', async ({ request }) => {
                     capturedAuthHeader = request.headers.get('Authorization');
                     capturedBody = await request.json();
                     return new HttpResponse(stream, {
@@ -132,7 +171,7 @@ describe('chatService', () => {
 
         it('calls onError when response is not ok', async () => {
             server.use(
-                http.post('/api/v1/chats/prompt', () =>
+                http.post('/api/v1/chats/me/prompt', () =>
                     new HttpResponse(null, { status: 500 }),
                 ),
             );
@@ -165,7 +204,7 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', () =>
+                http.post('/api/v1/chats/me/prompt', () =>
                     new HttpResponse(stream, {
                         headers: { 'Content-Type': 'text/event-stream' },
                     }),
@@ -203,7 +242,7 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', () =>
+                http.post('/api/v1/chats/me/prompt', () =>
                     new HttpResponse(stream, {
                         headers: { 'Content-Type': 'text/event-stream' },
                     }),
@@ -236,7 +275,7 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', () =>
+                http.post('/api/v1/chats/me/prompt', () =>
                     new HttpResponse(stream, {
                         headers: { 'Content-Type': 'text/event-stream' },
                     }),
@@ -280,7 +319,7 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', () =>
+                http.post('/api/v1/chats/me/prompt', () =>
                     new HttpResponse(stream, {
                         headers: { 'Content-Type': 'text/event-stream' },
                     }),
@@ -318,7 +357,7 @@ describe('chatService', () => {
             });
 
             server.use(
-                http.post('/api/v1/chats/prompt', ({ request }) => {
+                http.post('/api/v1/chats/me/prompt', ({ request }) => {
                     signalPassed = request.signal;
                     return new HttpResponse(stream, {
                         headers: { 'Content-Type': 'text/event-stream' },

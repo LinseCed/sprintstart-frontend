@@ -68,44 +68,6 @@ export const knowledgeService = {
             console.warn("Unified artifacts endpoint failed (expected if missing), continuing...", e);
         }
 
-        try {
-            const profile = await userService.getProfile();
-            if (profile) {
-                interface UploadListItemResponse {
-                    id: string;
-                    filename: string;
-                    mime: string;
-                    uploadedAt: string;
-                }
-                const uploads = await apiClient.fetch<UploadListItemResponse[]>(`/api/v1/uploads?uploaderId=${encodeURIComponent(profile.id)}`);
-
-                const uploadArtifacts: Artifact[] = uploads.map(u => ({
-                    id: u.id,
-                    title: u.filename,
-                    artifactType: 'FILE',
-                    sourceSystem: 'UPLOAD',
-                    sourceId: u.id,
-                    sourceUrl: null,
-                    mime: u.mime,
-                    language: null,
-                    ingestedAt: u.uploadedAt,
-                    createdAtSource: null,
-                    updatedAtSource: u.uploadedAt,
-                    contentHash: null,
-                    ingestionRunId: null,
-                }));
-
-                // Deduplicate using title (filename) as a temporary frontend workaround,
-                // because the backend doesn't return sourceId for ingested artifacts yet.
-                const existingTitles = new Set(artifacts.map(a => a.title));
-                const uniqueUploads = uploadArtifacts.filter(a => !existingTitles.has(a.title));
-
-                artifacts = [...artifacts, ...uniqueUploads];
-            }
-        } catch (e) {
-            console.warn("Failed to fetch personal uploads", e);
-        }
-
         return artifacts;
     },
 
@@ -198,6 +160,10 @@ export const knowledgeService = {
         if (response.status === 401) {
             void keycloak.login();
             throw new ApiError(401, 'Unauthorized');
+        }
+
+        if (response.status === 503) {
+            throw new ApiError(503, 'Artifact is still being indexed by the AI service. Please try again in a few moments.');
         }
 
         if (!response.ok) {

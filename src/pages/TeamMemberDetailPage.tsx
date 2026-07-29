@@ -61,12 +61,15 @@ function getElapsedDays(startedAt: string): number {
     );
 }
 
+import { useAuth } from '../context/useAuth';
+import { PermissionGroup } from '../services/types';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { Modal } from '../components/ui/Modal';
 import { AddCustomStepModal } from '../features/team-management/components/detail/AddCustomStepModal';
 import { MemberDetailDialogs } from '../features/team-management/components/detail/MemberDetailDialogs';
 import { MemberGapsPanel } from '../features/team-management/components/detail/MemberGapsPanel';
 import { MemberOnboardingSection } from '../features/team-management/components/detail/MemberOnboardingSection';
+import { MemberChatHistory } from '../features/team-management/components/detail/MemberChatHistory';
 import { StepDetailsPanel } from '../features/team-management/components/detail/StepDetailsPanel';
 
 function formatMinutes(minutes?: number | null): string {
@@ -114,6 +117,8 @@ export function TeamMemberDetailPage() {
     const { userId } = useParams<{ userId: string }>();
 
     const navigate = useNavigate();
+    const { profile } = useAuth();
+    const isAdmin = profile?.permissionGroup === PermissionGroup.ADMIN;
 
     const [user, setUser] = useState<TeamOverviewUser | undefined>(undefined);
     const [availableRoles, setAvailableRoles] = useState<ProjectRole[]>([]);
@@ -1156,6 +1161,16 @@ export function TeamMemberDetailPage() {
                     />
                     </aside>
                 </div>
+
+                {isAdmin && user && (
+                    <div className="mt-8">
+                        <MemberChatHistory
+                            key={user.userId}
+                            userId={user.userId}
+                            memberName={`${user.firstname} ${user.lastname}`.trim()}
+                        />
+                    </div>
+                )}
             </main>
 
             <Modal
