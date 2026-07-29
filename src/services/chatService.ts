@@ -14,51 +14,6 @@ export async function getMyChats() {
 }
 
 /**
- * Admin-only: retrieves chats across all users (metadata only, no messages).
- *
- * The response includes `userId` for each chat so the caller can filter
- * client-side to a specific user. No messages are included — use
- * {@link getChatMessagesAdmin} to load a specific chat's thread.
- *
- * @param limit Optional maximum number of chats to return.
- * @throws Error if the backend request fails (403 for non-admin callers).
- */
-export async function getChatsAdmin(limit?: number) {
-    const query = limit ? `?limit=${limit}` : '';
-    const response = await apiClient.fetch<{ chats: Chat[] }>(`/api/v1/chats${query}`);
-    return response;
-}
-
-/**
- * Admin-only: retrieves messages for any chat by id (read-only).
- *
- * Unlike {@link getMessages} (which hits the `/me` endpoint and verifies
- * ownership), this hits the admin endpoint and can load any user's chat.
- * There is no streaming/prompting counterpart — admins can only *read*
- * another user's conversation, not interact as them.
- *
- * @param chatId The chat whose messages to load.
- * @note The backend's `ChatMessageResponse` omits `id` — we generate stable
- *   client-side ids here so React keys work, mirroring {@link getMessages}.
- */
-export async function getChatMessagesAdmin(chatId: string, limit?: number) {
-    const query = limit ? `?limit=${limit}` : '';
-    const response = await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}${query}`);
-    return {
-        messages: response.messages.map((msg) => ({
-            ...msg,
-            id: msg.id ?? crypto.randomUUID(),
-            citations: msg.citations?.map((c) => ({
-                ...c,
-                startLine: c.startLine ?? undefined,
-                startPage: c.startPage ?? undefined,
-                sourceUrl: c.sourceUrl ?? undefined,
-            })),
-        })),
-    };
-}
-
-/**
  * Creates a new chat for the authenticated user.
  *
  * @param _userId Ignored parameter kept for signature compatibility (owner derived from JWT).

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getMyChats, getChatsAdmin, getChatMessagesAdmin, createChat, getMessages, streamMessage } from '../../../src/services/chatService';
+import { getMyChats, createChat, getMessages, streamMessage } from '../../../src/services/chatService';
 import { http, HttpResponse } from 'msw';
 import { mockKeycloakInstance, server } from '../../unit/setup/vitest.setup';
 
@@ -24,47 +24,6 @@ describe('chatService', () => {
             const result = await getMyChats();
             expect(result.chats).toHaveLength(1);
             expect(result.chats[0].id).toBe('chat1');
-        });
-
-        it('getChatsAdmin returns all chats across users', async () => {
-            server.use(
-                http.get('/api/v1/chats', (req) => {
-                    const url = new URL(req.request.url);
-                    const limit = url.searchParams.get('limit');
-                    return HttpResponse.json({
-                        chats: limit
-                            ? [{ id: 'c1', userId: 'u1', title: 'A', createdAt: new Date().toISOString() }]
-                            : [
-                                { id: 'c1', userId: 'u1', title: 'A', createdAt: new Date().toISOString() },
-                                { id: 'c2', userId: 'u2', title: 'B', createdAt: new Date().toISOString() },
-                            ],
-                    });
-                }),
-            );
-
-            const all = await getChatsAdmin();
-            expect(all.chats).toHaveLength(2);
-
-            const limited = await getChatsAdmin(1);
-            expect(limited.chats).toHaveLength(1);
-            expect(limited.chats[0].id).toBe('c1');
-        });
-
-        it('getChatMessagesAdmin loads messages for any chat by id', async () => {
-            server.use(
-                http.get('/api/v1/chats/:chatId', () =>
-                    HttpResponse.json({
-                        messages: [
-                            { id: 'm1', role: 'USER', content: 'hello', createdAt: new Date().toISOString() },
-                            { id: 'm2', role: 'ASSISTANT', content: 'hi there', createdAt: new Date().toISOString() },
-                        ],
-                    }),
-                ),
-            );
-
-            const result = await getChatMessagesAdmin('c1');
-            expect(result.messages).toHaveLength(2);
-            expect(result.messages[0].content).toBe('hello');
         });
 
         it('createChat returns created chat', async () => {

@@ -6,10 +6,8 @@ import { TeamMemberDetailPage } from '../../../src/pages/TeamMemberDetailPage';
 import type { TeamOverviewUser, ProjectRole } from '../../../src/features/team-management/types';
 import type { KnowledgeGap } from '../../../src/features/knowledge-gaps/types';
 
-const mockUseAuth = vi.hoisted(() => vi.fn());
-
 vi.mock('../../../src/context/useAuth', () => ({
-    useAuth: mockUseAuth,
+    useAuth: () => ({ profile: { id: 'pm1', firstName: 'PM', lastName: 'User' } }),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -85,14 +83,6 @@ vi.mock('../../../src/features/team-management/components/detail/StepDetailsPane
     StepDetailsPanel: () => <div data-testid="step-details-panel">Step Details</div>,
 }));
 
-vi.mock('../../../src/features/team-management/components/detail/MemberChatHistory', () => ({
-    MemberChatHistory: ({ userId, memberName }: { userId: string; memberName: string }) => (
-        <div data-testid="member-chat-history" data-user-id={userId} data-member-name={memberName}>
-            Chat History
-        </div>
-    ),
-}));
-
 vi.mock('../../../src/features/team-management/components/detail/AddCustomStepModal', () => ({
     AddCustomStepModal: () => <div data-testid="add-custom-step-modal">Add Step</div>,
 }));
@@ -138,7 +128,6 @@ const mockRoles: ProjectRole[] = [
 describe('TeamMemberDetailPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockUseAuth.mockReturnValue({ profile: { id: 'pm1', firstName: 'PM', lastName: 'User', permissionGroup: 'PM' } });
         mockGetTeamMember.mockResolvedValue(createMockUser());
         mockGetProjectRoles.mockResolvedValue(mockRoles);
         mockGetUserSkillLevels.mockResolvedValue([]);
@@ -247,39 +236,5 @@ describe('TeamMemberDetailPage', () => {
         await waitFor(() => {
             expect(mockDenyOnboardingSkipRequest).toHaveBeenCalledWith('skip1');
         });
-    });
-
-    it('hides the chat history section for non-admin users', async () => {
-        render(<MemoryRouter><TeamMemberDetailPage /></MemoryRouter>);
-
-        await waitFor(() => {
-            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
-        });
-
-        expect(screen.queryByTestId('member-chat-history')).not.toBeInTheDocument();
-    });
-
-    it('shows the chat history section for admin users', async () => {
-        mockUseAuth.mockReturnValue({
-            profile: {
-                id: 'admin1',
-                firstName: 'Admin',
-                lastName: 'User',
-                permissionGroup: 'ADMIN',
-            },
-        });
-
-        render(<MemoryRouter><TeamMemberDetailPage /></MemoryRouter>);
-
-        await waitFor(() => {
-            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
-        });
-
-        await waitFor(() => {
-            expect(screen.getByTestId('member-chat-history')).toBeInTheDocument();
-        });
-
-        expect(screen.getByTestId('member-chat-history')).toHaveAttribute('data-user-id', 'user1');
-        expect(screen.getByTestId('member-chat-history')).toHaveAttribute('data-member-name', 'Alice Smith');
     });
 });
