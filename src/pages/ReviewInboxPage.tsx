@@ -12,10 +12,13 @@ function parseKind(value: string | null): GenerationKind | undefined {
 }
 
 /**
- * One place to review everything the AI proposed — the skill map, the baseline and starter tasks —
- * with one generate control and one approve/reject pattern each. Replaces three separate review
- * screens with three different layouts and three silent generation waits. Reached from the
- * Onboarding Setup ladder; `?kind=` narrows it to the stage a rung deep-links to.
+ * One place to review what the AI proposed, with one generate control and one approve/reject
+ * pattern. Reached from the Onboarding Setup ladder; `?kind=` narrows it to the stage a rung
+ * deep-links to.
+ *
+ * It covered the skill map and the baseline too. Both are gone — the baseline was retired, and
+ * competencies are authored directly in the studio rather than proposed — so starter tasks are
+ * what is left to decide on.
  */
 export function ReviewInboxPage() {
     const { profile } = useAuth();
@@ -41,7 +44,7 @@ export function ReviewInboxPage() {
                     <PageHeader
                         icon={Sparkles}
                         title="Review proposals"
-                        subtitle="Everything the AI has proposed — competencies, prerequisites, the baseline and starter tasks — in one queue. Generating can take about a minute; proposals appear here as they are drafted."
+                        subtitle="Starter tasks the AI has mined from the corpus, waiting on a decision. Mining can take about a minute; tasks appear here as they are drafted."
                     />
                 </div>
             </header>

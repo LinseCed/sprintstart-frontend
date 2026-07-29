@@ -2,17 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { competencyGraphService } from '../../../services/competencyGraphService';
 import type { LiveGraph } from '../types';
 
-const EMPTY_GRAPH: LiveGraph = { competencies: [], edges: [], graphVersion: 0 };
+const EMPTY_GRAPH: LiveGraph = { competencies: [] };
 
 /**
- * Loads the whole live competency graph — the thing a PM authors.
+ * Loads the whole live competency vocabulary — the thing a PM authors.
  *
- * Deliberately not the hire's path projection (`GET /me/path`). That is scoped to a project's
- * claimed goal, carries per-user node state, and is resolved at the hire's pinned version.
- * A PM needs the graph as it actually is, which is global and unfiltered.
- *
- * `reload` is handed to every write path, so the canvas re-reads after an edit rather than each
- * component keeping its own copy of a graph that would drift.
+ * `reload` is handed to every write path, so the list re-reads after an edit rather than each
+ * component keeping its own copy that would drift.
  */
 export function useLiveGraph() {
     const [graph, setGraph] = useState<LiveGraph>(EMPTY_GRAPH);
@@ -25,7 +21,7 @@ export function useLiveGraph() {
         try {
             setGraph(await competencyGraphService.fetchGraph());
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not load the competency graph.');
+            setError(err instanceof Error ? err.message : 'Could not load the competencies.');
         } finally {
             setIsLoading(false);
         }

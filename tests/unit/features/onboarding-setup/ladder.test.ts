@@ -38,7 +38,7 @@ describe('buildLadder', () => {
     it('renders the three stages corpus-first, in pipeline order', () => {
         const ladder = buildLadder(
             readiness([
-                { key: 'skill-map', state: 'OK', count: 6, detail: '6 competencies approved.' },
+                { key: 'skill-map', state: 'OK', count: 6, detail: '6 competencies.' },
                 { key: 'starter-tasks', state: 'OK', count: 2, detail: '2 starter tasks ready to claim.' },
             ]),
             corpusOk,
@@ -46,20 +46,32 @@ describe('buildLadder', () => {
         // The baseline rung went when the path became goal-directed: it was asking a PM to make a
         // selection nothing read, which looks like progress while somebody does it.
         expect(ladder.rungs.map((r) => r.key)).toEqual(['corpus', 'skill-map', 'starter-tasks']);
-        expect(ladder.rungs[1].title).toBe('Skill map approved');
         expect(ladder.rungs[1].route).toBe('/graph-studio');
         expect(ladder.ready).toBe(true);
     });
 
-    // The bug that started this: a map was generated but never approved, so a page read empty.
-    it('is not ready when proposals await review', () => {
+    // The competency rung has nothing to deep-link into: there is no proposal queue for
+    // competencies, so "open" goes to the studio where one is authored or corrected.
+    it('gives the competency rung no review link, unlike starter tasks', () => {
+        const ladder = buildLadder(
+            readiness([
+                { key: 'skill-map', state: 'OK', count: 6, detail: '6 competencies.' },
+                { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
+            ]),
+            corpusOk,
+        );
+        expect(ladder.rungs.find((r) => r.key === 'skill-map')?.reviewKind).toBeUndefined();
+        expect(ladder.rungs.find((r) => r.key === 'starter-tasks')?.reviewKind).toBe('starter-tasks');
+    });
+
+    it('is not ready when a stage warns', () => {
         const ladder = buildLadder(
             readiness([
                 {
                     key: 'skill-map',
                     state: 'WARN',
                     count: 0,
-                    detail: '25 competencies and 19 edges are waiting for your review.',
+                    detail: 'No competencies yet.',
                 },
                 { key: 'starter-tasks', state: 'WARN', count: 0, detail: 'No starter tasks yet.' },
             ]),
@@ -68,7 +80,7 @@ describe('buildLadder', () => {
         expect(ladder.ready).toBe(false);
         const skillMap = ladder.rungs.find((r) => r.key === 'skill-map');
         expect(skillMap?.state).toBe('WARN');
-        expect(skillMap?.detail).toContain('waiting for your review');
+        expect(skillMap?.detail).toContain('No competencies yet');
     });
 
     it('renders the tracks rung last, pointing at the role table on this same page', () => {

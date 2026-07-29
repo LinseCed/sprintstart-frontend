@@ -3,15 +3,7 @@ import { AlertTriangle, Loader2, Lock, Trash2 } from 'lucide-react';
 import { competencyGraphService } from '../../../services/competencyGraphService';
 import type { CompetencyKind, LiveCompetency } from '../types';
 
-const KINDS: CompetencyKind[] = [
-    'SKILL',
-    'CONCEPT',
-    'CONTRIBUTION',
-    'POLICY',
-    'CONNECTION',
-    'CULTURE',
-    'CHECKPOINT'
-];
+const KINDS: CompetencyKind[] = ['SKILL', 'CONCEPT'];
 
 const LEVEL_LABELS: Record<number, string> = {
     1: '1 · beginner',
@@ -41,19 +33,20 @@ type CompetencyNodeEditorProps = {
 };
 
 /**
- * The PM's edit form for one competency node.
+ * The PM's edit form for one competency.
  *
- * Loads the node's own record rather than reading the projected path, because the path carries
- * only what a hire's map needs -- editing `description` or `targetLevel` from a blank field would
- * mean overwriting a value the PM never saw.
+ * Loads the competency's own record rather than editing from whatever a list happened to carry --
+ * editing `description` or `targetLevel` from a blank field would mean overwriting a value the PM
+ * never saw.
  *
  * Two things are said out loud rather than left to be discovered:
  *
  * - **The key is not editable.** It's shown, disabled, with the reason. Offering a field the
  *   backend rejects would be worse than not offering one.
- * - **Edits are immediate, not deferred.** Unlike structural changes, a content edit reaches
- *   every hire at once -- and raising the target level can re-lock a node somebody had already
- *   met. That warning appears only when the level is actually being raised.
+ * - **Raising the target level un-holds it for people who had met the old bar.** Nothing is
+ *   un-earned (the ledger is monotonic and untouched), but "held" is derived against the bar, so
+ *   the readout changes for everyone at once. That warning appears only when the level is
+ *   actually being raised.
  */
 export function CompetencyNodeEditor({
     competencyKey,
@@ -146,12 +139,13 @@ export function CompetencyNodeEditor({
             >
                 <h3 className="flex items-center gap-1.5 text-sm font-semibold text-app-danger-text">
                     <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    Remove “{competency.label}” from the graph?
+                    Remove “{competency.label}”?
                 </h3>
                 <p className="text-xs text-app-danger-text">
-                    It leaves everyone&apos;s path, along with every prerequisite link to or from
-                    it. <strong>Nobody loses a competency they already earned</strong> — levels
-                    people have proven stay on their record, and you can add this node back later.
+                    It stops being something the buddy can name or a module can hang from.{' '}
+                    <strong>Nobody loses a competency they already earned</strong> — levels people
+                    have proven stay on their record, any module written for it is kept, and adding
+                    it back under the same key brings the module back with it.
                 </p>
                 {error && <p className="text-xs font-medium text-app-danger-text">{error}</p>}
                 <div className="flex flex-wrap gap-2">
@@ -307,8 +301,8 @@ export function CompetencyNodeEditor({
                 >
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     Raising the bar from {competency.targetLevel} to {targetLevel} takes effect for
-                    everyone right away. Anyone who had met the old bar but not this one will see
-                    this node go back to unfinished.
+                    everyone right away. Anyone who had met the old bar but not this one counts as
+                    not holding it again.
                 </p>
             )}
 

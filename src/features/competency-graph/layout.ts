@@ -1,12 +1,12 @@
 import dagre from 'dagre';
 
 /**
- * The minimum a graph has to look like to be laid out or walked.
+ * The minimum a diagram has to look like to be laid out or walked.
  *
- * Structural on purpose: the hire's projected path and the PM's live graph are different shapes
- * with different meanings (one carries per-user state, the other carries authoring fields), but
- * the geometry and the traversal are identical. Typing against the intersection keeps one
- * implementation instead of two that drift.
+ * Structural on purpose: it was written against the competency graph and the projected path, both
+ * of which are gone. What kept it is the board's diagram cards, whose nodes and edges are a
+ * different thing entirely — and the geometry does not care. Typing against the intersection is
+ * what let it survive its original subject.
  */
 export type GraphShape = {
     nodes: readonly { key: string }[];
@@ -24,14 +24,13 @@ export const NODE_HEIGHT = 84;
 export type NodePosition = { x: number; y: number };
 
 /**
- * Lays the competency graph out as a layered DAG: every node sits to the right
- * of all of its prerequisites, so "what unlocks what" reads left-to-right.
+ * Lays a diagram out as a layered DAG: every node sits to the right of the nodes
+ * pointing at it, so the flow reads left-to-right.
  *
  * Dagre owns the layering because a hand-rolled topological ordering can place
- * a node before an edge it depends on once the graph has more than one root --
- * and the projection is a real DAG (the backend rejects cycles), so dagre's
- * assumptions hold. Edges pointing at nodes outside the projection are skipped
- * rather than implicitly creating a phantom node.
+ * a node before an edge it depends on once there is more than one root. Edges
+ * pointing at nodes that are not in the diagram are skipped rather than
+ * implicitly creating a phantom node.
  *
  * @returns Position by competency key; nodes dagre could not place (shouldn't
  * happen, but a missing entry would otherwise crash the render) fall back to the
@@ -67,23 +66,14 @@ export function layoutPath(path: GraphShape): Map<string, NodePosition> {
     return positions;
 }
 
-/** Direct prerequisite keys per node key, for "why is this locked" explanations. */
-export function prerequisitesByKey(path: GraphShape): Map<string, string[]> {
-    const prereqs = new Map<string, string[]>();
-    for (const edge of path.edges) {
-        prereqs.set(edge.to, [...(prereqs.get(edge.to) ?? []), edge.from]);
-    }
-    return prereqs;
-}
-
 /**
- * Every node connected to `key` by a chain of prerequisites, in either
- * direction: everything it transitively depends on, and everything that
- * transitively depends on it. `key` itself is included.
+ * Every node connected to `key` by a chain of edges, in either direction:
+ * everything it transitively reaches, and everything that transitively reaches
+ * it. `key` itself is included.
  *
- * This is what a node *costs* and what it *buys*, which is the thing a static
- * DAG drawing hides -- with the chain lit and everything else dimmed, the graph
- * reads as a tree of consequence instead of a picture of boxes.
+ * This is what a node is part of, which is the thing a static drawing hides --
+ * with the chain lit and everything else dimmed, the picture reads as a path
+ * through the system instead of a set of boxes.
  *
  * Walks iteratively and tracks visited keys, so a cycle the backend somehow let
  * through can't hang the render.

@@ -15,11 +15,12 @@ const RUNG_META: Record<string, RungMeta> = {
         blurb: 'The AI grounds answers, orientation and mined tasks in what has been ingested.',
         route: '/data-ingestion',
     },
+    // No `reviewKind`: there is no competency proposal queue to deep-link into. A competency is
+    // authored (or corrected) in the studio directly, so "open" goes to the thing itself.
     'skill-map': {
-        title: 'Skill map approved',
-        blurb: 'Generate a competency map from the corpus, then approve it. This is the substrate matching and gap-detection run on.',
+        title: 'Competencies to teach and measure against',
+        blurb: 'The vocabulary the buddy names a gap in and a module hangs from. Drafted from the corpus; add or correct one by hand any time.',
         route: '/graph-studio',
-        reviewKind: 'skill-map',
     },
     'starter-tasks': {
         title: 'Starter tasks stocked',

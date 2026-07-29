@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { chainFor } from '../../../../src/features/competency-graph/layout';
-import type { NodeState, PathNode, PathView } from '../../../../src/features/skill-assessment/types';
+import { chainFor, type GraphShape } from '../../../../src/features/competency-graph/layout';
 
-function node(key: string, state: NodeState = 'AVAILABLE'): PathNode {
-    return { key, label: key, kind: 'SKILL', state };
+function node(key: string): { key: string } {
+    return { key };
 }
 
-function path(nodes: PathNode[], edges: { from: string; to: string }[]): PathView {
-    return { nodes, edges, graphVersion: 1 };
+function path(nodes: { key: string }[], edges: { from: string; to: string }[]): GraphShape {
+    return { nodes, edges };
 }
 
 describe('chainFor', () => {
-    it('includes everything the node depends on and everything depending on it', () => {
+    it('includes everything the node reaches and everything reaching it', () => {
         const view = path(
             [node('a'), node('b'), node('c'), node('d')],
             [

@@ -2,8 +2,6 @@ import { Check, X } from 'lucide-react';
 import type { ReviewItemView, ReviewKind } from '../types';
 
 const KIND_LABEL: Record<ReviewKind, string> = {
-    competency: 'Competency',
-    edge: 'Prerequisite',
     task: 'Starter task',
 };
 

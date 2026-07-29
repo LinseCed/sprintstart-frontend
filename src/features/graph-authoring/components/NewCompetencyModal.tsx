@@ -2,15 +2,7 @@ import { useMemo, useState } from 'react';
 import { Loader2, Plus, X } from 'lucide-react';
 import type { CompetencyKind, CreateCompetencyInput } from '../types';
 
-const KINDS: CompetencyKind[] = [
-    'SKILL',
-    'CONCEPT',
-    'CONTRIBUTION',
-    'POLICY',
-    'CONNECTION',
-    'CULTURE',
-    'CHECKPOINT'
-];
+const KINDS: CompetencyKind[] = ['SKILL', 'CONCEPT'];
 
 const LEVEL_LABELS: Record<number, string> = {
     1: '1 · beginner',
@@ -40,11 +32,10 @@ type NewCompetencyModalProps = {
 };
 
 /**
- * A PM hand-authoring a brand-new competency node, with no AI proposal.
+ * A PM hand-authoring a brand-new competency.
  *
- * The origination counterpart to the review queue: until this existed a node's only way in was to
- * approve something the AI generated, so AI was mandatory to *start* a graph even though editing
- * afterwards was free. Here a PM types a node from nothing.
+ * What keeps the AI optional rather than merely correctable: a PM who wants a competency the
+ * generator never suggested types it from nothing.
  *
  * Two deliberate touches: the key is editable here (creation is the one moment identity is set, and
  * it can never change afterwards), and a live preview shows the slug it will become, so "Docker
