@@ -95,6 +95,21 @@ export const knowledgeService = {
                     ingestionRunId: null,
                 }));
 
+                // Enrich ingestion-mirrored upload artifacts with their original UploadedArtifact
+                // id via `sourceId`. The backend's ArtifactResponse does not expose `sourceId`, so
+                // we match by title (filename) against the personal uploads list — the same
+                // title-based workaround the dedup below already relies on. Without this, the
+                // delete endpoint would receive the ingestion Artifact's UUID instead of the
+                // UploadedArtifact's UUID and silently no-op.
+                const uploadsByTitle = new Map(uploadArtifacts.map(a => [a.title, a]));
+                artifacts = artifacts.map(a => {
+                    if (a.sourceSystem === 'UPLOAD' && !a.sourceId) {
+                        const upload = uploadsByTitle.get(a.title);
+                        if (upload) return { ...a, sourceId: upload.id };
+                    }
+                    return a;
+                });
+
                 // Deduplicate using title (filename) as a temporary frontend workaround,
                 // because the backend doesn't return sourceId for ingested artifacts yet.
                 const existingTitles = new Set(artifacts.map(a => a.title));
@@ -249,6 +264,41 @@ export const knowledgeService = {
             if (error instanceof Error) throw error;
             throw new Error(String(error));
         }
+    },
+
+    /**
+     * Deletes a single uploaded artifact by its id.
+     *
+     * Sends a multipart DELETE to `/api/v1/uploads/{artifactId}` with a `request`
+     * JSON part containing the artifactIds batch, the removerId (authenticated user)
+     * and the projectId scope. The backend mirrors the same multipart contract as
+     * the upload endpoint — the path variable is captured for REST semantics but
+     * the actual deletion target(s) are read from the body's `artifactIds` set.
+     *
+     * @remarks Permission: the backend currently allows any `USER` role. The
+     * frontend gates this call to PM/HR/ADMIN via `accessPolicy` Pattern A.
+     * Tightening the backend `@PreAuthorize` to `hasAnyRole('PM','HR','ADMIN')`
+     * is tracked as a restricted backend follow-up.
+     *
+     * @param projectId  UUID of the project that scopes the deletion.
+     * @param artifactId UUID of the uploaded artifact to remove.
+     * @param removerId  UUID of the authenticated user requesting the deletion.
+     * @throws ApiError on a non-2xx response (e.g. 403 if the caller lacks access
+     *   to the supplied projectId, 404 if the artifact does not exist).
+     */
+    async deleteUpload(projectId: string, artifactId: string, removerId: string): Promise<void> {
+        const formData = new FormData();
+        const requestPayload = {
+            artifactIds: [artifactId],
+            removerId,
+            projectId,
+        };
+        formData.append('request', new Blob([JSON.stringify(requestPayload)], { type: 'application/json' }));
+
+        await apiClient.fetch<void>(`/api/v1/uploads/${encodeURIComponent(artifactId)}`, {
+            method: 'DELETE',
+            body: formData,
+        });
     },
 
     /**
