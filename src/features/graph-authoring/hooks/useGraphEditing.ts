@@ -1,15 +1,14 @@
 import { useCallback, useState } from 'react';
 import { ApiError } from '../../../services/apiClient';
 import { competencyGraphService } from '../../../services/competencyGraphService';
-import type { CreateCompetencyInput, EdgeKind, LiveCompetency, UpdateCompetencyInput } from '../types';
+import type { CreateCompetencyInput, LiveCompetency, UpdateCompetencyInput } from '../types';
 
 /**
- * Turns a failed graph write into something a PM can act on, at the point of the gesture.
+ * Turns a failed write into something a PM can act on, at the point of the gesture.
  *
- * The backend's messages are already specific (they name the two keys in a cycle, the bad level,
- * the missing key), so the useful thing is to *keep* them rather than replace them with a generic
- * "something went wrong" -- and to add the one bit of context a status code carries that the
- * message doesn't.
+ * The backend's messages are already specific (they name the bad level, the missing key), so the
+ * useful thing is to *keep* them rather than replace them with a generic "something went wrong" --
+ * and to add the one bit of context a status code carries that the message doesn't.
  */
 function toEditingError(error: unknown, fallback: string): string {
     if (!(error instanceof ApiError)) {
@@ -18,12 +17,12 @@ function toEditingError(error: unknown, fallback: string): string {
     const detail = error.message.trim();
     switch (error.status) {
         case 400:
-            // Cycles and out-of-range levels land here; the backend names both keys.
+            // A blank label or an out-of-range target level lands here.
             return detail || 'That change isn’t valid.';
         case 403:
-            return 'You don’t have permission to change the graph.';
+            return 'You don’t have permission to change the competencies.';
         case 404:
-            return detail || 'That competency is no longer in the graph.';
+            return detail || 'That competency no longer exists.';
         case 409:
             return detail || 'That already exists.';
         default:
@@ -32,15 +31,15 @@ function toEditingError(error: unknown, fallback: string): string {
 }
 
 /**
- * The write half of PM graph authoring, used from the studio's node inspector.
+ * The write half of PM competency authoring, used from the studio's inspector.
  *
- * Deliberately holds no graph state of its own. The studio already owns the live graph and
- * reloads it, so duplicating nodes/edges here would give two sources of truth that drift. This owns only the
- * in-flight flag and the last error, and each mutation resolves to whether it succeeded so the
+ * Deliberately holds no vocabulary state of its own. The studio already owns the live list and
+ * reloads it, so duplicating rows here would give two sources of truth that drift. This owns only
+ * the in-flight flag and the last error, and each mutation resolves to whether it succeeded so the
  * caller can decide what to refresh.
  *
  * Errors are exposed rather than thrown so a caller can render them next to the control that
- * caused them -- a rejected cycle has to be visible at the gesture, not as a toast that outlives
+ * caused them -- a rejected edit has to be visible at the gesture, not as a toast that outlives
  * the action.
  */
 export function useGraphEditing(onGraphChanged: () => void | Promise<void>) {
@@ -105,24 +104,6 @@ export function useGraphEditing(onGraphChanged: () => void | Promise<void>) {
         [run]
     );
 
-    const addPrerequisite = useCallback(
-        (fromKey: string, toKey: string, kind: EdgeKind = 'PREREQUISITE') =>
-            run(
-                () => competencyGraphService.createEdge(fromKey, toKey, kind),
-                'Could not add this prerequisite.'
-            ),
-        [run]
-    );
-
-    const removePrerequisite = useCallback(
-        (fromKey: string, toKey: string, kind: EdgeKind = 'PREREQUISITE') =>
-            run(
-                () => competencyGraphService.deleteEdge(fromKey, toKey, kind),
-                'Could not remove this prerequisite.'
-            ),
-        [run]
-    );
-
     return {
         isSaving,
         error,
@@ -130,7 +111,5 @@ export function useGraphEditing(onGraphChanged: () => void | Promise<void>) {
         createCompetency,
         updateCompetency,
         deleteCompetency,
-        addPrerequisite,
-        removePrerequisite,
     };
 }

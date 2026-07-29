@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { competencyGraphService } from '../../../services/competencyGraphService';
 import { starterWorkService } from '../../../services/starterWorkService';
-import type { ProposedGraph } from '../../graph-authoring/types';
 import type { ProposedStarterWork } from '../../starter-work/types';
 import { normalizeInbox } from '../normalize';
 import type { GenerationKind, ReviewItemView } from '../types';
 
-const EMPTY_GRAPH: ProposedGraph = { competencies: [], edges: [] };
 const EMPTY_TASKS: ProposedStarterWork = { tasks: [] };
 
-/** While a generator runs, re-read the queues on this cadence so proposals appear as they commit. */
+/** While a generator runs, re-read the queue on this cadence so proposals appear as they commit. */
 const POLL_INTERVAL_MS = 3000;
 
 function toMessage(error: unknown, fallback: string): string {
@@ -22,23 +19,24 @@ export interface UseReviewInbox {
     error: string | null;
     /** Which generators are currently running — drives the shared "AI is working" state. */
     working: Set<GenerationKind>;
-    /** Notes from the last run of each generator (e.g. "12 competencies proposed"). */
+    /** Notes from the last run of each generator (e.g. "9 tasks mined"). */
     notes: Partial<Record<GenerationKind, string[]>>;
     generate: (kind: GenerationKind) => Promise<void>;
     approve: (item: ReviewItemView) => Promise<void>;
     reject: (item: ReviewItemView, reason?: string) => Promise<void>;
-    /** Approves every proposed competency and edge as one graph version, so nodes arrive wired. */
-    approveSkillMap: () => Promise<void>;
     reload: () => Promise<void>;
 }
 
 /**
- * One queue for both proposal generators (skill map, starter tasks). Reads both `/proposed`
- * endpoints, normalizes them into uniform cards, and routes approve/reject to the right service by
- * kind — so a PM reviews everything the AI proposed in one place with one pattern.
+ * The proposal queue: mined starter tasks, normalized into uniform cards with one generate control
+ * and one approve/reject pattern.
+ *
+ * It was built for two generators. The skill map was the other one, and competencies have no
+ * proposal lifecycle any more — they are authored directly in the studio. The grouping stays
+ * because it is what a Setup rung deep-links into.
  *
  * A generator is a blocking call that can take ~a minute. `working` exposes which are running so the
- * UI can show real progress instead of a silent wait; while one runs the queues are re-polled, so a
+ * UI can show real progress instead of a silent wait; while one runs the queue is re-polled, so a
  * proposal shows up the moment it is committed rather than only when the whole run returns.
  */
 export function useReviewInbox(): UseReviewInbox {
@@ -51,12 +49,10 @@ export function useReviewInbox(): UseReviewInbox {
     const timers = useRef<Map<GenerationKind, ReturnType<typeof setInterval>>>(new Map());
 
     const loadProposed = useCallback(async () => {
-        // A failing queue degrades to empty rather than blanking the other.
-        const [graph, tasks] = await Promise.all([
-            competencyGraphService.fetchProposed().catch((): ProposedGraph => EMPTY_GRAPH),
-            starterWorkService.fetchProposed().catch((): ProposedStarterWork => EMPTY_TASKS),
-        ]);
-        setItems(normalizeInbox({ graph, tasks }));
+        const tasks = await starterWorkService
+            .fetchProposed()
+            .catch((): ProposedStarterWork => EMPTY_TASKS);
+        setItems(normalizeInbox({ tasks }));
     }, []);
 
     const reload = useCallback(async () => {
@@ -97,19 +93,6 @@ export function useReviewInbox(): UseReviewInbox {
         });
     }, []);
 
-    const runGenerator = useCallback(async (kind: GenerationKind): Promise<string[]> => {
-        switch (kind) {
-            case 'skill-map': {
-                const result = await competencyGraphService.generate();
-                return result.notes;
-            }
-            case 'starter-tasks': {
-                const result = await starterWorkService.generate();
-                return result.notes;
-            }
-        }
-    }, []);
-
     const generate = useCallback(
         async (kind: GenerationKind) => {
             setError(null);
@@ -119,8 +102,8 @@ export function useReviewInbox(): UseReviewInbox {
             }, POLL_INTERVAL_MS);
             timers.current.set(kind, poll);
             try {
-                const runNotes = await runGenerator(kind);
-                setNotes((current) => ({ ...current, [kind]: runNotes }));
+                const result = await starterWorkService.generate();
+                setNotes((current) => ({ ...current, [kind]: result.notes }));
             } catch (err) {
                 setError(toMessage(err, 'Could not generate proposals.'));
             } finally {
@@ -130,24 +113,14 @@ export function useReviewInbox(): UseReviewInbox {
                 setBusy(kind, false);
             }
         },
-        [loadProposed, runGenerator, setBusy],
+        [loadProposed, setBusy],
     );
 
     const approve = useCallback(
         async (item: ReviewItemView) => {
             setError(null);
             try {
-                switch (item.kind) {
-                    case 'competency':
-                        await competencyGraphService.approveCompetency(item.id);
-                        break;
-                    case 'edge':
-                        await competencyGraphService.approveEdge(item.id);
-                        break;
-                    case 'task':
-                        await starterWorkService.approve(item.id);
-                        break;
-                }
+                await starterWorkService.approve(item.id);
                 await loadProposed();
             } catch (err) {
                 setError(toMessage(err, 'Could not approve this proposal.'));
@@ -160,17 +133,7 @@ export function useReviewInbox(): UseReviewInbox {
         async (item: ReviewItemView, reason?: string) => {
             setError(null);
             try {
-                switch (item.kind) {
-                    case 'competency':
-                        await competencyGraphService.rejectCompetency(item.id, reason);
-                        break;
-                    case 'edge':
-                        await competencyGraphService.rejectEdge(item.id, reason);
-                        break;
-                    case 'task':
-                        await starterWorkService.reject(item.id, reason);
-                        break;
-                }
+                await starterWorkService.reject(item.id, reason);
                 await loadProposed();
             } catch (err) {
                 setError(toMessage(err, 'Could not reject this proposal.'));
@@ -178,21 +141,6 @@ export function useReviewInbox(): UseReviewInbox {
         },
         [loadProposed],
     );
-
-    const approveSkillMap = useCallback(async () => {
-        const competencyIds = items.filter((item) => item.kind === 'competency').map((item) => item.id);
-        const edgeIds = items.filter((item) => item.kind === 'edge').map((item) => item.id);
-        if (competencyIds.length === 0 && edgeIds.length === 0) {
-            return;
-        }
-        setError(null);
-        try {
-            await competencyGraphService.approveBatch(competencyIds, edgeIds);
-            await loadProposed();
-        } catch (err) {
-            setError(toMessage(err, 'Could not approve the skill map.'));
-        }
-    }, [items, loadProposed]);
 
     return {
         items,
@@ -203,7 +151,6 @@ export function useReviewInbox(): UseReviewInbox {
         generate,
         approve,
         reject,
-        approveSkillMap,
         reload,
     };
 }

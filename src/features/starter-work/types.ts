@@ -1,11 +1,10 @@
 export type ProposalStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED';
 
 /**
- * An AI-mined starter task (a GitHub issue) a PM can approve as a contribution goal.
+ * An AI-mined starter task (a GitHub issue) a PM can approve as a goal a hire claims.
  *
- * Approving one is the only way a `CONTRIBUTION` node ever enters the graph: it mints the node
- * plus prerequisite edges from each of `competencyKeys`, which is what makes it something a hire
- * can work toward.
+ * Approving one used to mint a `CONTRIBUTION` competency with prerequisite edges into it. With no
+ * graph, approving simply makes the task claimable and a hire's goal points at it directly.
  */
 export type StarterWorkTask = {
     id: string;
@@ -15,7 +14,7 @@ export type StarterWorkTask = {
     /** The AI's scope-safety judgement: why this is a reasonable first task. */
     rationale: string | null;
     sourceUrl: string | null;
-    /** Competencies the AI judged this task exercises; each becomes a prerequisite edge. */
+    /** Competencies the AI judged this task exercises; one of the signals fit-ranking reads. */
     competencyKeys: string[];
     status: ProposalStatus;
     /** Which track this work is for, or null when it suits any role. */
@@ -30,9 +29,9 @@ export type ProposedStarterWork = {
  * What a PM sends to hand-author a starter task, with no AI mining.
  *
  * The origination counterpart to approving a mined proposal. A hand-authored task is born
- * `APPROVED` and its `CONTRIBUTION` node lands in the graph at once, so it never appears in the
- * review queue. `sourceUrl` is an optional link to the issue or PR it tracks; `competencyKeys` are
- * wired as prerequisite edges, and a key that isn't a live competency is skipped, not rejected.
+ * `APPROVED` and claimable at once, so it never appears in the review queue. `sourceUrl` is an
+ * optional link to the issue or PR it tracks; `competencyKeys` say what the work exercises, and a
+ * key that isn't a live competency is skipped, not rejected.
  */
 export type CreateStarterWorkTaskInput = {
     title: string;
@@ -73,20 +72,15 @@ export type RankedStarterWorkTask = {
 };
 
 /**
- * The contribution a hire's path aims at, as named by `GET /me/path`.
+ * The starter task a hire has committed to on a project.
  *
- * Read from the payload, never inferred by scanning nodes for `kind === 'CONTRIBUTION'`: more
- * than one contribution node can sit on a path (a project's baseline may select some), and only
- * this one is theirs.
+ * It named a `CONTRIBUTION` competency and how many of its prerequisites were still outstanding.
+ * Both went with the graph: a goal points at the task, and there is no ordering left to be short
+ * of. Claiming happens in conversation with the buddy, so nothing in this app reads one yet.
  */
-export type PathGoal = {
-    competencyKey: string;
-    label: string;
+export type Goal = {
+    proposalId: string;
+    title: string;
     summary: string | null;
     sourceUrl: string | null;
-    sourceProposalId: string | null;
-    /** Prerequisites of this goal the hire has not met yet. */
-    remainingCount: number;
-    /** Whether every prerequisite is cleared, so the contribution itself can be started. */
-    isReachable: boolean;
 };

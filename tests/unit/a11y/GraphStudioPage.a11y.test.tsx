@@ -35,33 +35,14 @@ const liveGraph = {
             kind: 'SKILL',
             targetLevel: 2,
             invariant: false,
-            repoRef: 'build.gradle.kts',
         },
-    ],
-    edges: [],
-    graphVersion: 3,
-};
-
-const proposedResponse = {
-    competencies: [
         {
-            id: 'c1',
-            key: 'jpa-persistence',
-            label: 'JPA persistence',
+            key: 'our-domain-model',
+            label: 'Our domain model',
             description: 'How entities are mapped here',
             kind: 'CONCEPT',
-            repoRef: null,
-            status: 'PROPOSED',
-        },
-    ],
-    edges: [
-        {
-            id: 'e1',
-            fromKey: 'kotlin',
-            toKey: 'jpa-persistence',
-            kind: 'PREREQUISITE',
-            rationale: 'Domain model relies on JPA entities',
-            status: 'PROPOSED',
+            targetLevel: 2,
+            invariant: false,
         },
     ],
 };
@@ -69,9 +50,6 @@ const proposedResponse = {
 function renderStudio() {
     server.use(
         http.get('/api/v1/onboarding/competency-graph', () => HttpResponse.json(liveGraph)),
-        http.get('/api/v1/onboarding/competency-graph/proposed', () =>
-            HttpResponse.json(proposedResponse)
-        ),
         http.get('/api/v1/onboarding/competency-modules', () => HttpResponse.json({ modules: [] }))
     );
 
@@ -83,30 +61,27 @@ function renderStudio() {
 }
 
 describe('GraphStudioPage Accessibility', () => {
-    it('has no axe violations with a populated graph', async () => {
+    it('has no axe violations with a populated vocabulary', async () => {
         const { baseElement } = renderStudio();
 
         await waitFor(() => {
-            expect(screen.getByTestId('studio-graph')).toBeInTheDocument();
+            expect(screen.getByTestId('competency-list')).toBeInTheDocument();
         });
 
         expect(await axe(baseElement)).toHaveNoViolations();
     });
 
-    it('has no axe violations with the proposal review open', async () => {
+    it('has no axe violations with a competency selected', async () => {
         const user = userEvent.setup();
         const { baseElement } = renderStudio();
 
         await waitFor(() => {
-            expect(screen.getByTestId('studio-graph')).toBeInTheDocument();
+            expect(screen.getByTestId('competency-list')).toBeInTheDocument();
         });
 
-        await user.click(screen.getByTestId('open-review'));
+        await user.click(screen.getByText('Our domain model'));
 
-        // The proposal appears twice on purpose: as a dashed ghost on the canvas
-        // and as a row in the review drawer.
-        expect(await screen.findByTestId('proposal-review')).toBeInTheDocument();
-        expect(await screen.findAllByText('JPA persistence')).toHaveLength(2);
+        expect(await screen.findByTestId('studio-node-panel')).toBeInTheDocument();
         expect(await axe(baseElement)).toHaveNoViolations();
     });
 });

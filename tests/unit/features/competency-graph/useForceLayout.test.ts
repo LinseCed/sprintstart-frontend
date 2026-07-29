@@ -1,36 +1,37 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useForceLayout } from '../../../../src/features/competency-graph/useForceLayout';
-import { layoutPath, NODE_HEIGHT } from '../../../../src/features/competency-graph/layout';
-import type { PathView } from '../../../../src/features/skill-assessment/types';
+import {
+    layoutPath,
+    NODE_HEIGHT,
+    type GraphShape
+} from '../../../../src/features/competency-graph/layout';
 
-const path: PathView = {
+const path: GraphShape = {
     nodes: [
-        { key: 'a', label: 'A', kind: 'SKILL', state: 'MASTERED' },
-        { key: 'b', label: 'B', kind: 'SKILL', state: 'AVAILABLE' },
-        { key: 'c', label: 'C', kind: 'CONTRIBUTION', state: 'AVAILABLE' }
+        { key: 'a' },
+        { key: 'b' },
+        { key: 'c' }
     ],
     edges: [
         { from: 'a', to: 'b' },
         { from: 'b', to: 'c' }
-    ],
-    graphVersion: 1
+    ]
 };
 
 /** Several nodes dagre stacks into one column, which is where overlap comes from. */
-const crowded: PathView = {
+const crowded: GraphShape = {
     nodes: [
-        { key: 'root', label: 'Root', kind: 'SKILL', state: 'MASTERED' },
-        { key: 'x1', label: 'X1', kind: 'SKILL', state: 'AVAILABLE' },
-        { key: 'x2', label: 'X2', kind: 'SKILL', state: 'AVAILABLE' },
-        { key: 'x3', label: 'X3', kind: 'SKILL', state: 'AVAILABLE' }
+        { key: 'root' },
+        { key: 'x1' },
+        { key: 'x2' },
+        { key: 'x3' }
     ],
     edges: [
         { from: 'root', to: 'x1' },
         { from: 'root', to: 'x2' },
         { from: 'root', to: 'x3' }
-    ],
-    graphVersion: 1
+    ]
 };
 
 describe('useForceLayout', () => {
