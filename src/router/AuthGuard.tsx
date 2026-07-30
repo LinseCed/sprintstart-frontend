@@ -2,6 +2,11 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import {
+    getDefaultRoute,
+    getMatchingProtectedRoute,
+    isOnboardingAccessible,
+} from "../auth/accessPolicy";
 import { isSkillLinkedToRole } from "../features/team-management/types";
 import {
     getSkillAssessmentPromptState,
@@ -97,6 +102,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
         location.pathname !== "/skill-wizard"
     ) {
         return <Navigate to="/skill-wizard" replace />;
+    }
+
+    // Once onboarding is completed the user is promoted and the onboarding UI is gone:
+    // block direct URL access to /onboarding and /onboarding/:stepId. The flag only
+    // refreshes on reload (the auth profile is not refetched mid-session), so the
+    // completion celebration still shows right after the final check.
+    if (
+        status === "authenticated" &&
+        getMatchingProtectedRoute(location.pathname) === "/onboarding" &&
+        !isOnboardingAccessible(profile)
+    ) {
+        return <Navigate to={getDefaultRoute(profile)} replace />;
     }
 
     return <>{children}</>;

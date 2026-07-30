@@ -10,6 +10,7 @@ const projects: ProjectOverview[] = [
         id: 'p1',
         name: 'SprintStart',
         description: 'Main application',
+        manager: null,
         sources: [
             { id: 's1', name: 'GitHub', type: 'GITHUB', status: 'CONNECTED' },
             { id: 's2', name: 'Jira', type: 'JIRA', status: 'CONNECTED' }
@@ -22,6 +23,7 @@ const projects: ProjectOverview[] = [
         id: 'p2',
         name: 'Backend',
         description: '',
+        manager: null,
         sources: [],
         users: []
     }

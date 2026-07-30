@@ -1,6 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useChat } from '../../../../src/features/chatbot/hooks/useChat';
+import { ChatProvider } from '../../../../src/context/ChatProvider';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../setup/vitest.setup';
 
@@ -11,6 +13,17 @@ vi.mock('react-router-dom', () => ({
     useParams: () => ({ id: 'chat1' }),
     useLocation: () => ({ pathname: '/' }),
 }));
+
+vi.mock('../../../../src/context/useAuth', () => ({
+    useAuth: () => ({
+        profile: { id: 'user1', firstName: 'Test', lastName: 'User' },
+        status: 'authenticated',
+    }),
+}));
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+    <ChatProvider>{children}</ChatProvider>
+);
 
 describe('useChat', () => {
     beforeEach(() => {
@@ -48,7 +61,7 @@ describe('useChat', () => {
             ),
         );
 
-        const { result } = renderHook(() => useChat());
+        const { result } = renderHook(() => useChat(), { wrapper });
 
         await waitFor(() => {
             expect(result.current.chats).toEqual([{ id: 'chat1', userId: 'user1' }]);
@@ -87,7 +100,7 @@ describe('useChat', () => {
             ),
         );
 
-        const { result } = renderHook(() => useChat());
+        const { result } = renderHook(() => useChat(), { wrapper });
 
         await waitFor(() => {
             expect(result.current.messages).toEqual([
@@ -149,14 +162,11 @@ describe('useChat', () => {
             http.post('/api/v1/chats', () =>
                 HttpResponse.json({
                     id: 'newChatId',
-                    userId: 'user1',
-                    title: '',
-                    createdAt: new Date().toISOString(),
                 }),
             ),
         );
 
-        const { result } = renderHook(() => useChat());
+        const { result } = renderHook(() => useChat(), { wrapper });
 
         await waitFor(() => {
             expect(result.current.chats).toEqual([]);
@@ -179,5 +189,210 @@ describe('useChat', () => {
         expect(aiMsg.content).toBe('Hello world');
         expect(aiMsg.citations?.length).toBe(1);
         expect(aiMsg.citations?.[0].filename).toBe('file.txt');
+
+        // Streaming id is cleared once the stream finishes.
+        expect(result.current.streamingMessageId).toBeNull();
+        expect(result.current.isStreaming).toBe(false);
+    });
+
+    it('surfaces stream errors on the assistant message', async () => {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: {"type":"token","content":"partial"}\n\n'));
+                controller.enqueue(encoder.encode('data: {"type":"error","message":"LLM overload"}\n\n'));
+                controller.close();
+            },
+        });
+
+        server.use(
+            http.get('/api/v1/chats', () => HttpResponse.json({ chats: [] })),
+            http.get('/api/v1/chats/chat1', () => HttpResponse.json({ messages: [] })),
+            http.get('/api/v1/users/me', () =>
+                HttpResponse.json({
+                    id: 'user1',
+                    authId: 'auth-1',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    firstName: 'Test',
+                    lastName: 'User',
+                    projectRoles: [],
+                    permissionGroup: 'USER',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                }),
+            ),
+            http.post('/api/v1/chats/prompt', () =>
+                new HttpResponse(stream, {
+                    headers: { 'Content-Type': 'text/event-stream' },
+                }),
+            ),
+            http.post('/api/v1/chats', () =>
+                HttpResponse.json({
+                    id: 'newChatId',
+                }),
+            ),
+        );
+
+        const { result } = renderHook(() => useChat(), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.chats).toEqual([]);
+        });
+
+        await act(async () => {
+            await result.current.addMessage('My prompt');
+        });
+
+        await waitFor(() => {
+            expect(result.current.messages.length).toBe(2);
+        });
+
+        const aiMsg = result.current.messages[1];
+        expect(aiMsg.role).toBe('ASSISTANT');
+        expect(aiMsg.content).toBe('partial');
+        expect(aiMsg.error).toBe('LLM overload');
+        expect(result.current.isStreaming).toBe(false);
+        expect(result.current.streamingMessageId).toBeNull();
+    });
+
+    it('exposes stopStreaming function that can abort a stream', async () => {
+        const encoder = new TextEncoder();
+        // Simulate an abort: the stream yields one token, then the next
+        // read() throws an AbortError. MSW doesn't propagate abort to mock
+        // streams, so we simulate the error directly — the behavior is the
+        // same as a real abort: chatService catches AbortError → onDone.
+        // The token is enqueued synchronously in start() and the error is
+        // deferred via a macrotask (queueMicrotask would still run before
+        // chatService reads; setTimeout(0) lets MSW forward the chunk
+        // first). A short delay is unavoidable because MSW discards queued
+        // chunks when the source stream errors — the token must be consumed
+        // end-to-end before the error fires.
+        const abortError = new Error('aborted');
+        abortError.name = 'AbortError';
+
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: {"type":"token","content":"partial"}\n\n'));
+                setTimeout(() => controller.error(abortError), 50);
+            },
+        });
+
+        server.use(
+            http.get('/api/v1/chats', () => HttpResponse.json({ chats: [] })),
+            http.get('/api/v1/chats/chat1', () => HttpResponse.json({ messages: [] })),
+            http.get('/api/v1/users/me', () =>
+                HttpResponse.json({
+                    id: 'user1',
+                    authId: 'auth-1',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    firstName: 'Test',
+                    lastName: 'User',
+                    projectRoles: [],
+                    permissionGroup: 'USER',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                }),
+            ),
+            http.post('/api/v1/chats/prompt', () =>
+                new HttpResponse(stream, {
+                    headers: { 'Content-Type': 'text/event-stream' },
+                }),
+            ),
+            http.post('/api/v1/chats', () =>
+                HttpResponse.json({
+                    id: 'newChatId',
+                }),
+            ),
+        );
+
+        const { result } = renderHook(() => useChat(), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.chats).toEqual([]);
+        });
+
+        expect(typeof result.current.stopStreaming).toBe('function');
+
+        await act(async () => {
+            await result.current.addMessage('My prompt');
+        });
+
+        await waitFor(() => {
+            expect(result.current.isStreaming).toBe(false);
+        });
+
+        // Partial content stays visible
+        const aiMsg = result.current.messages[1];
+        expect(aiMsg).toBeTruthy();
+        expect(aiMsg.content).toBe('partial');
+        expect(aiMsg.error).toBeUndefined();
+    });
+
+    it('clears isThinking when stopStreaming is called before the first token (B9)', async () => {
+        // Stream that never emits a token — simulates the "thinking" phase.
+        const stream = new ReadableStream({
+            start(_controller) {
+                // intentionally never enqueues or closes
+            },
+        });
+
+        server.use(
+            http.get('/api/v1/chats', () => HttpResponse.json({ chats: [] })),
+            http.get('/api/v1/chats/chat1', () => HttpResponse.json({ messages: [] })),
+            http.get('/api/v1/users/me', () =>
+                HttpResponse.json({
+                    id: 'user1',
+                    authId: 'auth-1',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    firstName: 'Test',
+                    lastName: 'User',
+                    projectRoles: [],
+                    permissionGroup: 'USER',
+                    enabled: true,
+                    profileIcon: null,
+                    hasCompletedOnboarding: true,
+                }),
+            ),
+            http.post('/api/v1/chats/prompt', () =>
+                new HttpResponse(stream, {
+                    headers: { 'Content-Type': 'text/event-stream' },
+                }),
+            ),
+            http.post('/api/v1/chats', () =>
+                HttpResponse.json({ id: 'newChatId' }),
+            ),
+        );
+
+        const { result } = renderHook(() => useChat(), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.chats).toEqual([]);
+        });
+
+        // Fire addMessage without awaiting — the stream never resolves.
+        // Use synchronous act so the initial state update flushes.
+        act(() => {
+            void result.current.addMessage('hello');
+        });
+
+        // Wait for isThinking to turn on.
+        await waitFor(() => {
+            expect(result.current.isThinking).toBe(true);
+        });
+
+        // Stop before any token arrives.
+        act(() => {
+            result.current.stopStreaming();
+        });
+
+        await waitFor(() => {
+            expect(result.current.isThinking).toBe(false);
+            expect(result.current.isStreaming).toBe(false);
+        });
     });
 });

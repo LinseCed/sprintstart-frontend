@@ -1,30 +1,30 @@
 import { apiClient, ApiError } from './apiClient';
+import { parseSSEStream } from './sse';
 import { userService } from './userService';
 import keycloak from '../config/keycloak';
 import type { Artifact, ArtifactContent, SummaryStreamHandlers } from '../features/knowledge-base/types';
 
 /**
  * SSE event shape emitted by the artifact summary streaming endpoint.
+ *
+ * Discriminated union on `type` so the dispatcher can narrow without per-field
+ * `undefined` checks, and callers get exhaustiveness checking.
  */
-interface SummaryStreamEvent {
-    type: 'token' | 'citation' | 'done' | 'error' | 'stage';
-    content?: string;
-    message?: string;
-    name?: string;
-    detail?: string;
-    artifactId?: string;
-    filename?: string;
-    sourceUrl?: string | null;
-}
+type SummaryStreamEvent =
+    | { type: 'stage'; name: string; detail: string }
+    | { type: 'token'; content: string }
+    | { type: 'citation'; artifactId: string; filename: string; sourceUrl: string | null }
+    | { type: 'done' }
+    | { type: 'error'; message: string };
 
 /**
- * Service responsible for managing the knowledge base unified artifacts.
+ * Per-file upload result returned by the backend batch upload endpoint.
  */
-interface UploadResponseItem {
+type UploadResponseItem = {
     filename: string;
-    status: string;
+    status: 'success' | 'failed';
     error?: string;
-}
+};
 
 export const knowledgeService = {
     /**
@@ -94,6 +94,21 @@ export const knowledgeService = {
                     contentHash: null,
                     ingestionRunId: null,
                 }));
+
+                // Enrich ingestion-mirrored upload artifacts with their original UploadedArtifact
+                // id via `sourceId`. The backend's ArtifactResponse does not expose `sourceId`, so
+                // we match by title (filename) against the personal uploads list — the same
+                // title-based workaround the dedup below already relies on. Without this, the
+                // delete endpoint would receive the ingestion Artifact's UUID instead of the
+                // UploadedArtifact's UUID and silently no-op.
+                const uploadsByTitle = new Map(uploadArtifacts.map(a => [a.title, a]));
+                artifacts = artifacts.map(a => {
+                    if (a.sourceSystem === 'UPLOAD' && !a.sourceId) {
+                        const upload = uploadsByTitle.get(a.title);
+                        if (upload) return { ...a, sourceId: upload.id };
+                    }
+                    return a;
+                });
 
                 // Deduplicate using title (filename) as a temporary frontend workaround,
                 // because the backend doesn't return sourceId for ingested artifacts yet.
@@ -205,64 +220,38 @@ export const knowledgeService = {
             throw new ApiError(response.status, errorBody || response.statusText);
         }
 
-        const reader = response.body?.getReader();
-        if (!reader) {
+        const stream = response.body;
+        if (!stream) {
             throw new Error('No response stream');
         }
 
-        const decoder = new TextDecoder();
-        let buffer = '';
-
         try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
+            for await (const event of parseSSEStream<SummaryStreamEvent>(stream)) {
+                switch (event.type) {
+                    case 'stage':
+                        handlers.onStage?.(event.name, event.detail);
+                        break;
 
-                buffer += decoder.decode(value, { stream: true });
+                    case 'token':
+                        handlers.onToken(event.content);
+                        break;
 
-                const lines = buffer.split('\n');
-                buffer = lines.pop() ?? '';
+                    case 'citation':
+                        handlers.onCitation({
+                            artifactId: event.artifactId,
+                            filename: event.filename,
+                            sourceUrl: event.sourceUrl,
+                        });
+                        break;
 
-                for (const line of lines) {
-                    if (!line.startsWith('data:')) continue;
+                    case 'done':
+                        handlers.onDone();
+                        return;
 
-                    const payload = line.replace('data:', '').trim();
-                    if (!payload) continue;
-
-                    const event = JSON.parse(payload) as SummaryStreamEvent;
-
-                    switch (event.type) {
-                        case 'stage':
-                            if (event.name && event.detail) {
-                                handlers.onStage?.(event.name, event.detail);
-                            }
-                            break;
-
-                        case 'token':
-                            if (event.content !== undefined) {
-                                handlers.onToken(event.content);
-                            }
-                            break;
-
-                        case 'citation':
-                            if (event.artifactId && event.filename) {
-                                handlers.onCitation({
-                                    artifactId: event.artifactId,
-                                    filename: event.filename,
-                                    sourceUrl: event.sourceUrl ?? null,
-                                });
-                            }
-                            break;
-
-                        case 'done':
-                            handlers.onDone();
-                            return;
-
-                        case 'error': {
-                            const message = event.message ?? 'Unknown error';
-                            handlers.onError?.(message);
-                            throw new Error(message);
-                        }
+                    case 'error': {
+                        const message = event.message;
+                        handlers.onError?.(message);
+                        throw new Error(message);
                     }
                 }
             }
@@ -275,6 +264,41 @@ export const knowledgeService = {
             if (error instanceof Error) throw error;
             throw new Error(String(error));
         }
+    },
+
+    /**
+     * Deletes a single uploaded artifact by its id.
+     *
+     * Sends a multipart DELETE to `/api/v1/uploads/{artifactId}` with a `request`
+     * JSON part containing the artifactIds batch, the removerId (authenticated user)
+     * and the projectId scope. The backend mirrors the same multipart contract as
+     * the upload endpoint — the path variable is captured for REST semantics but
+     * the actual deletion target(s) are read from the body's `artifactIds` set.
+     *
+     * @remarks Permission: the backend currently allows any `USER` role. The
+     * frontend gates this call to PM/HR/ADMIN via `accessPolicy` Pattern A.
+     * Tightening the backend `@PreAuthorize` to `hasAnyRole('PM','HR','ADMIN')`
+     * is tracked as a restricted backend follow-up.
+     *
+     * @param projectId  UUID of the project that scopes the deletion.
+     * @param artifactId UUID of the uploaded artifact to remove.
+     * @param removerId  UUID of the authenticated user requesting the deletion.
+     * @throws ApiError on a non-2xx response (e.g. 403 if the caller lacks access
+     *   to the supplied projectId, 404 if the artifact does not exist).
+     */
+    async deleteUpload(projectId: string, artifactId: string, removerId: string): Promise<void> {
+        const formData = new FormData();
+        const requestPayload = {
+            artifactIds: [artifactId],
+            removerId,
+            projectId,
+        };
+        formData.append('request', new Blob([JSON.stringify(requestPayload)], { type: 'application/json' }));
+
+        await apiClient.fetch<void>(`/api/v1/uploads/${encodeURIComponent(artifactId)}`, {
+            method: 'DELETE',
+            body: formData,
+        });
     },
 
     /**

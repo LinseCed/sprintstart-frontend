@@ -1,4 +1,4 @@
-import { apiClient } from "../apiClient.ts";
+import { ApiError, apiClient } from "../apiClient.ts";
 
 export type ConnectGithubRepositoryRequest = {
   owner: string;
@@ -9,6 +9,51 @@ export type ConnectGithubRepositoryRequest = {
 
 export type ConnectGithubRepositoryResponse = {
   transactionId: string;
+};
+
+/**
+ * One repository returned by the org/user discovery endpoints, normalized for
+ * the UI. The backend serializes `private` and `html_url`; we map them to the
+ * camelCase shape the components consume. `alreadyConnected`/`isEnabled` reflect
+ * whether the repo is already a SprintStart source and, if so, its enabled flag.
+ */
+export type DiscoveredRepository = {
+  name: string;
+  isPrivate: boolean;
+  url: string;
+  alreadyConnected: boolean;
+  isEnabled: boolean | null;
+};
+
+type BackendDiscoveredRepository = {
+  name: string;
+  private: boolean;
+  html_url: string;
+  alreadyConnected?: boolean;
+  isEnabled?: boolean | null;
+};
+
+type BackendDiscoverRepositoriesResponse = {
+  repositories: BackendDiscoveredRepository[];
+};
+
+/** Which discovery endpoint an owner should be resolved through. */
+export type DiscoveryOwnerType = "auto" | "org" | "user";
+
+export type DiscoverRepositoriesResult = {
+  repositories: DiscoveredRepository[];
+  /**
+   * Best-effort "there may be another page" flag. The backend returns no total
+   * count, so we infer it from a full page being returned (`length === pageSize`).
+   */
+  hasMore: boolean;
+  /** The endpoint that actually produced the result (after any auto fallback). */
+  resolvedOwnerType: "org" | "user";
+};
+
+export type ConnectRepositoriesResult = {
+  /** Maps `"owner/name"` to the accepted ingestion transaction id. */
+  transactionIdsByRepositoryId: Record<string, string>;
 };
 
 export type UpdateGithubRepositoryResponse = {
@@ -88,8 +133,167 @@ export async function connectGithubRepository(
   );
 }
 
-export async function getGithubPatNames(): Promise<string[]> {
-  return apiClient.fetch<string[]>("/api/v1/github/pat");
+function mapDiscoveredRepository(
+  repository: BackendDiscoveredRepository,
+): DiscoveredRepository {
+  return {
+    name: repository.name,
+    isPrivate: repository.private,
+    url: repository.html_url,
+    alreadyConnected: repository.alreadyConnected ?? false,
+    isEnabled: repository.isEnabled ?? null,
+  };
+}
+
+const DEFAULT_DISCOVER_PAGE_SIZE = 20;
+
+function buildDiscoverQuery(
+  tokenName: string,
+  page: number,
+  pageSize: number,
+): string {
+  return new URLSearchParams({
+    tokenName,
+    page: String(page),
+    pageSize: String(pageSize),
+  }).toString();
+}
+
+function toDiscoverResult(
+  response: BackendDiscoverRepositoriesResponse,
+  pageSize: number,
+  resolvedOwnerType: "org" | "user",
+): DiscoverRepositoriesResult {
+  const repositories = response.repositories.map(mapDiscoveredRepository);
+
+  return {
+    repositories,
+    // No total is returned, so a full page is our only "there might be more" signal.
+    hasMore: repositories.length >= pageSize,
+    resolvedOwnerType,
+  };
+}
+
+/**
+ * Discovers the repositories of a GitHub organization the given stored PAT can
+ * see. `page` is 0-based (matching the backend). Requires the PM or ADMIN role.
+ *
+ * @throws ApiError — 404 when the org (or PAT) is not found, 403 for insufficient role.
+ */
+export async function discoverOrgRepositories(
+  org: string,
+  tokenName: string,
+  page = 0,
+  pageSize = DEFAULT_DISCOVER_PAGE_SIZE,
+): Promise<DiscoverRepositoriesResult> {
+  const query = buildDiscoverQuery(tokenName, page, pageSize);
+  const response = await apiClient.fetch<BackendDiscoverRepositoriesResponse>(
+    `/api/v1/github/discover/org/${encodeURIComponent(org)}?${query}`,
+  );
+
+  return toDiscoverResult(response, pageSize, "org");
+}
+
+/**
+ * Discovers the repositories of a GitHub user the given stored PAT can see.
+ * `page` is 0-based. Requires the PM or ADMIN role.
+ *
+ * @throws ApiError — 404 when the user (or PAT) is not found, 403 for insufficient role.
+ */
+export async function discoverUserRepositories(
+  user: string,
+  tokenName: string,
+  page = 0,
+  pageSize = DEFAULT_DISCOVER_PAGE_SIZE,
+): Promise<DiscoverRepositoriesResult> {
+  const query = buildDiscoverQuery(tokenName, page, pageSize);
+  const response = await apiClient.fetch<BackendDiscoverRepositoriesResponse>(
+    `/api/v1/github/discover/user/${encodeURIComponent(user)}?${query}`,
+  );
+
+  return toDiscoverResult(response, pageSize, "user");
+}
+
+/**
+ * Discovers repositories for an owner that may be either an organization or a
+ * user. A GitHub owner is one or the other, and the backend exposes them under
+ * separate endpoints, so `"auto"` tries the org endpoint first and falls back to
+ * the user endpoint when the org is not found (404). Callers that already know
+ * the owner type can pass `"org"`/`"user"` to skip the probe.
+ *
+ * @throws ApiError — propagates non-404 failures (403, invalid token, GitHub rate-limit).
+ */
+export async function discoverRepositories(
+  owner: string,
+  tokenName: string,
+  ownerType: DiscoveryOwnerType = "auto",
+  page = 0,
+  pageSize = DEFAULT_DISCOVER_PAGE_SIZE,
+): Promise<DiscoverRepositoriesResult> {
+  if (ownerType === "org") {
+    return discoverOrgRepositories(owner, tokenName, page, pageSize);
+  }
+
+  if (ownerType === "user") {
+    return discoverUserRepositories(owner, tokenName, page, pageSize);
+  }
+
+  try {
+    return await discoverOrgRepositories(owner, tokenName, page, pageSize);
+  } catch (error) {
+    // Only a "not an org" 404 justifies retrying as a user; anything else
+    // (403, invalid token, rate-limit) must surface unchanged.
+    if (error instanceof ApiError && error.status === 404) {
+      return discoverUserRepositories(owner, tokenName, page, pageSize);
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Connects several repositories to one project in a single call, reusing the
+ * backend batch endpoint (each repo still becomes its own source). Requires the
+ * PM or ADMIN role and access to the target project.
+ *
+ * @param repositories - The repos to connect (owner + name each).
+ * @param tokenName - The stored PAT used for every repo in the batch.
+ * @param projectId - The project every repo is connected to.
+ * @returns The accepted ingestion transaction ids keyed by `"owner/name"`.
+ * @throws ApiError if the batch request fails.
+ */
+export async function connectRepositories(
+  repositories: { owner: string; name: string }[],
+  tokenName: string,
+  projectId: string,
+): Promise<ConnectRepositoriesResult> {
+  return apiClient.fetch<ConnectRepositoriesResult>(
+    "/api/v1/github/connect/all",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        repositories: repositories.map((repository) => ({
+          owner: repository.owner,
+          name: repository.name,
+          tokenName,
+          projectId,
+        })),
+      }),
+    },
+  );
+}
+
+/**
+ * Fetches the list of stored GitHub PAT names (without the secret value).
+ *
+ * Accepts an optional `AbortSignal` so callers can cancel a stale in-flight
+ * request (e.g. when a newer fetch is triggered before the previous one
+ * resolves); the underlying `apiClient.fetch` passes it through to `fetch`.
+ */
+export async function getGithubPatNames(
+    signal?: AbortSignal,
+): Promise<string[]> {
+    return apiClient.fetch<string[]>("/api/v1/github/pat", { signal });
 }
 
 export async function addGithubPat(name: string, token: string): Promise<void> {
@@ -123,6 +327,60 @@ export async function updateAllGithubRepositories(): Promise<
     "/api/v1/github/update-all",
     {
       method: "POST",
+    },
+  );
+}
+
+/**
+ * The project assignment a repository connection reports after a link/unlink
+ * call: the connection's id and its full set of project ids afterwards. Both
+ * `addRepositoryToProject` (link) and `removeRepositoryFromProject` (unlink)
+ * return this identical shape.
+ */
+export type RepositoryProjectAssignmentResponse = {
+  repositoryId: string;
+  /** The repository's resulting project assignment after the call. */
+  projectIds: string[];
+};
+
+/**
+ * Assigns an already-ingested repository to an additional project without
+ * re-fetching or re-ingesting it. Idempotent. Requires the PM or ADMIN role and
+ * access to the target project.
+ *
+ * @throws ApiError — 403 when the caller cannot access the project, 404 when the
+ *   repository connection is unknown.
+ */
+export async function addRepositoryToProject(
+  repositoryId: string,
+  projectId: string,
+): Promise<RepositoryProjectAssignmentResponse> {
+  return apiClient.fetch<RepositoryProjectAssignmentResponse>(
+    `/api/v1/github/connections/${encodeURIComponent(repositoryId)}/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+/**
+ * Removes the link between an already-ingested repository and a project, the
+ * counterpart to {@link addRepositoryToProject}. The repository and its
+ * artifacts are kept; only the project assignment is dropped. Idempotent.
+ * Requires the PM or ADMIN role and access to the target project.
+ *
+ * @returns The repository connection's remaining project ids after the unlink.
+ * @throws ApiError — 403 when the caller cannot access the project, 404 when the
+ *   repository connection is unknown.
+ */
+export async function removeRepositoryFromProject(
+  repositoryId: string,
+  projectId: string,
+): Promise<RepositoryProjectAssignmentResponse> {
+  return apiClient.fetch<RepositoryProjectAssignmentResponse>(
+    `/api/v1/github/connections/${encodeURIComponent(repositoryId)}/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "DELETE",
     },
   );
 }

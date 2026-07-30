@@ -81,6 +81,37 @@ describe('TeamMemberCard', () => {
         expect(screen.getByTitle('Open skip request')).toBeInTheDocument();
     });
 
+    it('shows the "In progress" status badge while onboarding is not complete', () => {
+        renderCard(createUser({ progressPercentage: 0.8 }));
+        expect(screen.getByText('In progress')).toBeInTheDocument();
+        expect(screen.queryByText('Onboarding completed')).not.toBeInTheDocument();
+    });
+
+    it('shows the "Onboarding completed" status badge when progress reaches 100%', () => {
+        renderCard(createUser({ progressPercentage: 1 }));
+        expect(screen.getByText('Onboarding completed')).toBeInTheDocument();
+        expect(screen.queryByText('In progress')).not.toBeInTheDocument();
+    });
+
+    it('shows the onboarding status as an icon badge in compact mode', () => {
+        const completed = render(
+            <MemoryRouter>
+                <TeamMemberCard user={createUser({ progressPercentage: 1 })} compact />
+            </MemoryRouter>,
+        );
+        expect(completed.getByTitle('Onboarding completed')).toBeInTheDocument();
+        // No text chip in compact mode.
+        expect(completed.queryByText('Onboarding completed')).not.toBeInTheDocument();
+        completed.unmount();
+
+        const inProgress = render(
+            <MemoryRouter>
+                <TeamMemberCard user={createUser({ progressPercentage: 0.4 })} compact />
+            </MemoryRouter>,
+        );
+        expect(inProgress.getByTitle('Onboarding in progress')).toBeInTheDocument();
+    });
+
     it('renders as a link to the member detail page', () => {
         renderCard(createUser({ userId: 'user42' }));
         const link = screen.getByRole('link');

@@ -1,11 +1,16 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { formatNumber } from "../data.ts";
 import type { DataSource } from "../types.ts";
+import { SourceStatusChip } from "./SourceStatusChip.tsx";
+import { SourceSyncBadge } from "./SourceSyncBadge.tsx";
+import { SourceTypeBadge } from "./SourceTypeBadge.tsx";
 
 type SourceListProps = {
   sources: DataSource[];
   selectedSourceId: string | null;
   onSelectSource: (sourceId: string) => void;
+  /** When set, the empty state offers a primary "connect" call to action. */
+  onAddSource?: () => void;
 };
 
 /**
@@ -16,23 +21,40 @@ export function SourceList({
   sources,
   selectedSourceId,
   onSelectSource,
+  onAddSource,
 }: SourceListProps) {
   if (sources.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-app-border bg-app-surface-muted p-8 text-center">
-        <h3 className="text-lg font-semibold text-app-text">
-          No connected sources
-        </h3>
+      <div className="relative overflow-hidden rounded-3xl border border-app-brand-border bg-app-surface p-8 text-center sm:p-10">
+        <div className="pointer-events-none absolute -top-16 right-0 h-56 w-56 rounded-full bg-app-brand-soft blur-3xl" />
 
-        <p className="mt-2 text-sm text-app-text-muted">
-          Connect a source to start ingestion and show source details here.
-        </p>
+        <div className="relative z-10 flex flex-col items-center">
+          <h3 className="text-xl font-bold text-app-text">
+            Connect your first source
+          </h3>
+
+          <p className="mt-2 max-w-md text-sm text-app-text-muted">
+            Discover repositories from a GitHub organization or user and connect
+            them to start ingesting artifacts into the knowledge base.
+          </p>
+
+          {onAddSource && (
+            <button
+              type="button"
+              onClick={onAddSource}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-app-brand px-6 py-3 text-sm font-semibold text-white transition hover:bg-app-brand-hover"
+            >
+              <Plus className="h-4 w-4" />
+              Add sources
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="grid gap-4 xl:grid-cols-2">
       {sources.map((source) => {
         const Icon = source.icon;
         const isSelected = selectedSourceId === source.sourceId;
@@ -42,7 +64,7 @@ export function SourceList({
             key={source.sourceId}
             type="button"
             onClick={() => onSelectSource(source.sourceId)}
-            className={`group w-full cursor-pointer rounded-2xl border bg-app-surface p-5 text-left transition focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg sm:p-6 ${
+            className={`group flex h-full w-full cursor-pointer flex-col rounded-2xl border bg-app-surface p-5 text-left transition focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg sm:p-6 ${
               isSelected
                 ? "border-app-brand shadow-sm"
                 : "border-app-border hover:border-app-brand-border"
@@ -60,12 +82,18 @@ export function SourceList({
                       {source.name}
                     </h3>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-                        {source.type}
-                      </span>
+                    {source.githubRepository?.owner && (
+                      <p className="mt-0.5 break-words text-xs text-app-text-subtle">
+                        {source.githubRepository.owner}
+                      </p>
+                    )}
 
-                      <SourceStatusBadge source={source} />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <SourceTypeBadge type={source.type} />
+
+                      <SourceStatusChip status={source.statusView} />
+
+                      <SyncStatusBadge source={source} />
                     </div>
                   </div>
                 </div>
@@ -81,7 +109,7 @@ export function SourceList({
               />
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-6 grid grid-cols-2 gap-4">
               <InfoBlock
                 label="Artifacts Ingested"
                 value={formatNumber(source.totalArtifactCount)}
@@ -117,8 +145,25 @@ export function SourceList({
           </button>
         );
       })}
-    </>
+    </div>
   );
+}
+
+/**
+ * Hides the sync badge when it would only repeat the status chip's own label
+ * (e.g. an in-flight "Syncing"/"Running" pair, or a duplicated "Not synced").
+ */
+function SyncStatusBadge({ source }: { source: DataSource }) {
+  const label = source.ingestionStatusLabel;
+
+  if (
+    source.statusView.state === "syncing" ||
+    label === source.statusView.label
+  ) {
+    return null;
+  }
+
+  return <SourceSyncBadge label={label} status={source.ingestionStatus} />;
 }
 
 function InfoBlock({
@@ -147,26 +192,3 @@ function InfoBlock({
   );
 }
 
-function SourceStatusBadge({ source }: { source: DataSource }) {
-  if (source.status === "connected") {
-    return (
-      <span className="rounded-full border border-app-success-border bg-app-success-bg px-3 py-1 text-xs font-medium text-app-success-text">
-        {source.statusLabel}
-      </span>
-    );
-  }
-
-  if (source.status === "running") {
-    return (
-      <span className="rounded-full bg-app-brand-soft px-3 py-1 text-xs font-medium text-app-brand-text">
-        {source.statusLabel}
-      </span>
-    );
-  }
-
-  return (
-    <span className="rounded-full border border-app-warning-border bg-app-warning-bg px-3 py-1 text-xs font-medium text-app-warning-text">
-      {source.statusLabel}
-    </span>
-  );
-}

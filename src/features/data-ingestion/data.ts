@@ -1,13 +1,23 @@
-import { Database, FileText, GitBranch } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleSlash,
+  Database,
+  FileText,
+  GitBranch,
+  History,
+  Loader2,
+} from "lucide-react";
 import type {
   AiSyncStatus,
   BackendProjectSourceStatus,
   DataSource,
   IngestionRun,
   IngestionRunStatus,
-  SourceIngestionStatus,
+  SourceInstanceIngestionStatus,
   SourceMeta,
   SourceStatus,
+  SourceStatusPresentation,
   SourceSystem,
 } from "./types.ts";
 
@@ -40,121 +50,62 @@ export const SOURCE_META: Record<SourceSystem, SourceMeta> = {
 export const INGESTION_RUN_LIMIT = 50;
 export const DETAILS_RUN_LIMIT = 10;
 
-export function createDataSource(
-  sourceSystem: SourceSystem,
-  status?: SourceIngestionStatus,
+/**
+ * Turns one per-repo ingestion status row (`/api/v1/ingestion-sources/status`)
+ * into a {@link DataSource}. This is the shared mapping used wherever sources
+ * are shown per repository rather than per source system — the Data Ingestion
+ * page overlays the project source's own id and display name on top of it.
+ */
+export function createSourceFromInstance(
+  instance: SourceInstanceIngestionStatus,
 ): DataSource {
-  const meta = SOURCE_META[sourceSystem];
-  const latestIngestedCount = status?.ingestedCount ?? 0;
-  const latestUpdatedCount = status?.updatedCount ?? 0;
-  const failedCount = status?.failedCount ?? 0;
-  const lastRunAt = status?.lastRunTime ?? null;
-
-  const hasNeverSynced = lastRunAt === null;
-  const hasErrors = failedCount > 0;
-  const sourceStatus = getSourceStatus(
-    hasNeverSynced,
-    hasErrors,
-    status?.status,
-  );
+  const meta = SOURCE_META[instance.sourceSystem];
+  const backendStatus: BackendProjectSourceStatus =
+    instance.enabled === false ? "DISABLED" : instance.connectionStatus;
+  const hasErrors = instance.failedCount > 0;
+  const hasNeverSynced = instance.lastRunTime === null;
 
   return {
-    sourceId: sourceSystem,
-    sourceSystem,
-    name: meta.name,
+    sourceId: instance.repositoryId,
+    sourceSystem: instance.sourceSystem,
+    name: instance.sourceId,
     type: meta.type,
     icon: meta.icon,
-    status: sourceStatus,
-    statusLabel: getSourceStatusLabel(
-      hasNeverSynced,
+    status: getSourceStatusFromBackend(backendStatus),
+    backendStatus,
+    statusLabel: getBackendSourceStatusLabel(backendStatus),
+    ingestionStatus: getSourceStatus(hasNeverSynced, hasErrors, null),
+    ingestionStatusLabel: getSourceStatusLabel(hasNeverSynced, hasErrors, null),
+    statusView: deriveSourceStatus({
+      backendStatus,
       hasErrors,
-      status?.status,
-    ),
-    ingestionStatus: sourceStatus,
-    ingestionStatusLabel: getSourceStatusLabel(
       hasNeverSynced,
-      hasErrors,
-      status?.status,
-    ),
-    artifacts: latestIngestedCount,
-    lastSync: formatDateTime(lastRunAt),
+    }),
+    artifacts: instance.artifactCount,
+    lastSync: formatDateTime(instance.lastRunTime),
     nextSync: "Not available",
-    errors: failedCount,
-    lastRunAt,
-    latestIngestedCount,
-    latestUpdatedCount,
-    totalArtifactCount: latestIngestedCount,
+    errors: instance.failedCount,
+    description: meta.description,
+    lastRunAt: instance.lastRunTime,
+    latestIngestedCount: instance.ingestedCount,
+    latestUpdatedCount: instance.updatedCount,
+    deletedCount: instance.deletedCount,
+    totalArtifactCount: instance.artifactCount,
     runIds: [],
     sharesSourceSystem: false,
-    failedItems: status?.failedItems ?? [],
-    githubRepository: null,
+    failedItems: instance.failedItems,
+    githubRepository: {
+      owner: instance.owner,
+      name: instance.name,
+      repositoryId: instance.repositoryId,
+      fullName: instance.sourceId,
+      url: instance.sourceUrl,
+      enabled: instance.enabled,
+    },
+    lastCommitsSyncAt: instance.lastCommitsSyncAt,
+    lastIssuesSyncAt: instance.lastIssuesSyncAt,
+    lastPullRequestsSyncAt: instance.lastPullRequestsSyncAt,
   };
-}
-
-/**
- * Merges the latest per-source ingestion status with the latest matching
- * ingestion run to build the `DataSource[]` list consumed by the data
- * ingestion page and by dashboard widgets that surface ingestion health
- * (e.g. {@link IngestionMetrics}). Kept here so every consumer of the
- * `/api/v1/ingestion-status` + `/api/v1/ingestion-runs` endpoints shares the
- * same merge logic instead of re-implementing it.
- *
- * A source is only included once it has run at least once (either a
- * recorded `lastRunTime` in its status, or a matching run in `runs`).
- */
-export function buildDataSources(
-    sourceStatuses: SourceIngestionStatus[],
-    runs: IngestionRun[],
-): DataSource[] {
-    const statusBySource = new Map<SourceSystem, SourceIngestionStatus>();
-    const latestRunBySource = new Map<SourceSystem, IngestionRun>();
-
-    sourceStatuses.forEach((status) => {
-        statusBySource.set(status.sourceSystem, status);
-    });
-
-    runs.forEach((run) => {
-        if (!latestRunBySource.has(run.sourceSystem)) {
-            latestRunBySource.set(run.sourceSystem, run);
-        }
-    });
-
-    return SOURCE_SYSTEMS.filter((sourceSystem) => {
-        const status = statusBySource.get(sourceSystem);
-        return (
-            (status?.lastRunTime !== null &&
-                status?.lastRunTime !== undefined) ||
-            latestRunBySource.has(sourceSystem)
-        );
-    }).map((sourceSystem) => {
-        const source = createDataSource(
-            sourceSystem,
-            statusBySource.get(sourceSystem),
-        );
-        const latestRun = latestRunBySource.get(sourceSystem);
-
-        if (!latestRun) return source;
-
-        const hasErrors = latestRun.failedCount > 0;
-        const status = getSourceStatus(false, hasErrors, latestRun.status);
-
-        return {
-            ...source,
-            status,
-            statusLabel: getSourceStatusLabel(
-                false,
-                hasErrors,
-                latestRun.status,
-            ),
-            artifacts: latestRun.ingestedCount,
-            lastSync: formatDateTime(latestRun.startedAt),
-            errors: latestRun.failedCount,
-            lastRunAt: latestRun.startedAt,
-            latestIngestedCount: latestRun.ingestedCount,
-            latestUpdatedCount: latestRun.updatedCount,
-            failedItems: latestRun.failedItems,
-        };
-    });
 }
 
 export function getSourceStatus(
@@ -187,6 +138,127 @@ export function getSourceStatusFromBackend(
     default:
       return "warning";
   }
+}
+
+type DeriveSourceStatusInput = {
+  backendStatus?: BackendProjectSourceStatus;
+  runStatus?: IngestionRunStatus | null;
+  aiSyncStatus?: AiSyncStatus | null;
+  hasErrors: boolean;
+  hasNeverSynced: boolean;
+  /**
+   * Whether the source system's connector is globally enabled. `undefined` means
+   * "unknown" (e.g. HR may not read the connector endpoint) and is treated as
+   * enabled, so a permission gap never fakes a disabled source.
+   */
+  connectorEnabled?: boolean;
+};
+
+/**
+ * Collapses the backend source status, the ingestion-run status and the AI-sync
+ * status into the single {@link SourceStatusPresentation} the UI renders.
+ *
+ * This is the one place the three overlapping status concepts are reconciled, so
+ * the list and the details drawer always agree and never show two competing
+ * badges. Priority is deliberate: an explicitly disabled source wins over any
+ * run state; an in-flight sync (backend UPDATING/INDEXING, a running run, or a
+ * pending AI index) wins over "needs attention"; failures / out-of-date /
+ * never-synced fall to `attention`; everything else is `connected`.
+ */
+export function deriveSourceStatus({
+  backendStatus,
+  runStatus,
+  aiSyncStatus,
+  hasErrors,
+  hasNeverSynced,
+  connectorEnabled,
+}: DeriveSourceStatusInput): SourceStatusPresentation {
+  if (backendStatus === "DISABLED") {
+    return {
+      state: "disabled",
+      label: "Disabled",
+      icon: CircleSlash,
+      // Red, not grey: a disabled source silently stops feeding the knowledge
+      // base, which is a problem state rather than a neutral one.
+      tone: "danger",
+      spinning: false,
+    };
+  }
+
+  // Checked right after the source's own switch: the AI drops every chunk of a
+  // disabled connector regardless of the per-source flag, so a source under a
+  // disabled connector is not feeding chat either — saying "Connected" would be
+  // a lie. Distinct label so it is clear the cause is global, not this source.
+  if (connectorEnabled === false) {
+    return {
+      state: "disabled",
+      label: "Connector disabled",
+      icon: CircleSlash,
+      tone: "danger",
+      spinning: false,
+    };
+  }
+
+  // "Syncing" must reflect work that is actually in flight. A finished run whose
+  // AI-index status is still reported as PENDING (a stale/never-resolved value)
+  // must NOT count as syncing, otherwise the source (and the "Syncing now" KPI)
+  // reads as busy while nothing is running.
+  const isSyncing =
+    backendStatus === "UPDATING" ||
+    backendStatus === "INDEXING" ||
+    isRunInProgress(runStatus);
+
+  if (isSyncing) {
+    return {
+      state: "syncing",
+      label: backendStatus === "INDEXING" ? "Indexing" : "Syncing",
+      icon: Loader2,
+      tone: "brand",
+      spinning: true,
+    };
+  }
+
+  const needsAttention =
+    hasNeverSynced ||
+    hasErrors ||
+    aiSyncStatus === "FAILED" ||
+    runStatus === "FAILED" ||
+    runStatus === "PARTIAL" ||
+    backendStatus === "FAILED" ||
+    backendStatus === "ERROR" ||
+    backendStatus === "DISCONNECTED";
+
+  if (needsAttention) {
+    return {
+      state: "attention",
+      label: hasNeverSynced ? "Not synced" : "Needs attention",
+      icon: AlertTriangle,
+      // The danger palette keeps the label red on red; the warning palette pairs
+      // an amber-yellow text with a red-looking background in dark mode.
+      tone: "danger",
+      spinning: false,
+    };
+  }
+
+  // Checked after the failure cases so a repo that is both out of date *and*
+  // failing still reads as failing.
+  if (backendStatus === "OUT_OF_DATE") {
+    return {
+      state: "stale",
+      label: "Out of date",
+      icon: History,
+      tone: "warning",
+      spinning: false,
+    };
+  }
+
+  return {
+    state: "connected",
+    label: "Connected",
+    icon: CheckCircle2,
+    tone: "success",
+    spinning: false,
+  };
 }
 
 export function getSourceStatusLabel(
@@ -276,6 +348,48 @@ export function getAiSyncStatusTone(status: AiSyncStatus) {
 
 export function getSourceLabel(sourceSystem: SourceSystem) {
   return SOURCE_META[sourceSystem].type;
+}
+
+/**
+ * Maps each ingestion run to the connected source it produced artifacts for, so
+ * run lists can show the repository (e.g. "sprintstart-frontend") instead of the
+ * generic source-system label ("GitHub").
+ *
+ * The backend does not yet persist a source instance on a run (see
+ * backend-ingestion-source-instance-issue.md), so the association is recovered
+ * from the source's `runIds`, which are collected from the artifacts each run
+ * ingested. Runs that produced no artifacts (empty/failed) won't be in the map
+ * and fall back to the source-system label.
+ */
+export function buildRunSourceLabels(
+  sources: DataSource[],
+): Map<string, string> {
+  const labels = new Map<string, string>();
+
+  sources.forEach((source) => {
+    source.runIds.forEach((runId) => {
+      if (!labels.has(runId)) {
+        labels.set(runId, source.name);
+      }
+    });
+  });
+
+  return labels;
+}
+
+/**
+ * Repository label for a run. Prefers the repository identity the backend now
+ * persists on the run itself (`sourceId` = "owner/name"), falling back to the
+ * artifact-derived {@link buildRunSourceLabels} map for legacy runs that predate
+ * that field, and finally to the source-system label.
+ */
+export function getRunSourceLabel(
+  run: IngestionRun,
+  labelByRunId?: Map<string, string>,
+) {
+  return (
+    run.sourceId ?? labelByRunId?.get(run.runId) ?? getSourceLabel(run.sourceSystem)
+  );
 }
 
 export function formatDateTime(value: string | null) {

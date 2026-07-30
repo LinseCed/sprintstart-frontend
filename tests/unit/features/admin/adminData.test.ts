@@ -51,6 +51,7 @@ const projects: ProjectOverview[] = [
         id: 'project-1',
         name: 'SprintStart',
         description: 'Knowledge onboarding',
+        manager: null,
         sources: [{ id: 'source-1', name: 'Repo', type: 'GITHUB', status: 'CONNECTED' }],
         users: [
             {

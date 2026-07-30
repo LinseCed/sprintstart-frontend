@@ -1,10 +1,24 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { http, HttpResponse } from "msw";
+import { MemoryRouter } from "react-router-dom";
 import { AdminPage } from "../../../src/pages/AdminPage";
 import { server } from "../setup/vitest.setup";
+
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue } = await import('../setup/projectContext');
+    return { useProjectContext: () => createProjectContextValue() };
+});
+
+vi.mock('../../../src/context/useAuth', () => ({
+    useAuth: () => ({
+        profile: { id: 'admin-1', username: 'admin', permissionGroup: 'ADMIN' },
+        status: 'authenticated',
+        logout: vi.fn(),
+    }),
+}));
 
 const adminUsers = [
   {
@@ -32,7 +46,11 @@ describe("AdminPage Accessibility", () => {
 
   it("has no axe violations across admin tabs", async () => {
     const user = userEvent.setup();
-    const { baseElement } = render(<AdminPage />);
+    const { baseElement } = render(
+      <MemoryRouter>
+        <AdminPage />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("John Doe")).toBeInTheDocument();
