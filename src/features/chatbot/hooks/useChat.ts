@@ -1,251 +1,192 @@
-import {useEffect, useMemo, useState, useCallback, useRef} from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import {
-    createChat,
-    getChats,
-    getMessages,
-    streamMessage
-} from "../../../services/chatService";
-import { userService } from "../../../services/userService.ts"
-
-import type { Chat, ChatMessage, Citation } from "../types";
-
-type MessagesByChat = Record<string, ChatMessage[]>;
+import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ChatContext } from "../../../context/ChatContext";
 
 /**
- * Manages the state and business logic for the chat interface.
- * Handles fetching chat history, initiating new chats, and streaming responses
- * from the AI assistant via the backend.
+ * localStorage key prefix for per-chat draft persistence (E10). Each chat's
+ * in-progress message is stored under `chatDraft.<chatId>` so switching chats
+ * restores the draft and it survives a page refresh. The "new chat" (no
+ * chatId yet) state uses a shared `chatDraft.__new__` key.
+ */
+const DRAFT_KEY = (chatId: string | undefined) =>
+    `chatDraft.${chatId ?? "__new__"}`;
+
+/**
+ * Consumes the global {@link ChatContext} and combines it with router params
+ * (`chatId`) and component-local UI state (sidebar toggle, DOM refs, scroll
+ * behavior). The heavy lifting — message state, streaming, filters — lives in
+ * the provider so it survives navigation away from the chat page.
  */
 export function useChat() {
+    const ctx = useContext(ChatContext);
+    if (ctx === undefined) {
+        throw new Error("useChat must be used within a ChatProvider");
+    }
+
     const { id: chatId } = useParams();
-    const [userId, setUserId] = useState<string>("");
-
     const navigate = useNavigate();
+    const location = useLocation();
 
-    const [chats, setChats] = useState<Chat[]>([]);
-    const [messagesByChat, setMessagesByChat] = useState<MessagesByChat>({});
-
-    const [isThinking, setIsThinking] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
-
-    const [showBrainrot, setShowBrainrot] = useState(false);
-    const [timestamp, setTimestamp] = useState(0);
-
-    const [newRequest, setNewRequest] = useState("");
-
-    const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const prevChatIdRef = useRef<string | undefined>(undefined);
+    const prevMessageCountRef = useRef(0);
+
+    const {
+        messagesByChat,
+        loadMessages,
+        chats,
+        sortedChats,
+        isThinking,
+        isStreaming,
+        streamingMessageId,
+        thinkingState,
+        selectedCitation,
+        setSelectedCitation,
+        newRequest,
+        setNewRequest,
+        showFilters,
+        setShowFilters,
+        from,
+        setFrom,
+        to,
+        setTo,
+        sourceSystems,
+        toggleSourceSystem,
+        activeFilterCount,
+        clearFilters,
+        sendMessage,
+        stopStreaming,
+    } = ctx;
+
+    /**
+     * When the user navigates to `/chat` (no chatId) from the main sidebar
+     * and they already have conversations, redirect to the most recent one
+     * instead of showing the empty state. The "New Chat" button in the chat
+     * sidebar passes `state: { newChat: true }` to opt out of this redirect.
+     * Also skips if the user has started typing (newRequest is non-empty).
+     */
+    const isNewChatRequest = (location.state as { newChat?: boolean } | null)?.newChat === true;
 
     useEffect(() => {
-        /**
-         * Loads all chats created by the user.
-         */
-        void (async () => {
-            const [data, userData] = await Promise.all([
-                getChats(),
-                userService.getProfile()
-            ]);
-
-            if (!userData?.id) return;
-
-            setUserId(userData.id);
-
-            setChats(data.chats.filter(chat => chat.userId === userData.id));
-        })();
-    }, []);
-
-    useEffect(() => {
-        if (!chatId) return;
-
-        if (messagesByChat[chatId]) return;
-
-        /**
-         * Loads all messages from the current chat.
-         */
-        void (async () => {
-            const data = await getMessages(chatId);
-
-            setMessagesByChat(prev => ({
-                ...prev,
-                [chatId]: data.messages
-            }));
-        })();
-    }, [chatId, messagesByChat]);
+        if (chatId || isNewChatRequest || newRequest) return;
+        if (sortedChats.length === 0) return;
+        void navigate(`/chat/${sortedChats[0].id}`, { replace: true });
+    }, [chatId, isNewChatRequest, newRequest, sortedChats, navigate]);
 
     const messages = useMemo(() => {
         if (!chatId) return [];
         return messagesByChat[chatId] ?? [];
     }, [messagesByChat, chatId]);
 
-    useEffect(() => {
-        /**
-         * Automatically scrolls to the bottom of the current conversation when a new request is sent or when opening an old conversation.
-         */
-        bottomRef.current?.scrollIntoView({
-            behavior: "smooth"
-        });
-    }, [chatId, messages]);
+    const activeChat = useMemo(() => {
+        if (!chatId) return null;
+        return chats.find(c => c.id === chatId) ?? null;
+    }, [chats, chatId]);
 
     /**
-     * Refreshes the list of chats for the current user.
-     * Called after a stream finishes to ensure the new chat appears in the sidebar.
+     * Loads messages from the backend when a chat is opened for the first time
+     * (not yet cached in `messagesByChat`). If the user navigates away and
+     * comes back, cached messages are shown immediately — no refetch.
      */
-    const refreshChats = useCallback(async () => {
-        const data = await getChats();
-        setChats(data.chats.filter(chat => chat.userId === userId));
-    }, [userId]);
+    useEffect(() => {
+        if (!chatId) return;
+        if (messagesByChat[chatId]) return;
+        void loadMessages(chatId);
+    }, [chatId, messagesByChat, loadMessages]);
+
+    // A5: Instead of reading scrollHeight/scrollTop on every token (which
+    // forces a synchronous layout), an IntersectionObserver watches the bottom
+    // anchor. When it's visible the user is "at the bottom" and we auto-scroll
+    // on new content; when it's pushed out of view we stop auto-scrolling and
+    // show a "jump to latest" button (E12).
+    const [isAtBottom, setIsAtBottom] = useState(true);
 
     useEffect(() => {
-        /**
-         * Shows Subway Surfers gameplay if the bot needs longer than 4 seconds to reply.
-         */
-        if (!isThinking) return;
+        const anchor = bottomRef.current;
+        const container = scrollContainerRef.current;
+        if (!anchor || !container) return;
 
-        const timer = setTimeout(() => {
-            setTimestamp(Math.floor(Math.random() * 1000));
-            setShowBrainrot(true);
-        }, 4000);
+        const observer = new IntersectionObserver(
+            (entries) => {
+                // The bottom anchor is a zero-height div; "intersecting" means
+                // it's within the scroll viewport → the user is at the bottom.
+                setIsAtBottom(entries[0]?.isIntersecting ?? true);
+            },
+            { root: container, threshold: 0 },
+        );
+        observer.observe(anchor);
+        return () => observer.disconnect();
+    }, [bottomRef, scrollContainerRef]);
 
-        return () => {
-            clearTimeout(timer);
-            setShowBrainrot(false);
-        };
-    }, [isThinking]);
-
+    // Auto-scroll: jump to the bottom on chat switch (instant) and when new
+    // messages arrive *if* the user is already near the bottom. No DOM layout
+    // reads here — driven entirely by the IntersectionObserver's `isAtBottom`.
     useEffect(() => {
-        /**
-         * Scrolls to the bottom when the gameplay video is shown.
-         */
-        if (!showBrainrot) return
+        const chatChanged = chatId !== prevChatIdRef.current;
+        const messageAdded = messages.length > prevMessageCountRef.current;
 
-        bottomRef.current?.scrollIntoView({
-            behavior: "smooth"
-        });
-    }, [showBrainrot]);
+        prevChatIdRef.current = chatId;
+        prevMessageCountRef.current = messages.length;
 
-    /**
-     * Adds a new user message and the corresponding response to the current conversation.
-     */
-    const addMessage = useCallback(async (text: string) => {
-        if (!text.trim()) return;
-
-        let currentChatId = chatId;
-
-        // create new chat if needed
-        if (!currentChatId) {
-            const newChat = await createChat(userId);
-
-            setChats(prev => [newChat, ...prev]);
-
-            currentChatId = newChat.id;
-
-            await navigate(`/chat/${newChat.id}`);
+        if (chatChanged) {
+            bottomRef.current?.scrollIntoView({ behavior: "auto" });
+            return;
         }
 
-        setMessagesByChat(prev => ({
-            ...prev,
-            [currentChatId]: prev[currentChatId] ?? []
-        }));
-
-        const userMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: "USER",
-            chat: chats.find(chat => chat.id === currentChatId),
-            content: text
-        };
-
-        const assistantId = crypto.randomUUID();
-
-        const assistantMessage: ChatMessage = {
-            id: assistantId,
-            role: "ASSISTANT",
-            chat: chats.find(chat => chat.id === currentChatId),
-            content: "",
-            citations: [],
-        };
-
-        // optimistic update
-        setMessagesByChat(prev => ({
-            ...prev,
-            [currentChatId]: [
-                ...(prev[currentChatId] ?? []),
-                userMessage,
-                assistantMessage
-            ]
-        }));
-
-        setIsThinking(true);
-
-        try {
-            await streamMessage(currentChatId, text, {
-
-                // if the stream element is a normal text chunk, append it to the response message
-                onToken: token => {
-                    setIsStreaming(true);
-                    setIsThinking(false);
-
-                    setMessagesByChat(prev => ({
-                        ...prev,
-                        [currentChatId]: (prev[currentChatId] ?? []).map(m =>
-                            m.id === assistantId
-                                ? { ...m, content: m.content + token }
-                                : m
-                        )
-                    }));
-                },
-
-                // if the stream element is a citations, add it to the citations list of the response message
-                onCitation: citation => {
-                    setMessagesByChat(prev => ({
-                        ...prev,
-                        [currentChatId]: (prev[currentChatId] ?? []).map(m =>
-                            m.id === assistantId
-                                ? {
-                                    ...m,
-                                    citations: [...(m.citations ?? []), citation]
-                                }
-                                : m
-                        )
-                    }));
-                },
-
-                // if the stream element marks the end of the stream, finalize the message
-                onDone: () => {
-                    setIsStreaming(false);
-
-                    setMessagesByChat(prev => ({
-                        ...prev,
-                        [currentChatId]: (prev[currentChatId] ?? []).map(m =>
-                            m.id === assistantId
-                                ? { ...m, isStreaming: false }
-                                : m
-                        )
-                    }));
-
-                    void refreshChats();
-                },
-
-                // if the stream element is an error, abort
-                onError: err => {
-                    console.error(err);
-                    setIsStreaming(false);
-                    setIsThinking(false);
-                }
-            });
-        } catch (e) {
-            console.error(e);
-            setIsStreaming(false);
-            setIsThinking(false);
+        if (messageAdded && isAtBottom) {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
         }
-    }, [chatId, navigate, chats, refreshChats, userId]);
+    }, [chatId, messages, isAtBottom]);
 
-    /**
-     * Adds the newly created messages to the chat.
-     */
+    const scrollToBottom = useCallback(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
+
+    // E10: Per-chat draft persistence to localStorage. When the user switches
+    // chats, the current draft is saved under the old chatId and the new
+    // chatId's draft is loaded — so in-progress text survives chat switching
+    // and page refreshes. A debounced save keeps localStorage in sync while
+    // the user types.
+    const draftChatIdRef = useRef<string | undefined>(chatId);
+
+    useEffect(() => {
+        const prevChatId = draftChatIdRef.current;
+        if (prevChatId === chatId) return;
+
+        // Save the draft for the chat we're leaving, then load the new one.
+        if (newRequest) {
+            localStorage.setItem(DRAFT_KEY(prevChatId), newRequest);
+        } else {
+            localStorage.removeItem(DRAFT_KEY(prevChatId));
+        }
+
+        draftChatIdRef.current = chatId;
+        const saved = localStorage.getItem(DRAFT_KEY(chatId)) ?? "";
+        setNewRequest(saved);
+    }, [chatId, newRequest, setNewRequest]);
+
+    // Debounced save while the user types (no chat switch).
+    useEffect(() => {
+        const id = setTimeout(() => {
+            if (newRequest) {
+                localStorage.setItem(DRAFT_KEY(chatId), newRequest);
+            } else {
+                localStorage.removeItem(DRAFT_KEY(chatId));
+            }
+        }, 400);
+        return () => clearTimeout(id);
+    }, [newRequest, chatId]);
+
+    const addMessage = useCallback((text: string) => {
+        return sendMessage(chatId, text, navigate);
+    }, [sendMessage, chatId, navigate]);
+
     const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -253,22 +194,17 @@ export function useChat() {
 
         void addMessage(newRequest);
         setNewRequest("");
+        // Clear the persisted draft once sent.
+        localStorage.removeItem(DRAFT_KEY(chatId));
 
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
+            textareaRef.current.blur();
         }
-    }, [newRequest, addMessage]);
-
-    /**
-     * The chat currently used by the user.
-     */
-    const activeChat = useMemo(() => {
-        if (!chatId) return null;
-        return chats.find(c => c.id === chatId) ?? null;
-    }, [chats, chatId]);
+    }, [newRequest, addMessage, setNewRequest, chatId]);
 
     return {
-        chats,
+        chats: sortedChats,
         chatId,
         activeChat,
 
@@ -277,8 +213,12 @@ export function useChat() {
         sidebarOpen,
         setSidebarOpen,
 
+        desktopSidebarOpen,
+        setDesktopSidebarOpen,
+
         handleSubmit,
         addMessage,
+        stopStreaming,
 
         newRequest,
         setNewRequest,
@@ -286,13 +226,34 @@ export function useChat() {
         isThinking,
         isStreaming,
 
+        thinkingState,
+
+        streamingMessageId,
+
         selectedCitation,
         setSelectedCitation,
 
         textareaRef,
         bottomRef,
+        scrollContainerRef,
 
-        showBrainrot,
-        timestamp
+        isAtBottom,
+        scrollToBottom,
+
+        showFilters,
+        setShowFilters,
+
+        from,
+        setFrom,
+
+        to,
+        setTo,
+
+        sourceSystems,
+
+        toggleSourceSystem,
+
+        activeFilterCount,
+        clearFilters
     };
 }

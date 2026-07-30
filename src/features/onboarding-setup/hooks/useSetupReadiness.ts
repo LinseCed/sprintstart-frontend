@@ -1,7 +1,7 @@
 import { useFetch } from '../../../hooks/useFetch';
 import { setupService } from '../../../services/setupService';
-import { getIngestionRuns, getIngestionStatus } from '../../../services/ingestionService';
-import { buildDataSources, INGESTION_RUN_LIMIT } from '../../data-ingestion/data';
+import { getIngestionSourceStatuses } from '../../../services/ingestionService';
+import { createSourceFromInstance } from '../../data-ingestion/data';
 import { buildLadder, deriveCorpusRung } from '../ladder';
 import type { SetupLadder } from '../types';
 
@@ -24,7 +24,7 @@ export function useSetupReadiness(projectId: string): {
         }
         const [readiness, sources] = await Promise.all([
             setupService.fetchReadiness(projectId),
-            fetchCorpusSources(),
+            fetchCorpusSources(projectId),
         ]);
         return buildLadder(readiness, deriveCorpusRung(sources));
     }, [projectId]);
@@ -32,14 +32,18 @@ export function useSetupReadiness(projectId: string): {
     return { ladder: data, loading, error };
 }
 
-/** The corpus signal is advisory, so a failed ingestion read degrades to "no sources" rather than failing the page. */
-async function fetchCorpusSources() {
+/**
+ * The corpus signal is advisory, so a failed ingestion read degrades to "no sources" rather than
+ * failing the page.
+ *
+ * Scoped to the project the ladder is about: the per-source-instance status endpoint takes a
+ * project, unlike the aggregate read this replaced, so the rung no longer counts another team's
+ * artifacts towards this project's readiness.
+ */
+async function fetchCorpusSources(projectId: string) {
     try {
-        const [status, runs] = await Promise.all([
-            getIngestionStatus(),
-            getIngestionRuns(INGESTION_RUN_LIMIT),
-        ]);
-        return buildDataSources(status, runs);
+        const instances = await getIngestionSourceStatuses(projectId);
+        return instances.map(createSourceFromInstance);
     } catch {
         return [];
     }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { OrientationPanel } from '../../orientation/components/OrientationPanel';
 import { OrientationEditor } from '../../orientation/components/OrientationEditor';
-import { useProjectSelection } from '../../projects/useProjectSelection';
+import { useProjectContext } from '../../projects/useProjectContext';
 import { orientationService } from '../../../services/orientationService';
 import type { MyOrientation } from '../../orientation/types';
 
@@ -17,7 +17,7 @@ import type { MyOrientation } from '../../orientation/types';
  * it as human-authored.
  */
 export function BuddyOrientationCard() {
-    const { selectedProjectId } = useProjectSelection();
+    const { selectedProjectId } = useProjectContext();
     const [orientation, setOrientation] = useState<MyOrientation | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

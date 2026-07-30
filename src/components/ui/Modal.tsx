@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useEffect, useRef, type ReactNode } from "react";
 
 type ModalSize = "sm" | "md" | "lg" | "xl";
@@ -9,6 +10,8 @@ type ModalProps = {
     description?: ReactNode;
     children?: ReactNode;
     footer?: ReactNode;
+    /** Optional controls shown in the header, left of the close button. */
+    headerActions?: ReactNode;
     size?: ModalSize;
     zIndexClassName?: string;
     bodyClassName?: string;
@@ -49,6 +52,7 @@ export function Modal({
     description,
     children,
     footer,
+    headerActions,
     size = "md",
     zIndexClassName = "z-50",
     bodyClassName = "px-7 py-6",
@@ -73,6 +77,12 @@ export function Modal({
         window.requestAnimationFrame(() => {
             const dialog = dialogRef.current;
             if (!dialog) return;
+
+            // The autofocus runs a frame late, so a keyboard user (or a test
+            // typing into the dialog) may already have moved focus inside it by
+            // now. Don't yank it back to the first control in that case.
+            const active = document.activeElement;
+            if (active && active !== dialog && dialog.contains(active)) return;
 
             const [firstFocusable] = getFocusableElements(dialog);
             (firstFocusable ?? dialog).focus();
@@ -127,7 +137,11 @@ export function Modal({
 
     if (!isOpen) return null;
 
-    return (
+    // Rendered into <body> so the dialog is never trapped inside an ancestor's
+    // stacking context. Callers sit anywhere in the tree -- the sidebar's
+    // `position: sticky` wrapper, for one, creates a stacking context that would
+    // otherwise cap the overlay below page content that uses a positive z-index.
+    return createPortal(
         <div
             className={`fixed inset-x-0 top-0 h-screen ${zIndexClassName} flex items-center justify-center bg-app-overlay p-4 backdrop-blur-md`}
         >
@@ -171,15 +185,19 @@ export function Modal({
                         )}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isDismissDisabled}
-                        className="rounded-lg border border-app-border p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={closeLabel}
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                        {headerActions}
+
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isDismissDisabled}
+                            className="rounded-lg border border-app-border p-2 text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={closeLabel}
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {children && (
@@ -198,6 +216,7 @@ export function Modal({
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

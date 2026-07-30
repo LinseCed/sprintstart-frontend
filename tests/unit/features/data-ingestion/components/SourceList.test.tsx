@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GitBranch, Database } from 'lucide-react';
 import { SourceList } from '../../../../../src/features/data-ingestion/components/SourceList';
+import { deriveSourceStatus } from '../../../../../src/features/data-ingestion/data';
 import type { DataSource } from '../../../../../src/features/data-ingestion/types';
 
 function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
@@ -16,14 +17,19 @@ function createMockSource(overrides: Partial<DataSource> = {}): DataSource {
         statusLabel: 'Synced',
         ingestionStatus: 'connected',
         ingestionStatusLabel: 'Synced',
+        statusView: deriveSourceStatus({ hasErrors: false, hasNeverSynced: false }),
         artifacts: 10,
         lastSync: '2026-07-05',
         errors: 0,
         latestIngestedCount: 10,
         latestUpdatedCount: 3,
         totalArtifactCount: 10,
+        deletedCount: 0,
         runIds: [],
         sharesSourceSystem: false,
+        lastCommitsSyncAt: null,
+        lastIssuesSyncAt: null,
+        lastPullRequestsSyncAt: null,
         lastRunAt: '2026-07-05T10:00:00Z',
         failedItems: [],
         githubRepository: null,
@@ -64,7 +70,7 @@ describe('SourceList', () => {
         expect(screen.getByText('Jira Project Board')).toBeInTheDocument();
         expect(screen.getAllByText('GitHub').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Jira').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Synced').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Connected').length).toBeGreaterThan(0);
     });
 
     it('renders info blocks with formatted values', () => {
@@ -158,12 +164,24 @@ describe('SourceList', () => {
             />,
         );
 
-        expect(screen.getByText('No connected sources')).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                'Connect a source to start ingestion and show source details here.',
-            ),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Connect your first source')).toBeInTheDocument();
+    });
+
+    it('offers an add-source call to action in the empty state', async () => {
+        const user = userEvent.setup();
+        const onAddSource = vi.fn();
+
+        render(
+            <SourceList
+                sources={[]}
+                selectedSourceId={null}
+                onSelectSource={vi.fn()}
+                onAddSource={onAddSource}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /add sources/i }));
+        expect(onAddSource).toHaveBeenCalledTimes(1);
     });
 
     it('renders a failed items warning when a source has failed items', () => {

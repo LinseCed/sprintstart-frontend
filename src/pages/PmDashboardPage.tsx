@@ -1,6 +1,5 @@
 import { BriefcaseBusiness } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
-import { useAuth } from "../context/useAuth";
 import { CompetencyDashboardWidget } from "../features/competency-dashboard/components/CompetencyDashboardWidget";
 import { IngestionStatusWidget } from "../features/data-ingestion/components/IngestionStatusWidget";
 import { AttentionWidget } from "../features/onboarding-metrics/components/AttentionWidget";
@@ -8,8 +7,7 @@ import { OnboardingMetricsWidget } from "../features/onboarding-metrics/componen
 import { FaqWidget } from "../features/faq/components/FaqWidget";
 import { KnowledgeGapWidget } from "../features/knowledge-gaps/components/KnowledgeGapWidget";
 import { KnowledgeRequestWidget } from "../features/knowledge-request/components/KnowledgeRequestWidget";
-import { ProjectSelect } from "../features/projects/components/ProjectSelect";
-import { useProjectSelection } from "../features/projects/useProjectSelection";
+import { useProjectContext } from "../features/projects/useProjectContext";
 import { TeamManagementWidget } from "../features/team-management/components/TeamManagementWidget";
 
 /**
@@ -18,14 +16,8 @@ import { TeamManagementWidget } from "../features/team-management/components/Tea
  * knowledge gaps, each linking to its full detail page.
  */
 export function PmDashboardPage() {
-  const { profile } = useAuth();
-  const {
-    projects,
-    selectedProjectId,
-    isLoading: isLoadingProjects,
-    errorMessage: projectErrorMessage,
-    setSelectedProjectId,
-  } = useProjectSelection({ isAdmin: profile?.permissionGroup === "ADMIN" });
+  // The project is chosen globally in the sidebar switcher.
+  const { selectedProjectId } = useProjectContext();
 
   return (
     <div className="min-h-screen bg-app-bg">
@@ -35,17 +27,6 @@ export function PmDashboardPage() {
             icon={BriefcaseBusiness}
             title="PM Dashboard"
             subtitle="Track team onboarding, spot recurring questions and keep knowledge gaps visible."
-            actions={
-              profile?.permissionGroup === "ADMIN" ? (
-                <ProjectSelect
-                  projects={projects}
-                  selectedProjectId={selectedProjectId}
-                  isLoading={isLoadingProjects}
-                  errorMessage={projectErrorMessage}
-                  onChange={setSelectedProjectId}
-                />
-              ) : null
-            }
           />
         </div>
       </header>

@@ -3,10 +3,7 @@ import { AlertCircle, Bot, LayoutDashboard, Loader2, RefreshCw } from 'lucide-re
 import { useBoard } from '../features/board/hooks/useBoard';
 import { AddCardForm } from '../features/board/components/AddCardForm';
 import { BoardGrid } from '../features/board/components/BoardGrid';
-import { ProjectSelect } from '../features/projects/components/ProjectSelect';
-import { useProjectSelection } from '../features/projects/useProjectSelection';
-import { useAuth } from '../context/useAuth';
-import { PermissionGroup } from '../services/types';
+import { useProjectContext } from '../features/projects/useProjectContext';
 
 /**
  * The board: the hire's persistent working surface.
@@ -20,15 +17,7 @@ import { PermissionGroup } from '../services/types';
  * pages rather than being a setting of this one.
  */
 export function BoardPage() {
-    const { profile } = useAuth();
-    const isAdmin = profile?.permissionGroup === PermissionGroup.ADMIN;
-    const {
-        projects,
-        selectedProjectId,
-        isLoading: projectsLoading,
-        errorMessage: projectsError,
-        setSelectedProjectId,
-    } = useProjectSelection({ isAdmin });
+    const { selectedProjectId, isLoading: projectsLoading } = useProjectContext();
 
     const {
         board,
@@ -60,13 +49,6 @@ export function BoardPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <ProjectSelect
-                        projects={projects}
-                        selectedProjectId={selectedProjectId}
-                        isLoading={projectsLoading}
-                        errorMessage={projectsError}
-                        onChange={setSelectedProjectId}
-                    />
                     <button
                         type="button"
                         onClick={refresh}

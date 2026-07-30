@@ -4,17 +4,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BuddyOrientationCard } from '../../../../src/features/buddy/components/BuddyOrientationCard';
 import type { MyOrientation } from '../../../../src/features/orientation/types';
 
-vi.mock('../../../../src/features/projects/useProjectSelection', () => ({
-    useProjectSelection: () => ({
-        projects: [{ id: 'proj1', name: 'Project One' }],
-        selectedProject: { id: 'proj1', name: 'Project One' },
-        selectedProjectId: 'proj1',
-        isLoading: false,
-        errorMessage: null,
-        setSelectedProjectId: vi.fn(),
-        reloadProjects: vi.fn(),
-    }),
-}));
+vi.mock('../../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import(
+        '../../setup/projectContext'
+    );
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                selectedProjectId: 'proj1',
+                projects: [createSelectableProject({ id: 'proj1', name: 'Project One' })],
+                selectedProject: createSelectableProject({ id: 'proj1', name: 'Project One' }),
+            }),
+    };
+});
 
 vi.mock('../../../../src/services/orientationService', () => ({
     orientationService: {

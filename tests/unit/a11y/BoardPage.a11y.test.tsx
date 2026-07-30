@@ -13,17 +13,19 @@ vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({ profile: { permissionGroup: 'USER' } }),
 }));
 
-vi.mock('../../../src/features/projects/useProjectSelection', () => ({
-    useProjectSelection: () => ({
-        projects: [{ id: 'p1', name: 'Project One' }],
-        selectedProject: { id: 'p1', name: 'Project One' },
-        selectedProjectId: 'p1',
-        isLoading: false,
-        errorMessage: null,
-        setSelectedProjectId: vi.fn(),
-        reloadProjects: vi.fn(),
-    }),
-}));
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import(
+        '../setup/projectContext'
+    );
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                selectedProjectId: 'p1',
+                projects: [createSelectableProject({ id: 'p1', name: 'Project One' })],
+                selectedProject: createSelectableProject({ id: 'p1', name: 'Project One' }),
+            }),
+    };
+});
 
 import { boardService } from '../../../src/services/boardService';
 
