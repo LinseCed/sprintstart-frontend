@@ -12,14 +12,17 @@ import { useStarterWorkReview } from '../features/starter-work/hooks/useStarterW
 import type { CreateStarterWorkTaskInput } from '../features/starter-work/types';
 
 /**
- * PM-facing review of AI-mined starter work.
+ * Where a PM looks over the starter tasks the corpus produced.
  *
- * Approving a task here is the only way a `CONTRIBUTION` node ever enters the competency graph,
- * which makes this the surface that gives hires something to aim at — the same gap the blueprint
- * flow had until the Onboarding Baseline page existed: the backend was complete and the product
- * couldn't reach it.
+ * It used to be a **gate**: a mined task waited here until somebody approved it, so a project whose
+ * PM was busy offered a new hire nothing at all. Tasks are now live the moment they are mined, and
+ * this shows the ones nobody has vouched for yet. Vouching lifts the demotion fit-ranking applies;
+ * it does not admit anything.
  *
- * HR reads, `ADMIN`/`PM` decide, matching the split every other proposal queue uses.
+ * Removal is the one irreversible action left, and it is sticky — mining never brings back a task
+ * somebody took out, or they would take it out again after every crawl.
+ *
+ * HR reads, `ADMIN`/`PM` act, matching the backend's role split.
  */
 export function StarterWorkPage() {
     const { profile } = useAuth();
@@ -100,9 +103,9 @@ export function StarterWorkPage() {
                     >
                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                         <p className="flex-1">
-                            <strong>“{createdTask.title}”</strong> is now a goal in the graph — it
-                            skipped review because you authored it. It won&apos;t appear in the queue
-                            below; hires can aim at it straight away.
+                            <strong>“{createdTask.title}”</strong> is in the pool — you wrote it, so
+                            it counts as reviewed and won&apos;t appear below. Hires can aim at it
+                            straight away.
                         </p>
                         <button
                             type="button"
@@ -117,8 +120,9 @@ export function StarterWorkPage() {
 
                 {generateResult && (
                     <div className="rounded-2xl border border-app-brand-border bg-app-brand-soft p-4 text-sm text-app-brand-text">
-                        Found {generateResult.tasksProposed} task
-                        {generateResult.tasksProposed === 1 ? '' : 's'} for review.
+                        Added {generateResult.tasksProposed} task
+                        {generateResult.tasksProposed === 1 ? '' : 's'} to the pool. Hires can claim
+                        them now; they rank below tasks somebody has looked at.
                         {generateResult.notes.length > 0 && (
                             <ul className="mt-2 list-inside list-disc space-y-1">
                                 {generateResult.notes.map(note => (
@@ -143,12 +147,13 @@ export function StarterWorkPage() {
                     <div className="rounded-3xl border border-app-border bg-app-bg p-10 text-center">
                         <Target className="mx-auto mb-3 h-8 w-8 text-app-text-disabled" />
                         <p className="text-sm text-app-text-muted">
-                            Nothing waiting for review. Mine the corpus to find open issues that
-                            would make good first contributions.
+                            Nothing here needs a look. Tasks are mined from the corpus whenever a
+                            crawl finishes — this is where the ones nobody has vouched for yet show
+                            up, not a queue blocking anybody.
                         </p>
                     </div>
                 ) : (
-                    <section className="space-y-3" data-testid="starter-work-queue">
+                    <section className="space-y-3" data-testid="starter-work-unreviewed">
                         {tasks.map(task => (
                             <StarterWorkTaskCard
                                 key={task.id}
@@ -162,7 +167,7 @@ export function StarterWorkPage() {
                 )}
 
                 {/* Authoring a task's orientation is PM/ADMIN only, matching the backend role split —
-                    HR reviews the queue but does not write hire-facing content. */}
+                    HR looks over the pool but does not write hire-facing content. */}
                 {canAct && <TaskOrientationManager />}
             </main>
 

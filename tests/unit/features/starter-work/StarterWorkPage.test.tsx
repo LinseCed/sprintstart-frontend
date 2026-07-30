@@ -35,7 +35,7 @@ const task: StarterWorkTask = {
     onboardingTrackKey: null,
     sourceUrl: 'https://github.com/acme/repo/issues/42',
     competencyKeys: ['kotlin', 'auth'],
-    status: 'PROPOSED'
+    status: 'LIVE', reviewed: false
 };
 
 describe('StarterWorkPage', () => {
@@ -67,18 +67,20 @@ describe('StarterWorkPage', () => {
         expect(screen.getByText('auth')).toBeInTheDocument();
     });
 
-    it('states that approving puts the task in front of hires', async () => {
+    it('says a hire can already claim it, so review does not read as a gate', async () => {
         render(<StarterWorkPage />);
 
         await screen.findByText('Fix the login redirect');
-        expect(screen.getByText(/adds this to the graph as a goal/i)).toBeInTheDocument();
+        expect(screen.getByText(/hires can already claim this/i)).toBeInTheDocument();
+        // Removal is the irreversible half, and it is sticky -- worth saying before it is clicked.
+        expect(screen.getByText(/mining will not bring it back/i)).toBeInTheDocument();
     });
 
     it('approves through the service and drops the task from the queue', async () => {
         const user = userEvent.setup();
         const approve = vi
             .spyOn(starterWorkService, 'approve')
-            .mockResolvedValue({ ...task, status: 'APPROVED' });
+            .mockResolvedValue({ ...task, status: 'LIVE', reviewed: true });
         render(<StarterWorkPage />);
 
         await user.click(await screen.findByTestId('approve-task-task-1'));
@@ -98,11 +100,12 @@ describe('StarterWorkPage', () => {
         expect(screen.queryByTestId('reject-task-task-1')).not.toBeInTheDocument();
     });
 
-    it('explains the empty queue rather than showing a blank page', async () => {
+    it('explains an empty list as nothing to look at, not nothing done', async () => {
         vi.spyOn(starterWorkService, 'fetchProposed').mockResolvedValue({ tasks: [] });
         render(<StarterWorkPage />);
 
-        expect(await screen.findByText(/nothing waiting for review/i)).toBeInTheDocument();
+        expect(await screen.findByText(/nothing here needs a look/i)).toBeInTheDocument();
+        expect(screen.getByText(/not a queue blocking anybody/i)).toBeInTheDocument();
     });
 
     it('surfaces a failed load', async () => {
@@ -118,7 +121,7 @@ describe('StarterWorkPage', () => {
             ...task,
             id: 'authored-1',
             title: 'Add a dark-mode toggle',
-            status: 'APPROVED'
+            status: 'LIVE', reviewed: true
         });
         render(<StarterWorkPage />);
 

@@ -1,10 +1,18 @@
-export type ProposalStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED';
+/**
+ * Whether a task is in the claimable pool.
+ *
+ * `PROPOSED` is gone: a mined task is live the moment it is mined, and `reviewed` says whether
+ * anybody has looked at it. `REJECTED` is terminal *and sticky* — mining never brings back a task
+ * somebody turned down.
+ */
+export type ProposalStatus = 'LIVE' | 'REJECTED';
 
 /**
- * An AI-mined starter task (a GitHub issue) a PM can approve as a goal a hire claims.
+ * An AI-mined starter task (a GitHub issue) a hire can be pointed at.
  *
- * Approving one used to mint a `CONTRIBUTION` competency with prerequisite edges into it. With no
- * graph, approving simply makes the task claimable and a hire's goal points at it directly.
+ * It is claimable on arrival — review is not a gate any more. What review buys is rank: fit-ranking
+ * demotes an unreviewed task, capped below the smallest positive signal, so one that fits a hire
+ * perfectly still beats a reviewed one that does not.
  */
 export type StarterWorkTask = {
     id: string;
@@ -17,10 +25,13 @@ export type StarterWorkTask = {
     /** Competencies the AI judged this task exercises; one of the signals fit-ranking reads. */
     competencyKeys: string[];
     status: ProposalStatus;
+    /** Whether a person has looked at this task. Unreviewed is claimable, just ranked lower. */
+    reviewed: boolean;
     /** Which track this work is for, or null when it suits any role. */
     onboardingTrackKey: string | null;
 };
 
+/** The live tasks nobody has vouched for yet. */
 export type ProposedStarterWork = {
     tasks: StarterWorkTask[];
 };
