@@ -17,12 +17,21 @@ export type CompetencyEditInput = {
     label: string;
     description: string;
     kind: CompetencyKind;
+    area: string;
     targetLevel: number;
     invariant: boolean;
 };
 
 type CompetencyNodeEditorProps = {
     competencyKey: string;
+    /**
+     * The areas already in use, offered as suggestions.
+     *
+     * Free text with the existing values in reach, rather than a dropdown: a PM naming a subject
+     * the vocabulary has never covered must be able to, and one naming a subject it already covers
+     * should land on the same spelling. The backend enforces the second half regardless.
+     */
+    existingAreas: string[];
     isSaving: boolean;
     /** The last write error, rendered in place rather than as a toast. */
     error: string | null;
@@ -50,6 +59,7 @@ type CompetencyNodeEditorProps = {
  */
 export function CompetencyNodeEditor({
     competencyKey,
+    existingAreas,
     isSaving,
     error,
     onClearError,
@@ -62,6 +72,7 @@ export function CompetencyNodeEditor({
     const [label, setLabel] = useState('');
     const [description, setDescription] = useState('');
     const [kind, setKind] = useState<CompetencyKind>('SKILL');
+    const [area, setArea] = useState('');
     const [targetLevel, setTargetLevel] = useState(2);
     const [invariant, setInvariant] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -84,6 +95,7 @@ export function CompetencyNodeEditor({
                 setLabel(loaded.label);
                 setDescription(loaded.description ?? '');
                 setKind(loaded.kind);
+                setArea(loaded.area ?? '');
                 setTargetLevel(loaded.targetLevel);
                 setInvariant(loaded.invariant);
             } catch (err) {
@@ -125,6 +137,7 @@ export function CompetencyNodeEditor({
             label: label.trim(),
             description,
             kind,
+            area,
             targetLevel,
             invariant
         });
@@ -231,6 +244,32 @@ export function CompetencyNodeEditor({
                     onChange={event => setDescription(event.target.value)}
                     className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                 />
+            </div>
+
+            <div>
+                <label
+                    htmlFor="competency-area"
+                    className="mb-1 block text-xs font-medium text-app-text"
+                >
+                    Area
+                </label>
+                <input
+                    id="competency-area"
+                    list="competency-area-options"
+                    value={area}
+                    placeholder="e.g. Authentication"
+                    onChange={event => setArea(event.target.value)}
+                    className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                />
+                <datalist id="competency-area-options">
+                    {existingAreas.map(option => (
+                        <option key={option} value={option} />
+                    ))}
+                </datalist>
+                <p className="mt-1 text-xs text-app-text-muted">
+                    What it is about, so the buddy can offer its neighbours. Leave it empty if
+                    nothing fits — a wrong grouping is worse than none.
+                </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

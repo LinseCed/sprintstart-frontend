@@ -8,6 +8,8 @@ import type { AiActivityEntry } from '../../ai-activity/useAiStream';
 
 type StudioNodePanelProps = {
     competency: LiveCompetency;
+    /** The areas the vocabulary already uses, so an edit joins one instead of coining a synonym. */
+    existingAreas: string[];
     readiness: ModuleReadiness;
     /** False when no project is selected, so module authoring has no scope. */
     canAuthorModules: boolean;
@@ -37,6 +39,7 @@ type StudioNodePanelProps = {
  */
 export function StudioNodePanel({
     competency,
+    existingAreas,
     readiness,
     canAuthorModules,
     isSaving,
@@ -110,6 +113,7 @@ export function StudioNodePanel({
             {isEditing ? (
                 <CompetencyNodeEditor
                     competencyKey={competency.key}
+                    existingAreas={existingAreas}
                     isSaving={isSaving}
                     error={editError}
                     onClearError={onClearEditError}

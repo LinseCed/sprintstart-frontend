@@ -13,6 +13,7 @@ const graph: LiveGraph = {
             label: 'Kotlin',
             description: null,
             kind: 'SKILL',
+            area: null,
             targetLevel: 2,
             invariant: false
         },
@@ -21,6 +22,7 @@ const graph: LiveGraph = {
             label: 'Spring',
             description: 'How we wire the backend',
             kind: 'SKILL',
+            area: null,
             targetLevel: 2,
             invariant: false
         }
@@ -45,6 +47,7 @@ function Harness({
     return (
         <StudioNodePanel
             competency={competency}
+            existingAreas={[]}
             readiness={{ activeModuleId: null, pending: null }}
             canAuthorModules
             isSaving={editing.isSaving}
@@ -75,6 +78,7 @@ describe('StudioNodePanel', () => {
             label: 'Spring',
             description: 'How we wire the backend',
             kind: 'SKILL',
+            area: null,
             targetLevel: 2,
             invariant: false
         });
@@ -113,6 +117,7 @@ describe('StudioNodePanel', () => {
                 label: 'Spring Boot',
                 description: 'How we wire the backend',
                 kind: 'SKILL',
+                area: null,
                 targetLevel: 2,
                 invariant: false
             });
