@@ -9,6 +9,7 @@ const competency: LiveCompetency = {
     label: 'Kotlin',
     description: null,
     kind: 'SKILL',
+    area: null,
     targetLevel: 2,
     invariant: false
 };

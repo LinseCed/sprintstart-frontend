@@ -23,6 +23,8 @@ function slugify(raw: string): string {
 }
 
 type NewCompetencyModalProps = {
+    /** The areas already in use, so a new competency joins one instead of coining a synonym. */
+    existingAreas: string[];
     isSaving: boolean;
     /** The last create error, rendered in place rather than as a toast. */
     error: string | null;
@@ -42,6 +44,7 @@ type NewCompetencyModalProps = {
  * Compose" visibly resolving to `docker-compose` is not a surprise on save.
  */
 export function NewCompetencyModal({
+    existingAreas,
     isSaving,
     error,
     onClearError,
@@ -55,6 +58,7 @@ export function NewCompetencyModal({
     const [keyTouched, setKeyTouched] = useState(false);
     const [description, setDescription] = useState('');
     const [kind, setKind] = useState<CompetencyKind>('SKILL');
+    const [area, setArea] = useState('');
     const [targetLevel, setTargetLevel] = useState(2);
     const [invariant, setInvariant] = useState(false);
 
@@ -70,6 +74,7 @@ export function NewCompetencyModal({
             label: label.trim(),
             description: description.trim() || undefined,
             kind,
+            area: area.trim() || undefined,
             targetLevel,
             invariant
         });
@@ -168,6 +173,32 @@ export function NewCompetencyModal({
                         onChange={event => setDescription(event.target.value)}
                         className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                     />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor="new-competency-area"
+                        className="mb-1 block text-xs font-medium text-app-text"
+                    >
+                        Area
+                    </label>
+                    <input
+                        id="new-competency-area"
+                        list="new-competency-area-options"
+                        value={area}
+                        placeholder="e.g. Authentication"
+                        onChange={event => setArea(event.target.value)}
+                        className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                    />
+                    <datalist id="new-competency-area-options">
+                        {existingAreas.map(option => (
+                            <option key={option} value={option} />
+                        ))}
+                    </datalist>
+                    <p className="mt-1 text-xs text-app-text-muted">
+                        What it is about, so the buddy can offer its neighbours. Optional — leave it
+                        empty if nothing fits.
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

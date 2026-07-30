@@ -20,6 +20,15 @@ export type LiveCompetency = {
     label: string;
     description: string | null;
     kind: CompetencyKind;
+    /**
+     * What this competency is about, for grouping — "Authentication", "Ingestion".
+     *
+     * This is what replaced the graph: `RELATED` edges were already describing a grouping ("same
+     * area of the system") and storing it as a DAG that every consumer filtered out. `null` is a
+     * real state, "not grouped yet" — nothing populates it automatically until generation runs on
+     * ingestion, so a hand-authored vocabulary is mostly ungrouped today.
+     */
+    area: string | null;
     /** The level a hire must reach for this to count as held (1..4). */
     targetLevel: number;
     /** Compliance-flagged: this one is not casually removed. */
@@ -40,6 +49,12 @@ export type CreateCompetencyInput = {
     label: string;
     description?: string;
     kind: CompetencyKind;
+    /**
+     * What it is about, for grouping. Free text: a fixed list of areas cannot fit an unknown
+     * codebase. One that differs from an existing area only in case or spacing is stored as the
+     * existing one, so the grouping cannot fragment into synonyms of itself.
+     */
+    area?: string;
     targetLevel?: number;
     invariant?: boolean;
 };
@@ -49,6 +64,8 @@ export type UpdateCompetencyInput = {
     label?: string;
     description?: string;
     kind?: CompetencyKind;
+    /** Blank clears the grouping, the way a blank description clears one. */
+    area?: string;
     targetLevel?: number;
     invariant?: boolean;
 };

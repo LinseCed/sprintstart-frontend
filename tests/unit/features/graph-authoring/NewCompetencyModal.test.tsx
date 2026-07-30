@@ -9,6 +9,7 @@ function renderModal(overrides: Partial<Parameters<typeof NewCompetencyModal>[0]
     const onClearError = overrides.onClearError ?? vi.fn();
     render(
         <NewCompetencyModal
+            existingAreas={[]}
             isSaving={false}
             error={null}
             onClearError={onClearError}
@@ -84,5 +85,41 @@ describe('NewCompetencyModal', () => {
     it('renders a create error in place', () => {
         renderModal({ error: 'A competency with key docker already exists in the graph' });
         expect(screen.getByTestId('new-competency-error')).toHaveTextContent(/already exists/i);
+    });
+
+    it('sends the area so a new competency can be grouped from the start', async () => {
+        const user = userEvent.setup();
+        const { onCreate } = renderModal({ existingAreas: ['Authentication'] });
+
+        await user.type(screen.getByLabelText('Name'), 'Session store');
+        await user.type(screen.getByLabelText('Area'), 'Authentication');
+        await user.click(screen.getByTestId('create-competency'));
+
+        expect(onCreate).toHaveBeenCalledWith(
+            expect.objectContaining({ area: 'Authentication' })
+        );
+    });
+
+    it('leaves the area out entirely when none is given', async () => {
+        const user = userEvent.setup();
+        const { onCreate } = renderModal();
+
+        await user.type(screen.getByLabelText('Name'), 'Kotlin');
+        await user.click(screen.getByTestId('create-competency'));
+
+        // Ungrouped is a real state, so an empty field must not become an empty-string area.
+        expect(onCreate).toHaveBeenCalledWith(
+            expect.objectContaining({ area: undefined })
+        );
+    });
+
+    it('offers the areas already in use, so a PM lands on the existing spelling', () => {
+        renderModal({ existingAreas: ['Authentication', 'Ingestion'] });
+
+        const options = document.querySelectorAll('#new-competency-area-options option');
+        expect([...options].map(option => option.getAttribute('value'))).toEqual([
+            'Authentication',
+            'Ingestion'
+        ]);
     });
 });

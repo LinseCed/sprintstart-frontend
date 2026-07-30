@@ -71,6 +71,12 @@ export function GraphStudioPage() {
 
     const selectedCompetency = graph.competencies.find(node => node.key === selectedKey) ?? null;
 
+    // The grouping that already exists, offered wherever an area is typed. Derived rather than
+    // fetched: the vocabulary is already in hand, and a second read could disagree with it.
+    const existingAreas = [
+        ...new Set(graph.competencies.map(node => node.area).filter((area): area is string => Boolean(area)))
+    ].sort((a, b) => a.localeCompare(b));
+
     const addButton = (testId: string) =>
         canAuthor && (
             <button
@@ -193,6 +199,7 @@ export function GraphStudioPage() {
                     {selectedCompetency && (
                         <StudioNodePanel
                             competency={selectedCompetency}
+                            existingAreas={existingAreas}
                             readiness={readinessByKey.get(selectedCompetency.key) ?? NO_MODULE}
                             canAuthorModules={canAuthor && Boolean(selectedProjectId)}
                             isSaving={isSaving}
@@ -226,6 +233,7 @@ export function GraphStudioPage() {
 
             {isCreateOpen && (
                 <NewCompetencyModal
+                    existingAreas={existingAreas}
                     isSaving={isSaving}
                     error={editError}
                     onClearError={clearEditError}
