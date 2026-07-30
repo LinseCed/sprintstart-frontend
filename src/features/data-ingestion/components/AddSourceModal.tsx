@@ -16,7 +16,7 @@ import {
   GithubRepositoryDiscovery,
   type DiscoverySelection,
 } from "./GithubRepositoryDiscovery.tsx";
-import { ComingSoonStep, SourceTypeStep } from "./sourceTypeStep.tsx";
+import { ComingSoonStep, SourceTypeStep } from "./SourceTypeStep.tsx";
 
 type AddSourceModalProps = {
   projectId: string | null;
