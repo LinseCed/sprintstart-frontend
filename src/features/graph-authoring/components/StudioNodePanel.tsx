@@ -102,7 +102,7 @@ export function StudioNodePanel({
                 />
             ) : (
                 <p className="text-xs text-app-text-subtle">
-                    Pick a project above to author this competency&apos;s module — competencies are
+                    Pick a project in the sidebar switcher to author this competency&apos;s module — competencies are
                     shared, but a module is written against one project&apos;s corpus.
                 </p>
             )}

@@ -11,6 +11,7 @@ vi.mock('../../../src/services/projectService', () => ({
             id: 'p1',
             name: 'SprintStart',
             description: 'Main application',
+            manager: null,
             tags: [],
             sources: [
                 { id: 's1', name: 'GitHub', type: 'GITHUB', status: 'CONNECTED' }
@@ -35,6 +36,7 @@ const project: ProjectOverview = {
     id: 'p1',
     name: 'SprintStart',
     description: 'Main application',
+    manager: null,
     sources: [],
     users: []
 };

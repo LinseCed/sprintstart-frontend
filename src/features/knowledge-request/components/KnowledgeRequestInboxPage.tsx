@@ -5,8 +5,7 @@ import { useAuth } from '../../../context/useAuth';
 import { useFetch } from '../../../hooks/useFetch';
 import { PermissionGroup } from '../../../services/types';
 import { knowledgeRequestService } from '../../../services/knowledgeRequestService';
-import { ProjectSelect } from '../../projects/components/ProjectSelect';
-import { useProjectSelection } from '../../projects/useProjectSelection';
+import { useProjectContext } from '../../projects/useProjectContext';
 import { RequestCard } from './RequestCard';
 import { CanonicalAnswerCard } from './CanonicalAnswerCard';
 
@@ -27,13 +26,7 @@ export function KnowledgeRequestInboxPage() {
         profile?.permissionGroup === PermissionGroup.PM ||
         profile?.permissionGroup === PermissionGroup.ADMIN;
 
-    const {
-        projects,
-        selectedProjectId,
-        isLoading: projectsLoading,
-        errorMessage: projectsError,
-        setSelectedProjectId,
-    } = useProjectSelection({ isAdmin: profile?.permissionGroup === PermissionGroup.ADMIN });
+    const { projects, selectedProjectId, isLoading: projectsLoading } = useProjectContext();
 
     const [tab, setTab] = useState<Tab>('open');
     // Bumped after any mutation so both lists reload against the server, keeping the queue and the
@@ -106,15 +99,6 @@ export function KnowledgeRequestInboxPage() {
                         icon={Inbox}
                         title="Escalation inbox"
                         subtitle="Questions the buddy could not answer, sent to a person. Answer one once and it becomes durable knowledge the buddy serves to everyone after."
-                        actions={
-                            <ProjectSelect
-                                projects={projects}
-                                selectedProjectId={selectedProjectId}
-                                isLoading={projectsLoading}
-                                errorMessage={projectsError}
-                                onChange={setSelectedProjectId}
-                            />
-                        }
                     />
                 </div>
             </header>

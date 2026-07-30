@@ -9,19 +9,23 @@
 
 import { ArrowRight, Database, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { buildDataSources, INGESTION_RUN_LIMIT } from "../data.ts";
-import { getIngestionRuns, getIngestionStatus } from "../../../services/ingestionService.ts";
+import { createSourceFromInstance } from "../data.ts";
+import { getIngestionSourceStatuses } from "../../../services/ingestionService.ts";
 import { useFetch } from "../../../hooks/useFetch.ts";
+import { useProjectContext } from "../../projects/useProjectContext.ts";
 import { ClickableCard } from "../../../components/common/ClickableCard.tsx";
 import { IngestionMetrics } from "./IngestionMetrics.tsx";
 
-async function fetchIngestionSources() {
-    const [statusData, runData] = await Promise.all([
-        getIngestionStatus(),
-        getIngestionRuns(INGESTION_RUN_LIMIT),
-    ]);
+/**
+ * One row per connected repository, scoped to the selected project — the same
+ * granularity the Data Ingestion page shows. The per-source-system aggregate
+ * used previously collapsed every GitHub repo into a single row, so a project
+ * with three connected repos reported "1/1 synced".
+ */
+async function fetchIngestionSources(projectId: string) {
+    const instances = await getIngestionSourceStatuses(projectId);
 
-    return buildDataSources(statusData, runData);
+    return instances.map(createSourceFromInstance);
 }
 
 /**
@@ -32,9 +36,10 @@ async function fetchIngestionSources() {
  */
 export function IngestionStatusWidget() {
     const navigate = useNavigate();
+    const { selectedProjectId } = useProjectContext();
     const { data: sources, loading, error } = useFetch(
-        () => fetchIngestionSources(),
-        [],
+        () => fetchIngestionSources(selectedProjectId),
+        [selectedProjectId],
     );
 
     // ── LOADING ──────────────────────────────────────────────

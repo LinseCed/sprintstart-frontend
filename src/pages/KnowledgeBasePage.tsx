@@ -1,13 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Plus } from 'lucide-react';
-import { knowledgeService } from '../services/knowledgeService';
-import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer, UploadArtifactModal } from '../features/knowledge-base/components';
-import type { KnowledgeTab } from '../features/knowledge-base/components';
+import { BookOpen, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArtifactFilters, ArtifactList, ArtifactViewerDrawer } from '../features/knowledge-base/components';
 import { Pagination } from '../components/ui/Pagination';
-import type { Artifact } from '../features/knowledge-base/types';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../context/useAuth';
+import { PermissionGroup } from '../services/types';
+import { useKnowledgeBase } from '../features/knowledge-base/hooks/useKnowledgeBase';
+import { useProjectContext } from '../features/projects/useProjectContext';
+
+/** Roles allowed to delete uploaded artifacts. Pattern A gate mirroring
+ *  `SettingsPage`'s PAT_ALLOWED_GROUPS — keeps destructive uploads deletion
+ *  out of reach of plain USER accounts. */
+const DELETE_ALLOWED_GROUPS: ReadonlySet<PermissionGroup> = new Set([
+    PermissionGroup.PM,
+    PermissionGroup.HR,
+    PermissionGroup.ADMIN,
+]);
 
 /**
  * Unified Knowledge Base view for project resources.
@@ -15,114 +24,43 @@ import { useAuth } from '../context/useAuth';
  * Bound to the `/knowledge-base` route (accessible to all permission groups).
  * Displays all artifacts (uploads, github, etc.) in a filtered grid, with a side
  * drawer for viewing raw content and AI summaries. Artifacts are fetched via
- * `knowledgeService.getUnifiedArtifacts`, scoped to the user's first project id.
+ * `knowledgeService.getUnifiedArtifacts`, scoped to the globally selected
+ * project.
  *
- * @remarks Known limitation: only `profile.projectIds[0]` is used. Users with
- * multiple projects currently see artifacts for the first one only.
+ * Users without a project switcher fall back to their first assigned project,
+ * which is what the global selection resolves to for them anyway.
  */
 export function KnowledgeBasePage() {
     const { profile } = useAuth();
-    // TODO: support project switching — currently only the first project is scoped.
-    const projectId = profile?.projectIds?.[0] ?? null;
+    const { selectedProjectId } = useProjectContext();
+    const projectId = selectedProjectId || (profile?.projectIds?.[0] ?? null);
 
-    const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-    // Initial loading only when a project is available; the effect's finally block
-    // flips this back to false after the first fetch completes or fails.
-    const [isLoading, setIsLoading] = useState(projectId !== null);
+    const canDeleteUpload =
+        profile !== null && DELETE_ALLOWED_GROUPS.has(profile.permissionGroup);
 
-    // Filter State
-    const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<KnowledgeTab>('ALL');
+    const {
+        artifacts,
+        isLoading,
+        fetchError,
+        fetchArtifacts,
+        searchQuery,
+        activeTab,
+        currentPage,
+        totalPages,
+        filteredArtifacts,
+        paginatedArtifacts,
+        handleSearchChange,
+        handleTabChange,
+        setCurrentPage,
+        handleClearFilters,
+        hasActiveFilters,
+    } = useKnowledgeBase(projectId);
 
-    // Pagination State
-    const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 20;
-
-    // Viewer State
     const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
 
-    // Upload State
-    const [isUploadScreenOpen, setIsUploadScreenOpen] = useState(false);
-
-    /**
-     * Loads the initial batch of unified artifacts from the backend.
-     * Depends on the authenticated user's projectId to fetch the correct project scope.
-     */
-    useEffect(() => {
-        if (!projectId) return;
-
-        let isMounted = true;
-
-        knowledgeService.getUnifiedArtifacts(projectId)
-            .then(data => {
-                if (isMounted) setArtifacts(data);
-            })
-            .catch(error => {
-                console.error("Failed to load artifacts", error);
-            })
-            .finally(() => {
-                if (isMounted) setIsLoading(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [projectId]);
-
-    // Derived Filtered List
-    const filteredArtifacts = useMemo(() => {
-        return artifacts.filter(artifact => {
-            const searchableText = [
-                artifact.title ?? '',
-                artifact.sourceId,
-                artifact.sourceUrl ?? '',
-            ].join(' ').toLowerCase();
-
-            const matchesSearch = !searchQuery || searchableText.includes(searchQuery.toLowerCase());
-            
-            // Tab mapping logic
-            let matchesTab = false;
-            switch (activeTab) {
-                case 'ALL':
-                    matchesTab = true;
-                    break;
-                case 'UPLOADS':
-                    matchesTab = artifact.sourceSystem === 'UPLOAD';
-                    break;
-                case 'PR':
-                    matchesTab = artifact.artifactType === 'PULL_REQUEST';
-                    break;
-                case 'ISSUES':
-                    matchesTab = artifact.artifactType === 'ISSUE';
-                    break;
-                case 'FILES':
-                    matchesTab = artifact.sourceSystem === 'GITHUB' && artifact.artifactType === 'FILE';
-                    break;
-                case 'COMMITS':
-                    matchesTab = artifact.artifactType === 'COMMIT';
-                    break;
-            }
-
-            return matchesSearch && matchesTab;
-        });
-    }, [artifacts, searchQuery, activeTab]);
-
-
-    const totalPages = Math.ceil(filteredArtifacts.length / ITEMS_PER_PAGE);
-    
-    const paginatedArtifacts = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredArtifacts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredArtifacts, currentPage]);
-
     const selectedArtifact = useMemo(() =>
-        artifacts.find(a => a.id === selectedArtifactId) || null,
+        artifacts.find(a => a.id === selectedArtifactId) ?? null,
     [artifacts, selectedArtifactId]);
-
-    const handleClearFilters = () => {
-        setSearchQuery('');
-        setActiveTab('ALL');
-    };
 
     return (
         <div className="min-h-screen bg-app-bg text-app-text flex flex-col">
@@ -150,7 +88,6 @@ export function KnowledgeBasePage() {
                         </div>
                     ) : (
                         <>
-                            {/* Filters */}
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -158,26 +95,22 @@ export function KnowledgeBasePage() {
                             >
                                 <ArtifactFilters
                                     searchQuery={searchQuery}
-                                    onSearchChange={(query) => {
-                                        setSearchQuery(query);
-                                        setCurrentPage(1);
-                                    }}
+                                    onSearchChange={handleSearchChange}
                                     activeTab={activeTab}
-                                    onTabChange={(tab) => {
-                                        setActiveTab(tab);
-                                        setCurrentPage(1);
-                                    }}
+                                    onTabChange={handleTabChange}
+                                    onRefresh={() => void fetchArtifacts()}
+                                    isRefreshing={isLoading}
                                 />
                             </motion.div>
 
-                            {/* Results Count & Clear */}
                             <div className="flex items-center justify-between mt-8 mb-4">
                                 <p className="text-sm font-medium text-app-text-muted">
                                     {filteredArtifacts.length} {filteredArtifacts.length === 1 ? 'result' : 'results'}
                                 </p>
-                                {(searchQuery || activeTab !== 'ALL') && (
+                                {hasActiveFilters && (
                                     <button
                                         onClick={handleClearFilters}
+                                        data-testid="kb-clear-filters"
                                         className="text-sm font-medium text-app-brand hover:underline"
                                     >
                                         Clear filters
@@ -185,12 +118,33 @@ export function KnowledgeBasePage() {
                                 )}
                             </div>
 
-                            {/* Main List */}
+                            {fetchError && !isLoading && (
+                                <div
+                                    role="alert"
+                                    aria-live="assertive"
+                                    className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-app-danger-border bg-app-danger-bg p-4 text-app-danger-text"
+                                    data-testid="kb-fetch-error"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <AlertTriangle className="h-5 w-5 shrink-0" />
+                                        <span className="text-sm font-medium">{fetchError}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => void fetchArtifacts()}
+                                        data-testid="kb-retry-fetch"
+                                        className="flex items-center gap-2 rounded-lg border border-app-danger-border px-3 py-1.5 text-sm font-medium hover:bg-app-surface-hover"
+                                    >
+                                        <RefreshCw className="h-4 w-4" />
+                                        Retry
+                                    </button>
+                                </div>
+                            )}
+
                             {isLoading ? (
-                                <div className="flex justify-center p-12">
+                                <div className="flex justify-center p-12" aria-busy="true" aria-live="polite">
                                     <div className="w-8 h-8 border-4 border-app-brand border-t-transparent rounded-full animate-spin"></div>
                                 </div>
-                            ) : (
+                            ) : fetchError ? null : (
                                 <>
                                     <ArtifactList
                                         artifacts={paginatedArtifacts}
@@ -213,36 +167,16 @@ export function KnowledgeBasePage() {
                     )}
                 </div>
 
-                {/* Upload Action Button */}
-                {projectId && (
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setIsUploadScreenOpen(true)}
-                        className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-brand text-white shadow-lg shadow-app-brand/25 transition-colors hover:bg-app-brand-hover focus:outline-none focus:ring-2 focus:ring-app-brand focus:ring-offset-2 focus:ring-offset-app-bg"
-                        aria-label="Upload new artifact"
-                    >
-                        <Plus className="h-6 w-6" />
-                    </motion.button>
-                )}
-
-                {/* Upload Modal */}
-                {projectId && (
-                    <UploadArtifactModal
-                        isOpen={isUploadScreenOpen}
-                        onClose={() => setIsUploadScreenOpen(false)}
-                        projectId={projectId}
-                    />
-                )}
-
-                {/* Viewer Drawer */}
                 {projectId && (
                     <ArtifactViewerDrawer
                         artifact={selectedArtifact}
                         onClose={() => setSelectedArtifactId(null)}
                         projectId={projectId}
+                        canDelete={canDeleteUpload}
+                        onDelete={() => {
+                            setSelectedArtifactId(null);
+                            void fetchArtifacts();
+                        }}
                     />
                 )}
             </main>

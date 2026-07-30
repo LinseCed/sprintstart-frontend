@@ -24,7 +24,6 @@ import type { CreateStarterWorkTaskInput } from '../features/starter-work/types'
 export function StarterWorkPage() {
     const { profile } = useAuth();
     const canAct = profile?.permissionGroup !== PermissionGroup.HR;
-    const isAdmin = profile?.permissionGroup === PermissionGroup.ADMIN;
     // Loaded here rather than inside the modal so opening the form never waits on a fetch. An
     // empty list degrades to "Any role" only, which is a usable form rather than a broken one.
     const { data: tracks } = useFetch(() => trackService.fetchTracks(), []);
@@ -164,7 +163,7 @@ export function StarterWorkPage() {
 
                 {/* Authoring a task's orientation is PM/ADMIN only, matching the backend role split —
                     HR reviews the queue but does not write hire-facing content. */}
-                {canAct && <TaskOrientationManager isAdmin={isAdmin} />}
+                {canAct && <TaskOrientationManager />}
             </main>
 
             {isCreateOpen && (

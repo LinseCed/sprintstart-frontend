@@ -7,6 +7,20 @@ import * as useAuthHook from '../../../../src/context/useAuth';
 import { ThemeProvider } from '../../../../src/context/ThemeProvider';
 import { PermissionGroup } from '../../../../src/services/types';
 
+vi.mock('../../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import('../../setup/projectContext');
+    const project = createSelectableProject({ id: 'proj1' });
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                projects: [project],
+                selectedProject: project,
+                selectedProjectId: 'proj1',
+                canManageSelected: true,
+            }),
+    };
+});
+
 vi.mock('../../../../src/context/useAuth', () => ({
     useAuth: vi.fn(),
 }));

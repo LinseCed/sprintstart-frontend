@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, BookOpen, Loader2, Network, Plus } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { ProjectSelect } from '../features/projects/components/ProjectSelect';
-import { useProjectSelection } from '../features/projects/useProjectSelection';
+import { useProjectContext } from '../features/projects/useProjectContext';
 import { StudioNodePanel } from '../features/graph-authoring/components/StudioNodePanel';
 import { NewCompetencyModal } from '../features/graph-authoring/components/NewCompetencyModal';
 import { useGraphEditing } from '../features/graph-authoring/hooks/useGraphEditing';
@@ -34,13 +33,7 @@ export function GraphStudioPage() {
 
     const { graph, isLoading, error: graphError, reload } = useLiveGraph();
 
-    const {
-        projects,
-        selectedProjectId,
-        setSelectedProjectId,
-        isLoading: projectsLoading,
-        errorMessage: projectsError
-    } = useProjectSelection({ isAdmin: profile?.permissionGroup === PermissionGroup.ADMIN });
+    const { selectedProjectId } = useProjectContext();
 
     const {
         readinessByKey,
@@ -100,13 +93,6 @@ export function GraphStudioPage() {
                     subtitle="The shared competency vocabulary and the module behind each one. Nothing here is anyone's personal progress."
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
-                            <ProjectSelect
-                                projects={projects}
-                                selectedProjectId={selectedProjectId}
-                                isLoading={projectsLoading}
-                                errorMessage={projectsError}
-                                onChange={setSelectedProjectId}
-                            />
                             {addButton('add-competency')}
                         </div>
                     }

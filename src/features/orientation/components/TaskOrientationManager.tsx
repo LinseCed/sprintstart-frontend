@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, Loader2, PencilLine } from 'lucide-react';
-import { ProjectSelect } from '../../projects/components/ProjectSelect';
-import { useProjectSelection } from '../../projects/useProjectSelection';
+import { useProjectContext } from '../../projects/useProjectContext';
 import { OrientationEditor } from './OrientationEditor';
 import { orientationService } from '../../../services/orientationService';
 import { starterWorkService } from '../../../services/starterWorkService';
 import type { StarterWorkTask } from '../../starter-work/types';
 import type { MyOrientation } from '../types';
-
-type TaskOrientationManagerProps = {
-    /** ADMIN sees the richer project listing; a PM uses the self-service one (see useProjectSelection). */
-    isAdmin: boolean;
-};
 
 /**
  * PM/ADMIN surface for authoring a task's orientation by hand.
@@ -21,14 +15,8 @@ type TaskOrientationManagerProps = {
  * corpus it grounds in is per-project, so a project must be chosen before editing — the approved pool
  * itself is global. A human packet is served as-is and never AI-regenerated.
  */
-export function TaskOrientationManager({ isAdmin }: TaskOrientationManagerProps) {
-    const {
-        projects,
-        selectedProjectId,
-        setSelectedProjectId,
-        isLoading: projectsLoading,
-        errorMessage: projectsError
-    } = useProjectSelection({ isAdmin });
+export function TaskOrientationManager() {
+    const { selectedProjectId } = useProjectContext();
 
     const [tasks, setTasks] = useState<StarterWorkTask[]>([]);
     const [tasksLoading, setTasksLoading] = useState(true);
@@ -80,13 +68,6 @@ export function TaskOrientationManager({ isAdmin }: TaskOrientationManagerProps)
                     <BookOpen className="h-4 w-4 text-app-text-muted" aria-hidden="true" />
                     <h2 className="text-sm font-semibold text-app-text">Task orientation</h2>
                 </div>
-                <ProjectSelect
-                    projects={projects}
-                    selectedProjectId={selectedProjectId}
-                    isLoading={projectsLoading}
-                    errorMessage={projectsError}
-                    onChange={setSelectedProjectId}
-                />
             </div>
             <p className="mb-4 text-xs text-app-text-muted">
                 Write the guide for an approved task yourself, or hand it back to the AI. Orientation is

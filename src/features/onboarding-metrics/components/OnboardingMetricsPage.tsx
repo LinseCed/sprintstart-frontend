@@ -1,12 +1,9 @@
 import { useMemo } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, FolderKanban, Gauge, Loader2 } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
-import { useAuth } from '../../../context/useAuth';
 import { useFetch } from '../../../hooks/useFetch';
-import { PermissionGroup } from '../../../services/types';
 import { onboardingMetricsService } from '../../../services/onboardingMetricsService';
-import { ProjectSelect } from '../../projects/components/ProjectSelect';
-import { useProjectSelection } from '../../projects/useProjectSelection';
+import { useProjectContext } from '../../projects/useProjectContext';
 import { HireTimelineCard } from './HireTimelineCard';
 import { StatTile } from './StatTile';
 import { formatDuration } from '../format';
@@ -36,14 +33,7 @@ function hasActivity(hires: HireTimeline[]): boolean {
  * data yet".
  */
 export function OnboardingMetricsPage() {
-    const { profile } = useAuth();
-    const {
-        projects,
-        selectedProjectId,
-        isLoading: projectsLoading,
-        errorMessage: projectsError,
-        setSelectedProjectId
-    } = useProjectSelection({ isAdmin: profile?.permissionGroup === PermissionGroup.ADMIN });
+    const { projects, selectedProjectId, isLoading: projectsLoading } = useProjectContext();
 
     const {
         data: metrics,
@@ -75,15 +65,6 @@ export function OnboardingMetricsPage() {
                     icon={Gauge}
                     title="Onboarding metrics"
                     subtitle="Time to a first accepted piece of work, response latency, and who is stalled — the measures the onboarding redesign is judged on."
-                    actions={
-                        <ProjectSelect
-                            projects={projects}
-                            selectedProjectId={selectedProjectId}
-                            isLoading={projectsLoading}
-                            errorMessage={projectsError}
-                            onChange={setSelectedProjectId}
-                        />
-                    }
                 />
             </div>
         </header>

@@ -6,6 +6,20 @@ import { starterWorkService } from '../../../../src/services/starterWorkService'
 import { userService } from '../../../../src/services/userService';
 import type { StarterWorkTask } from '../../../../src/features/starter-work/types';
 
+vi.mock('../../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import(
+        '../../setup/projectContext'
+    );
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                selectedProjectId: 'p1',
+                projects: [createSelectableProject({ id: 'p1', name: 'Project One' })],
+                selectedProject: createSelectableProject({ id: 'p1', name: 'Project One' }),
+            }),
+    };
+});
+
 const permissionGroup = vi.hoisted(() => ({ current: 'PM' }));
 
 vi.mock('../../../../src/context/useAuth', () => ({

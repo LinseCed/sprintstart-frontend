@@ -7,6 +7,20 @@ import { MemoryRouter } from 'react-router-dom';
 import { GraphStudioPage } from '../../../src/pages/GraphStudioPage';
 import { server } from '../setup/vitest.setup';
 
+vi.mock('../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import(
+        '../setup/projectContext'
+    );
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                selectedProjectId: 'p1',
+                projects: [createSelectableProject({ id: 'p1', name: 'Project One' })],
+                selectedProject: createSelectableProject({ id: 'p1', name: 'Project One' }),
+            }),
+    };
+});
+
 vi.mock('../../../src/context/useAuth', () => ({
     useAuth: () => ({
         profile: {

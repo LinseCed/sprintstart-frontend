@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { Check, Flag } from 'lucide-react';
 import { AutoResizeTextarea } from '../../../components/ui/AutoResizeTextarea';
-import { useProjectSelection } from '../../projects/useProjectSelection';
+import { useProjectContext } from '../../projects/useProjectContext';
 import { knowledgeRequestService } from '../../../services/knowledgeRequestService';
 
 type FlagToPmButtonProps = {
@@ -15,7 +15,7 @@ type FlagToPmButtonProps = {
  * person never hits the same wall. Hidden when the hire is on no project (there is no PM to route to).
  */
 export function FlagToPmButton({ defaultQuestion = '' }: FlagToPmButtonProps) {
-    const { selectedProjectId } = useProjectSelection();
+    const { selectedProjectId } = useProjectContext();
     const fieldId = useId();
     const [isOpen, setIsOpen] = useState(false);
     const [question, setQuestion] = useState(defaultQuestion);

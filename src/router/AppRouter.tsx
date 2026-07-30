@@ -1,4 +1,8 @@
+import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
+import { useProjectContext } from '../features/projects/useProjectContext';
+import { canAccessRoute, getDefaultRoute, type AppRoute } from '../auth/accessPolicy';
 import { ChatPage } from '../pages/ChatPage';
 import { DashboardPage } from '../pages/DashboardPage.tsx';
 import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
@@ -14,6 +18,7 @@ import { TeamManagementPage } from '../pages/TeamManagementPage.tsx';
 import { TeamMemberDetailPage } from '../pages/TeamMemberDetailPage.tsx';
 import { PmDashboardPage } from '../pages/PmDashboardPage.tsx';
 import { AdminPage } from '../pages/AdminPage.tsx';
+import { SettingsPage } from '../pages/SettingsPage.tsx';
 import { FaqPage } from '../features/faq/components/FaqPage.tsx';
 import { FaqDetailPage } from '../features/faq/components/FaqDetailPage.tsx';
 import { KnowledgeGapsPage } from '../features/knowledge-gaps/components/KnowledgeGapsPage.tsx';
@@ -21,9 +26,42 @@ import { KnowledgeGapsDetailPage } from '../features/knowledge-gaps/components/K
 import { KnowledgeRequestInboxPage } from '../features/knowledge-request/components/KnowledgeRequestInboxPage.tsx';
 import { CompetencyDashboardPage } from '../features/competency-dashboard/components/CompetencyDashboardPage.tsx';
 import { OnboardingMetricsPage } from '../features/onboarding-metrics/components/OnboardingMetricsPage.tsx';
-import { ProfilePage } from '../pages/ProfilePage.tsx';
 import { ModuleEditorPage } from '../pages/ModuleEditorPage.tsx';
 import { BoardPage } from '../pages/BoardPage.tsx';
+import { NotFoundPage } from '../pages/NotFoundPage.tsx';
+
+/**
+ * Blocks direct navigation to a manager-scoped route when the user may not
+ * access it — most notably a PM who only has member access to the selected
+ * project reaching `/pm-dashboard` or `/data-ingestion` by URL, which the
+ * sidebar merely hides. Waits for the project context to load before deciding
+ * so a managing PM is never bounced on the transient empty state during initial
+ * load.
+ */
+function ManagerAreaGuard({
+    route,
+    children,
+}: {
+    route: AppRoute;
+    children: ReactNode;
+}) {
+    const { profile } = useAuth();
+    const { canManageSelected, isLoading } = useProjectContext();
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-app-bg">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-app-brand border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (!canAccessRoute(profile, route, canManageSelected)) {
+        return <Navigate to={getDefaultRoute(profile)} replace />;
+    }
+
+    return <>{children}</>;
+}
 
 export function AppRouter() {
     return (
@@ -51,7 +89,14 @@ export function AppRouter() {
                 <Route path="/my-path/module/:moduleId" element={<Navigate to="/buddy" replace />} />
                 <Route path="/competency-modules/:moduleId" element={<ModuleEditorPage />} />
                 <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
-                <Route path="/data-ingestion" element={<DataIngestionPage />} />
+                <Route
+                    path="/data-ingestion"
+                    element={
+                        <ManagerAreaGuard route="/data-ingestion">
+                            <DataIngestionPage />
+                        </ManagerAreaGuard>
+                    }
+                />
                 <Route path="/setup" element={<OnboardingSetupPage />} />
                 <Route path="/setup/review" element={<ReviewInboxPage />} />
                 <Route path="/graph-studio" element={<GraphStudioPage />} />
@@ -60,7 +105,14 @@ export function AppRouter() {
                 <Route path="/starter-work" element={<StarterWorkPage />} />
                 <Route path="/team-management" element={<TeamManagementPage />} />
                 <Route path="/team/:userId" element={<TeamMemberDetailPage />} />
-                <Route path="/pm-dashboard" element={<PmDashboardPage />} />
+                <Route
+                    path="/pm-dashboard"
+                    element={
+                        <ManagerAreaGuard route="/pm-dashboard">
+                            <PmDashboardPage />
+                        </ManagerAreaGuard>
+                    }
+                />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/insights/faq" element={<FaqPage />} />
                 <Route path="/insights/faq/:groupId" element={<FaqDetailPage />} />
@@ -72,7 +124,9 @@ export function AppRouter() {
                 />
                 <Route path="/insights/competencies" element={<CompetencyDashboardPage />} />
                 <Route path="/insights/onboarding" element={<OnboardingMetricsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<Navigate to="/settings" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
             </Routes>
         </AuthGuard>
     );

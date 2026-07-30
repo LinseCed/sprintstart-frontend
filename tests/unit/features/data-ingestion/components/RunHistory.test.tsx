@@ -7,13 +7,19 @@ function createMockRun(overrides: Partial<IngestionRun> = {}): IngestionRun {
     return {
         runId: 'run-1',
         sourceSystem: 'GITHUB',
+        sourceId: null,
+        owner: null,
+        name: null,
+        repositoryId: null,
         startedAt: '2026-07-05T10:00:00Z',
         finishedAt: '2026-07-05T10:05:00Z',
         ingestedCount: 10,
         updatedCount: 3,
+        deletedCount: 0,
         failedCount: 0,
         status: 'COMPLETED',
         failedItems: [],
+        failureReason: null,
         aiSyncStatus: 'SUCCEEDED',
         aiSyncFailureReason: null,
         ...overrides,
@@ -34,6 +40,13 @@ describe('RunHistory', () => {
                 'The backend did not return any ingestion runs yet.',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('shows a filtered empty state when filters are active', () => {
+        render(<RunHistory runs={[]} isFiltered />);
+
+        expect(screen.getByText('No runs match these filters')).toBeInTheDocument();
+        expect(screen.queryByText('No ingestion runs found')).not.toBeInTheDocument();
     });
 
     it('renders the table header row on desktop view', () => {
@@ -112,6 +125,28 @@ describe('RunHistory', () => {
         expect(screen.getByText('Ingested: 25')).toBeInTheDocument();
         expect(screen.getByText('Updated: 10')).toBeInTheDocument();
         expect(screen.getByText('Failed: 4')).toBeInTheDocument();
+    });
+
+    it('renders a Deleted pill only when the run deleted artifacts', () => {
+        render(<RunHistory runs={[createMockRun({ deletedCount: 4 })]} />);
+        expect(screen.getByText('Deleted: 4')).toBeInTheDocument();
+    });
+
+    it('hides the Deleted pill when nothing was deleted', () => {
+        render(<RunHistory runs={[createMockRun({ deletedCount: 0 })]} />);
+        expect(screen.queryByText(/^Deleted:/)).not.toBeInTheDocument();
+    });
+
+    it('exposes the run-level failure reason on the failed status badge', () => {
+        render(
+            <RunHistory
+                runs={[
+                    createMockRun({ status: 'FAILED', failureReason: 'Token expired' }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Failed')).toHaveAttribute('title', 'Token expired');
     });
 
     it('renders the finished timestamp for a completed run', () => {

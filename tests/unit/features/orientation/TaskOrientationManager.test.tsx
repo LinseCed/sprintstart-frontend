@@ -3,9 +3,23 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TaskOrientationManager } from '../../../../src/features/orientation/components/TaskOrientationManager';
 import { starterWorkService } from '../../../../src/services/starterWorkService';
-import { userService } from '../../../../src/services/userService';
 import { orientationService } from '../../../../src/services/orientationService';
 import type { StarterWorkTask } from '../../../../src/features/starter-work/types';
+
+// The project is chosen globally in the sidebar switcher, so the component reads the
+// context rather than loading a listing of its own.
+vi.mock('../../../../src/features/projects/useProjectContext', async () => {
+    const { createProjectContextValue, createSelectableProject } = await import(
+        '../../setup/projectContext'
+    );
+    return {
+        useProjectContext: () =>
+            createProjectContextValue({
+                selectedProjectId: 'p1',
+                projects: [createSelectableProject({ id: 'p1', name: 'Proj' })],
+            }),
+    };
+});
 
 const approvedTask: StarterWorkTask = {
     id: 'task-1',
@@ -23,7 +37,6 @@ describe('TaskOrientationManager', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         window.localStorage.clear();
-        vi.spyOn(userService, 'getMyProjects').mockResolvedValue([{ id: 'p1', name: 'Proj' }]);
         vi.spyOn(starterWorkService, 'fetchApproved').mockResolvedValue([approvedTask]);
     });
 
@@ -33,7 +46,7 @@ describe('TaskOrientationManager', () => {
             .spyOn(orientationService, 'fetchTaskOrientation')
             .mockResolvedValue({ taskId: 'task-1', taskTitle: 'Fix the login redirect', taskUrl: null, packet: null, reason: null });
 
-        render(<TaskOrientationManager isAdmin={false} />);
+        render(<TaskOrientationManager />);
 
         expect(await screen.findByText('Fix the login redirect')).toBeInTheDocument();
 
@@ -46,7 +59,7 @@ describe('TaskOrientationManager', () => {
     it('shows an empty state when there are no approved tasks', async () => {
         vi.spyOn(starterWorkService, 'fetchApproved').mockResolvedValue([]);
 
-        render(<TaskOrientationManager isAdmin={false} />);
+        render(<TaskOrientationManager />);
 
         expect(await screen.findByText(/No approved tasks yet/)).toBeInTheDocument();
     });

@@ -23,37 +23,26 @@ export type AppRoute =
     | '/insights/knowledge-gaps'
     | '/insights/knowledge-requests'
     | '/insights/competencies'
-    | '/insights/onboarding';
+    | '/insights/onboarding'
+    | '/settings'
+    | '/profile';
+
+const ALL_GROUPS: readonly PermissionGroup[] = [
+    PermissionGroup.USER,
+    PermissionGroup.PM,
+    PermissionGroup.HR,
+    PermissionGroup.ADMIN,
+];
 
 const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
-    '/': [PermissionGroup.USER, PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
-    '/chat': [PermissionGroup.USER, PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
-    '/knowledge-base': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
-    '/onboarding': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
-    '/buddy': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
+    '/': ALL_GROUPS,
+    '/chat': ALL_GROUPS,
+    '/knowledge-base': ALL_GROUPS,
+    '/onboarding': ALL_GROUPS,
+    '/buddy': ALL_GROUPS,
     // The hire's own board. Same audience as the buddy: it is the durable half of the same
     // surface, and everybody onboards onto a project at some point.
-    '/board': [
-        PermissionGroup.USER,
-        PermissionGroup.PM,
-        PermissionGroup.HR,
-        PermissionGroup.ADMIN,
-    ],
+    '/board': ALL_GROUPS,
     '/data-ingestion': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     // The single front door to project setup; the stages below are reached from its ladder.
     '/setup': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
@@ -75,7 +64,20 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     ],
     '/insights/competencies': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/insights/onboarding': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    '/settings': ALL_GROUPS,
+    '/profile': ALL_GROUPS,
 };
+
+/**
+ * Routes that a PM may only reach for a project they manage. Both are scoped to
+ * the globally selected project, so holding the PM role while being a mere
+ * member of the selected project is not enough. Admins and HR are gated by role
+ * alone and are unaffected by this list.
+ */
+const MANAGER_ASSIGNMENT_ROUTES: readonly AppRoute[] = [
+    '/pm-dashboard',
+    '/data-ingestion',
+];
 
 const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/chat': ['/chat/'],
@@ -87,12 +89,36 @@ const routePrefixes: Partial<Record<AppRoute, readonly string[]>> = {
     '/insights/knowledge-gaps': ['/insights/knowledge-gaps/'],
 };
 
-export function canAccessRoute(profile: UserProfile | null, route: AppRoute): boolean {
+/**
+ * Decides whether a profile may access a route.
+ *
+ * `managesSelectedProject` is only consulted for the PM role on the
+ * manager-scoped routes: a PM who is a mere member of the selected project
+ * cannot reach the PM dashboard or data ingestion. It defaults to `false` so
+ * callers without project context stay on the strict side, and it never widens
+ * access for other roles.
+ */
+export function canAccessRoute(
+    profile: UserProfile | null,
+    route: AppRoute,
+    managesSelectedProject = false,
+): boolean {
     if (!profile) {
         return false;
     }
 
-    return routePermissions[route].includes(profile.permissionGroup);
+    if (!routePermissions[route].includes(profile.permissionGroup)) {
+        return false;
+    }
+
+    if (
+        profile.permissionGroup === PermissionGroup.PM &&
+        MANAGER_ASSIGNMENT_ROUTES.includes(route)
+    ) {
+        return managesSelectedProject;
+    }
+
+    return true;
 }
 
 export function getDefaultRoute(profile: UserProfile | null): AppRoute {

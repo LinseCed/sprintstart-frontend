@@ -1,7 +1,6 @@
 import { AlertCircle, ListChecks, Loader2 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { ProjectSelect } from '../features/projects/components/ProjectSelect';
-import { useProjectSelection } from '../features/projects/useProjectSelection';
+import { useProjectContext } from '../features/projects/useProjectContext';
 import { SetupReadinessLadder } from '../features/onboarding-setup/components/SetupReadinessLadder';
 import { useSetupReadiness } from '../features/onboarding-setup/hooks/useSetupReadiness';
 import { RoleTrackTable } from '../features/onboarding-setup/components/RoleTrackTable';
@@ -19,13 +18,7 @@ import { PermissionGroup } from '../services/types';
  */
 export function OnboardingSetupPage() {
     const { profile } = useAuth();
-    const {
-        projects,
-        selectedProjectId,
-        setSelectedProjectId,
-        isLoading: projectsLoading,
-        errorMessage: projectsError,
-    } = useProjectSelection({ isAdmin: profile?.permissionGroup === PermissionGroup.ADMIN });
+    const { selectedProjectId } = useProjectContext();
 
     const { ladder, loading, error } = useSetupReadiness(selectedProjectId);
 
@@ -44,15 +37,6 @@ export function OnboardingSetupPage() {
                         icon={ListChecks}
                         title="Onboarding Setup"
                         subtitle="Everything a project needs before a hire arrives — an approved skill map and a stocked pool of starter tasks — as one pipeline with one readiness check."
-                        actions={
-                            <ProjectSelect
-                                projects={projects}
-                                selectedProjectId={selectedProjectId}
-                                isLoading={projectsLoading}
-                                errorMessage={projectsError}
-                                onChange={setSelectedProjectId}
-                            />
-                        }
                     />
                 </div>
             </header>
@@ -61,7 +45,7 @@ export function OnboardingSetupPage() {
                 {!selectedProjectId ? (
                     <EmptyPrompt
                         title="Pick a project"
-                        body="Choose a project above to see how ready it is to onboard someone."
+                        body="Choose a project in the sidebar switcher to see how ready it is to onboard someone."
                     />
                 ) : loading ? (
                     <div className="flex items-center justify-center p-16">

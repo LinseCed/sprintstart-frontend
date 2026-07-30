@@ -1,4 +1,5 @@
 import { apiClient } from "./apiClient";
+import { parseSSEStream } from "./sse";
 import keycloak from "../config/keycloak";
 import type { Chat, ChatMessage, StreamHandlers } from "../features/chatbot/types";
 
@@ -16,9 +17,11 @@ export async function getChats() {
  * Creates a new chat for a specific user.
  *
  * @param userId The user starting the conversation.
+ * @returns The backend returns only `{ id }` — callers must synthesize the
+ *   remaining `Chat` fields (`title`, `userId`, `createdAt`) client-side.
  */
 export async function createChat(userId: string) {
-    return await apiClient.fetch<Chat>(`/api/v1/chats`, {
+    return await apiClient.fetch<{ id: string }>(`/api/v1/chats`, {
         method: "POST",
         body: JSON.stringify({ userId }),
     });
@@ -28,36 +31,70 @@ export async function createChat(userId: string) {
  * Retrieves all messages from a specific chat.
  *
  * @param chatId The chat the messages belong to.
+ * @note The backend's `ChatMessageResponse` omits `id` — we generate stable
+ *   client-side ids here so React keys and the streaming-message tracking work.
  */
 export async function getMessages(chatId: string) {
-    return await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
+    const response = await apiClient.fetch<{ messages: ChatMessage[] }>(`/api/v1/chats/${chatId}`);
+    return {
+        messages: response.messages.map((msg) => ({
+            ...msg,
+            // Generate stable client-side ids so React keys work (backend
+            // omits `id` on ChatMessageResponse).
+            id: msg.id ?? crypto.randomUUID(),
+            // G5: coerce null → undefined for optional citation fields so
+            // downstream code only needs `!== undefined` guards, not both.
+            citations: msg.citations?.map((c) => ({
+                ...c,
+                startLine: c.startLine ?? undefined,
+                startPage: c.startPage ?? undefined,
+                sourceUrl: c.sourceUrl ?? undefined,
+            })),
+        })),
+    };
 }
 
 /**
- * Generic stream event returned by the backend when sending a prompt.
+ * Discriminated union for SSE events returned by the backend when sending a
+ * prompt. Each variant carries exactly the fields its `type` needs, so the
+ * `switch` in {@link streamMessage} is exhaustive and needs no `?.` guards.
  */
-interface ChatEvent {
-    type: "token" | "citation" | "done" | "error";
-    content?: string;
-    message?: string;
-    artifact_id?: string;
-    filename?: string;
-    source_url?: string;
-    start_line?: number;
-    start_page?: number;
-}
+type ChatEvent =
+    | { type: "tool_use"; name: string }
+    | { type: "token"; content: string }
+    | { type: "reasoning"; content: string }
+    | {
+          type: "citation";
+          artifact_id: string;
+          filename: string;
+          source_url?: string;
+          start_line?: number;
+          start_page?: number;
+      }
+    | { type: "done" }
+    | { type: "error"; message: string };
 
 /**
  * Creates a new prompt and handles the chat response.
  *
- * @param chatId The chat the prompt is created in
- * @param text The content of the prompt
- * @param handlers Helper operations handling the output of the chat response
+ * @param chatId The chat the prompt is created in.
+ * @param text The content of the prompt.
+ * @param sourceSystems The specified systems the AI may use to generate an answer.
+ * @param from The start of the time period specifying when the documents used for generating the answer were uploaded.
+ * @param to The end of the time period specifying when the documents used for generating the answer were uploaded.
+ * @param handlers Helper operations handling the output of the chat response.
+ * @param signal Optional `AbortSignal` — when aborted, the stream stops cleanly
+ *   and `handlers.onDone` is called (partial content stays visible). Pass a
+ *   signal from an `AbortController` to implement a "Stop" button.
  */
 export async function streamMessage(
     chatId: string,
     text: string,
-    handlers: StreamHandlers
+    sourceSystems: string[],
+    from: string,
+    to: string,
+    handlers: StreamHandlers,
+    signal?: AbortSignal,
 ): Promise<void> {
     // Ensure the token is up to date (refresh if it expires in < 30s)
     try {
@@ -66,20 +103,37 @@ export async function streamMessage(
         }
     } catch (error) {
         console.error('Failed to refresh Keycloak token for stream', error);
-        void keycloak.login();
+        handlers.onError?.("Authentication expired. Please log in again.");
         return;
     }
+
+    if (!keycloak.token) {
+        handlers.onError?.("Not authenticated. Please log in again.");
+        return;
+    }
+
+    const filters =
+        sourceSystems.length || from || to
+            ? {
+                sourceSystems: sourceSystems.length ? sourceSystems : undefined,
+                from: from ? `${from}T00:00:00Z` : undefined,
+                to: to ? `${to}T23:59:59Z` : undefined,
+            }
+            : undefined;
 
     const res = await fetch(`/api/v1/chats/prompt`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Accept": "text/event-stream",
             "Authorization": `Bearer ${keycloak.token}`
         },
         body: JSON.stringify({
             "chatId": chatId,
-            "msg": text
-        })
+            "msg": text,
+            "filters": filters
+        }),
+        signal,
     });
 
     if (!res.ok) {
@@ -87,33 +141,28 @@ export async function streamMessage(
         return;
     }
 
-    const reader = res.body?.getReader();
+    const stream = res.body;
 
-    if (!reader) {
-        throw new Error("No response stream");
+    if (!stream) {
+        handlers.onError?.("No response stream from server.");
+        return;
     }
 
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-        const { value, done } = await reader.read();
-
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-
-            const event = JSON.parse(
-                line.replace("data:", "").trim()
-            ) as ChatEvent;
-
+    try {
+        for await (const event of parseSSEStream<ChatEvent>(stream)) {
             switch (event.type) {
+                case "tool_use":
+                    if (event.name) {
+                        handlers.onToolUse?.(event.name);
+                    }
+                    break;
+
+                case "reasoning":
+                    if (event.content !== undefined) {
+                        handlers.onReasoning?.(event.content);
+                    }
+                    break;
+
                 case "token":
                     if (event.content !== undefined) {
                         handlers.onToken(event.content);
@@ -141,8 +190,18 @@ export async function streamMessage(
                     return;
             }
         }
-    }
 
-    // Fallback: Ensure onDone is called when the stream ends naturally
-    handlers.onDone();
+        // Fallback: Ensure onDone is called when the stream ends naturally
+        handlers.onDone();
+    } catch (err) {
+        // AbortError: the user clicked Stop — treat as a clean end, not an error.
+        if (err instanceof Error && err.name === "AbortError") {
+            handlers.onDone();
+            return;
+        }
+        // Network drop or unexpected reader error: surface to the user, don't
+        // re-throw so the provider's catch block never sees a stray error.
+        console.error("Chat stream failed", err);
+        handlers.onError?.(err instanceof Error ? err.message : "Connection lost during streaming.");
+    }
 }
