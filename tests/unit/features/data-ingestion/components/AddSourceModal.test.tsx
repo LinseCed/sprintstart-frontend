@@ -80,7 +80,6 @@ describe('AddSourceModal', () => {
 
     it('starts on the source-type step with GitHub, Jira and Upload choices', () => {
         renderModal();
-        expect(screen.getByText('Source type')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /github/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /jira/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /upload/i })).toBeInTheDocument();
@@ -239,7 +238,12 @@ describe('AddSourceModal', () => {
         expect(screen.getByLabelText('Organization or user')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /back/i }));
-        expect(screen.getByText('Source type')).toBeInTheDocument();
+        // Back on the source-type step: the type cards are shown and the GitHub
+        // discovery input is gone.
+        expect(screen.getByRole('button', { name: /jira/i })).toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('Organization or user'),
+        ).not.toBeInTheDocument();
     });
 
     it('blocks connecting when the user may not ingest into the project', async () => {

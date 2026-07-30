@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Modal } from "../../../components/ui/Modal.tsx";
+import { Stepper } from "../../../components/ui/Stepper.tsx";
 import {
   addRepositoryToProject,
   connectGithubRepository,
@@ -230,24 +231,16 @@ export function AddSourceModal({
             ? "Upload Files"
             : `Connect ${SOURCE_META[selectedType].type}`;
 
-  const modalDescription =
-    step === "type"
-      ? projectName
-        ? `Choose which source type to connect to ${projectName}.`
-        : "Choose which source type you want to connect."
-      : isSingleRepo
-        ? "Connect one repository you already know the name of."
-        : isGithub
-          ? "Find and connect repositories from a GitHub organization or user."
-          : isUpload
-            ? "Add documents to this project's knowledge base."
-            : undefined;
-
   return (
     <Modal
       isOpen
       title={modalTitle}
-      description={modalDescription}
+      description={
+        <Stepper
+          steps={["Source type", "Connect"]}
+          current={step === "type" ? 0 : 1}
+        />
+      }
       size="xl"
       isDismissDisabled={connectState === "loading" || isUploadingFiles}
       onClose={onClose}
