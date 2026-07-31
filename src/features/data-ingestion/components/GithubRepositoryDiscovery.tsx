@@ -14,10 +14,12 @@ import { ApiError } from "../../../services/apiClient.ts";
 import {
   discoverRepositories,
   type DiscoveredRepository,
-  type DiscoveryOwnerType,
 } from "../../../services/sources/githubService.ts";
 import { getIngestionSourceStatuses } from "../../../services/ingestionService.ts";
-import { parseGithubOwnerInput } from "../../../services/sources/githubRepositoryInput.ts";
+import {
+  parseGithubOwnerInput,
+  parseGithubRepositoryReference,
+} from "../../../services/sources/githubRepositoryInput.ts";
 
 /**
  * What connecting a discovered repository to the current project would mean.
@@ -69,11 +71,6 @@ type GithubRepositoryDiscoveryProps = {
   connectError?: string | null;
 };
 
-const OWNER_TYPES: { value: DiscoveryOwnerType; label: string }[] = [
-  { value: "org", label: "Organization" },
-  { value: "user", label: "User" },
-];
-
 const PAGE_SIZE = 20;
 
 /**
@@ -98,7 +95,6 @@ export function GithubRepositoryDiscovery({
   const hasTokens = tokenNames.length > 0;
 
   const [ownerInput, setOwnerInput] = useState("");
-  const [ownerType, setOwnerType] = useState<DiscoveryOwnerType>("org");
   const [filter, setFilter] = useState("");
 
   // The owner that actually produced the current results, used at connect time
@@ -157,12 +153,17 @@ export function GithubRepositoryDiscovery({
 
   const runDiscovery = useCallback(
     async (nextPage: number) => {
-      const owner = parseGithubOwnerInput(ownerInput);
+      // The single field accepts an org/user handle, a bare "owner/name", or a
+      // full GitHub URL to either. When it carries a repository name we still
+      // discover the owner but isolate that one repository in the results; a
+      // bare owner lists all of them.
+      const repoReference = parseGithubRepositoryReference(ownerInput);
+      const owner = repoReference?.owner ?? parseGithubOwnerInput(ownerInput);
 
       if (!owner) {
         setDiscoverState("error");
         setDiscoverError(
-          "Enter a GitHub organization or user (e.g. SprintStartProject or github.com/username).",
+          "Enter a GitHub organization, user, or repository URL (e.g. octocat or github.com/octocat/hello-world).",
         );
         return;
       }
@@ -178,10 +179,12 @@ export function GithubRepositoryDiscovery({
       setDiscoverError(null);
 
       try {
+        // "auto" resolves org-vs-user on the service side (org first, then user
+        // on a 404), so the user never has to know or pick which kind they typed.
         const result = await discoverRepositories(
           owner,
           tokenName.trim(),
-          ownerType,
+          "auto",
           nextPage,
           PAGE_SIZE,
         );
@@ -197,6 +200,9 @@ export function GithubRepositoryDiscovery({
         setDiscoverState("loaded");
 
         if (!loadingMore) {
+          // A pasted "owner/name" pre-filters to that repository; a bare owner
+          // clears any leftover filter from a previous search.
+          setFilter(repoReference ? repoReference.name : "");
           await loadConnectedRepositories();
         }
       } catch (error) {
@@ -219,7 +225,7 @@ export function GithubRepositoryDiscovery({
         }
       }
     },
-    [loadConnectedRepositories, ownerInput, ownerType, tokenName],
+    [loadConnectedRepositories, ownerInput, tokenName],
   );
 
   const filteredRepositories = useMemo(() => {
@@ -334,7 +340,7 @@ export function GithubRepositoryDiscovery({
       )}
 
       <form
-        className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
+        className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end"
         onSubmit={(event) => {
           event.preventDefault();
           void runDiscovery(0);
@@ -345,40 +351,16 @@ export function GithubRepositoryDiscovery({
             htmlFor="discovery-owner"
             className="text-sm font-medium text-app-text"
           >
-            Organization or user
+            Organization, user, or URL
           </label>
           <input
             id="discovery-owner"
             value={ownerInput}
             onChange={(event) => setOwnerInput(event.target.value)}
             disabled={isBusy || !hasTokens}
-            placeholder="SprintStartProject or github.com/username"
+            placeholder="octocat, github.com/octocat, or a repo URL"
             className="mt-2 h-11 w-full rounded-xl border border-app-border bg-app-surface px-4 text-sm text-app-text outline-none transition placeholder:text-app-text-disabled focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
           />
-        </div>
-
-        <div>
-          <label
-            htmlFor="discovery-owner-type"
-            className="text-sm font-medium text-app-text"
-          >
-            Type
-          </label>
-          <select
-            id="discovery-owner-type"
-            value={ownerType}
-            onChange={(event) =>
-              setOwnerType(event.target.value as DiscoveryOwnerType)
-            }
-            disabled={isBusy || !hasTokens}
-            className="mt-2 h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none transition focus:border-app-brand disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {OWNER_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div>

@@ -106,7 +106,7 @@ async function goToGithubDetail(user: ReturnType<typeof userEvent.setup>) {
 
 /** Runs GitHub discovery for an owner and waits for the results to render. */
 async function discover(user: ReturnType<typeof userEvent.setup>, owner = 'acme') {
-    await user.type(screen.getByLabelText('Organization or user'), owner);
+    await user.type(screen.getByLabelText('Organization, user, or URL'), owner);
     await user.click(screen.getByRole('button', { name: /discover/i }));
 }
 
