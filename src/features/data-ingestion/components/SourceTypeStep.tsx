@@ -10,14 +10,25 @@ import type { SourceSystem } from "../types.ts";
 export function SourceTypeStep({
   selectedType,
   onSelectType,
+  heading = "Source type",
+  description,
 }: {
   selectedType: SourceSystem;
   onSelectType: (system: SourceSystem) => void;
+  /** Overrides the step heading (e.g. the wizard frames it as data ingestion). */
+  heading?: string;
+  /** Optional sub-line under the heading, e.g. to explain that this is optional. */
+  description?: string;
 }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-app-text">Source type</p>
+        <p className="text-sm font-medium text-app-text">{heading}</p>
+        {description && (
+          <p className="mt-1 text-sm leading-relaxed text-app-text-muted">
+            {description}
+          </p>
+        )}
 
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {SOURCE_SYSTEMS.map((sourceSystem) => {

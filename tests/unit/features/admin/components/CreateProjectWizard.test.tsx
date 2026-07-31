@@ -159,6 +159,24 @@ describe('CreateProjectWizard', () => {
         expect(onClose).toHaveBeenCalled();
     });
 
+    it('creates the project without sources via "Skip for now" on the source-type step', async () => {
+        const user = userEvent.setup();
+        const { onClose, onProjectCreated } = renderWizard();
+
+        await goToSourcesStep(user);
+        await user.click(screen.getByRole('button', { name: /skip for now/i }));
+
+        await waitFor(() =>
+            expect(vi.mocked(projectService.createProject)).toHaveBeenCalledWith({
+                name: 'Apollo',
+                description: undefined,
+            }),
+        );
+        expect(vi.mocked(connectGithubRepository)).not.toHaveBeenCalled();
+        expect(onProjectCreated).toHaveBeenCalledWith(createdProject);
+        expect(onClose).toHaveBeenCalled();
+    });
+
     it('assigns the chosen manager after creating the project', async () => {
         vi.mocked(projectService.getManagerCandidates).mockResolvedValue([
             {

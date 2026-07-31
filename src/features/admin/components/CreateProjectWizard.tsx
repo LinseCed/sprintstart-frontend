@@ -317,11 +317,25 @@ export function CreateProjectWizard({
             )}
           </button>
 
+          {isTypeStep && (
+            // Lets the user create the project straight away, choosing to attach
+            // sources later from its Data Ingestion page instead of now.
+            <button
+              type="button"
+              onClick={() => void finish()}
+              disabled={isSubmitting}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-border bg-app-surface px-5 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Skip for now
+            </button>
+          )}
+
           {isDetailsStep || isTypeStep ? (
             <button
               type="button"
               onClick={isDetailsStep ? goToSources : () => setSourceStep("detail")}
-              disabled={isDetailsStep && !isNameValid}
+              disabled={(isDetailsStep && !isNameValid) || isSubmitting}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-brand bg-app-brand px-5 text-sm font-medium text-white transition-colors hover:border-app-brand-hover hover:bg-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus disabled:cursor-not-allowed disabled:opacity-60"
             >
               Continue
@@ -451,6 +465,8 @@ export function CreateProjectWizard({
         <SourceTypeStep
           selectedType={selectedType}
           onSelectType={handleSelectType}
+          heading="Start data ingestion"
+          description="Connect a data source to this project now, or skip for now and add sources later from its Data Ingestion page."
         />
       ) : selectedType === "GITHUB" ? (
         <GithubRepositoryDiscovery
