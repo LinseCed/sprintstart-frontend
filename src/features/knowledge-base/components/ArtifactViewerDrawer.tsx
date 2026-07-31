@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import 'github-markdown-css/github-markdown.css';
+
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Artifact, ArtifactContent, ArtifactSummaryCitation } from '../types';
@@ -469,7 +469,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                         </div>
                     ) : (
                         content && shouldRenderAsMarkdown(content, artifact) && (!highlightLines || highlightLines.length === 0) ? (
-                            <div className="markdown-body !bg-transparent text-app-text">
+                            <div className="prose prose-sm dark:prose-invert max-w-none text-app-text">
                                 <ReactMarkdown
                                     remarkPlugins={REMARK_PLUGINS}
                                     rehypePlugins={REHYPE_PLUGINS}
@@ -509,7 +509,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                     )}
                 </div>
             ) : (
-                <div data-testid="summary-content" className="prose prose-sm dark:prose-invert max-w-none">
+                <div data-testid="summary-content" className="max-w-none">
                     <div className="flex items-center gap-2 mb-6 text-app-brand font-medium border-b border-app-border pb-4">
                         <Sparkles className="w-5 h-5" />
                         <span className="text-lg">AI Summary</span>
@@ -523,7 +523,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                             </span>
                         </div>
                     ) : error ? (
-                        <div className="flex flex-col items-center gap-4 py-8 not-prose">
+                        <div className="flex flex-col items-center gap-4 py-8">
                             <p className="text-sm text-app-text-muted text-center max-w-sm">{error}</p>
                             <div className="flex items-center gap-3">
                                 <button
@@ -545,10 +545,11 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                         </div>
                     ) : (
                         <>
-                            <div className="text-app-text">
+                            <div className="prose prose-sm dark:prose-invert max-w-none text-app-text">
                                 <ReactMarkdown
                                     remarkPlugins={REMARK_PLUGINS}
                                     rehypePlugins={REHYPE_PLUGINS}
+                                    components={MARKDOWN_COMPONENTS}
                                 >
                                     {summary}
                                 </ReactMarkdown>
