@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { Sparkles, ArrowLeft, Loader2, RefreshCw, Trash2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Options as ReactMarkdownOptions } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -138,7 +138,25 @@ const shouldRenderAsMarkdown = (content: ArtifactContent, artifact: Artifact | n
 // Hoisted to module scope so ReactMarkdown doesn't see a new array on every render
 // (otherwise it always re-renders even when the content is unchanged).
 const REMARK_PLUGINS = [remarkGfm, remarkMath];
-const REHYPE_PLUGINS = [rehypeKatex];
+const REHYPE_PLUGINS: ReactMarkdownOptions["rehypePlugins"] = [[rehypeKatex, { strict: 'ignore', errorColor: 'inherit' }]];
+
+/**
+ * Preprocesses markdown to auto-heal common syntax issues.
+ * Specifically handles cases where a block-math closing `$$` is incorrectly
+ * followed by text on the same line, which causes remark-math to fail closing
+ * the block, subsequently swallowing the rest of the file into KaTeX.
+ */
+const preprocessMarkdown = (text: string): string => {
+    // Regex looks for `$$` that is preceded by some math-like content on the same line
+    // or previous lines, and followed immediately by space and non-whitespace characters
+    // (like a blockquote `>`). We inject a newline to properly fence the math block.
+    // The negative lookbehind `(?<!^\s*)` ensures we don't accidentally match an opening `$$`
+    // that just happens to have text after it (though that would also be invalid block math,
+    // usually users put the opening `$$` on its own line).
+    // Using a simpler, safer approach: find `$$` followed by space and non-whitespace,
+    // where the `$$` is not at the very start of a line (to avoid opening tags).
+    return text.replace(/(?<!^)[ \t]*\$\$[ \t]+(?=\S)/gm, '$$\n');
+};
 
 const MARKDOWN_COMPONENTS = {
     code({ className, children }: { className?: string; children?: ReactNode }) {
@@ -475,7 +493,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                                     rehypePlugins={REHYPE_PLUGINS}
                                     components={MARKDOWN_COMPONENTS}
                                 >
-                                    {content.content}
+                                    {preprocessMarkdown(content.content)}
                                 </ReactMarkdown>
                             </div>
                         ) : content?.mimeType === 'application/pdf' ? (
@@ -551,7 +569,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                                     rehypePlugins={REHYPE_PLUGINS}
                                     components={MARKDOWN_COMPONENTS}
                                 >
-                                    {summary}
+                                    {preprocessMarkdown(summary)}
                                 </ReactMarkdown>
                             </div>
 
