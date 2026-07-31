@@ -130,10 +130,13 @@ function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
 }
 
 /** ISSUE and PULL_REQUEST artifacts are always rendered as Markdown regardless of mime, since the backend normalizes their bodies to Markdown. */
-const shouldRenderAsMarkdown = (content: ArtifactContent, artifact: Artifact | null): boolean =>
-    content.mimeType.startsWith('text/markdown')
-    || artifact?.artifactType === 'ISSUE'
-    || artifact?.artifactType === 'PULL_REQUEST';
+const shouldRenderAsMarkdown = (content: ArtifactContent, artifact: Artifact | null): boolean => {
+    const isMd = artifact?.title?.toLowerCase().endsWith('.md');
+    return content.mimeType.startsWith('text/markdown')
+        || artifact?.artifactType === 'ISSUE'
+        || artifact?.artifactType === 'PULL_REQUEST'
+        || isMd === true;
+};
 
 // Hoisted to module scope so ReactMarkdown doesn't see a new array on every render
 // (otherwise it always re-renders even when the content is unchanged).
@@ -486,7 +489,7 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
                             <div className="h-4 bg-app-border rounded w-2/3"></div>
                         </div>
                     ) : (
-                        content && shouldRenderAsMarkdown(content, artifact) && (!highlightLines || highlightLines.length === 0) ? (
+                        content && shouldRenderAsMarkdown(content, artifact) ? (
                             <div className="prose prose-sm dark:prose-invert max-w-none text-app-text">
                                 <ReactMarkdown
                                     remarkPlugins={REMARK_PLUGINS}
