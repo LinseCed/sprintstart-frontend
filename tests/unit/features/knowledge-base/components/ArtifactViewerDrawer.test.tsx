@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ArtifactViewerDrawer, preprocessMarkdown } from '../../../../../src/features/knowledge-base/components/ArtifactViewerDrawer';
+import { ArtifactViewerDrawer } from '../../../../../src/features/knowledge-base/components/ArtifactViewerDrawer';
+import { preprocessMarkdown } from '../../../../../src/features/knowledge-base/markdown';
 import { ApiError } from '../../../../../src/services/apiClient';
 import type { Artifact, ArtifactSummaryCitation, SummaryStreamHandlers } from '../../../../../src/features/knowledge-base/types';
 
