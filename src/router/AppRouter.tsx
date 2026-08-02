@@ -9,6 +9,7 @@ import { KnowledgeBasePage } from '../pages/KnowledgeBasePage.tsx';
 import { DataIngestionPage } from '../pages/DataIngestionPage.tsx';
 import { OnboardingSetupPage } from '../pages/OnboardingSetupPage.tsx';
 import { ReviewInboxPage } from '../pages/ReviewInboxPage.tsx';
+import { ArrivalStepsPage } from '../pages/ArrivalStepsPage';
 import { GraphStudioPage } from '../pages/GraphStudioPage.tsx';
 import { StarterWorkPage } from '../pages/StarterWorkPage';
 import { BuddyPage } from '../pages/BuddyPage';
@@ -100,6 +101,7 @@ export function AppRouter() {
                 <Route path="/setup" element={<OnboardingSetupPage />} />
                 <Route path="/setup/review" element={<ReviewInboxPage />} />
                 <Route path="/graph-studio" element={<GraphStudioPage />} />
+                <Route path="/arrival-steps" element={<ArrivalStepsPage />} />
                 {/* The proposal queue used to live here on its own; it is part of the studio now. */}
                 <Route path="/graph-authoring" element={<Navigate to="/graph-studio" replace />} />
                 <Route path="/starter-work" element={<StarterWorkPage />} />
