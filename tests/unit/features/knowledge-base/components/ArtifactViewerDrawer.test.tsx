@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ArtifactViewerDrawer } from '../../../../../src/features/knowledge-base/components/ArtifactViewerDrawer';
+import { ArtifactViewerDrawer, preprocessMarkdown } from '../../../../../src/features/knowledge-base/components/ArtifactViewerDrawer';
 import { ApiError } from '../../../../../src/services/apiClient';
 import type { Artifact, ArtifactSummaryCitation, SummaryStreamHandlers } from '../../../../../src/features/knowledge-base/types';
 
@@ -212,7 +212,7 @@ describe('ArtifactViewerDrawer', () => {
             expect(rawContent.querySelector('.prose')).toBeInTheDocument();
         });
 
-        it('gracefully handles KaTeX math parse errors and heals syntax', async () => {
+        it('gracefully handles KaTeX math parse errors without breaking the drawer', async () => {
             const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
             vi.mocked(knowledgeService.getArtifactContent).mockResolvedValueOnce({
                 content: 'Inline math $E=mc^2$ and broken block $$\n1+1=2$$text after',
@@ -221,10 +221,20 @@ describe('ArtifactViewerDrawer', () => {
             });
 
             renderDrawer(createArtifact({ title: 'math.md' }));
-            
+
             const rawContent = await screen.findByTestId('raw-content');
             expect(rawContent.querySelector('.prose')).toBeInTheDocument();
             expect(await screen.findByText(/Inline math/)).toBeInTheDocument();
+        });
+
+        describe('preprocessMarkdown', () => {
+            it('injects a newline after a mid-line block-math close so it stays a valid `$$` fence', () => {
+                expect(preprocessMarkdown('math $$E=mc^2$$ then text')).toBe('math $$E=mc^2$$\nthen text');
+            });
+
+            it('leaves an opening `$$` at the start of a line untouched', () => {
+                expect(preprocessMarkdown('$$\nE=mc^2\n$$')).toBe('$$\nE=mc^2\n$$');
+            });
         });
     });
 
