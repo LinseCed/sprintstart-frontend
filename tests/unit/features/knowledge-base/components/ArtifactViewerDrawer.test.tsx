@@ -197,6 +197,37 @@ describe('ArtifactViewerDrawer', () => {
         expect(capturedSignal?.aborted).toBe(true);
     });
 
+    describe('Markdown rendering', () => {
+        it('renders .md files as markdown even with non-markdown mime types', async () => {
+            const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
+            vi.mocked(knowledgeService.getArtifactContent).mockResolvedValueOnce({
+                content: '# Markdown content',
+                mimeType: 'application/octet-stream',
+                isObjectUrl: false
+            });
+
+            renderDrawer(createArtifact({ title: 'readme.md' }));
+            
+            const rawContent = await screen.findByTestId('raw-content');
+            expect(rawContent.querySelector('.prose')).toBeInTheDocument();
+        });
+
+        it('gracefully handles KaTeX math parse errors and heals syntax', async () => {
+            const { knowledgeService } = await import('../../../../../src/services/knowledgeService');
+            vi.mocked(knowledgeService.getArtifactContent).mockResolvedValueOnce({
+                content: 'Inline math $E=mc^2$ and broken block $$\n1+1=2$$text after',
+                mimeType: 'text/markdown',
+                isObjectUrl: false
+            });
+
+            renderDrawer(createArtifact({ title: 'math.md' }));
+            
+            const rawContent = await screen.findByTestId('raw-content');
+            expect(rawContent.querySelector('.prose')).toBeInTheDocument();
+            expect(await screen.findByText(/Inline math/)).toBeInTheDocument();
+        });
+    });
+
     describe('Delete button', () => {
         it('is hidden when canDelete is false (even for UPLOAD artifacts)', async () => {
             renderDrawer(createArtifact({ sourceSystem: 'UPLOAD' }), { canDelete: false });
