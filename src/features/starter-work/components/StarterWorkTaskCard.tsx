@@ -108,7 +108,7 @@ export function StarterWorkTaskCard({ task, canAct, onApprove, onReject }: Start
                         ) : (
                             <Check className="h-3.5 w-3.5" aria-hidden="true" />
                         )}
-                        Approve as a goal
+                        Looks good
                     </button>
                     <button
                         type="button"
@@ -118,11 +118,14 @@ export function StarterWorkTaskCard({ task, canAct, onApprove, onReject }: Start
                         className="inline-flex items-center gap-1.5 rounded-xl border border-app-border px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <X className="h-3.5 w-3.5" aria-hidden="true" />
-                        Reject
+                        Take it out of the pool
                     </button>
-                    {/* Approving is not a filing action -- it puts this task in front of hires. */}
+                    {/* Review is not admission any more, so the copy must not imply a hire is
+                        waiting on it. What it changes is rank, and what removal changes is
+                        permanent -- both are worth saying plainly. */}
                     <p className="w-full text-xs text-app-text-subtle">
-                        Approving adds this to the graph as a goal hires can choose to work toward.
+                        Hires can already claim this. Vouching for it moves it up their
+                        suggestions; taking it out is permanent, and mining will not bring it back.
                     </p>
                 </div>
             )}

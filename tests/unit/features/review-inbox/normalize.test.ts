@@ -13,7 +13,7 @@ const tasks: ProposedStarterWork = {
             onboardingTrackKey: null,
             sourceUrl: null,
             competencyKeys: ['python', 'testing'],
-            status: 'PROPOSED',
+            status: 'LIVE', reviewed: false,
         },
     ],
 };
