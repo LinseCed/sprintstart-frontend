@@ -1,3 +1,5 @@
+import type { ArrivalStep } from '../arrival/types';
+
 /**
  * The board: a hire's persistent working surface on one project.
  *
@@ -13,6 +15,7 @@
 /** Every card kind the board understands. Closed set — see the module comment. */
 export type BoardCardKind =
     | 'PATH_TO_FIRST_CONTRIBUTION'
+    | 'ARRIVAL_STEPS'
     | 'OPEN_PULL_REQUESTS'
     | 'CURRENT_TASK'
     | 'SUGGESTED_TASKS'
@@ -91,6 +94,24 @@ export type BoardPullRequest = {
     title: string | null;
     url: string | null;
     waitingHours: number | null;
+};
+
+/**
+ * What still has to be true before this hire can work, and what they have already settled.
+ *
+ * ⚠️ **The counts are per rigor and there is deliberately no total to divide by.** A step the
+ * system observed and a step somebody ticked are different facts; the previous onboarding model
+ * blended them into one `progressPercentage` and that is what made the number meaningless. Render
+ * what is known — *"2 confirmed · 1 you told us · 3 outstanding"* — never a percentage or a bar.
+ *
+ * `observedCount` is always 0 until derivation lands (A1). The distinction is carried anyway.
+ */
+export type ArrivalStepsContent = {
+    kind: 'ARRIVAL_STEPS';
+    steps: ArrivalStep[];
+    observedCount: number;
+    declaredCount: number;
+    outstandingCount: number;
 };
 
 /**
@@ -278,6 +299,7 @@ export type ChecklistContent = {
 /** The rendered content of one card, discriminated by `kind`. */
 export type BoardCardContent =
     | PathToFirstContributionContent
+    | ArrivalStepsContent
     | OpenPullRequestsContent
     | CurrentTaskContent
     | SuggestedTasksContent

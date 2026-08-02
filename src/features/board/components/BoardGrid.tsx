@@ -5,6 +5,7 @@ import { DiagramCard } from './DiagramCard';
 import { LinkCard } from './LinkCard';
 import { MemoryRecapCard } from './MemoryRecapCard';
 import { NoteCard } from './NoteCard';
+import { ArrivalStepsCard } from './ArrivalStepsCard';
 import { OpenPullRequestsCard } from './OpenPullRequestsCard';
 import { PathToFirstContributionCard } from './PathToFirstContributionCard';
 import { SuggestedTasksCard } from './SuggestedTasksCard';
@@ -51,6 +52,8 @@ function BoardCardView({
                     {...props}
                 />
             );
+        case 'ARRIVAL_STEPS':
+            return <ArrivalStepsCard content={card.content} {...props} />;
         case 'OPEN_PULL_REQUESTS':
             return <OpenPullRequestsCard content={card.content} {...props} />;
         case 'CURRENT_TASK':

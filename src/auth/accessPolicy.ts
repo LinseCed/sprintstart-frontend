@@ -15,6 +15,7 @@ export type AppRoute =
     | '/data-ingestion'
     | '/setup'
     | '/graph-studio'
+    | '/arrival-steps'
     | '/starter-work'
     | '/admin'
     | '/pm-dashboard'
@@ -47,6 +48,9 @@ const routePermissions: Record<AppRoute, readonly PermissionGroup[]> = {
     // The single front door to project setup; the stages below are reached from its ladder.
     '/setup': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     '/graph-studio': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
+    // HR reads the arrival list; PM/ADMIN author it (enforced server-side too -- this only decides
+    // who sees the page). Worth revisiting: paperwork and accounts are arguably HR's to own.
+    '/arrival-steps': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
     // HR reads the queue; approving is what mints a goal node, so only PM/ADMIN act (enforced
     // server-side too -- this only decides who sees the page).
     '/starter-work': [PermissionGroup.PM, PermissionGroup.HR, PermissionGroup.ADMIN],
