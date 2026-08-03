@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { arrivalService } from '../../../services/arrivalService';
-import type { ArrivalStep, CreateArrivalStepRequest, UpdateArrivalStepRequest } from '../types';
+import type {
+    ArrivalStep,
+    CreateArrivalStepRequest,
+    DerivableArrivalStep,
+    UpdateArrivalStepRequest,
+} from '../types';
 
 /**
  * The company-wide arrival step list, for the people who author it.
@@ -8,9 +13,13 @@ import type { ArrivalStep, CreateArrivalStepRequest, UpdateArrivalStepRequest } 
  * Company-scoped only, which is all A0 supports: per-project additions are A3. The scope is passed
  * explicitly as `null` rather than left implicit so that widening it later is a change of argument
  * rather than a change of meaning.
+ *
+ * The derivable catalog is loaded with the list rather than separately, because its `added` flags
+ * describe that same list and the two going out of step would offer to add something twice.
  */
 export function useArrivalAuthoring() {
     const [steps, setSteps] = useState<ArrivalStep[] | null>(null);
+    const [derivable, setDerivable] = useState<DerivableArrivalStep[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [writeError, setWriteError] = useState<string | null>(null);
@@ -19,7 +28,16 @@ export function useArrivalAuthoring() {
         setLoading(true);
         setError(false);
         try {
-            setSteps(await arrivalService.listSteps(null));
+            // Settled separately: the authored list is the page, and the catalog is an offer on top
+            // of it. A catalog that will not load must not take the list down with it.
+            const [authored, catalog] = await Promise.allSettled([
+                arrivalService.listSteps(null),
+                arrivalService.listDerivableSteps(),
+            ]);
+
+            if (authored.status === 'rejected') throw authored.reason;
+            setSteps(authored.value);
+            setDerivable(catalog.status === 'fulfilled' ? catalog.value : []);
         } catch {
             setError(true);
         } finally {
@@ -56,6 +74,28 @@ export function useArrivalAuthoring() {
             await write(
                 async () => await arrivalService.createStep(request),
                 'That step could not be added. A step with that key may already exist.',
+            ),
+        [write],
+    );
+
+    /**
+     * Adds a step the system can check for itself, using its suggested wording.
+     *
+     * Nothing about *how* it is settled is sent: the backend binds a known key to its derivation
+     * and overrides `settledBy` and `selfConfirmable` whatever a caller asks for, so sending them
+     * here would be a second opinion that never wins. The wording is only a starting point — it is
+     * an ordinary step afterwards, editable and removable like any other.
+     */
+    const addDerivable = useCallback(
+        async (derivation: DerivableArrivalStep) =>
+            await write(
+                async () =>
+                    await arrivalService.createStep({
+                        key: derivation.key,
+                        title: derivation.suggestedTitle,
+                        description: derivation.suggestedDescription,
+                    }),
+                'That step could not be added. It may already be on the list.',
             ),
         [write],
     );
@@ -105,5 +145,17 @@ export function useArrivalAuthoring() {
         [write],
     );
 
-    return { steps, loading, error, writeError, create, update, move, remove, reload: load };
+    return {
+        steps,
+        derivable,
+        loading,
+        error,
+        writeError,
+        create,
+        addDerivable,
+        update,
+        move,
+        remove,
+        reload: load,
+    };
 }

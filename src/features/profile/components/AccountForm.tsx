@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { UserProfile } from '../../../services/types';
 
@@ -6,6 +7,63 @@ type AccountFormProps = {
     profile: UserProfile;
     onUpdate: (data: Partial<UserProfile>) => Promise<void>;
 };
+
+/**
+ * Whether GitHub could find the account this person says they contribute as.
+ *
+ * ### Why a profile field earns a warning of its own
+ *
+ * This login is what artifact verification compares a pull request's author against. A typo that is
+ * still a syntactically valid username is stored and treated as their identity, and it does not
+ * fail loudly — it silently stops crediting work they really did, months later, while leaving them
+ * reading as calm rather than blocked. This is the one place that can be caught early.
+ *
+ * ### Three states, and the third one says nothing
+ *
+ * ⚠️ **No verdict is never rendered as a negative.** A missing verdict covers "not checked yet",
+ * "GitHub would not answer" and "nothing declared", and the app has no business telling somebody
+ * their perfectly good username does not exist because a rate limit got in the way — the same rule
+ * the orientation cache holds to, that an outage is not evidence about the world.
+ *
+ * A verdict is also about a *value*, so it is withheld the moment the field is edited away from the
+ * saved login: showing "we could not find that account" against the correction somebody is halfway
+ * through typing is the same wrong answer relocated.
+ */
+function GithubLoginVerdict({ profile, typed }: { profile: UserProfile; typed: string }) {
+    const verdict = profile.githubLoginVerification;
+    const stillTheSame = typed.trim().toLowerCase() === (profile.githubLogin ?? '');
+
+    if (!verdict || !stillTheSame) {
+        return null;
+    }
+
+    const checkedOn = profile.githubLoginVerifiedAt
+        ? new Date(profile.githubLoginVerifiedAt).toLocaleDateString()
+        : null;
+
+    if (verdict === 'NOT_FOUND') {
+        return (
+            <p className="flex items-start gap-1.5 text-xs text-app-danger-text">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                    GitHub has no account called <strong>{profile.githubLogin}</strong>
+                    {checkedOn && ` (checked ${checkedOn})`}. Until this is right, pull requests you
+                    open cannot be recognised as yours.
+                </span>
+            </p>
+        );
+    }
+
+    return (
+        <p className="flex items-start gap-1.5 text-xs text-app-success-text">
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+                Found on GitHub{checkedOn && ` on ${checkedOn}`}. This only says the account exists,
+                not that it is yours.
+            </span>
+        </p>
+    );
+}
 
 /**
  * Form component for updating user account information, including name, email, and avatar.
@@ -155,6 +213,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
                         to unlink your GitHub account.
                         {profile.githubLoginSource === 'PM_CONFIRMED' && ' Confirmed by your project manager.'}
                     </p>
+                    <GithubLoginVerdict profile={profile} typed={githubLogin} />
                 </div>
 
                 <div className="pt-4">

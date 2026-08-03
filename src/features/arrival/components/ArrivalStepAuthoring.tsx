@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, Trash2 } from 'lucide-react';
 import { useArrivalAuthoring } from '../hooks/useArrivalAuthoring';
-import type { ArrivalStep } from '../types';
+import type { ArrivalStep, DerivableArrivalStep } from '../types';
 
 /**
  * Authoring the company-wide arrival list — the things a new joiner has to get done before they can
@@ -13,14 +13,19 @@ import type { ArrivalStep } from '../types';
  * by their buddy, and that is the whole of its effect. Worth stating on the page itself, because
  * "mandatory steps" reads like a gate and the last version of this model was one.
  *
- * ### Every step is the hire's own word, for now
+ * ### Two kinds of step, and the difference is not cosmetic
  *
- * A0 has no derivation behind any step, so everything here is settled by the hire saying so. That
- * is recorded as such and never blended with anything the system observed — see the note the page
- * renders. Steps the system can check for itself arrive in A1.
+ * A step written here is settled by the hire saying so. A step taken from the catalog below is one
+ * the system checks for itself, and the two are recorded separately and never blended — that
+ * distinction is why the board card counts them apart rather than showing one figure.
+ *
+ * **Nothing is seeded**, including the checkable ones. Somebody adds the ones their organisation
+ * actually wants, which is what keeps a local-build step off the board of a person who never builds
+ * anything.
  */
 export function ArrivalStepAuthoring({ readOnly = false }: { readOnly?: boolean }) {
-    const { steps, loading, error, writeError, create, move, remove } = useArrivalAuthoring();
+    const { steps, derivable, loading, error, writeError, create, addDerivable, move, remove } =
+        useArrivalAuthoring();
     const [adding, setAdding] = useState(false);
 
     if (loading) {
@@ -93,6 +98,97 @@ export function ArrivalStepAuthoring({ readOnly = false }: { readOnly?: boolean 
                     Add a step
                 </button>
             )}
+
+            <DerivableCatalog
+                derivable={derivable}
+                readOnly={readOnly}
+                onAdd={addDerivable}
+            />
+        </section>
+    );
+}
+
+/**
+ * The steps the system can check for itself, offered by name.
+ *
+ * ### Why these are offered rather than typed
+ *
+ * A derivation is code — something has to know *how* to observe "you have a GitHub account" — and
+ * the backend binds a row to its derivation by the step's own key, with deliberately no column
+ * naming a deriver. Typing `github-account` into the form above therefore works, silently, and
+ * that folklore is what this replaces. It is also the only way these steps can be added at all.
+ *
+ * Shown to a read-only reader too, without buttons: HR is often the person who knows what should be
+ * on the list, and a notice standing in for it tells them nothing.
+ */
+function DerivableCatalog({
+    derivable,
+    readOnly,
+    onAdd,
+}: {
+    derivable: DerivableArrivalStep[];
+    readOnly: boolean;
+    onAdd: (derivation: DerivableArrivalStep) => Promise<boolean>;
+}) {
+    if (derivable.length === 0) {
+        return null;
+    }
+
+    return (
+        <section className="space-y-3 rounded-xl border border-dashed border-app-border p-4">
+            <header className="space-y-1">
+                <h3 className="flex items-center gap-2 text-sm font-medium text-app-text">
+                    <Eye className="h-4 w-4 text-app-text-muted" aria-hidden="true" />
+                    Steps we can check ourselves
+                </h3>
+                <p className="text-xs text-app-text-muted">
+                    These settle when the system sees them done, rather than when somebody ticks
+                    them — recorded separately from anybody&apos;s word for it. Add the ones that
+                    apply to your organisation; none are added for you.
+                </p>
+            </header>
+
+            <ul className="space-y-2">
+                {derivable.map((derivation) => (
+                    <li
+                        key={derivation.key}
+                        className="flex items-start justify-between gap-3 rounded-lg border border-app-border p-3"
+                    >
+                        <div className="min-w-0">
+                            <p className="text-sm text-app-text">{derivation.suggestedTitle}</p>
+                            <p className="mt-1 text-xs text-app-text-muted">
+                                {derivation.suggestedDescription}
+                            </p>
+                            {/*
+                              Said before adding, not discovered afterwards: whether the hire can
+                              also claim it is fixed by the derivation and cannot be edited later,
+                              unlike the wording.
+                            */}
+                            <p className="mt-1 text-xs text-app-text-muted">
+                                {derivation.selfConfirmable
+                                    ? 'The hire can also mark this done themselves.'
+                                    : 'Only the check settles this — the hire cannot mark it done.'}
+                            </p>
+                        </div>
+
+                        {derivation.added ? (
+                            <span className="shrink-0 text-xs text-app-text-muted">
+                                On the list
+                            </span>
+                        ) : (
+                            !readOnly && (
+                                <button
+                                    type="button"
+                                    onClick={() => void onAdd(derivation)}
+                                    className="shrink-0 rounded-lg border border-app-border px-2 py-1 text-xs text-app-text transition hover:bg-app-surface-muted"
+                                >
+                                    Add
+                                </button>
+                            )
+                        )}
+                    </li>
+                ))}
+            </ul>
         </section>
     );
 }
@@ -123,6 +219,19 @@ function StepRow({
                         <p className="mt-1 text-xs text-app-text-muted">{step.description}</p>
                     )}
                     <p className="mt-1 font-mono text-xs text-app-text-muted">{step.key}</p>
+                    {/*
+                      Which steps the system checks is not visible from their wording, and it is the
+                      difference between a list somebody has to work through and one that partly
+                      settles itself. Said on the row rather than only in the catalog below, since
+                      that is where the list is actually read.
+                    */}
+                    {step.settledBy === 'OBSERVED' && (
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-app-text-muted">
+                            <Eye className="h-3 w-3" aria-hidden="true" />
+                            We check this one
+                            {!step.selfConfirmable && ' — the hire cannot mark it done'}
+                        </p>
+                    )}
                 </div>
 
                 {/*

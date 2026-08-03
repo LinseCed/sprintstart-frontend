@@ -41,6 +41,8 @@ export function createMockProfile(
         hasCompletedOnboarding: true,
         githubLogin: null,
         githubLoginSource: null,
+        githubLoginVerification: null,
+        githubLoginVerifiedAt: null,
         ...overrides,
     };
 }
