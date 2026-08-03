@@ -154,6 +154,7 @@ export function useBuddyConversation(
                         taskId: proposal.taskId,
                         moduleId: proposal.moduleId,
                         answer: proposal.answer,
+                        githubLogin: proposal.githubLogin,
                         status: "idle",
                     };
                     setMessages(prev => prev.map(m =>
@@ -212,6 +213,7 @@ export function useBuddyConversation(
                         taskId: action.taskId,
                         moduleId: action.moduleId,
                         answer: action.answer,
+                        githubLogin: action.githubLogin,
                     });
                     patchAction(messageId, action.id, {
                         status: "resolved",
