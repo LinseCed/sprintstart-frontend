@@ -9,12 +9,16 @@ import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 
 /**
- * Onboarding Setup: the PM's single front door to making a project ready to onboard someone.
+ * Onboarding Setup: what this project has, in one place.
  *
- * The setup surfaces (skill map, starter tasks, buddies) grew as separate, co-equal nav
- * items that did not know about each other — so a PM could generate a competency map, never approve
- * it, and find a page "empty" with nothing explaining why. This page composes them into
- * one ladder with one verdict, and every rung links into the page that advances it.
+ * The setup surfaces (skill map, starter tasks, buddies) grew as separate, co-equal nav items that
+ * did not know about each other — so a PM could generate a competency map, never approve it, and
+ * find a page "empty" with nothing explaining why. This page composes them into one readout.
+ *
+ * ⚠️ **It is no longer a pipeline a PM walks.** Approval is gone from every stage it existed in:
+ * competencies are generated live and corrected, mined tasks are claimable the moment they land,
+ * and the baseline was deleted outright. Connecting a repository is the only step left, so the
+ * ladder reports outcomes rather than issuing chores — see `SetupReadinessLadder`.
  */
 export function OnboardingSetupPage() {
     const { profile } = useAuth();
@@ -36,7 +40,7 @@ export function OnboardingSetupPage() {
                     <PageHeader
                         icon={ListChecks}
                         title="Onboarding Setup"
-                        subtitle="Everything a project needs before a hire arrives — an approved skill map and a stocked pool of starter tasks — as one pipeline with one readiness check."
+                        subtitle="What this project has for somebody arriving into it — a corpus, a vocabulary, work they can claim — and what has not been built yet. Nothing here holds anyone up."
                     />
                 </div>
             </header>
@@ -45,7 +49,7 @@ export function OnboardingSetupPage() {
                 {!selectedProjectId ? (
                     <EmptyPrompt
                         title="Pick a project"
-                        body="Choose a project in the sidebar switcher to see how ready it is to onboard someone."
+                        body="Choose a project in the sidebar switcher to see what it has for somebody arriving into it."
                     />
                 ) : loading ? (
                     <div className="flex items-center justify-center p-16">

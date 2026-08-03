@@ -1,16 +1,24 @@
 import type { AppRoute } from '../../auth/accessPolicy';
 
-/** Mirrors the backend `RungState`. No state gates onboarding — this is a nudge, not a lock. */
-export type RungState = 'OK' | 'WARN' | 'BLOCKED';
+/**
+ * Whether a stage is in the state a ready project has. Mirrors the backend `RungState`.
+ *
+ * ⚠️ **There were three, and the third was `BLOCKED`** — written by nothing, describing a
+ * dependency that stopped being real when the baseline was retired, and rendered as a padlock on
+ * the one surface whose entire point is that nothing here gates anything. Deleted from the enum
+ * rather than left unused, exactly as `NodeState.LOCKED` was, because a value lying around is an
+ * invitation.
+ */
+export type RungState = 'OK' | 'WARN';
 
 /** One setup stage's state, as returned by `GET /api/v1/onboarding/setup/status`. */
 export interface SetupRung {
     /** Stable key: `skill-map`, `starter-tasks`, `tracks` — plus `corpus`, added client-side. */
     key: string;
     state: RungState;
-    /** The positive quantity for this rung (approved competencies, ingested artifacts, ...). */
+    /** The positive quantity for this rung (competencies, ingested artifacts, ...). */
     count: number;
-    /** One actionable sentence: what is missing, or what is waiting on the PM. */
+    /** One sentence: what is there, or what could not be built and why. */
     detail: string;
 }
 
@@ -27,9 +35,16 @@ export interface LadderRung extends SetupRung {
     title: string;
     /** A stable one-liner describing what this stage is for, independent of its current state. */
     blurb: string;
-    /** Where "open this stage" navigates. */
+    /** Where the rung's link goes. */
     route: AppRoute;
-    /** For rungs backed by a proposal queue: the `?kind=` the review inbox filters by. */
+    /**
+     * What that link says — named per rung rather than a shared "Open this stage".
+     *
+     * The shared wording framed every rung as a step in a pipeline somebody advances. Nothing here
+     * is a step any more, so each rung names the thing it is *about* instead.
+     */
+    openLabel: string;
+    /** For rungs whose mined output has a review surface: the `?kind=` that inbox filters by. */
     reviewKind?: string;
 }
 
