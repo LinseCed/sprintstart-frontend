@@ -43,7 +43,7 @@ export function BuddyActionProposals({
                     return (
                         <div key={action.id} className="flex flex-col">
                             <p
-                                className={`flex items-start gap-1.5 text-sm ${
+                                className={`flex min-w-0 items-start gap-1.5 break-words text-sm ${
                                     action.ok ? 'text-app-text' : 'text-app-text-muted'
                                 }`}
                             >
@@ -70,14 +70,18 @@ export function BuddyActionProposals({
                 return (
                     <div
                         key={action.id}
-                        className="flex flex-col gap-1.5 rounded-xl border border-app-border bg-app-bg p-2.5"
+                        className="flex min-w-0 max-w-full flex-col gap-1.5 rounded-xl border border-app-border bg-app-bg p-2.5"
                     >
                         <div className="flex flex-wrap items-center gap-2">
+                            {/* `action.label` is written by the model, so its length is not ours to
+                                assume. In a 384 px panel an unbreakable one would push the button
+                                past the edge -- hence the wrap and the left alignment that follows
+                                from a label running to two lines. */}
                             <button
                                 type="button"
                                 onClick={() => onConfirm(messageId, action)}
                                 disabled={isConfirming}
-                                className="flex items-center gap-1.5 rounded-lg bg-app-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+                                className="flex min-w-0 max-w-full items-center gap-1.5 break-words rounded-lg bg-app-brand px-3 py-1.5 text-left text-sm font-medium text-white transition-colors hover:bg-app-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isConfirming ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />

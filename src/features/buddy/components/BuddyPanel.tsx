@@ -22,6 +22,23 @@ type BuddyPanelProps = Pick<
 /**
  * The persistent buddy's floating conversation panel. Bubble styling mirrors
  * the full-page buddy conversation so every buddy surface feels consistent.
+ *
+ * ### It scrolls down, never sideways
+ *
+ * At 384 px a model's reply overflows easily — a package path, a URL, a fenced block — and the
+ * panel used to answer that with a **horizontal scrollbar across the whole conversation**, which
+ * is what the tutor reported. Two things caused it, and both are fixed at the source rather than
+ * by widening the panel:
+ *
+ * 1. **`overflow-y: auto` computes `overflow-x` to `auto` too** (CSS makes the pair non-`visible`
+ *    together), so the transcript grew a sideways scrollbar the moment anything overflowed. It is
+ *    now pinned shut, which is safe *because* of the second fix.
+ * 2. **A flex item's default `min-width: auto` refuses to shrink below its content**, so the
+ *    bubble and its column simply grew to fit a wide code block and the `overflow-x-auto` on
+ *    `pre` never engaged. `min-w-0` down the chain is what lets wide content scroll inside its
+ *    own block, where it belongs.
+ *
+ * Vertical scrolling is intentional and stays.
  */
 export function BuddyPanel({
     messages,
@@ -55,8 +72,8 @@ export function BuddyPanel({
                 </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col gap-4 px-4 py-4">
+            <div data-testid="buddy-panel-transcript" className="flex-1 overflow-y-auto overflow-x-hidden">
+                <div className="flex min-w-0 flex-col gap-4 px-4 py-4">
                     {messages.map(message => {
                         const isUser = message.role === 'USER';
                         const hasText = message.content.trim().length > 0;
@@ -86,10 +103,10 @@ export function BuddyPanel({
                                     )}
                                 </div>
 
-                                <div className={`flex max-w-[80%] flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                                <div className={`flex min-w-0 max-w-[80%] flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                                     {hasText && (
                                         <div
-                                            className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                                            className={`min-w-0 max-w-full break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                                                 isUser
                                                     ? 'whitespace-pre-wrap rounded-tr-none bg-app-brand text-white'
                                                     : 'rounded-tl-none bg-app-surface-muted text-app-text'
