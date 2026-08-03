@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, Bot, LayoutDashboard, Loader2, Sparkles, Users } from 'lucide-react';
 import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversation';
 import { useBuddyIntake } from '../features/buddy/hooks/useBuddyIntake';
+import { useHandedOffDraft } from '../features/buddy/useHandedOffDraft';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
 import { FlagToPmButton } from '../features/knowledge-request/components/FlagToPmButton';
 import { MyEscalations } from '../features/knowledge-request/components/MyEscalations';
@@ -82,6 +83,9 @@ function BuddyMentorHome() {
         dismissAction,
         bottomRef,
     } = useBuddyConversation({ open: true });
+
+    // Whatever they were typing in the floating panel when they asked for more room.
+    useHandedOffDraft(setDraft);
 
     const hasUserMessage = messages.some(m => m.role === 'USER');
     const lastQuestion = [...messages].reverse().find(m => m.role === 'USER')?.content ?? '';

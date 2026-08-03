@@ -1,4 +1,4 @@
-import { Bot, Send, X } from 'lucide-react';
+import { Bot, Maximize2, Send, X } from 'lucide-react';
 import { AutoResizeTextarea } from '../../../components/ui/AutoResizeTextarea';
 import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { useBuddy } from '../hooks/useBuddy';
@@ -17,6 +17,11 @@ type BuddyPanelProps = Pick<
     | 'bottomRef'
 > & {
     onClose: () => void;
+    /**
+     * Opens the full-page conversation, carrying the draft. Omitted when there is nowhere to go —
+     * on `/buddy` itself, where the control would offer the page the hire is already reading.
+     */
+    onOpenFull?: () => void;
 };
 
 /**
@@ -50,6 +55,7 @@ export function BuddyPanel({
     dismissAction,
     bottomRef,
     onClose,
+    onOpenFull,
 }: BuddyPanelProps) {
     return (
         <div
@@ -62,14 +68,34 @@ export function BuddyPanel({
                     <Bot size={18} className="text-app-brand-text" />
                     <span className="text-sm font-semibold text-app-text">Buddy</span>
                 </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Close buddy chat"
-                    className="rounded-lg p-1 text-app-text-muted transition-colors hover:bg-app-surface-muted hover:text-app-text"
-                >
-                    <X size={18} />
-                </button>
+                <div className="flex items-center gap-1">
+                    {/*
+                      The answer to "this box is too small" is the page that already exists, rather
+                      than a resizable panel: /buddy renders the same conversation through the same
+                      components with room to spare, and needs no layout state kept correct across
+                      viewports. The draft goes with it -- a control that discarded what somebody
+                      was typing would be worse than not offering one.
+                    */}
+                    {onOpenFull && (
+                        <button
+                            type="button"
+                            onClick={onOpenFull}
+                            title="Open the full conversation"
+                            className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs font-medium text-app-text-muted transition-colors hover:bg-app-surface-muted hover:text-app-text"
+                        >
+                            <Maximize2 size={14} aria-hidden="true" />
+                            Open full
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Close buddy chat"
+                        className="rounded-lg p-1 text-app-text-muted transition-colors hover:bg-app-surface-muted hover:text-app-text"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
             </header>
 
             <div data-testid="buddy-panel-transcript" className="flex-1 overflow-y-auto overflow-x-hidden">

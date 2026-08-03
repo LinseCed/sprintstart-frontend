@@ -1,14 +1,23 @@
 import { motion } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Bot, X } from 'lucide-react';
 import { useBuddy } from '../hooks/useBuddy';
 import { BuddyPanel } from './BuddyPanel';
+
+/** Where the full conversation lives. The panel hands off to it rather than growing. */
+const BUDDY_PAGE = '/buddy';
 
 /**
  * The always-on, repo-grounded onboarding companion. Mounted once at the app
  * root (see App.tsx) so it survives page navigation and keeps its open/closed
  * state for the lifetime of the session.
+ *
+ * The widget owns the hand-off because it owns the navigation: the panel stays a presentational
+ * component that is handed a callback, which is also what keeps it testable without a router.
  */
 export function BuddyWidget() {
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
     const {
         messages,
         isThinking,
@@ -21,6 +30,18 @@ export function BuddyWidget() {
         dismissAction,
         bottomRef,
     } = useBuddy();
+
+    // Nothing to hand off to when the page is already on screen -- the control would offer what
+    // the hire is looking at. The panel drops it entirely rather than disabling it.
+    const openFull =
+        pathname === BUDDY_PAGE
+            ? undefined
+            : () => {
+                  void navigate(BUDDY_PAGE, { state: { draft } });
+                  // Closed on the way out: leaving a floating copy of the conversation over the
+                  // full-page one is two composers for the same thread.
+                  toggleOpen();
+              };
 
     return (
         <>
@@ -35,6 +56,7 @@ export function BuddyWidget() {
                     dismissAction={dismissAction}
                     bottomRef={bottomRef}
                     onClose={toggleOpen}
+                    onOpenFull={openFull}
                 />
             )}
 

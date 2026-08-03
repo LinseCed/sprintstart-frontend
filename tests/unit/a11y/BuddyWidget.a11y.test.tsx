@@ -3,15 +3,20 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';
 import { axe } from 'vitest-axe';
 import { http, HttpResponse } from 'msw';
+import { MemoryRouter } from 'react-router-dom';
 import { BuddyWidget } from '../../../src/features/buddy/components/BuddyWidget';
 import { server } from '../setup/vitest.setup';
 
 describe('BuddyWidget Accessibility', () => {
     it('has no axe violations when closed', async () => {
         const { baseElement } = render(
-            <main>
-                <BuddyWidget />
-            </main>,
+            // The widget navigates (it hands the conversation off to /buddy), so it needs a
+            // router here for the same reason it has one in App: it is mounted inside one.
+            <MemoryRouter>
+                <main>
+                    <BuddyWidget />
+                </main>
+            </MemoryRouter>,
         );
 
         expect(await axe(baseElement)).toHaveNoViolations();
@@ -29,9 +34,13 @@ describe('BuddyWidget Accessibility', () => {
 
         const user = userEvent.setup();
         const { baseElement } = render(
-            <main>
-                <BuddyWidget />
-            </main>,
+            // The widget navigates (it hands the conversation off to /buddy), so it needs a
+            // router here for the same reason it has one in App: it is mounted inside one.
+            <MemoryRouter>
+                <main>
+                    <BuddyWidget />
+                </main>
+            </MemoryRouter>,
         );
 
         await user.click(screen.getByRole('button', { name: 'Open buddy chat' }));
