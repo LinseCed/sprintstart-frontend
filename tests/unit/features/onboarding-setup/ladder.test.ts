@@ -64,6 +64,23 @@ describe('buildLadder', () => {
         expect(ladder.rungs.find((r) => r.key === 'starter-tasks')?.reviewKind).toBe('starter-tasks');
     });
 
+    /**
+     * A shared "Open this stage" framed every rung as a step in a pipeline. Nothing here is a step
+     * any more, so each rung names the thing it is about.
+     */
+    it('gives every rung its own link wording', () => {
+        const ladder = buildLadder(
+            readiness([
+                { key: 'skill-map', state: 'OK', count: 6, detail: 'ok' },
+                { key: 'starter-tasks', state: 'OK', count: 2, detail: 'ok' },
+            ]),
+            corpusOk,
+        );
+        const labels = ladder.rungs.map((r) => r.openLabel);
+        expect(labels).toEqual(['Open Data Ingestion', 'Open the studio', 'Open starter work']);
+        expect(new Set(labels).size).toBe(labels.length);
+    });
+
     it('is not ready when a stage warns', () => {
         const ladder = buildLadder(
             readiness([

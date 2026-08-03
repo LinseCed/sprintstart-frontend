@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, BookOpen, Loader2, Network, Plus } from 'lucide-react';
+import { AlertCircle, Loader2, Network, Plus, Search } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useProjectContext } from '../features/projects/useProjectContext';
+import { CompetencyList } from '../features/graph-authoring/components/CompetencyList';
 import { StudioNodePanel } from '../features/graph-authoring/components/StudioNodePanel';
 import { NewCompetencyModal } from '../features/graph-authoring/components/NewCompetencyModal';
+import { groupByArea } from '../features/graph-authoring/grouping';
 import { useGraphEditing } from '../features/graph-authoring/hooks/useGraphEditing';
 import { useLiveGraph } from '../features/graph-authoring/hooks/useLiveGraph';
 import { useModuleAuthoring } from '../features/graph-authoring/hooks/useModuleAuthoring';
@@ -20,6 +22,14 @@ const NO_MODULE: ModuleReadiness = { activeModuleId: null, pending: null };
  * It used to be a canvas, because competencies used to be a graph. With prerequisite edges retired
  * there is nothing to draw — a node-link diagram of a list is a picture of nothing — so this is a
  * list, and every row answers the question that survived: is anything written to teach this?
+ *
+ * ### Grouped and searchable, because generation made it long
+ *
+ * A hand-authored vocabulary was short enough to read top to bottom. One generated from a crawl is
+ * not, and it arrives with an `area` on every row — the grouping `RELATED` edges were already
+ * describing before the graph was retired. So the list groups by it and offers a filter, and both
+ * are client-side over a vocabulary already in hand: a search that costs a round trip is one people
+ * stop using.
  *
  * Competencies are global; modules are written against one project's corpus, so the project
  * selector scopes only the module half. HR can read but not author, matching the backend.
@@ -55,6 +65,22 @@ export function GraphStudioPage() {
 
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [query, setQuery] = useState('');
+
+    const groups = useMemo(
+        () => groupByArea(graph.competencies, query),
+        [graph.competencies, query],
+    );
+
+    const keysWithModule = useMemo(
+        () =>
+            new Set(
+                [...readinessByKey.entries()]
+                    .filter(([, readiness]) => Boolean(readiness.activeModuleId))
+                    .map(([key]) => key),
+            ),
+        [readinessByKey],
+    );
 
     const handleCreateCompetency = async (
         input: Parameters<typeof createCompetency>[0]
@@ -111,6 +137,12 @@ export function GraphStudioPage() {
         <div className="flex h-[calc(100vh-64px)] flex-col bg-app-bg lg:h-screen">
             {header}
 
+            {/*
+              A landmark, not decoration: without one, everything below the header is content axe
+              reports as belonging to no region, and a screen-reader user has no way to skip the
+              page furniture to reach the vocabulary.
+            */}
+            <main className="flex min-h-0 flex-1 flex-col">
             {graphError && (
                 <div className="app-page-frame mt-4 shrink-0">
                     <div className="flex items-center gap-3 rounded-2xl border border-app-danger-border bg-app-danger-bg p-4">
@@ -143,56 +175,37 @@ export function GraphStudioPage() {
             ) : (
                 <div className="mt-4 flex min-h-0 flex-1 flex-col lg:flex-row">
                     <div className="min-h-0 flex-1 overflow-y-auto">
-                        <div className="app-page-frame pb-8">
-                            <ul data-testid="competency-list" className="space-y-2">
-                                {graph.competencies.map(competency => {
-                                    const readiness = readinessByKey.get(competency.key);
-                                    const hasModule = Boolean(readiness?.activeModuleId);
-                                    const isSelected = competency.key === selectedKey;
-                                    return (
-                                        <li key={competency.key}>
-                                            <button
-                                                type="button"
-                                                aria-current={isSelected}
-                                                onClick={() => setSelectedKey(competency.key)}
-                                                className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus ${
-                                                    isSelected
-                                                        ? 'border-app-brand-border bg-app-brand-soft'
-                                                        : 'border-app-border bg-app-surface hover:bg-app-surface-hover'
-                                                }`}
-                                            >
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="text-sm font-medium text-app-text">
-                                                        {competency.label}
-                                                    </span>
-                                                    <span className="rounded-full bg-app-surface-hover px-2 py-0.5 text-xs text-app-text-muted">
-                                                        {competency.kind.toLowerCase()}
-                                                    </span>
-                                                    <span className="text-xs text-app-text-subtle">
-                                                        L{competency.targetLevel}
-                                                    </span>
-                                                    {/* The one thing that decides whether a hire
-                                                        gets anything out of this competency. */}
-                                                    {hasModule && (
-                                                        <span className="inline-flex items-center gap-1 text-xs text-app-text-muted">
-                                                            <BookOpen
-                                                                className="h-3.5 w-3.5"
-                                                                aria-hidden="true"
-                                                            />
-                                                            module
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {competency.description && (
-                                                    <p className="mt-1 line-clamp-2 text-xs text-app-text-muted">
-                                                        {competency.description}
-                                                    </p>
-                                                )}
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
+                        <div className="app-page-frame space-y-4 pb-8">
+                            <label className="relative block">
+                                <span className="sr-only">Search competencies</span>
+                                <Search
+                                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-muted"
+                                    aria-hidden="true"
+                                />
+                                <input
+                                    type="search"
+                                    value={query}
+                                    onChange={event => setQuery(event.target.value)}
+                                    placeholder="Search by name, area or key"
+                                    className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-9 pr-3 text-sm text-app-text placeholder:text-app-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
+                                />
+                            </label>
+
+                            {groups.length === 0 ? (
+                                // Not the empty-vocabulary state: that one says "connect a
+                                // repository", which is the wrong advice when the vocabulary is full
+                                // and the query simply matched none of it.
+                                <p className="rounded-2xl border border-dashed border-app-border p-6 text-center text-sm text-app-text-muted">
+                                    Nothing matches “{query.trim()}”.
+                                </p>
+                            ) : (
+                                <CompetencyList
+                                    groups={groups}
+                                    keysWithModule={keysWithModule}
+                                    selectedKey={selectedKey}
+                                    onSelect={setSelectedKey}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -230,6 +243,7 @@ export function GraphStudioPage() {
                     )}
                 </div>
             )}
+            </main>
 
             {isCreateOpen && (
                 <NewCompetencyModal

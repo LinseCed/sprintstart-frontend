@@ -86,8 +86,11 @@ function ReviewGroup({
             {items.length === 0 ? (
                 <p className="mt-3 text-sm text-app-text-muted">
                     {working
-                        ? 'Working… proposals will appear here as they are drafted.'
-                        : 'Nothing waiting. Generate to propose some from the corpus.'}
+                        ? 'Working… tasks appear here as they are mined.'
+                        : // "Nothing waiting" implied a queue somebody was holding up. An empty
+                          // list means every mined task has been looked at -- not that hires have
+                          // nothing to claim, which is a different thing and lives on /starter-work.
+                          'Everything mined has been looked over. Mine again to find more in the corpus.'}
                 </p>
             ) : (
                 <ul className="mt-3 space-y-2">

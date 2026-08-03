@@ -7,25 +7,41 @@ import type { LadderRung, SetupLadder, SetupReadiness, SetupRung } from './types
  * the backend rung key (plus `corpus`, which is composed client-side). The order here is the order
  * the ladder renders — the setup pipeline, top to bottom.
  */
-type RungMeta = { title: string; blurb: string; route: AppRoute; reviewKind?: string };
+type RungMeta = {
+    title: string;
+    blurb: string;
+    route: AppRoute;
+    openLabel: string;
+    reviewKind?: string;
+};
 
+/**
+ * Titles are **states of the project, not instructions.** "Starter tasks stocked" is something that
+ * is or is not true; "Stock starter tasks" would be a chore, and three of these four fill
+ * themselves in from a crawl with nobody doing anything.
+ */
 const RUNG_META: Record<string, RungMeta> = {
     corpus: {
         title: 'Corpus connected',
-        blurb: 'The AI grounds answers, orientation and mined tasks in what has been ingested.',
+        // The one rung where a person really is the thing standing in the way, and the blurb says
+        // so rather than pretending the others are like it.
+        blurb: 'The only thing here somebody has to do. Everything below is built from what gets ingested.',
         route: '/data-ingestion',
+        openLabel: 'Open Data Ingestion',
     },
     // No `reviewKind`: there is no competency proposal queue to deep-link into. A competency is
-    // authored (or corrected) in the studio directly, so "open" goes to the thing itself.
+    // authored (or corrected) in the studio directly, so the link goes to the thing itself.
     'skill-map': {
         title: 'Competencies to teach and measure against',
-        blurb: 'The vocabulary the buddy names a gap in and a module hangs from. Drafted from the corpus; add or correct one by hand any time.',
+        blurb: 'The vocabulary the buddy names a gap in and a module hangs from. Generated when a crawl finishes; correct one by hand any time.',
         route: '/graph-studio',
+        openLabel: 'Open the studio',
     },
     'starter-tasks': {
         title: 'Starter tasks stocked',
-        blurb: 'Well-scoped first tasks a hire can aim at. Approving one turns it into a goal.',
+        blurb: 'Well-scoped first tasks a hire can aim at. Mined from the corpus and claimable straight away — looking one over only lifts its ranking demotion.',
         route: '/starter-work',
+        openLabel: 'Open starter work',
         reviewKind: 'starter-tasks',
     },
     // The only rung whose route is this page: the role-track table sits directly beneath the
@@ -34,6 +50,7 @@ const RUNG_META: Record<string, RungMeta> = {
         title: 'Roles say which track they onboard on',
         blurb: 'A role with no track onboards its people in the default wording. Set one per role so a hire’s work is named the way their own role names it.',
         route: '/setup',
+        openLabel: 'See the roles below',
     },
 };
 

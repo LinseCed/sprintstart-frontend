@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, CircleAlert, Lock } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleDashed } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import type { LadderRung, RungState, SetupLadder } from '../types';
@@ -10,6 +10,14 @@ type StateStyle = {
     dot: string;
 };
 
+/**
+ * How each state reads.
+ *
+ * `WARN` is deliberately **"Not yet"** rather than "Needs you". Almost nothing that lands there is
+ * something a person failed to do — no competencies and no starter tasks both follow from the
+ * corpus, and the system builds them when a crawl finishes. Labelling that as somebody's
+ * outstanding task invents a chore and then blames them for it.
+ */
 const STATE_STYLES: Record<RungState, StateStyle> = {
     OK: {
         icon: CheckCircle2,
@@ -18,27 +26,36 @@ const STATE_STYLES: Record<RungState, StateStyle> = {
         dot: 'border-app-success-border bg-app-success-bg text-app-success-text',
     },
     WARN: {
-        icon: CircleAlert,
-        chip: 'bg-app-warning-bg text-app-warning-text border border-app-warning-border',
-        label: 'Needs you',
-        dot: 'border-app-warning-border bg-app-warning-bg text-app-warning-text',
-    },
-    BLOCKED: {
-        icon: Lock,
-        chip: 'bg-app-danger-bg text-app-danger-text border border-app-danger-border',
-        label: 'Blocked',
-        dot: 'border-app-danger-border bg-app-danger-bg text-app-danger-text',
+        icon: CircleDashed,
+        chip: 'bg-app-surface-hover text-app-text-muted border border-app-border',
+        label: 'Not yet',
+        dot: 'border-app-border bg-app-surface-hover text-app-text-muted',
     },
 };
 
 /**
- * The setup pipeline as a top-to-bottom ladder: each stage shows its state, the one thing to do
- * next, and a way into the page that does it. Answers "is this project ready to onboard someone?"
- * in one glance — the question no single setup page could answer before.
+ * What this project has, stage by stage: whether a corpus is connected, whether there is a
+ * vocabulary to teach and measure against, whether there is work a hire could claim, and whether
+ * roles say how their people are spoken to.
+ *
+ * ### A readout, not a to-do list
+ *
+ * It used to be a checklist, and that was right when a PM had to generate a skill map and approve
+ * it, mine starter tasks and approve those, and pick a baseline. **Every one of those steps has
+ * since been deleted.** Generation runs when a crawl finishes, mined tasks are claimable the moment
+ * they land, and the baseline is gone — so the only thing anybody actually does here is connect a
+ * repository, and everything below that follows from it.
+ *
+ * A checklist that lists outcomes as though they were chores does two bad things: it invents work
+ * (the *dead work* failure the baseline died of — a rung that looks like progress while somebody
+ * does it) and it reads as a gate on a surface where **nothing gates anything**. So the states are
+ * "Ready" and "Not yet", nothing here is counted as outstanding, and a rung links to the thing
+ * itself rather than to "the page that advances it".
+ *
+ * The `tracks` rung is the exception that showed the way: it has always described a situation — some
+ * roles say which track they onboard on and others do not — rather than issuing an instruction.
  */
 export function SetupReadinessLadder({ ladder }: { ladder: SetupLadder }) {
-    const needsAttention = ladder.rungs.filter((rung) => rung.state !== 'OK').length;
-
     return (
         <div className="space-y-5">
             <div
@@ -51,16 +68,19 @@ export function SetupReadinessLadder({ ladder }: { ladder: SetupLadder }) {
                 {ladder.ready ? (
                     <p className="flex items-center gap-2 text-sm font-medium text-app-success-text">
                         <CheckCircle2 className="h-4 w-4 shrink-0" />
-                        This project is ready to onboard someone. Every setup stage is done.
+                        This project has everything a hire arrives into: a corpus, a vocabulary, and
+                        work they can claim.
                     </p>
                 ) : (
+                    // No count of what is outstanding. Counting stages "needing attention" is what
+                    // made this a checklist, and three of the four fill themselves in from a crawl.
                     <p className="text-sm text-app-text-muted">
-                        <span className="font-semibold text-app-text">
-                            {needsAttention} stage{needsAttention === 1 ? '' : 's'}
-                        </span>{' '}
-                        need{needsAttention === 1 ? 's' : ''} attention before this project is ready
-                        to onboard someone. Nothing is blocked from starting — this is a checklist,
-                        not a gate.
+                        Not everything is in place yet — each stage below says what is there and
+                        what is not.{' '}
+                        <span className="font-medium text-app-text">
+                            Nobody is blocked meanwhile
+                        </span>
+                        : a hire can arrive, ask their buddy and claim work at any of these states.
                     </p>
                 )}
             </div>
@@ -102,19 +122,27 @@ function RungRow({ rung }: { rung: LadderRung }) {
                     <p className="mt-1 text-sm text-app-text-muted">{rung.blurb}</p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                        {/*
+                          "Open this stage" framed the link as advancing a pipeline. There is no
+                          stage to advance -- the link goes to the thing the rung is *about*, so a
+                          reader who wants to see or correct it can.
+                        */}
                         <NavLink
                             to={rung.route}
                             className="inline-flex items-center gap-1.5 text-sm font-medium text-app-brand transition-colors hover:text-app-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                         >
-                            Open this stage
+                            {rung.openLabel}
                             <ArrowRight className="h-4 w-4" />
                         </NavLink>
                         {rung.reviewKind && (
+                            // Not "Review proposals": since D1 these tasks are live and claimable
+                            // the moment they are mined. Looking at one lifts the matcher's
+                            // demotion; it does not admit it to anything.
                             <NavLink
                                 to={`/setup/review?kind=${rung.reviewKind}`}
                                 className="inline-flex items-center gap-1.5 text-sm font-medium text-app-text-muted transition-colors hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
                             >
-                                Review proposals
+                                Look over what was mined
                             </NavLink>
                         )}
                     </div>
