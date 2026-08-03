@@ -8,16 +8,22 @@ import type {
 } from '../types';
 
 /**
- * The company-wide arrival step list, for the people who author it.
+ * The arrival step list for one scope, for the people who author it.
  *
- * Company-scoped only, which is all A0 supports: per-project additions are A3. The scope is passed
- * explicitly as `null` rather than left implicit so that widening it later is a change of argument
- * rather than a change of meaning.
+ * `projectId` is the scope: **null means company-wide**, which is the same convention the model and
+ * the wire use — absent scope is not excluded scope. A0 passed it explicitly rather than leaving it
+ * implicit precisely so that A3 could widen this to a parameter without changing what any of it
+ * meant, which is what happened.
  *
  * The derivable catalog is loaded with the list rather than separately, because its `added` flags
  * describe that same list and the two going out of step would offer to add something twice.
+ *
+ * ⚠️ The catalog's `added` flags always describe the **company-wide** list, because a derivation is
+ * code and the same key can only be derived once. A project scope therefore shows them as offers it
+ * should not make — which is why the caller hides the catalog outside the company scope rather than
+ * this hook silently filtering it.
  */
-export function useArrivalAuthoring() {
+export function useArrivalAuthoring(projectId: string | null = null) {
     const [steps, setSteps] = useState<ArrivalStep[] | null>(null);
     const [derivable, setDerivable] = useState<DerivableArrivalStep[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,7 +37,7 @@ export function useArrivalAuthoring() {
             // Settled separately: the authored list is the page, and the catalog is an offer on top
             // of it. A catalog that will not load must not take the list down with it.
             const [authored, catalog] = await Promise.allSettled([
-                arrivalService.listSteps(null),
+                arrivalService.listSteps(projectId),
                 arrivalService.listDerivableSteps(),
             ]);
 
@@ -43,7 +49,7 @@ export function useArrivalAuthoring() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [projectId]);
 
     useEffect(() => {
         // Deferred to a microtask: React 19 rejects a synchronous first setState in an effect body,
@@ -69,13 +75,15 @@ export function useArrivalAuthoring() {
         [load],
     );
 
+    // The scope is the hook's, not the form's: a create form that had to remember which scope it
+    // was in could disagree with the list it is adding to, and the wire has no way to notice.
     const create = useCallback(
         async (request: CreateArrivalStepRequest) =>
             await write(
-                async () => await arrivalService.createStep(request),
+                async () => await arrivalService.createStep({ ...request, projectId }),
                 'That step could not be added. A step with that key may already exist.',
             ),
-        [write],
+        [write, projectId],
     );
 
     /**
@@ -92,21 +100,22 @@ export function useArrivalAuthoring() {
                 async () =>
                     await arrivalService.createStep({
                         key: derivation.key,
+                        projectId,
                         title: derivation.suggestedTitle,
                         description: derivation.suggestedDescription,
                     }),
                 'That step could not be added. It may already be on the list.',
             ),
-        [write],
+        [write, projectId],
     );
 
     const update = useCallback(
         async (key: string, request: UpdateArrivalStepRequest) =>
             await write(
-                async () => await arrivalService.updateStep(key, request, null),
+                async () => await arrivalService.updateStep(key, request, projectId),
                 'That change could not be saved.',
             ),
-        [write],
+        [write, projectId],
     );
 
     /**
@@ -128,21 +137,21 @@ export function useArrivalAuthoring() {
             return await write(
                 async () => await arrivalService.reorderSteps(
                     reordered.map((step) => step.key),
-                    null,
+                    projectId,
                 ),
                 'That order could not be saved.',
             );
         },
-        [steps, write],
+        [steps, write, projectId],
     );
 
     const remove = useCallback(
         async (key: string) =>
             await write(
-                async () => await arrivalService.deleteStep(key, null),
+                async () => await arrivalService.deleteStep(key, projectId),
                 'That step could not be removed.',
             ),
-        [write],
+        [write, projectId],
     );
 
     return {

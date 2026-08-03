@@ -12,6 +12,7 @@ vi.mock('../../../../src/services/arrivalService', () => ({
 const step = (over: Partial<ArrivalStep> = {}): ArrivalStep => ({
     key: 'vpn',
     projectId: null,
+    projectName: null,
     title: 'Request VPN access',
     description: null,
     href: null,
@@ -137,6 +138,38 @@ describe('ArrivalStepsCard', () => {
             expect(screen.getByText(/didn't save/i)).toBeInTheDocument();
         });
         expect(screen.queryByText('You marked this done')).not.toBeInTheDocument();
+    });
+
+    /**
+     * A hire on two projects can be given "Request staging access" twice. Without a heading naming
+     * whose step each is, the list is unreadable — which is why the wire carries the project name.
+     */
+    it('heads each project’s steps with the project name', () => {
+        render(
+            <BoardGrid
+                board={board([
+                    arrivalContent({
+                        steps: [
+                            step({ key: 'vpn', title: 'Request VPN access' }),
+                            step({ key: 'staging', title: 'Get staging access', projectName: 'Apollo' }),
+                        ],
+                        outstandingCount: 2,
+                    }),
+                ])}
+            />,
+        );
+
+        // Company-wide answers "who else has this", rather than naming the scope's implementation.
+        expect(screen.getByText('Everyone')).toBeInTheDocument();
+        expect(screen.getByText('Apollo')).toBeInTheDocument();
+    });
+
+    /** A lone "Everyone" over a list that is entirely company-wide is a label saying nothing. */
+    it('shows no headings when every step is company-wide', () => {
+        render(<BoardGrid board={board([arrivalContent()])} />);
+
+        expect(screen.getByText('Request VPN access')).toBeInTheDocument();
+        expect(screen.queryByText('Everyone')).not.toBeInTheDocument();
     });
 
     /**

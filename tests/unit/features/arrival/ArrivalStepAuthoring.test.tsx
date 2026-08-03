@@ -20,6 +20,7 @@ vi.mock('../../../../src/services/arrivalService', () => ({
 const step = (over: Partial<ArrivalStep> = {}): ArrivalStep => ({
     key: 'vpn',
     projectId: null,
+    projectName: null,
     title: 'Request VPN access',
     description: null,
     href: null,
@@ -115,6 +116,69 @@ describe('ArrivalStepAuthoring', () => {
         expect(screen.queryByRole('button', { name: 'Add a step' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Remove "Request VPN access"/ })).not.toBeInTheDocument();
         expect(screen.getByText(/a PM or an admin can/i)).toBeInTheDocument();
+    });
+
+    it('reads and writes the project scope it was given', async () => {
+        render(<ArrivalStepAuthoring projectId="p1" projectName="Apollo" />);
+
+        await waitFor(() => {
+            expect(arrivalService.listSteps).toHaveBeenCalledWith('p1');
+        });
+        fireEvent.click(await screen.findByRole('button', { name: /Remove "Request VPN access"/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+        await waitFor(() => {
+            expect(arrivalService.deleteStep).toHaveBeenCalledWith('vpn', 'p1');
+        });
+    });
+
+    /** The scope is the page's, not the form's — a form that had to remember it could disagree. */
+    it('creates into the scope being authored without the form saying so', async () => {
+        render(<ArrivalStepAuthoring projectId="p1" projectName="Apollo" />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Add a step' }));
+
+        // By placeholder: the wrapping <label> carries its hint text too, so an exact label
+        // match does not find these inputs.
+        fireEvent.change(screen.getByPlaceholderText('Request VPN access'), {
+            target: { value: 'Get staging' },
+        });
+        fireEvent.change(screen.getByPlaceholderText('vpn-access'), {
+            target: { value: 'staging' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
+
+        await waitFor(() => {
+            expect(arrivalService.createStep).toHaveBeenCalledWith(
+                expect.objectContaining({ key: 'staging', projectId: 'p1' }),
+            );
+        });
+    });
+
+    /**
+     * A project scope explains itself differently: its steps are *extra*, and people on it still
+     * get the company list. Saying "nobody sees this card at all" there would be false.
+     */
+    it('says a project’s empty list still leaves the company one in place', async () => {
+        vi.mocked(arrivalService.listSteps).mockResolvedValue([]);
+
+        render(<ArrivalStepAuthoring projectId="p1" projectName="Apollo" />);
+
+        expect(await screen.findByText(/still get the company-wide list/i)).toBeInTheDocument();
+        expect(screen.queryByText(/nobody sees this card/i)).not.toBeInTheDocument();
+    });
+
+    /**
+     * A derivation is code bound to one key, so a checkable step is the same step everywhere and
+     * belongs on the list everybody gets. In a project scope the catalog's `added` flags describe
+     * the *company* list, so it would advertise as available something already added.
+     */
+    it('offers the derivable catalog only on the company-wide list', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockResolvedValue([derivable()]);
+
+        render(<ArrivalStepAuthoring projectId="p1" projectName="Apollo" />);
+
+        expect(await screen.findByText('Request VPN access')).toBeInTheDocument();
+        expect(screen.queryByText('Add your GitHub username')).not.toBeInTheDocument();
     });
 
     /**

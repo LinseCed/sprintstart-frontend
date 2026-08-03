@@ -23,9 +23,18 @@ import type { ArrivalStep, DerivableArrivalStep } from '../types';
  * actually wants, which is what keeps a local-build step off the board of a person who never builds
  * anything.
  */
-export function ArrivalStepAuthoring({ readOnly = false }: { readOnly?: boolean }) {
+export function ArrivalStepAuthoring({
+    readOnly = false,
+    projectId = null,
+    projectName = null,
+}: {
+    readOnly?: boolean;
+    /** The scope being authored. **Null means company-wide**, as everywhere else in this model. */
+    projectId?: string | null;
+    projectName?: string | null;
+}) {
     const { steps, derivable, loading, error, writeError, create, addDerivable, move, remove } =
-        useArrivalAuthoring();
+        useArrivalAuthoring(projectId);
     const [adding, setAdding] = useState(false);
 
     if (loading) {
@@ -43,10 +52,25 @@ export function ArrivalStepAuthoring({ readOnly = false }: { readOnly?: boolean 
     return (
         <section className="space-y-4">
             <header className="space-y-1">
-                <h2 className="text-lg font-medium text-app-text">Arrival steps</h2>
+                <h2 className="text-lg font-medium text-app-text">
+                    {projectName ? `Arrival steps for ${projectName}` : 'Arrival steps'}
+                </h2>
                 <p className="text-sm text-app-text-muted">
-                    What somebody needs before they can start — accounts, access, a machine that
-                    builds. These appear on every new joiner&apos;s board.{' '}
+                    {projectName ? (
+                        <>
+                            Extra steps for people on{' '}
+                            <strong className="font-medium text-app-text">{projectName}</strong>,
+                            on top of the company-wide list. A step here that reuses a company
+                            step&apos;s key replaces its wording without losing anyone&apos;s
+                            record of having done it.
+                        </>
+                    ) : (
+                        <>
+                            What somebody needs before they can start — accounts, access, a machine
+                            that builds. These appear on every new joiner&apos;s board, whichever
+                            project they are on.
+                        </>
+                    )}{' '}
                     <strong className="font-medium text-app-text">
                         Nothing here blocks anyone
                     </strong>
@@ -58,8 +82,11 @@ export function ArrivalStepAuthoring({ readOnly = false }: { readOnly?: boolean 
 
             {steps && steps.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-app-border p-4 text-sm text-app-text-muted">
-                    No arrival steps yet, so nobody sees this card at all. Add the first thing a new
-                    joiner has to do before they can work.
+                    {projectName
+                        ? `No steps specific to ${projectName}. People here still get the ` +
+                          'company-wide list — add something only if this project needs it on top.'
+                        : 'No arrival steps yet, so nobody sees this card at all. Add the first ' +
+                          'thing a new joiner has to do before they can work.'}
                 </p>
             ) : (
                 <ul className="space-y-2">
@@ -99,11 +126,19 @@ export function ArrivalStepAuthoring({ readOnly = false }: { readOnly?: boolean 
                 </button>
             )}
 
-            <DerivableCatalog
-                derivable={derivable}
-                readOnly={readOnly}
-                onAdd={addDerivable}
-            />
+            {/*
+              Company scope only. A derivation is code bound to one key, so a checkable step is the
+              same step everywhere and belongs on the list everybody gets — and the catalog's
+              `added` flags describe that list, so in a project scope they would advertise as
+              available something already on the company list.
+            */}
+            {projectId === null && (
+                <DerivableCatalog
+                    derivable={derivable}
+                    readOnly={readOnly}
+                    onAdd={addDerivable}
+                />
+            )}
         </section>
     );
 }

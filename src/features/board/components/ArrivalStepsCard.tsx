@@ -3,6 +3,7 @@ import { Check, ExternalLink, Loader2 } from 'lucide-react';
 import { arrivalService } from '../../../services/arrivalService';
 import { BoardCardFrame } from './BoardCardFrame';
 import { AskTheBuddy } from './AskTheBuddy';
+import { groupByScope } from '../../arrival/scopeGroups';
 import type { ArrivalStep } from '../../arrival/types';
 import type { ArrivalStepsContent, BoardCard } from '../types';
 
@@ -90,6 +91,11 @@ export function ArrivalStepsCard({
     const observed = steps.filter((step) => step.rigor === 'OBSERVED').length;
     const declared = steps.filter((step) => step.rigor === 'DECLARED').length;
 
+    // Headings only earn their space once there is more than one scope. A lone "Everyone" over a
+    // list that is entirely company-wide -- the normal case -- is a label saying nothing.
+    const groups = groupByScope(steps);
+    const showScopeHeadings = groups.length > 1;
+
     async function confirm(step: ArrivalStep) {
         setPendingKey(step.key);
         setFailedKey(null);
@@ -114,83 +120,33 @@ export function ArrivalStepsCard({
             canMoveDown={canMoveDown}
             subtitle={summarise({ observed, declared, outstanding })}
         >
-            <ul className="space-y-2">
-                {steps.map((step) => (
-                    <li
-                        key={step.key}
-                        className={`rounded-xl border p-3 ${
-                            step.settled ? 'border-app-border bg-app-surface-muted/40' : 'border-app-border'
-                        }`}
-                    >
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <p
-                                    className={`text-sm ${
-                                        step.settled ? 'text-app-text-muted' : 'text-app-text'
-                                    }`}
-                                >
-                                    {step.title}
-                                </p>
-                                {step.description && (
-                                    <p className="mt-1 text-xs text-app-text-muted">{step.description}</p>
-                                )}
-                                {step.settled && <SettledNote step={step} />}
-                                {failedKey === step.key && (
-                                    <p className="mt-1 text-xs text-app-danger-text">
-                                        That didn&apos;t save. Try again in a moment.
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex shrink-0 items-center gap-2">
-                                {step.href && !step.settled && (
-                                    <a
-                                        href={step.href}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-app-text-muted transition hover:text-app-text"
-                                        aria-label={`Open the page for "${step.title}"`}
-                                    >
-                                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                                    </a>
-                                )}
-                                {step.settled ? (
-                                    <Check
-                                        className="h-4 w-4 text-app-success-text"
-                                        aria-label="Done"
-                                    />
-                                ) : (
-                                    // `selfConfirmable`, not `settledBy === 'DECLARED'`: a step can
-                                    // be derived *and* the hire's to claim. "My machine builds" is
-                                    // observable but never refutable, and the evidence lands days
-                                    // after it mattered, so their word is the answer that arrives on
-                                    // day one. The GitHub check is the opposite -- definitive when it
-                                    // answers -- and the backend refuses a confirmation there, so
-                                    // offering one would be an affordance whose only outcome is an
-                                    // error.
-                                    step.selfConfirmable && (
-                                        <button
-                                            type="button"
-                                            onClick={() => void confirm(step)}
-                                            disabled={pendingKey === step.key}
-                                            className="rounded-lg border border-app-border px-2 py-1 text-xs text-app-text transition hover:bg-app-surface-muted disabled:opacity-60"
-                                        >
-                                            {pendingKey === step.key ? (
-                                                <Loader2
-                                                    className="h-3.5 w-3.5 animate-spin"
-                                                    aria-label={`Saving "${step.title}"`}
-                                                />
-                                            ) : (
-                                                "I've done this"
-                                            )}
-                                        </button>
-                                    )
-                                )}
-                            </div>
-                        </div>
-                    </li>
+            <div className="space-y-4">
+                {groups.map((group) => (
+                    <section key={group.projectName ?? '__company__'} className="space-y-2">
+                        {/*
+                          Company-wide reads "Everyone" rather than "Company": it answers the
+                          question a heading raises -- who else has this step -- instead of naming
+                          the scope's implementation.
+                        */}
+                        {showScopeHeadings && (
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">
+                                {group.projectName ?? 'Everyone'}
+                            </h4>
+                        )}
+                        <ul className="space-y-2">
+                            {group.steps.map((step) => (
+                                <StepRow
+                                    key={step.key}
+                                    step={step}
+                                    pending={pendingKey === step.key}
+                                    failed={failedKey === step.key}
+                                    onConfirm={() => void confirm(step)}
+                                />
+                            ))}
+                        </ul>
+                    </section>
                 ))}
-            </ul>
+            </div>
 
             {/*
               Shown only while it runs, and with no failure state behind it: a check that could not
@@ -212,6 +168,93 @@ export function ArrivalStepsCard({
                 }
             />
         </BoardCardFrame>
+    );
+}
+
+/**
+ * One step: what it is, whether it is settled, and — when it is the hire's to settle — the way to
+ * say so.
+ *
+ * Extracted when scope headings arrived: with a section and a list above it, the row's own markup
+ * sat five levels deep, which is where a JSX block stops being readable and starts being edited by
+ * guesswork.
+ */
+function StepRow({
+    step,
+    pending,
+    failed,
+    onConfirm,
+}: {
+    step: ArrivalStep;
+    pending: boolean;
+    failed: boolean;
+    onConfirm: () => void;
+}) {
+    return (
+        <li
+            className={`rounded-xl border p-3 ${
+                step.settled ? 'border-app-border bg-app-surface-muted/40' : 'border-app-border'
+            }`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className={`text-sm ${step.settled ? 'text-app-text-muted' : 'text-app-text'}`}>
+                        {step.title}
+                    </p>
+                    {step.description && (
+                        <p className="mt-1 text-xs text-app-text-muted">{step.description}</p>
+                    )}
+                    {step.settled && <SettledNote step={step} />}
+                    {failed && (
+                        <p className="mt-1 text-xs text-app-danger-text">
+                            That didn&apos;t save. Try again in a moment.
+                        </p>
+                    )}
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                    {step.href && !step.settled && (
+                        <a
+                            href={step.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-app-text-muted transition hover:text-app-text"
+                            aria-label={`Open the page for "${step.title}"`}
+                        >
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                        </a>
+                    )}
+                    {step.settled ? (
+                        <Check className="h-4 w-4 text-app-success-text" aria-label="Done" />
+                    ) : (
+                        // `selfConfirmable`, not `settledBy === 'DECLARED'`: a step can be derived
+                        // *and* the hire's to claim. "My machine builds" is observable but never
+                        // refutable, and the evidence lands days after it mattered, so their word is
+                        // the answer that arrives on day one. The GitHub check is the opposite --
+                        // definitive when it answers -- and the backend refuses a confirmation
+                        // there, so offering one would be an affordance whose only outcome is an
+                        // error.
+                        step.selfConfirmable && (
+                            <button
+                                type="button"
+                                onClick={onConfirm}
+                                disabled={pending}
+                                className="rounded-lg border border-app-border px-2 py-1 text-xs text-app-text transition hover:bg-app-surface-muted disabled:opacity-60"
+                            >
+                                {pending ? (
+                                    <Loader2
+                                        className="h-3.5 w-3.5 animate-spin"
+                                        aria-label={`Saving "${step.title}"`}
+                                    />
+                                ) : (
+                                    "I've done this"
+                                )}
+                            </button>
+                        )
+                    )}
+                </div>
+            </div>
+        </li>
     );
 }
 

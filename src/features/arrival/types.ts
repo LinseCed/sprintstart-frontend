@@ -28,6 +28,15 @@ export type ArrivalStep = {
     key: string;
     /** Null for a company-wide step; set when a project added it. */
     projectId: string | null;
+    /**
+     * The project's name, to group the hire's list under. Null for a company-wide step — and also
+     * null on the **authoring** read, where the caller named the scope in its own request.
+     *
+     * A hire's list is a union across every project they are on, so without this somebody on two
+     * projects sees *"Request staging access"* twice with nothing to tell the two apart. An id
+     * cannot be a heading.
+     */
+    projectName: string | null;
     title: string;
     description: string | null;
     /** Where to go to actually do it, when there is such a place. */
