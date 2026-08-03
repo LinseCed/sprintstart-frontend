@@ -29,6 +29,8 @@ const mockProfile: UserProfile = {
     hasCompletedOnboarding: true,
     githubLogin: null,
     githubLoginSource: null,
+    githubLoginVerification: null,
+    githubLoginVerifiedAt: null,
 };
 
 function authenticatedAs(profile: UserProfile | null) {

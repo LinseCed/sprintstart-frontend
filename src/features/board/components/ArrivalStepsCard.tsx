@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, ExternalLink, Loader2 } from 'lucide-react';
 import { arrivalService } from '../../../services/arrivalService';
 import { BoardCardFrame } from './BoardCardFrame';
@@ -35,6 +35,14 @@ type ArrivalStepsCardProps = {
  * Confirmation is applied here rather than through the board's write path: settling a step is a
  * fact about the hire, not an edit to the board, and the card owns the optimistic update the same
  * way the diagram card owns its revalidation.
+ *
+ * ### Why it re-checks itself
+ *
+ * The board's read touches nothing but the database, because a board that waits on GitHub to open
+ * is a board nobody opens — so some steps arrive here settled by nothing but the last check. This
+ * card asks once, after it has rendered, whether anything can be observed now. Failing to ask
+ * changes nothing on screen: **observation settles a step and failing to observe never unsettles
+ * one**, so an outage, a rate limit and a hire with no work yet are one and the same answer here.
  */
 export function ArrivalStepsCard({
     content,
@@ -48,10 +56,36 @@ export function ArrivalStepsCard({
     // Derived, not synced: the card re-reads on every board load, and a confirmation that has
     // landed should not be undone by a stale prop. Same shape the diagram card uses for `redrawn`.
     const [confirmed, setConfirmed] = useState<Record<string, ArrivalStep>>({});
+    const [rechecked, setRechecked] = useState<ArrivalStep[] | null>(null);
+    const [checking, setChecking] = useState(false);
     const [pendingKey, setPendingKey] = useState<string | null>(null);
     const [failedKey, setFailedKey] = useState<string | null>(null);
 
-    const steps = content.steps.map((step) => confirmed[step.key] ?? step);
+    useEffect(() => {
+        let cancelled = false;
+        // Deferred to a microtask: React 19's lint rejects a synchronous first setState in an
+        // effect body, and this is the pattern the repo already passes with.
+        void (async () => {
+            if (cancelled) return;
+            setChecking(true);
+            try {
+                const fresh = await arrivalService.refreshMyArrival();
+                if (!cancelled) setRechecked(fresh.steps);
+            } catch {
+                // Nothing to say and nothing to undo. A check that could not run is not evidence
+                // that a step is outstanding, and the list the board handed us is still true.
+            } finally {
+                if (!cancelled) setChecking(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // The hire's own confirmation wins over anything a check saw, because it may have landed while
+    // the check was in flight -- the same precedence the backend keeps when it writes.
+    const steps = (rechecked ?? content.steps).map((step) => confirmed[step.key] ?? step);
     const outstanding = steps.filter((step) => !step.settled).length;
     const observed = steps.filter((step) => step.rigor === 'OBSERVED').length;
     const declared = steps.filter((step) => step.rigor === 'DECLARED').length;
@@ -126,7 +160,15 @@ export function ArrivalStepsCard({
                                         aria-label="Done"
                                     />
                                 ) : (
-                                    step.settledBy === 'DECLARED' && (
+                                    // `selfConfirmable`, not `settledBy === 'DECLARED'`: a step can
+                                    // be derived *and* the hire's to claim. "My machine builds" is
+                                    // observable but never refutable, and the evidence lands days
+                                    // after it mattered, so their word is the answer that arrives on
+                                    // day one. The GitHub check is the opposite -- definitive when it
+                                    // answers -- and the backend refuses a confirmation there, so
+                                    // offering one would be an affordance whose only outcome is an
+                                    // error.
+                                    step.selfConfirmable && (
                                         <button
                                             type="button"
                                             onClick={() => void confirm(step)}
@@ -149,6 +191,18 @@ export function ArrivalStepsCard({
                     </li>
                 ))}
             </ul>
+
+            {/*
+              Shown only while it runs, and with no failure state behind it: a check that could not
+              run has nothing to report, and "we could not reach GitHub" on somebody's board is
+              noise about a step they may not even have.
+            */}
+            {checking && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-app-text-muted">
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                    Checking what we can see for ourselves…
+                </p>
+            )}
 
             <AskTheBuddy
                 question={

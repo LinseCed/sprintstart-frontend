@@ -22,6 +22,8 @@ describe('AccountForm', () => {
         hasCompletedOnboarding: true,
         githubLogin: null,
         githubLoginSource: null,
+        githubLoginVerification: null,
+        githubLoginVerifiedAt: null,
     };
 
     it('renders user information in inputs', () => {
@@ -63,6 +65,86 @@ describe('AccountForm', () => {
         await waitFor(() => {
             expect(onUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ githubLogin: '' }));
         });
+    });
+
+    /**
+     * The login is what artifact verification compares a pull request's author against, so a typo
+     * does not fail loudly — it silently stops crediting work the hire really did. This is the one
+     * place it can be caught before that happens.
+     */
+    it('warns when GitHub says the declared account does not exist', () => {
+        render(
+            <AccountForm
+                profile={{
+                    ...mockUser,
+                    githubLogin: 'octocatt',
+                    githubLoginVerification: 'NOT_FOUND',
+                    githubLoginVerifiedAt: '2026-08-02T10:00:00Z',
+                }}
+                onUpdate={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText(/no account called/i)).toBeInTheDocument();
+    });
+
+    /**
+     * ⚠️ Null is not a negative. It covers never-checked, GitHub-would-not-say and
+     * nothing-declared, and rendering any of them as "not found" tells somebody their perfectly
+     * good username does not exist.
+     */
+    it('says nothing at all when nobody has an answer yet', () => {
+        render(
+            <AccountForm
+                profile={{ ...mockUser, githubLogin: 'octocat' }}
+                onUpdate={vi.fn()}
+            />,
+        );
+
+        expect(screen.queryByText(/no account called/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/found on github/i)).not.toBeInTheDocument();
+    });
+
+    it('confirms a verified account without claiming it is theirs', () => {
+        render(
+            <AccountForm
+                profile={{
+                    ...mockUser,
+                    githubLogin: 'octocat',
+                    githubLoginVerification: 'VERIFIED',
+                    githubLoginVerifiedAt: '2026-08-02T10:00:00Z',
+                }}
+                onUpdate={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText(/not that it is yours/i)).toBeInTheDocument();
+    });
+
+    /**
+     * A verdict is about a *value*. Leaving it up while somebody types the correction shows "we
+     * could not find that account" against the account that fixes it.
+     */
+    it('withdraws the verdict as soon as the username is edited', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <AccountForm
+                profile={{
+                    ...mockUser,
+                    githubLogin: 'octocatt',
+                    githubLoginVerification: 'NOT_FOUND',
+                    githubLoginVerifiedAt: '2026-08-02T10:00:00Z',
+                }}
+                onUpdate={vi.fn()}
+            />,
+        );
+        expect(screen.getByText(/no account called/i)).toBeInTheDocument();
+
+        await user.clear(screen.getByLabelText('GitHub Username'));
+        await user.type(screen.getByLabelText('GitHub Username'), 'octocat');
+
+        expect(screen.queryByText(/no account called/i)).not.toBeInTheDocument();
     });
 
     it('submits form and calls onUpdate', async () => {

@@ -40,6 +40,8 @@ const mockProfile = {
     hasCompletedOnboarding: true,
     githubLogin: null,
     githubLoginSource: null,
+    githubLoginVerification: null,
+    githubLoginVerifiedAt: null,
 };
 
 function renderWithProviders(ui: React.ReactElement) {

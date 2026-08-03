@@ -2,11 +2,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ArrivalStepAuthoring } from '../../../../src/features/arrival/components/ArrivalStepAuthoring';
 import { arrivalService } from '../../../../src/services/arrivalService';
-import type { ArrivalStep } from '../../../../src/features/arrival/types';
+import type {
+    ArrivalStep,
+    DerivableArrivalStep,
+} from '../../../../src/features/arrival/types';
 
 vi.mock('../../../../src/services/arrivalService', () => ({
     arrivalService: {
         listSteps: vi.fn(),
+        listDerivableSteps: vi.fn(),
         createStep: vi.fn(),
         reorderSteps: vi.fn(),
         deleteStep: vi.fn(),
@@ -21,15 +25,26 @@ const step = (over: Partial<ArrivalStep> = {}): ArrivalStep => ({
     href: null,
     position: 0,
     settledBy: 'DECLARED',
+    selfConfirmable: true,
     settled: false,
     settledAt: null,
     rigor: null,
     ...over,
 });
 
+const derivable = (over: Partial<DerivableArrivalStep> = {}): DerivableArrivalStep => ({
+    key: 'github-account',
+    suggestedTitle: 'Add your GitHub username',
+    suggestedDescription: 'So work you push can be recognised as yours.',
+    selfConfirmable: false,
+    added: false,
+    ...over,
+});
+
 describe('ArrivalStepAuthoring', () => {
     beforeEach(() => {
         vi.mocked(arrivalService.listSteps).mockReset().mockResolvedValue([step()]);
+        vi.mocked(arrivalService.listDerivableSteps).mockReset().mockResolvedValue([]);
         vi.mocked(arrivalService.createStep).mockReset();
         vi.mocked(arrivalService.reorderSteps).mockReset();
         vi.mocked(arrivalService.deleteStep).mockReset();
@@ -100,5 +115,86 @@ describe('ArrivalStepAuthoring', () => {
         expect(screen.queryByRole('button', { name: 'Add a step' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Remove "Request VPN access"/ })).not.toBeInTheDocument();
         expect(screen.getByText(/a PM or an admin can/i)).toBeInTheDocument();
+    });
+
+    /**
+     * Without this the only way to add a derived step is to know that typing `github-account` into
+     * the ordinary form happens to be magic — which is exactly the folklore the catalog replaces.
+     */
+    it('offers the steps the system can check, with their wording', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockResolvedValue([derivable()]);
+
+        render(<ArrivalStepAuthoring />);
+
+        expect(await screen.findByText('Add your GitHub username')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+    });
+
+    it('adds a derivable step under its own key', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockResolvedValue([derivable()]);
+
+        render(<ArrivalStepAuthoring />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Add' }));
+
+        // The key is what binds the row to its derivation, so it is the one thing not up for edit.
+        await waitFor(() => {
+            expect(arrivalService.createStep).toHaveBeenCalledWith(
+                expect.objectContaining({ key: 'github-account' }),
+            );
+        });
+    });
+
+    /**
+     * `selfConfirmable` is not a synonym for "not derived", and the author is the person who has to
+     * understand why one checkable step can still be ticked and another cannot.
+     */
+    it('says up front whether the hire can also claim a checkable step', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockResolvedValue([
+            derivable({ selfConfirmable: false }),
+        ]);
+
+        render(<ArrivalStepAuthoring />);
+
+        expect(await screen.findByText(/the hire cannot mark it done/i)).toBeInTheDocument();
+    });
+
+    it('does not offer to add a step already on the list', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockResolvedValue([derivable({ added: true })]);
+
+        render(<ArrivalStepAuthoring />);
+
+        expect(await screen.findByText('On the list')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+    });
+
+    it('shows a read-only viewer the catalog without a way to act on it', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockResolvedValue([derivable()]);
+
+        render(<ArrivalStepAuthoring readOnly />);
+
+        expect(await screen.findByText('Add your GitHub username')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+    });
+
+    /**
+     * The authored list is the page; the catalog is an offer on top of it. One failing must not
+     * take the other down.
+     */
+    it('still shows the list when the catalog cannot be loaded', async () => {
+        vi.mocked(arrivalService.listDerivableSteps).mockRejectedValue(new Error('nope'));
+
+        render(<ArrivalStepAuthoring />);
+
+        expect(await screen.findByText('Request VPN access')).toBeInTheDocument();
+    });
+
+    it('marks which authored steps the system checks', async () => {
+        vi.mocked(arrivalService.listSteps).mockResolvedValue([
+            step({ key: 'github-account', title: 'Add your GitHub username', settledBy: 'OBSERVED', selfConfirmable: false }),
+        ]);
+
+        render(<ArrivalStepAuthoring />);
+
+        expect(await screen.findByText(/We check this one/i)).toBeInTheDocument();
     });
 });

@@ -35,6 +35,19 @@ export type ArrivalStep = {
     position: number;
     /** How this step is settled: `OBSERVED` by the system, or `DECLARED` by the hire. */
     settledBy: Rigor;
+    /**
+     * Whether the hire may settle this themselves, or only the system can.
+     *
+     * ⚠️ **Not a synonym for `settledBy === 'DECLARED'`, and reading it as one is a real bug.**
+     * *"My machine builds"* is observable but never refutable, and the evidence lands days after it
+     * mattered — so the hire's word is accepted even though a derivation exists. The GitHub check is
+     * the opposite: definitive when it answers, so letting somebody tick it would let them declare
+     * away the one fact their work being credited depends on. Same table, opposite answers.
+     *
+     * This is what gates the confirm button, because the backend rejects a confirmation it forbids
+     * and an affordance whose only outcome is an error is worse than none.
+     */
+    selfConfirmable: boolean;
     settled: boolean;
     settledAt: string | null;
     /** How it was actually established for this hire; null while unsettled. */
@@ -49,12 +62,37 @@ export type ArrivalStep = {
  */
 export type MyArrival = {
     steps: ArrivalStep[];
-    /** Settled because the system observed it. Always 0 until derivation lands in A1. */
+    /** Settled because the system observed it. */
     observedCount: number;
     /** Settled because the hire said so. */
     declaredCount: number;
     /** Not settled yet — a normal day-one state, not an error. */
     outstandingCount: number;
+};
+
+/**
+ * A step the system knows how to check for itself, offered to whoever authors the list.
+ *
+ * ### Why this is a catalog and not a checkbox on the add form
+ *
+ * A derivation is code — something has to know *how* to observe "you have a GitHub account" — so a
+ * derived step cannot be authored freely. The backend binds a row to its derivation by the step's
+ * own `key`, with deliberately no column pointing at a deriver, because a column could name one
+ * that does not exist. Typing `github-account` into the ordinary add form works for exactly that
+ * reason, and that is the folklore this catalog replaces.
+ *
+ * **Nothing is seeded.** An admin adds the ones their organisation actually wants, which is what
+ * keeps a local-build step off the board of somebody who never builds anything.
+ */
+export type DerivableArrivalStep = {
+    key: string;
+    /** Suggested wording; the author may change it after adding. */
+    suggestedTitle: string;
+    suggestedDescription: string;
+    /** Whether the hire may *also* settle it themselves — see `ArrivalStep.selfConfirmable`. */
+    selfConfirmable: boolean;
+    /** Whether this step is already on the list. */
+    added: boolean;
 };
 
 /** Creating a step. Omitting `projectId` means company-wide, which is the usual case. */
