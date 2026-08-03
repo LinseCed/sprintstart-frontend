@@ -138,8 +138,9 @@ export type StreamHandlers = {
      * affordance and only mutates when the hire clicks it.
      *
      * The optional fields are the action's confirm payload (goal claim: `taskId`;
-     * verification: `moduleId` + `answer`), echoed back verbatim on confirm so the
-     * concrete target is the one the buddy proposed, never one the client picked.
+     * verification: `moduleId` + `answer`; saving a username: `githubLogin`), echoed
+     * back verbatim on confirm so the concrete target is the one the buddy proposed,
+     * never one the client picked.
      */
     onActionProposal?: (proposal: {
         action: string;
@@ -148,6 +149,7 @@ export type StreamHandlers = {
         taskId?: string;
         moduleId?: string;
         answer?: string;
+        githubLogin?: string;
     }) => void;
 };
 

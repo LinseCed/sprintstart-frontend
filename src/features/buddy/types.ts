@@ -34,6 +34,14 @@ export type ProposedAction = {
     taskId?: string;
     moduleId?: string;
     answer?: string;
+    /**
+     * The GitHub username `set_github_login` proposed, echoed back verbatim on confirm.
+     *
+     * ⚠️ Not merely the value the hire typed: the buddy is told a username in conversation, so what
+     * is confirmed has to be what was *proposed* and shown on the button — never something the
+     * client substituted afterwards. Same rule as `taskId`.
+     */
+    githubLogin?: string;
     status: ProposedActionStatus;
     /** Whether a resolved action actually changed something (false = a handled "couldn't"). */
     ok?: boolean;
