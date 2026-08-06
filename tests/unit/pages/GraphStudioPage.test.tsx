@@ -34,7 +34,6 @@ const competency = (over: Record<string, unknown> = {}) => ({
     kind: 'SKILL',
     area: null,
     targetLevel: 2,
-    invariant: false,
     ...over,
 });
 

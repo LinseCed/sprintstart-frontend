@@ -15,7 +15,6 @@ const graph: LiveGraph = {
             kind: 'SKILL',
             area: null,
             targetLevel: 2,
-            invariant: false
         },
         {
             key: 'spring',
@@ -24,7 +23,6 @@ const graph: LiveGraph = {
             kind: 'SKILL',
             area: null,
             targetLevel: 2,
-            invariant: false
         }
     ]
 };
@@ -80,7 +78,6 @@ describe('StudioNodePanel', () => {
             kind: 'SKILL',
             area: null,
             targetLevel: 2,
-            invariant: false
         });
     });
 
@@ -119,7 +116,6 @@ describe('StudioNodePanel', () => {
                 kind: 'SKILL',
                 area: null,
                 targetLevel: 2,
-                invariant: false
             });
             renderPanel(onGraphChanged);
 

@@ -31,8 +31,6 @@ export type LiveCompetency = {
     area: string | null;
     /** The level a hire must reach for this to count as held (1..4). */
     targetLevel: number;
-    /** Compliance-flagged: this one is not casually removed. */
-    invariant: boolean;
 };
 
 /**
@@ -56,7 +54,6 @@ export type CreateCompetencyInput = {
      */
     area?: string;
     targetLevel?: number;
-    invariant?: boolean;
 };
 
 /** The fields a PM can change on a live competency. Omitted fields are left alone. */
@@ -67,7 +64,6 @@ export type UpdateCompetencyInput = {
     /** Blank clears the grouping, the way a blank description clears one. */
     area?: string;
     targetLevel?: number;
-    invariant?: boolean;
 };
 
 /**

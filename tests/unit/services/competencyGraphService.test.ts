@@ -24,7 +24,6 @@ describe('competencyGraphService', () => {
                             description: null,
                             kind: 'SKILL',
                             targetLevel: 2,
-                            invariant: false,
                         },
                     ],
                 }),
@@ -47,7 +46,6 @@ describe('competencyGraphService', () => {
                     description: null,
                     kind: 'SKILL',
                     targetLevel: 2,
-                    invariant: false,
                 });
             }),
         );
@@ -73,7 +71,6 @@ describe('competencyGraphService', () => {
                     description: null,
                     kind: 'SKILL',
                     targetLevel: 3,
-                    invariant: false,
                 });
             }),
         );
@@ -103,7 +100,6 @@ describe('competencyGraphService', () => {
                     description: null,
                     kind: 'SKILL',
                     targetLevel: 2,
-                    invariant: false,
                 });
             }),
         );

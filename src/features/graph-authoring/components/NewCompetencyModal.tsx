@@ -60,7 +60,6 @@ export function NewCompetencyModal({
     const [kind, setKind] = useState<CompetencyKind>('SKILL');
     const [area, setArea] = useState('');
     const [targetLevel, setTargetLevel] = useState(2);
-    const [invariant, setInvariant] = useState(false);
 
     const effectiveKey = keyTouched ? key : label;
     const keyPreview = useMemo(() => slugify(effectiveKey), [effectiveKey]);
@@ -75,8 +74,7 @@ export function NewCompetencyModal({
             description: description.trim() || undefined,
             kind,
             area: area.trim() || undefined,
-            targetLevel,
-            invariant
+            targetLevel
         });
         if (created) onClose();
     };
@@ -244,21 +242,6 @@ export function NewCompetencyModal({
                     </div>
                 </div>
 
-                <label className="flex items-start gap-2 text-xs text-app-text">
-                    <input
-                        type="checkbox"
-                        checked={invariant}
-                        onChange={event => setInvariant(event.target.checked)}
-                        className="mt-0.5 h-3.5 w-3.5 rounded border-app-border"
-                    />
-                    <span>
-                        Mandatory
-                        <span className="block text-app-text-subtle">
-                            Changes to this node reach every hire straight away, without waiting for
-                            their next session.
-                        </span>
-                    </span>
-                </label>
 
                 {error && (
                     <p

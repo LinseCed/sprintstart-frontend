@@ -9,7 +9,6 @@ const competency = (over: Partial<LiveCompetency> = {}): LiveCompetency => ({
     kind: 'SKILL',
     area: null,
     targetLevel: 2,
-    invariant: false,
     ...over,
 });
 
