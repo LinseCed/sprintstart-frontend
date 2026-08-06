@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrientationPanel } from '../../../../src/features/orientation/components/OrientationPanel';
+import { onboardingFeedbackService } from '../../../../src/services/onboardingFeedbackService';
 import type { MyOrientation } from '../../../../src/features/orientation/types';
 
 const withPacket: MyOrientation = {
@@ -258,5 +259,124 @@ describe('OrientationPanel', () => {
 
         const assembledFrom = screen.getByText('Assembled from').parentElement;
         expect(within(assembledFrom as HTMLElement).getByText('README.md')).toBeInTheDocument();
+    });
+
+    /**
+     * Correcting the packet was the *only* affordance, and it is the one a newcomer is least able
+     * to use: somebody three days in can tell a setup step is stale without knowing what replaced
+     * it, and editing shared material on a hunch is worse than saying nothing.
+     */
+    describe('reporting a problem without fixing it', () => {
+        it('sends the report with what it is about, written by the app', async () => {
+            const report = vi
+                .spyOn(onboardingFeedbackService, 'reportProblem')
+                .mockResolvedValue(undefined);
+            const user = userEvent.setup();
+
+            render(
+                <OrientationPanel
+                    orientation={withPacket}
+                    isLoading={false}
+                    error={null}
+                    onRetry={vi.fn()}
+                    canReport
+                />
+            );
+
+            await user.click(screen.getByTestId('report-orientation'));
+            await user.type(
+                screen.getByLabelText('What looks wrong with this orientation'),
+                'make dev was removed months ago.'
+            );
+            await user.click(screen.getByRole('button', { name: 'Send' }));
+
+            // ⚠️ The subject is the app's, not the hire's to remember — a report whose subject the
+            // reader has to infer is a report nobody acts on. It is shown before sending, too.
+            expect(report).toHaveBeenCalledWith(
+                'About the orientation for "Fix the stale cache header": make dev was removed months ago.'
+            );
+            expect(await screen.findByTestId('orientation-report-sent')).toBeInTheDocument();
+        });
+
+        /** Reporting is not editing: nothing anybody else reads has moved. */
+        it('says the guide is unchanged once the report is in', async () => {
+            vi.spyOn(onboardingFeedbackService, 'reportProblem').mockResolvedValue(undefined);
+            const user = userEvent.setup();
+
+            render(
+                <OrientationPanel
+                    orientation={withPacket}
+                    isLoading={false}
+                    error={null}
+                    onRetry={vi.fn()}
+                    canReport
+                />
+            );
+
+            await user.click(screen.getByTestId('report-orientation'));
+            await user.type(screen.getByLabelText('What looks wrong with this orientation'), 'wrong');
+            await user.click(screen.getByRole('button', { name: 'Send' }));
+
+            expect(await screen.findByText(/the guide above is unchanged/i)).toBeInTheDocument();
+            expect(screen.getByText('Run it locally')).toBeInTheDocument();
+        });
+
+        /** Somebody who has just typed out what is wrong must not have to type it again. */
+        it('keeps what was typed when sending fails', async () => {
+            vi.spyOn(onboardingFeedbackService, 'reportProblem').mockRejectedValue(new Error('offline'));
+            vi.spyOn(console, 'error').mockImplementation(() => {});
+            const user = userEvent.setup();
+
+            render(
+                <OrientationPanel
+                    orientation={withPacket}
+                    isLoading={false}
+                    error={null}
+                    onRetry={vi.fn()}
+                    canReport
+                />
+            );
+
+            await user.click(screen.getByTestId('report-orientation'));
+            const box = screen.getByLabelText('What looks wrong with this orientation');
+            await user.type(box, 'the script is gone');
+            await user.click(screen.getByRole('button', { name: 'Send' }));
+
+            expect(await screen.findByText(/could not be sent/i)).toBeInTheDocument();
+            expect(box).toHaveValue('the script is gone');
+        });
+
+        /**
+         * ⚠️ A PM owns this content. Offering them a control that reports it to themselves is a
+         * loop with one person in it, and the panel is shared by both surfaces — which is exactly
+         * why the control is opt-in rather than always on.
+         */
+        it('is absent unless the surface asks for it', () => {
+            render(
+                <OrientationPanel
+                    orientation={withPacket}
+                    isLoading={false}
+                    error={null}
+                    onRetry={vi.fn()}
+                />
+            );
+
+            expect(screen.queryByTestId('report-orientation')).not.toBeInTheDocument();
+        });
+
+        /** "This is wrong" needs a *this*; the no-packet state already routes to the buddy. */
+        it('is absent when there is no packet to be wrong about', () => {
+            render(
+                <OrientationPanel
+                    orientation={{ ...withPacket, packet: null, reason: 'nothing matched' }}
+                    isLoading={false}
+                    error={null}
+                    onRetry={vi.fn()}
+                    canReport
+                />
+            );
+
+            expect(screen.queryByTestId('report-orientation')).not.toBeInTheDocument();
+        });
     });
 });

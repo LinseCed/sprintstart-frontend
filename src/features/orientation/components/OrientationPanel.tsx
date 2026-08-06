@@ -1,5 +1,6 @@
 import { AlertCircle, BookOpen, Loader2, PencilLine, RefreshCw, UserRound } from 'lucide-react';
 import { OrientationSectionCard } from './OrientationSectionCard';
+import { ReportOrientationProblem } from './ReportOrientationProblem';
 import { SourceLinks } from './SourceLinks';
 import { useOpenSteps } from '../hooks/useOpenSteps';
 import { AiActivityLog } from '../../ai-activity/AiActivityLog';
@@ -16,6 +17,15 @@ type OrientationPanelProps = {
      * (like the editor's own live preview) so the panel doesn't offer to edit itself.
      */
     onEdit?: () => void;
+    /**
+     * When true, offers "something here is wrong" beside the edit affordance.
+     *
+     * ⚠️ **Hire surfaces only.** Correcting is the right move for somebody who knows the answer,
+     * and it was the *only* move — which left out the newcomer who can tell a step is stale but not
+     * what replaced it. A PM gets no report control: they own the content, so reporting it to
+     * themselves is a loop with one person in it.
+     */
+    canReport?: boolean;
     /** The live assembly log; when streaming, it replaces the spinner. */
     activity?: AiActivityEntry[];
     isStreaming?: boolean;
@@ -97,6 +107,11 @@ function Packet({ packet, onEdit }: { packet: OrientationPacket; onEdit?: () => 
  * When `onEdit` is passed, a "fix this" affordance turns the same panel into the
  * entry point for correcting the orientation in place — including when the corpus
  * grounded nothing, where the honest move is to write it yourself.
+ *
+ * `canReport` adds the other half for hire surfaces: **correct it if you know the
+ * answer, report it if you only know it is wrong.** Correcting was the only route
+ * for a long time, which quietly asked the newest person on the team to rewrite
+ * shared material on a hunch.
  */
 export function OrientationPanel({
     orientation,
@@ -104,6 +119,7 @@ export function OrientationPanel({
     error,
     onRetry,
     onEdit,
+    canReport,
     activity,
     isStreaming
 }: OrientationPanelProps) {
@@ -185,6 +201,10 @@ export function OrientationPanel({
     return (
         <Shell>
             <Packet packet={orientation.packet} onEdit={onEdit} />
+            {/* Only where there is a packet: "this is wrong" needs a *this*. The no-packet state
+                above already says the gap is in the documentation and points at the buddy, which is
+                a better route than reporting an absence somebody already knows about. */}
+            {canReport && <ReportOrientationProblem taskTitle={orientation.taskTitle ?? 'this task'} />}
         </Shell>
     );
 }
