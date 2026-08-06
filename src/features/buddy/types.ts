@@ -35,6 +35,16 @@ export type ProposedAction = {
     moduleId?: string;
     answer?: string;
     /**
+     * The attestation confirm payload: what work, and which teammate is being asked to confirm it.
+     *
+     * ⚠️ These were the proposal's own fields and travelled nowhere for as long as the action has
+     * existed — the backend never put them on the stream and the client never echoed them, so every
+     * confirmed `request_attestation` reached the server with nothing to act on and came back as a
+     * polite refusal. It read like a precondition rather than a broken wire.
+     */
+    title?: string;
+    attesterId?: string;
+    /**
      * The GitHub username `set_github_login` proposed, echoed back verbatim on confirm.
      *
      * ⚠️ Not merely the value the hire typed: the buddy is told a username in conversation, so what
