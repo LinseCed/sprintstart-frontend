@@ -132,6 +132,7 @@ describe('the panel’s hand-off control', () => {
                 confirmAction={vi.fn()}
                 dismissAction={vi.fn()}
                 bottomRef={{ current: null }}
+                suggestions={[]}
                 onClose={vi.fn()}
             />,
         );
@@ -156,6 +157,7 @@ describe('the panel’s hand-off control', () => {
                 confirmAction={vi.fn()}
                 dismissAction={vi.fn()}
                 bottomRef={{ current: null }}
+                suggestions={[]}
                 onClose={vi.fn()}
                 onOpenFull={onOpenFull}
             />,

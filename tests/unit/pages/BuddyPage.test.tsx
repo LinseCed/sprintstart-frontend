@@ -23,6 +23,11 @@ vi.mock('../../../src/services/buddyService', () => ({
     openBuddy: vi.fn().mockResolvedValue({ greeting: 'Welcome back!', action: null }),
     streamMessage: vi.fn(),
     performAction: vi.fn(),
+    // The chips are the backend's now, gated on the tools mounted for this hire — the page no
+    // longer holds a list of its own, which is what let "Is my PR stuck?" reach every role.
+    getSuggestions: vi.fn().mockResolvedValue([
+        { label: 'What should I work on?', question: 'What should I work on next?' },
+    ]),
 }));
 
 vi.mock('../../../src/services/onboardingMetricsService', () => ({
@@ -47,7 +52,7 @@ vi.mock('../../../src/features/projects/useProjectContext', async () => {
 
 import { assessmentService } from '../../../src/services/assessmentService';
 import { userService } from '../../../src/services/userService';
-import { openBuddy } from '../../../src/services/buddyService';
+import { openBuddy, streamMessage } from '../../../src/services/buddyService';
 
 function renderPage() {
     return render(
@@ -128,5 +133,25 @@ describe('BuddyPage', () => {
         await user.click(retry);
 
         expect(await screen.findByText('Q1')).toBeInTheDocument();
+    });
+
+    /**
+     * ⚠️ **A chip fills the composer; it does not send.** This page's chips used to call
+     * `sendMessage` directly, which meant the first thing the mentor ever heard from a hire were
+     * words the page had chosen. The hire presses send now — and can edit the question first, which
+     * is how somebody discovers they are allowed to.
+     */
+    it('fills the composer from a chip instead of sending it', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });
+
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(await screen.findByRole('button', { name: 'What should I work on?' }));
+
+        expect(screen.getByPlaceholderText('Ask your buddy anything...')).toHaveValue(
+            'What should I work on next?',
+        );
+        expect(streamMessage).not.toHaveBeenCalled();
     });
 });

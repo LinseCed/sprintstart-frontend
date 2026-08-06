@@ -29,6 +29,7 @@ export function BuddyWidget() {
         confirmAction,
         dismissAction,
         bottomRef,
+        suggestions,
     } = useBuddy();
 
     // Nothing to hand off to when the page is already on screen -- the control would offer what
@@ -55,6 +56,7 @@ export function BuddyWidget() {
                     confirmAction={confirmAction}
                     dismissAction={dismissAction}
                     bottomRef={bottomRef}
+                    suggestions={suggestions}
                     onClose={toggleOpen}
                     onOpenFull={openFull}
                 />

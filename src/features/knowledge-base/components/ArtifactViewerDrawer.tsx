@@ -13,6 +13,8 @@ import { ApiError } from '../../../services/apiClient';
 import { SidePanel } from '../../../components/ui/SidePanel';
 import { Modal } from '../../../components/ui/Modal';
 import { useAuth } from '../../../context/useAuth';
+import { PermissionGroup } from '../../../services/types';
+import { AskTheBuddy } from '../../buddy/components/AskTheBuddy';
 import { CitationsList } from './CitationsList';
 
 /**
@@ -416,6 +418,19 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
 
     const canDeleteThisArtifact = canDelete && artifact?.sourceSystem === 'UPLOAD';
 
+    /**
+     * The one place outside the board where a hire is *reading something* and has no route from it
+     * into the conversation. Documents are exactly what the buddy is for — it answers from this
+     * corpus — and a hire who has just met a page they do not understand is the person most likely
+     * to give up quietly.
+     *
+     * ⚠️ **Gated on the hire's own role, not merely left to no-op.** `openAiBuddy` does nothing
+     * where the widget is not mounted, and it is mounted only for `USER` — so an ungated control
+     * would sit on a PM's screen doing nothing at all. This drawer is shared by every role, which
+     * is precisely why it needs the check.
+     */
+    const showAskTheBuddy = profile?.permissionGroup === PermissionGroup.USER && !!artifact;
+
     const actionsContent = viewMode === 'raw' && (
         <div className="flex items-center gap-2">
             <button
@@ -453,6 +468,15 @@ export function ArtifactViewerDrawer({ artifact, onClose, projectId, highlightLi
             headerClassName="p-4 bg-app-bg"
             contentClassName="p-6"
         >
+            {showAskTheBuddy && (
+                <div className="-mt-2 mb-4">
+                    <AskTheBuddy
+                        question={`I'm reading "${artifact.title}" in the knowledge base. Can you explain what it covers and why it matters for what I'm working on?`}
+                        label="Ask your buddy about this document"
+                    />
+                </div>
+            )}
+
             {error && viewMode === 'raw' ? (
                 <div className="p-4 bg-app-danger-bg text-app-danger-text rounded-lg border border-app-danger-border">
                     <p className="font-medium">Error loading content</p>

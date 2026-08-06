@@ -1,20 +1,26 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { createRef } from 'react';
 import { BuddyPanel } from '../../../../src/features/buddy/components/BuddyPanel';
 import type { BuddyMessageView } from '../../../../src/features/buddy/types';
+import type { BuddySuggestion } from '../../../../src/services/buddyService';
 
-function renderPanel(messages: BuddyMessageView[] = []) {
+function renderPanel(
+    messages: BuddyMessageView[] = [],
+    { suggestions = [], setDraft = vi.fn() }: { suggestions?: BuddySuggestion[]; setDraft?: () => void } = {},
+) {
     return render(
         <BuddyPanel
             messages={messages}
             isThinking={false}
             draft=""
-            setDraft={vi.fn()}
+            setDraft={setDraft}
             handleSubmit={vi.fn()}
             confirmAction={vi.fn()}
             dismissAction={vi.fn()}
             bottomRef={createRef<HTMLDivElement>()}
+            suggestions={suggestions}
             onClose={vi.fn()}
         />,
     );
@@ -73,5 +79,49 @@ describe('BuddyPanel horizontal overflow', () => {
         renderPanel([user(url)]);
 
         expect(screen.getByText(url)).toHaveClass('break-words');
+    });
+});
+
+/**
+ * The tutor's sharpest note was that the actions are unreachable unless you already know the
+ * vocabulary — *"wenn der User einen Befehl nicht weiß oder nicht mal weiß, dass es überhaupt über
+ * den Chat geht"*. The chips answer that, next to the composer they fill.
+ */
+describe('BuddyPanel suggestion chips', () => {
+    const suggestions: BuddySuggestion[] = [
+        { label: 'What should I work on?', question: 'What should I work on next?' },
+    ];
+
+    /**
+     * ⚠️ **Fills, never sends.** The hire presses send, so the question stays theirs and they can
+     * edit it first. `handleSubmit` is the only thing that sends, and a chip must not reach it —
+     * a control that speaks for somebody is a control they stop trusting.
+     */
+    it('puts the question in the composer without sending it', async () => {
+        const setDraft = vi.fn();
+        renderPanel([], { suggestions, setDraft });
+
+        await userEvent.click(screen.getByRole('button', { name: 'What should I work on?' }));
+
+        expect(setDraft).toHaveBeenCalledWith('What should I work on next?');
+    });
+
+    /** Once the hire has typed something they know how; the panel is 384 px and the room is better
+     *  spent on the conversation. */
+    it('steps aside once the hire has said something', () => {
+        renderPanel([user('what should I do?')], { suggestions });
+
+        expect(screen.queryByTestId('buddy-suggestions')).not.toBeInTheDocument();
+    });
+
+    /**
+     * Nothing mounted for this hire means no chips — not an empty row with a heading over it. The
+     * list is the backend's, gated on the tools it actually mounts, so "none" is a real answer.
+     */
+    it('renders nothing at all when the hire has no suggestions', () => {
+        renderPanel([], { suggestions: [] });
+
+        expect(screen.queryByTestId('buddy-suggestions')).not.toBeInTheDocument();
+        expect(screen.queryByText('Try asking')).not.toBeInTheDocument();
     });
 });

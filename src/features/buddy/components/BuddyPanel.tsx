@@ -4,6 +4,7 @@ import { UserAvatar } from '../../../components/common/UserAvatar';
 import type { useBuddy } from '../hooks/useBuddy';
 import { BuddyActionProposals } from './BuddyActionProposals';
 import { BuddyMarkdown } from './BuddyMarkdown';
+import { BuddySuggestionChips } from './BuddySuggestionChips';
 
 type BuddyPanelProps = Pick<
     ReturnType<typeof useBuddy>,
@@ -15,6 +16,7 @@ type BuddyPanelProps = Pick<
     | 'confirmAction'
     | 'dismissAction'
     | 'bottomRef'
+    | 'suggestions'
 > & {
     onClose: () => void;
     /**
@@ -54,9 +56,15 @@ export function BuddyPanel({
     confirmAction,
     dismissAction,
     bottomRef,
+    suggestions,
     onClose,
     onOpenFull,
 }: BuddyPanelProps) {
+    // Offered until the hire has said something this visit, then out of the way. A chip row is for
+    // somebody who does not know what to type; once they have typed, the panel is 384 px wide and
+    // the conversation should have all of it.
+    const hasUserMessage = messages.some(message => message.role === 'USER');
+
     return (
         <div
             role="dialog"
@@ -178,6 +186,20 @@ export function BuddyPanel({
             </div>
 
             <footer className="border-t border-app-border bg-app-bg p-3">
+                {/* Above the composer, not above the transcript: the chips exist to answer "what do
+                    I type here", so they belong next to the box they fill. `min-w-0` for the reason
+                    everything else in this panel has it -- a flex child that will not shrink is
+                    what makes a 384 px column overflow sideways. */}
+                {!hasUserMessage && (
+                    <div className="mb-3 min-w-0">
+                        <BuddySuggestionChips
+                            suggestions={suggestions}
+                            onPick={setDraft}
+                            heading="Try asking"
+                        />
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="flex items-end gap-2">
                     <AutoResizeTextarea
                         value={draft}

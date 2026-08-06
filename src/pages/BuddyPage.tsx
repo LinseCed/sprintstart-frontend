@@ -2,8 +2,10 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, Bot, LayoutDashboard, Loader2, Sparkles, Users } from 'lucide-react';
 import { useBuddyConversation } from '../features/buddy/hooks/useBuddyConversation';
 import { useBuddyIntake } from '../features/buddy/hooks/useBuddyIntake';
+import { useBuddySuggestions } from '../features/buddy/hooks/useBuddySuggestions';
 import { useHandedOffDraft } from '../features/buddy/useHandedOffDraft';
 import { BuddyConversation } from '../features/buddy/components/BuddyConversation';
+import { BuddySuggestionChips } from '../features/buddy/components/BuddySuggestionChips';
 import { FlagToPmButton } from '../features/knowledge-request/components/FlagToPmButton';
 import { MyEscalations } from '../features/knowledge-request/components/MyEscalations';
 
@@ -22,13 +24,6 @@ import { MyEscalations } from '../features/knowledge-request/components/MyEscala
  * The floating widget (mounted app-wide) shares the same one buddy session, so a hire
  * can pick up the conversation from anywhere.
  */
-const SUGGESTIONS: { label: string; question: string }[] = [
-    { label: 'Where do I stand?', question: 'Where do I stand right now?' },
-    { label: 'What should I work on?', question: 'What should I work on next?' },
-    { label: 'Is my PR stuck?', question: 'Is my pull request stuck or waiting on a review?' },
-    { label: 'Show me around', question: 'Give me a quick tour of this codebase to get started.' },
-];
-
 /**
  * The conversation's header.
  *
@@ -84,6 +79,8 @@ function BuddyMentorHome() {
         bottomRef,
     } = useBuddyConversation({ open: true });
 
+    const suggestions = useBuddySuggestions();
+
     // Whatever they were typing in the floating panel when they asked for more room.
     useHandedOffDraft(setDraft);
 
@@ -135,24 +132,24 @@ function BuddyMentorHome() {
                 </div>
             )}
 
+            {/* ⚠️ These used to be four hardcoded strings, one of which was "Is my PR stuck?" —
+                offered to every hire, including the roles role-tracks exists to stop showing pull
+                requests to. They now come from the backend, which builds them from the tools it
+                actually mounts for this hire, so the chips and the mentor cannot disagree.
+
+                They also *fill* the composer now instead of sending. The hire presses send: the
+                words stay theirs, and they can edit the question first — which is how somebody
+                learns they are allowed to. The opener's own chip above still sends on one click,
+                deliberately: that one is accepting something the mentor just offered, not composing
+                a question, and it looks different because it is different. */}
             {!hasUserMessage && (
                 <div className="shrink-0 px-4 pt-4">
                     <div className="mx-auto w-full max-w-3xl">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-app-text-muted">
-                            Or ask about something else
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {SUGGESTIONS.map(suggestion => (
-                                <button
-                                    key={suggestion.label}
-                                    type="button"
-                                    onClick={() => void sendMessage(suggestion.question)}
-                                    className="rounded-full border border-app-border bg-app-surface px-3 py-1.5 text-sm text-app-text transition-colors hover:border-app-brand hover:text-app-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus"
-                                >
-                                    {suggestion.label}
-                                </button>
-                            ))}
-                        </div>
+                        <BuddySuggestionChips
+                            suggestions={suggestions}
+                            onPick={setDraft}
+                            heading="Or ask about something else"
+                        />
                     </div>
                 </div>
             )}

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ArtifactViewerDrawer } from '../../../../../src/features/knowledge-base/components/ArtifactViewerDrawer';
 import { ApiError } from '../../../../../src/services/apiClient';
 import type { Artifact, ArtifactSummaryCitation, SummaryStreamHandlers } from '../../../../../src/features/knowledge-base/types';
@@ -16,8 +16,12 @@ vi.mock('../../../../../src/services/knowledgeService', () => ({
     },
 }));
 
+// Mutable so a test can put a PM behind the same drawer: "Ask your buddy" is gated on the role,
+// not merely left to no-op, because the widget it opens is mounted only for hires.
+const authProfile: { id: string; permissionGroup?: string } = { id: 'remover-1' };
+
 vi.mock('../../../../../src/context/useAuth', () => ({
-    useAuth: () => ({ profile: { id: 'remover-1' } }),
+    useAuth: () => ({ profile: authProfile }),
 }));
 
 vi.mock('../../../../../src/components/ui/SidePanel', () => ({
@@ -258,6 +262,43 @@ describe('ArtifactViewerDrawer', () => {
             await userEvent.click(confirmBtn);
 
             expect(await screen.findByTestId('delete-error-banner')).toHaveTextContent('Network failure');
+        });
+    });
+
+    /**
+     * The one surface outside the board where a hire is *reading something* with no route from it
+     * into the conversation — which is half of the tutor's disconnected-actions note. The buddy
+     * answers from this very corpus, so the document is exactly what to ask about.
+     */
+    describe('asking the buddy about a document', () => {
+        afterEach(() => {
+            authProfile.permissionGroup = undefined;
+        });
+
+        it('offers a hire a route from the document into the conversation', async () => {
+            authProfile.permissionGroup = 'USER';
+
+            renderDrawer();
+
+            expect(
+                await screen.findByRole('button', { name: /ask your buddy about this document/i }),
+            ).toBeInTheDocument();
+        });
+
+        /**
+         * ⚠️ The drawer is shared by every role, and `openAiBuddy` is a **no-op** wherever the
+         * widget is not mounted — which is every non-hire profile. Left ungated, this would be a
+         * control on a PM's screen that silently does nothing: dead wiring, visible.
+         */
+        it('offers nothing to a role whose buddy widget is never mounted', async () => {
+            authProfile.permissionGroup = 'PM';
+
+            renderDrawer();
+
+            expect(await screen.findByTestId('raw-content')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /ask your buddy about this document/i }),
+            ).not.toBeInTheDocument();
         });
     });
 });
