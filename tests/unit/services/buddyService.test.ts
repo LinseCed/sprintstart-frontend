@@ -260,6 +260,9 @@ describe('buddyService', () => {
                 taskId: 't-1',
                 moduleId: undefined,
                 answer: undefined,
+                title: undefined,
+                attesterId: undefined,
+                githubLogin: undefined,
             });
             expect(onActionProposal).toHaveBeenNthCalledWith(2, {
                 action: 'submit_verification',
@@ -268,7 +271,61 @@ describe('buddyService', () => {
                 taskId: undefined,
                 moduleId: 'm-1',
                 answer: '42',
+                title: undefined,
+                attesterId: undefined,
+                githubLogin: undefined,
             });
+        });
+
+        /**
+         * ⚠️ Regression. `title` and `attester_id` were dropped here for as long as the action had
+         * existed, so a confirmed `request_attestation` reached the server with nothing to act on
+         * and always came back as "I need to know what work to confirm and who to ask" — reading
+         * like a precondition the hire had failed rather than a wire that drops fields.
+         */
+        it('maps the attestation and username payloads too', async () => {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(
+                        encoder.encode(
+                            'data: {"type":"action_proposal","action":"request_attestation","label":"Ask them to confirm this","title":"Facilitated the retro","attester_id":"u-9"}\n\n',
+                        ),
+                    );
+                    controller.enqueue(
+                        encoder.encode(
+                            'data: {"type":"action_proposal","action":"set_github_login","label":"Save this username","github_login":"octocat"}\n\n',
+                        ),
+                    );
+                    controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+                    controller.close();
+                },
+            });
+
+            server.use(
+                http.post('/api/v1/onboarding/me/buddy/messages', () =>
+                    new HttpResponse(stream, {
+                        headers: { 'Content-Type': 'text/event-stream' },
+                    }),
+                ),
+            );
+
+            const onActionProposal = vi.fn();
+            await streamMessage('can Ana confirm my retro?', {
+                onToken: vi.fn(),
+                onCitation: vi.fn(),
+                onDone: vi.fn(),
+                onActionProposal,
+            });
+
+            expect(onActionProposal).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({ title: 'Facilitated the retro', attesterId: 'u-9' }),
+            );
+            expect(onActionProposal).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({ githubLogin: 'octocat' }),
+            );
         });
     });
 

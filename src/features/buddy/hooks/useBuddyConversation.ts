@@ -154,6 +154,8 @@ export function useBuddyConversation(
                         taskId: proposal.taskId,
                         moduleId: proposal.moduleId,
                         answer: proposal.answer,
+                        title: proposal.title,
+                        attesterId: proposal.attesterId,
                         githubLogin: proposal.githubLogin,
                         status: "idle",
                     };
@@ -213,6 +215,8 @@ export function useBuddyConversation(
                         taskId: action.taskId,
                         moduleId: action.moduleId,
                         answer: action.answer,
+                        title: action.title,
+                        attesterId: action.attesterId,
                         githubLogin: action.githubLogin,
                     });
                     patchAction(messageId, action.id, {

@@ -58,6 +58,8 @@ interface BuddyStreamChunk {
     task_id?: string;
     module_id?: string;
     answer?: string;
+    title?: string;
+    attester_id?: string;
     github_login?: string;
 }
 
@@ -71,8 +73,8 @@ export interface BuddyActionResult {
  * Confirms a buddy-proposed action. This is the only call that mutates — the proposal itself
  * changed nothing. The project is re-resolved server-side from the caller, so only the action name
  * and the proposal's own confirm payloads are sent: `question` for flag-to-PM, `taskId` for a
- * goal claim, `moduleId` + `answer` for a verification submission, `githubLogin` for saving a
- * username.
+ * goal claim, `moduleId` + `answer` for a verification submission, `title` + `attesterId` for an
+ * attestation request, `githubLogin` for saving a username.
  */
 export async function performAction(
     action: string,
@@ -81,6 +83,8 @@ export async function performAction(
         taskId?: string;
         moduleId?: string;
         answer?: string;
+        title?: string;
+        attesterId?: string;
         githubLogin?: string;
     } = {},
 ): Promise<BuddyActionResult> {
@@ -92,6 +96,8 @@ export async function performAction(
             taskId: extras.taskId,
             moduleId: extras.moduleId,
             answer: extras.answer,
+            title: extras.title,
+            attesterId: extras.attesterId,
             githubLogin: extras.githubLogin,
         }),
     });
@@ -189,6 +195,8 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
                             taskId: event.task_id,
                             moduleId: event.module_id,
                             answer: event.answer,
+                            title: event.title,
+                            attesterId: event.attester_id,
                             githubLogin: event.github_login
                         });
                     }
