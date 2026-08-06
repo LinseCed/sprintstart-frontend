@@ -76,7 +76,7 @@ export function OnboardingMetricsWidget({ projectId }: OnboardingMetricsWidgetPr
             <p className="mt-3 text-xs text-app-text-muted">
                 Median time to first accepted work:{' '}
                 <span className="font-medium text-app-text">
-                    {formatDuration(metrics?.medianHoursToFirstMergedPullRequest ?? null)}
+                    {formatDuration(metrics?.medianHoursToFirstAcceptedContribution ?? null)}
                 </span>
             </p>
         </ClickableCard>

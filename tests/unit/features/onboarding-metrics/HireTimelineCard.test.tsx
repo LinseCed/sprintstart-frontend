@@ -23,13 +23,13 @@ const hire = (over: Partial<HireTimeline> = {}): HireTimeline => ({
     githubLogin: 'ada',
     joinedAt: '2026-07-01T09:00:00Z',
     firstTaskClaimedAt: '2026-07-02T09:00:00Z',
-    firstPullRequestOpenedAt: '2026-07-03T09:00:00Z',
+    firstContributionOpenedAt: '2026-07-03T09:00:00Z',
     firstResponseAt: '2026-07-03T15:00:00Z',
-    firstPullRequestMergedAt: '2026-07-04T09:00:00Z',
-    hoursToFirstMergedPullRequest: 72,
+    firstContributionAcceptedAt: '2026-07-04T09:00:00Z',
+    hoursToFirstAcceptedContribution: 72,
     hoursToFirstResponse: 6,
-    mergedPullRequestCount: 2,
-    openPullRequestCount: 0,
+    acceptedContributionCount: 2,
+    openContributionCount: 0,
     longestOpenWaitHours: null,
     stalled: false,
     stalledReason: null,
@@ -64,7 +64,7 @@ describe('HireTimelineCard', () => {
     it('uses the singular for one', () => {
         render(
             <HireTimelineCard
-                hire={hire({ vocabulary: scrumMaster, mergedPullRequestCount: 1 })}
+                hire={hire({ vocabulary: scrumMaster, acceptedContributionCount: 1 })}
             />,
         );
         expect(screen.getByText(/1 ceremony facilitated/)).toBeInTheDocument();
@@ -76,8 +76,8 @@ describe('HireTimelineCard', () => {
                 hire={hire({
                     vocabulary: scrumMaster,
                     firstResponseAt: null,
-                    firstPullRequestMergedAt: null,
-                    openPullRequestCount: 1,
+                    firstContributionAcceptedAt: null,
+                    openContributionCount: 1,
                     longestOpenWaitHours: 72,
                 })}
             />,

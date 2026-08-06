@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeInbox, taskItems } from '../../../../src/features/review-inbox/normalize';
-import type { ProposedStarterWork } from '../../../../src/features/starter-work/types';
+import type { UnreviewedStarterWork } from '../../../../src/features/starter-work/types';
 
-const tasks: ProposedStarterWork = {
+const tasks: UnreviewedStarterWork = {
     tasks: [
         {
             id: 't1',

@@ -29,7 +29,7 @@ export function TaskOrientationManager() {
         // Deferred so the first setState isn't synchronous in the effect body (React 19 lint).
         void (async () => {
             try {
-                const approved = await starterWorkService.fetchApproved();
+                const approved = await starterWorkService.fetchPool();
                 if (!cancelled) setTasks(approved);
             } catch (err) {
                 if (!cancelled) {

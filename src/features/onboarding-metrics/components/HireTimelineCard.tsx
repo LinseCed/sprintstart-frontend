@@ -42,16 +42,16 @@ export function HireTimelineCard({ hire }: HireTimelineCardProps) {
     const moments: Moment[] = [
         { label: 'Joined', at: hire.joinedAt },
         { label: 'Task claimed', at: hire.firstTaskClaimedAt },
-        { label: `${capitalise(contributionNoun)} started`, at: hire.firstPullRequestOpenedAt },
+        { label: `${capitalise(contributionNoun)} started`, at: hire.firstContributionOpenedAt },
         { label: 'First response', at: hire.firstResponseAt },
-        { label: capitalise(contributionVerbPast), at: hire.firstPullRequestMergedAt }
+        { label: capitalise(contributionVerbPast), at: hire.firstContributionAcceptedAt }
     ];
 
     // Something is in flight, was started, but nobody has responded: the wait is on somebody else.
     const awaitingReview =
-        hire.firstPullRequestOpenedAt !== null &&
+        hire.firstContributionOpenedAt !== null &&
         hire.firstResponseAt === null &&
-        hire.openPullRequestCount > 0;
+        hire.openContributionCount > 0;
 
     return (
         <div
@@ -76,11 +76,11 @@ export function HireTimelineCard({ hire }: HireTimelineCardProps) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    {hire.mergedPullRequestCount > 0 && (
+                    {hire.acceptedContributionCount > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-app-success-bg px-2 py-0.5 text-xs font-medium text-app-success-text">
                             <GitMerge className="h-3 w-3" aria-hidden="true" />
-                            {hire.mergedPullRequestCount}{' '}
-                            {hire.mergedPullRequestCount === 1
+                            {hire.acceptedContributionCount}{' '}
+                            {hire.acceptedContributionCount === 1
                                 ? contributionNoun
                                 : contributionNounPlural}{' '}
                             {contributionVerbPast}

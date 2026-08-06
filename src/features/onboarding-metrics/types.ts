@@ -12,21 +12,24 @@
 export type HireTimeline = {
     userId: string;
     displayName: string;
-    /** Null when no GitHub login is declared, so none of their work can be attributed. */
+    /** Null when no GitHub login is declared, so none of their pull requests can be attributed. */
     githubLogin: string | null;
     /** Null for assignments made before joining was recorded — "clock unknown", not "joined now". */
     joinedAt: string | null;
     firstTaskClaimedAt: string | null;
-    firstPullRequestOpenedAt: string | null;
+    /** When they first put work up for somebody else to look at, whatever kind of work it is. */
+    firstContributionOpenedAt: string | null;
     firstResponseAt: string | null;
-    firstPullRequestMergedAt: string | null;
-    /** Joined → first merged pull request, in hours. The north star, per hire. */
-    hoursToFirstMergedPullRequest: number | null;
-    /** Opened → first response on their first pull request, in hours. */
+    /** When their first piece of work was accepted through the team's normal quality bar. */
+    firstContributionAcceptedAt: string | null;
+    /** Joined → first accepted contribution, in hours. The north star, per hire. */
+    hoursToFirstAcceptedContribution: number | null;
+    /** Opened → first response on their first contribution, in hours. */
     hoursToFirstResponse: number | null;
-    mergedPullRequestCount: number;
-    openPullRequestCount: number;
-    /** Their longest pull request currently waiting on anyone, in hours. */
+    acceptedContributionCount: number;
+    /** Submitted and still waiting on somebody else. */
+    openContributionCount: number;
+    /** Their longest contribution currently waiting on anyone, in hours. */
     longestOpenWaitHours: number | null;
     stalled: boolean;
     /** What the stall is attributed to, in plain words; null when not stalled. */
@@ -34,10 +37,9 @@ export type HireTimeline = {
     /**
      * How this hire's work is named, from their track.
      *
-     * The field names above still say "pull request" because that is the wire contract, but the
-     * numbers behind them are composed from contributions of any kind. This is what lets the card
-     * say the right word over them — "2 ceremonies facilitated" and "2 changes merged" are the same
-     * number about two different jobs.
+     * The field names are deliberately neutral — a wire contract cannot rename itself per reader —
+     * so this is what lets the card say the right word over the same number: "2 ceremonies
+     * facilitated" and "2 changes merged" are one figure about two different jobs.
      */
     vocabulary: HireVocabulary;
 };
@@ -57,10 +59,15 @@ export type HireVocabulary = {
 export type ProjectOnboardingMetrics = {
     projectId: string;
     memberCount: number;
-    /** Members with no declared GitHub login — their timelines are necessarily incomplete. */
+    /**
+     * Members with no declared GitHub login — their pull requests cannot be attributed.
+     *
+     * ⚠️ Narrower than the name reads: somebody who declared a tracker name but no GitHub login has
+     * attributable work and is still counted here. Widening it is a behaviour change, not a rename.
+     */
     unattributableMemberCount: number;
-    hiresWithMergedPullRequest: number;
-    medianHoursToFirstMergedPullRequest: number | null;
+    hiresWithAcceptedContribution: number;
+    medianHoursToFirstAcceptedContribution: number | null;
     medianHoursToFirstResponse: number | null;
     /** The slow tail of review latency, where the barrier actually bites. */
     p90HoursToFirstResponse: number | null;

@@ -31,7 +31,7 @@ export function useStarterWorkReview() {
         setIsLoading(true);
         setError(null);
         try {
-            const proposed = await starterWorkService.fetchProposed();
+            const proposed = await starterWorkService.fetchUnreviewed();
             setTasks(proposed.tasks);
         } catch (err) {
             setError(toMessage(err, 'Could not load starter tasks.'));
@@ -79,7 +79,7 @@ export function useStarterWorkReview() {
     const dismissCreated = useCallback(() => setCreatedTask(null), []);
 
     const approve = useCallback(async (id: string) => {
-        await starterWorkService.approve(id);
+        await starterWorkService.markReviewed(id);
         setTasks(prev => prev.filter(task => task.id !== id));
     }, []);
 
