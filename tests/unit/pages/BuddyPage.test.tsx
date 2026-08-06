@@ -154,4 +154,26 @@ describe('BuddyPage', () => {
         );
         expect(streamMessage).not.toHaveBeenCalled();
     });
+
+    /**
+     * ⚠️ The greeting costs a model call, and the page used to blank itself behind a spinner
+     * until it landed — about 20 seconds on a real corpus, on the hire's own landing page.
+     *
+     * Nothing on the page needs the greeting in order to work, so nothing waits for it. This is
+     * the rule the board already holds itself to: a page that waits on a model to open is a page
+     * nobody opens.
+     */
+    it('lets the hire type before the greeting has arrived', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });
+        // A greeting that never resolves: the page must be usable regardless.
+        vi.mocked(openBuddy).mockReturnValue(new Promise(() => {}));
+
+        const user = userEvent.setup();
+        renderPage();
+
+        const composer = await screen.findByPlaceholderText('Ask your buddy anything...');
+        await user.type(composer, 'where do I start?');
+
+        expect(composer).toHaveValue('where do I start?');
+    });
 });

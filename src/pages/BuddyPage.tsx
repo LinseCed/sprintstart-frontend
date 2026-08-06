@@ -87,21 +87,12 @@ function BuddyMentorHome() {
     const hasUserMessage = messages.some(m => m.role === 'USER');
     const lastQuestion = [...messages].reverse().find(m => m.role === 'USER')?.content ?? '';
 
-    if (isOpening) {
-        return (
-            <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
-                <BuddyHeader
-                    subtitle="Your always-on mentor — ask about the codebase, or about your own onboarding."
-                    showBoardLink
-                />
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-app-text-muted">
-                    <Loader2 className="h-6 w-6 animate-spin text-app-brand" aria-hidden="true" />
-                    <p className="text-sm">Catching up on where you are…</p>
-                </div>
-            </div>
-        );
-    }
-
+    // ⚠️ **Opening does not gate the page.** The greeting costs a model call, and blanking
+    // everything behind a spinner until it lands made the hire's landing page unusable for ~20
+    // seconds. Nothing here needs the greeting to work: the composer sends, the escalation channel
+    // and the chips render, and the greeting drops into the transcript when it arrives. It is the
+    // same rule the board already holds itself to -- a page that waits on a model to open is a
+    // page nobody opens.
     return (
         <div className="flex h-[calc(100vh-64px)] flex-col lg:h-screen">
             <BuddyHeader
@@ -164,7 +155,9 @@ function BuddyMentorHome() {
 
             <BuddyConversation
                 messages={messages}
-                isThinking={isThinking}
+                // While the visit opens, the same indicator stands in for the greeting that is on
+                // its way -- it does not disable the composer, so the hire can type straight past it.
+                isThinking={isThinking || isOpening}
                 activeTool={activeTool}
                 draft={draft}
                 setDraft={setDraft}
