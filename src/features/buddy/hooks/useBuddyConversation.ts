@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     getMessages,
-    openBuddy,
+    streamOpenBuddy,
     performAction,
     streamMessage,
     type BuddyOpeningAction,
@@ -58,16 +58,37 @@ export function useBuddyConversation(
     const openVisit = useCallback(async () => {
         if (loadedRef.current) return;
         loadedRef.current = true;
+        const id = crypto.randomUUID();
         try {
-            const opening = await openBuddy();
-            setMessages([{
-                id: crypto.randomUUID(),
-                role: "ASSISTANT",
-                content: opening.greeting,
-                createdAt: new Date().toISOString(),
-                citations: [],
-            }]);
-            setOpenerAction(opening.action);
+            await streamOpenBuddy({
+                onToken: token => {
+                    // The greeting is a single growing message rather than one per token, so the
+                    // hire watches it being written instead of watching messages pile up.
+                    setMessages(prev => {
+                        const existing = prev.find(message => message.id === id);
+                        if (!existing) {
+                            return [{
+                                id,
+                                role: "ASSISTANT",
+                                content: token,
+                                createdAt: new Date().toISOString(),
+                                citations: [],
+                            }];
+                        }
+                        return prev.map(message =>
+                            message.id === id
+                                ? { ...message, content: message.content + token }
+                                : message
+                        );
+                    });
+                    // The page stops waiting at the first word, not the last: everything after this
+                    // is the hire reading along, and the composer is theirs from here.
+                    setIsOpening(false);
+                },
+                onAction: setOpenerAction,
+                onDone: () => setIsOpening(false),
+                onError: message => console.error(message),
+            });
         } catch (e) {
             console.error(e);
         } finally {

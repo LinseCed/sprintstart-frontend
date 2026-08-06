@@ -44,15 +44,53 @@ export interface BuddyOpening {
     action: BuddyOpeningAction | null;
 }
 
+/** How a caller receives a visit's greeting as it is written. */
+export interface BuddyOpeningHandlers {
+    onToken: (token: string) => void;
+    /** The one suggested next step, if the mentor offered one. Arrives before `onDone`. */
+    onAction?: (action: BuddyOpeningAction) => void;
+    onDone: () => void;
+    onError?: (message: string) => void;
+}
+
 /**
- * Opens a buddy visit: the mentor folds the previous visit into its durable memory and returns a
- * proactive greeting grounded in the hire's current state. The past transcript is not replayed — a
- * visit starts fresh with this greeting.
+ * Opens a buddy visit, streaming the greeting as the mentor writes it.
+ *
+ * The mentor folds the previous visit into its durable memory and greets the hire grounded in their
+ * current state; the past transcript is not replayed — a visit starts fresh with this greeting.
+ *
+ * ⚠️ **The wait this removes was ordering, not model speed.** The greeting used to be written
+ * *after* a private memory note of up to 200 words that the hire never sees, so the page sat empty
+ * for ~30s while the model produced output for itself. The greeting is written first now.
+ *
+ * Opening twice without the hire saying anything is the same visit: the greeting already there is
+ * replayed whole (there is nothing left to wait for) and no model is called.
  */
-export async function openBuddy(): Promise<BuddyOpening> {
-    return await apiClient.fetch<BuddyOpening>(`/api/v1/onboarding/me/buddy/open`, {
-        method: "POST",
-    });
+export async function streamOpenBuddy(handlers: BuddyOpeningHandlers): Promise<void> {
+    const outcome = await readBuddyStream(`/api/v1/onboarding/me/buddy/open/stream`, undefined, chunk => {
+        switch (chunk.type) {
+            case "token":
+                if (chunk.content !== undefined) handlers.onToken(chunk.content);
+                break;
+            case "opening_action":
+                // ⚠️ Not an action proposal. `action_proposal` means the buddy is offering to *do*
+                // something and is gated on the hire confirming; this only fills the composer.
+                if (chunk.label && chunk.question) {
+                    handlers.onAction?.({ label: chunk.label, question: chunk.question });
+                }
+                break;
+            case "done":
+                handlers.onDone();
+                return "stop";
+            case "error":
+                handlers.onError?.(chunk.message ?? "The buddy could not be reached.");
+                return "stop";
+        }
+    }, handlers.onError);
+
+    // The greeting is all there is here, so a body that ends without a terminal event still
+    // finished it -- the page must stop waiting either way.
+    if (outcome === "ended") handlers.onDone();
 }
 
 /**
@@ -61,7 +99,14 @@ export async function openBuddy(): Promise<BuddyOpening> {
  * and wire field names as the chat module's AiStreamMessage.
  */
 interface BuddyStreamChunk {
-    type: "tool_use" | "token" | "citation" | "action_proposal" | "done" | "error";
+    type:
+        | "tool_use"
+        | "token"
+        | "citation"
+        | "action_proposal"
+        | "opening_action"
+        | "done"
+        | "error";
     content?: string;
     message?: string;
     name?: string;
@@ -125,12 +170,32 @@ export async function performAction(
 }
 
 /**
- * Sends a message to the user's persistent buddy and streams the grounded reply.
+ * How a buddy stream finished.
  *
- * @param content The message to send.
- * @param handlers Helper operations handling the output of the buddy's response.
+ * ⚠️ Three outcomes, not two, and the difference decides whether the caller announces completion.
+ * `terminated` means the server said `done` or `error` and has already been reported. `ended` means
+ * the body ran out with no terminal event, so the caller still owes its own `onDone`. `aborted`
+ * means the request never produced a stream at all — the caller must **not** announce completion
+ * there, because nothing was answered.
  */
-export async function streamMessage(content: string, handlers: StreamHandlers): Promise<void> {
+type BuddyStreamOutcome = "terminated" | "ended" | "aborted";
+
+/**
+ * Reads one of the buddy's Server-Sent Event endpoints, handing each parsed chunk to `onChunk`.
+ *
+ * Extracted once there were two callers — sending a message and opening a visit — rather than in
+ * advance: token refresh, the HTTP check, the `data:` framing and the buffered line split are
+ * identical for both, and only the handling of each chunk differs.
+ *
+ * `onChunk` returns `"stop"` to end the read, which is how a terminal `done` or `error` closes the
+ * stream without every caller writing its own loop exit.
+ */
+async function readBuddyStream(
+    path: string,
+    body: unknown,
+    onChunk: (chunk: BuddyStreamChunk) => "stop" | void,
+    onError?: (message: string) => void,
+): Promise<BuddyStreamOutcome> {
     // Ensure the token is up to date (refresh if it expires in < 30s)
     try {
         if (keycloak.authenticated) {
@@ -139,21 +204,21 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
     } catch (error) {
         console.error('Failed to refresh Keycloak token for buddy stream', error);
         void keycloak.login();
-        return;
+        return "aborted";
     }
 
-    const res = await fetch(`/api/v1/onboarding/me/buddy/messages`, {
+    const res = await fetch(path, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${keycloak.token}`
         },
-        body: JSON.stringify({ content })
+        body: body === undefined ? undefined : JSON.stringify(body)
     });
 
     if (!res.ok) {
-        handlers.onError?.(`HTTP error! status: ${res.status}`);
-        return;
+        onError?.(`HTTP error! status: ${res.status}`);
+        return "aborted";
     }
 
     const reader = res.body?.getReader();
@@ -182,6 +247,24 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
                 line.replace("data:", "").trim()
             ) as BuddyStreamChunk;
 
+            if (onChunk(event) === "stop") return "terminated";
+        }
+    }
+
+    return "ended";
+}
+
+/**
+ * Sends a message to the user's persistent buddy and streams the grounded reply.
+ *
+ * @param content The message to send.
+ * @param handlers Helper operations handling the output of the buddy's response.
+ */
+export async function streamMessage(content: string, handlers: StreamHandlers): Promise<void> {
+    const outcome = await readBuddyStream(
+        `/api/v1/onboarding/me/buddy/messages`,
+        { content },
+        event => {
             switch (event.type) {
                 case "tool_use":
                     if (event.name) {
@@ -225,15 +308,16 @@ export async function streamMessage(content: string, handlers: StreamHandlers): 
 
                 case "done":
                     handlers.onDone();
-                    return;
+                    return "stop";
 
                 case "error":
                     handlers.onError?.(event.message ?? "Unknown error");
-                    return;
+                    return "stop";
             }
-        }
-    }
+        },
+        handlers.onError,
+    );
 
-    // Fallback: Ensure onDone is called when the stream ends naturally
-    handlers.onDone();
+    // Fallback: ensure onDone is called when the stream ends without a terminal event.
+    if (outcome === "ended") handlers.onDone();
 }
