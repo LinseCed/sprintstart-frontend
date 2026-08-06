@@ -74,6 +74,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
     const [email, setEmail] = useState(profile.email || '');
     const [profileIcon, setProfileIcon] = useState(profile.profileIcon || profile.id);
     const [githubLogin, setGithubLogin] = useState(profile.githubLogin || '');
+    const [jiraDisplayName, setJiraDisplayName] = useState(profile.jiraDisplayName || '');
     const [isSaving, setIsSaving] = useState(false);
     const [isChoosingIcon, setIsChoosingIcon] = useState(false);
     const [iconOptions, setIconOptions] = useState<string[]>([]);
@@ -99,7 +100,7 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
         e.preventDefault();
         setIsSaving(true);
         try {
-            await onUpdate({ firstName, lastName, email, profileIcon, githubLogin });
+            await onUpdate({ firstName, lastName, email, profileIcon, githubLogin, jiraDisplayName });
         } finally {
             setIsSaving(false);
         }
@@ -214,6 +215,29 @@ export function AccountForm({ profile, onUpdate }: AccountFormProps) {
                         {profile.githubLoginSource === 'PM_CONFIRMED' && ' Confirmed by your project manager.'}
                     </p>
                     <GithubLoginVerdict profile={profile} typed={githubLogin} />
+                </div>
+
+                <div className="space-y-1">
+                    <label htmlFor="jiraDisplayName" className="text-sm font-medium text-app-text">
+                        Jira Display Name
+                    </label>
+                    <input
+                        id="jiraDisplayName"
+                        type="text"
+                        value={jiraDisplayName}
+                        onChange={(e) => setJiraDisplayName(e.target.value)}
+                        placeholder="Ada Lovelace"
+                        aria-describedby="jiraDisplayNameHelp"
+                        className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-app-text transition-colors focus:border-app-brand focus:outline-none focus:ring-1 focus:ring-app-brand"
+                    />
+                    {/* Deliberately says "exactly as Jira shows it": a display name is the only
+                        identity an ingested issue carries, so this field is matched literally. It
+                        is also not a username -- somebody typing their handle here would silently
+                        match nothing, and their tracked work would never be counted. */}
+                    <p id="jiraDisplayNameHelp" className="text-xs text-app-text-muted">
+                        Your name exactly as Jira shows it, so issues assigned to you count as your
+                        work. Not a username. Clear it to stop your Jira work being counted.
+                    </p>
                 </div>
 
                 <div className="pt-4">

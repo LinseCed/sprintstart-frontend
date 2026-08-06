@@ -24,6 +24,7 @@ const createMockProfile = (permissionGroup: PermissionGroup): UserProfile => ({
     githubLoginSource: null,
     githubLoginVerification: null,
     githubLoginVerifiedAt: null,
+    jiraDisplayName: null,
 });
 
 describe('accessPolicy', () => {

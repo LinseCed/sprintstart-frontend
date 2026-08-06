@@ -61,7 +61,7 @@ export interface SetupLadder {
  * named colleague vouched for it. It exists because most roles produce nothing any connected
  * system can see.
  */
-export type ContributionEvidenceKind = 'PULL_REQUEST' | 'ATTESTATION';
+export type ContributionEvidenceKind = 'PULL_REQUEST' | 'TRACKED_ISSUE' | 'ATTESTATION';
 
 /**
  * One onboarding track: what onboarding means for a kind of role.
