@@ -42,6 +42,7 @@ const mockProfile = {
     githubLoginSource: null,
     githubLoginVerification: null,
     githubLoginVerifiedAt: null,
+    jiraDisplayName: null,
 };
 
 function renderWithProviders(ui: React.ReactElement) {

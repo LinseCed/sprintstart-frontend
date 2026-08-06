@@ -77,6 +77,21 @@ export interface UserProfile {
   githubLoginVerification: GithubLoginVerification | null;
   /** When that verdict was reached. Null exactly when the verdict is. */
   githubLoginVerifiedAt: string | null;
+  /**
+   * The name this user appears under in a connected issue tracker, or null if
+   * they haven't declared one.
+   *
+   * The tracker counterpart of `githubLogin`, and what lets work that never
+   * becomes a pull request be *observed* rather than vouched for: an issue
+   * assigned to this name and moved to done by somebody else is evidence nobody
+   * had to attest.
+   *
+   * ⚠️ No verification field beside it, and that is not an omission. GitHub can
+   * be asked whether an account exists; a tracker renders whatever name a person
+   * set, so "does this name exist" has no answer worth showing. The risk it does
+   * carry -- a namesake in the tracker -- is one no check would catch.
+   */
+  jiraDisplayName: string | null;
 }
 
 export type GithubLoginSource = "SELF_DECLARED" | "PM_CONFIRMED";

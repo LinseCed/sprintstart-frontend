@@ -24,6 +24,7 @@ describe('AccountForm', () => {
         githubLoginSource: null,
         githubLoginVerification: null,
         githubLoginVerifiedAt: null,
+        jiraDisplayName: null,
     };
 
     it('renders user information in inputs', () => {
@@ -65,6 +66,39 @@ describe('AccountForm', () => {
         await waitFor(() => {
             expect(onUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ githubLogin: '' }));
         });
+    });
+
+    /**
+     * The tracker counterpart, and what lets work that never becomes a pull request be *observed*
+     * rather than vouched for: an issue assigned to this name and moved to done by somebody else is
+     * evidence nobody had to attest.
+     */
+    it('lets a user declare the name their tracked issues are assigned to', async () => {
+        const user = userEvent.setup();
+        const onUpdateMock = vi.fn();
+
+        render(<AccountForm profile={mockUser} onUpdate={onUpdateMock} />);
+
+        await user.type(screen.getByLabelText('Jira Display Name'), 'Ada Lovelace');
+        await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+        await waitFor(() => {
+            expect(onUpdateMock).toHaveBeenCalledWith(
+                expect.objectContaining({ jiraDisplayName: 'Ada Lovelace' }),
+            );
+        });
+    });
+
+    /**
+     * ⚠️ It is a *name*, not a handle, and the label and help text both have to say so — an ingested
+     * issue carries only the display name, so somebody who types their username here matches
+     * nothing and their tracked work is silently never counted.
+     */
+    it('says the tracker field is a name rather than a username', () => {
+        render(<AccountForm profile={mockUser} onUpdate={vi.fn()} />);
+
+        expect(screen.getByText(/exactly as Jira shows it/i)).toBeInTheDocument();
+        expect(screen.getByText(/not a username/i)).toBeInTheDocument();
     });
 
     /**

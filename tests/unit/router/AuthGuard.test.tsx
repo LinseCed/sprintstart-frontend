@@ -31,6 +31,7 @@ const mockProfile: UserProfile = {
     githubLoginSource: null,
     githubLoginVerification: null,
     githubLoginVerifiedAt: null,
+    jiraDisplayName: null,
 };
 
 function authenticatedAs(profile: UserProfile | null) {

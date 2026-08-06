@@ -43,6 +43,7 @@ export function createMockProfile(
         githubLoginSource: null,
         githubLoginVerification: null,
         githubLoginVerifiedAt: null,
+        jiraDisplayName: null,
         ...overrides,
     };
 }
