@@ -1,8 +1,8 @@
-import type { ProposedStarterWork } from '../starter-work/types';
+import type { UnreviewedStarterWork } from '../starter-work/types';
 import type { ReviewItemView } from './types';
 
 /** Mined starter tasks, as review cards. */
-export function taskItems(proposed: ProposedStarterWork): ReviewItemView[] {
+export function taskItems(proposed: UnreviewedStarterWork): ReviewItemView[] {
     return proposed.tasks.map((task) => {
         const skills = task.competencyKeys.length;
         return {
@@ -16,6 +16,6 @@ export function taskItems(proposed: ProposedStarterWork): ReviewItemView[] {
 }
 
 /** Every pending proposal as one flat list of uniform cards. */
-export function normalizeInbox(input: { tasks: ProposedStarterWork }): ReviewItemView[] {
+export function normalizeInbox(input: { tasks: UnreviewedStarterWork }): ReviewItemView[] {
     return taskItems(input.tasks);
 }

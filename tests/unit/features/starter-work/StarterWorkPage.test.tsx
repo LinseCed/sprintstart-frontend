@@ -42,10 +42,10 @@ describe('StarterWorkPage', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         permissionGroup.current = 'PM';
-        vi.spyOn(starterWorkService, 'fetchProposed').mockResolvedValue({ tasks: [task] });
+        vi.spyOn(starterWorkService, 'fetchUnreviewed').mockResolvedValue({ tasks: [task] });
         // The PM page also renders the task-orientation manager, which loads the approved pool and
         // the caller's projects. Stub both so these tests stay about the review queue.
-        vi.spyOn(starterWorkService, 'fetchApproved').mockResolvedValue([]);
+        vi.spyOn(starterWorkService, 'fetchPool').mockResolvedValue([]);
         vi.spyOn(userService, 'getMyProjects').mockResolvedValue([]);
     });
 
@@ -79,7 +79,7 @@ describe('StarterWorkPage', () => {
     it('approves through the service and drops the task from the queue', async () => {
         const user = userEvent.setup();
         const approve = vi
-            .spyOn(starterWorkService, 'approve')
+            .spyOn(starterWorkService, 'markReviewed')
             .mockResolvedValue({ ...task, status: 'LIVE', reviewed: true });
         render(<StarterWorkPage />);
 
@@ -101,7 +101,7 @@ describe('StarterWorkPage', () => {
     });
 
     it('explains an empty list as nothing to look at, not nothing done', async () => {
-        vi.spyOn(starterWorkService, 'fetchProposed').mockResolvedValue({ tasks: [] });
+        vi.spyOn(starterWorkService, 'fetchUnreviewed').mockResolvedValue({ tasks: [] });
         render(<StarterWorkPage />);
 
         expect(await screen.findByText(/nothing here needs a look/i)).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('StarterWorkPage', () => {
     });
 
     it('surfaces a failed load', async () => {
-        vi.spyOn(starterWorkService, 'fetchProposed').mockRejectedValue(new Error('boom'));
+        vi.spyOn(starterWorkService, 'fetchUnreviewed').mockRejectedValue(new Error('boom'));
         render(<StarterWorkPage />);
 
         expect(await screen.findByText('boom')).toBeInTheDocument();

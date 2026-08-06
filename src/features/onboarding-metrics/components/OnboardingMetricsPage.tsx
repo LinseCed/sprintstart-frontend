@@ -15,9 +15,9 @@ function hasActivity(hires: HireTimeline[]): boolean {
         hire =>
             hire.joinedAt !== null ||
             hire.firstTaskClaimedAt !== null ||
-            hire.firstPullRequestOpenedAt !== null ||
-            hire.mergedPullRequestCount > 0 ||
-            hire.openPullRequestCount > 0
+            hire.firstContributionOpenedAt !== null ||
+            hire.acceptedContributionCount > 0 ||
+            hire.openContributionCount > 0
     );
 }
 
@@ -164,8 +164,8 @@ export function OnboardingMetricsPage() {
                         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                             <StatTile
                                 label="Median time to first accepted work"
-                                value={formatDuration(metrics.medianHoursToFirstMergedPullRequest)}
-                                hint={`${metrics.hiresWithMergedPullRequest} of ${metrics.memberCount} have had work accepted`}
+                                value={formatDuration(metrics.medianHoursToFirstAcceptedContribution)}
+                                hint={`${metrics.hiresWithAcceptedContribution} of ${metrics.memberCount} have had work accepted`}
                             />
                             <StatTile
                                 label="Median first-review wait"

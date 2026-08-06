@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { starterWorkService } from '../../../services/starterWorkService';
-import type { ProposedStarterWork } from '../../starter-work/types';
+import type { UnreviewedStarterWork } from '../../starter-work/types';
 import { normalizeInbox } from '../normalize';
 import type { GenerationKind, ReviewItemView } from '../types';
 
-const EMPTY_TASKS: ProposedStarterWork = { tasks: [] };
+const EMPTY_TASKS: UnreviewedStarterWork = { tasks: [] };
 
 /** While a generator runs, re-read the queue on this cadence so proposals appear as they commit. */
 const POLL_INTERVAL_MS = 3000;
@@ -50,8 +50,8 @@ export function useReviewInbox(): UseReviewInbox {
 
     const loadProposed = useCallback(async () => {
         const tasks = await starterWorkService
-            .fetchProposed()
-            .catch((): ProposedStarterWork => EMPTY_TASKS);
+            .fetchUnreviewed()
+            .catch((): UnreviewedStarterWork => EMPTY_TASKS);
         setItems(normalizeInbox({ tasks }));
     }, []);
 
@@ -120,7 +120,7 @@ export function useReviewInbox(): UseReviewInbox {
         async (item: ReviewItemView) => {
             setError(null);
             try {
-                await starterWorkService.approve(item.id);
+                await starterWorkService.markReviewed(item.id);
                 await loadProposed();
             } catch (err) {
                 setError(toMessage(err, 'Could not approve this proposal.'));

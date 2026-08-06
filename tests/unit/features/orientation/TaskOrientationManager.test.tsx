@@ -37,7 +37,7 @@ describe('TaskOrientationManager', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         window.localStorage.clear();
-        vi.spyOn(starterWorkService, 'fetchApproved').mockResolvedValue([approvedTask]);
+        vi.spyOn(starterWorkService, 'fetchPool').mockResolvedValue([approvedTask]);
     });
 
     it('lists approved tasks and opens the editor scoped to task and project', async () => {
@@ -57,7 +57,7 @@ describe('TaskOrientationManager', () => {
     });
 
     it('shows an empty state when there are no approved tasks', async () => {
-        vi.spyOn(starterWorkService, 'fetchApproved').mockResolvedValue([]);
+        vi.spyOn(starterWorkService, 'fetchPool').mockResolvedValue([]);
 
         render(<TaskOrientationManager />);
 

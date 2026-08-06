@@ -32,17 +32,17 @@ export type StarterWorkTask = {
 };
 
 /** The live tasks nobody has vouched for yet. */
-export type ProposedStarterWork = {
+export type UnreviewedStarterWork = {
     tasks: StarterWorkTask[];
 };
 
 /**
  * What a PM sends to hand-author a starter task, with no AI mining.
  *
- * The origination counterpart to approving a mined proposal. A hand-authored task is born
- * `APPROVED` and claimable at once, so it never appears in the review queue. `sourceUrl` is an
- * optional link to the issue or PR it tracks; `competencyKeys` say what the work exercises, and a
- * key that isn't a live competency is skipped, not rejected.
+ * The origination counterpart to mining. A hand-authored task comes back already reviewed — writing
+ * it *is* the review — so it carries no unvouched demotion and never appears in the unreviewed
+ * list. `sourceUrl` is an optional link to the issue or PR it tracks; `competencyKeys` say what the
+ * work exercises, and a key that isn't a live competency is skipped, not rejected.
  */
 export type CreateStarterWorkTaskInput = {
     title: string;
@@ -66,7 +66,7 @@ export type GenerateStarterWorkResult = {
 export type TaskType = 'BUG' | 'FEATURE' | 'DOCS' | 'TEST' | 'CHORE' | 'OTHER';
 
 /**
- * One approved task ranked for a hire.
+ * One task from the live pool, ranked for a hire.
  *
  * `reasons` is the important field. Ranking is a *suggestion*, and a suggestion nobody can
  * interrogate is an instruction — so the backend sends one clause per contributing signal,
