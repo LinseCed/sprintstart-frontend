@@ -65,6 +65,9 @@ export function BuddyOrientationCard() {
                 error={error}
                 onRetry={() => void load()}
                 onEdit={selectedProjectId ? () => setIsEditing(true) : undefined}
+                // The hire's own packet, so this is where reporting belongs. The PM surfaces that
+                // render the same panel own the content and get no report control.
+                canReport
             />
 
             {isEditing && selectedProjectId && orientation?.taskId && (
