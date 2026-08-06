@@ -38,12 +38,6 @@ export async function getSuggestions(): Promise<BuddySuggestion[]> {
     return await apiClient.fetch<BuddySuggestion[]>(`/api/v1/onboarding/me/buddy/suggestions`);
 }
 
-/** The buddy's proactive opener for a visit: a greeting and an optional suggested next step. */
-export interface BuddyOpening {
-    greeting: string;
-    action: BuddyOpeningAction | null;
-}
-
 /** How a caller receives a visit's greeting as it is written. */
 export interface BuddyOpeningHandlers {
     onToken: (token: string) => void;
