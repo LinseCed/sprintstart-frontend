@@ -11,7 +11,6 @@ const competency: LiveCompetency = {
     kind: 'SKILL',
     area: null,
     targetLevel: 2,
-    invariant: false
 };
 
 function renderSection(overrides: Partial<React.ComponentProps<typeof ModuleAuthoringSection>> = {}) {

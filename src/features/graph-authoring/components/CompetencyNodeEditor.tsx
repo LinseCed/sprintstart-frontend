@@ -19,7 +19,6 @@ export type CompetencyEditInput = {
     kind: CompetencyKind;
     area: string;
     targetLevel: number;
-    invariant: boolean;
 };
 
 type CompetencyNodeEditorProps = {
@@ -74,7 +73,6 @@ export function CompetencyNodeEditor({
     const [kind, setKind] = useState<CompetencyKind>('SKILL');
     const [area, setArea] = useState('');
     const [targetLevel, setTargetLevel] = useState(2);
-    const [invariant, setInvariant] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     // Deferred off the effect body, matching NodeDetailPanel's module-count fetch:
@@ -97,7 +95,6 @@ export function CompetencyNodeEditor({
                 setKind(loaded.kind);
                 setArea(loaded.area ?? '');
                 setTargetLevel(loaded.targetLevel);
-                setInvariant(loaded.invariant);
             } catch (err) {
                 if (cancelled) return;
                 setLoadError(
@@ -138,8 +135,7 @@ export function CompetencyNodeEditor({
             description,
             kind,
             area,
-            targetLevel,
-            invariant
+            targetLevel
         });
         if (saved) onCancel();
     };
@@ -314,22 +310,6 @@ export function CompetencyNodeEditor({
                     </select>
                 </div>
             </div>
-
-            <label className="flex items-start gap-2 text-xs text-app-text">
-                <input
-                    type="checkbox"
-                    checked={invariant}
-                    onChange={event => setInvariant(event.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 rounded border-app-border"
-                />
-                <span>
-                    Mandatory
-                    <span className="block text-app-text-subtle">
-                        Changes to this node reach every hire straight away, without waiting for
-                        their next session.
-                    </span>
-                </span>
-            </label>
 
             {/* Only shown when it's actually true: raising the bar can un-hold a node for
                 someone who met the old one, and that happens for everyone immediately. */}

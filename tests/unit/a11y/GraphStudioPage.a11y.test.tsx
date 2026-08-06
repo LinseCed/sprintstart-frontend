@@ -48,7 +48,6 @@ const liveGraph = {
             description: 'Primary backend language',
             kind: 'SKILL',
             targetLevel: 2,
-            invariant: false,
         },
         {
             key: 'our-domain-model',
@@ -56,7 +55,6 @@ const liveGraph = {
             description: 'How entities are mapped here',
             kind: 'CONCEPT',
             targetLevel: 2,
-            invariant: false,
         },
     ],
 };
