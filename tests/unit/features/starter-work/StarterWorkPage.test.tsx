@@ -47,6 +47,9 @@ describe('StarterWorkPage', () => {
         // the caller's projects. Stub both so these tests stay about the review queue.
         vi.spyOn(starterWorkService, 'fetchPool').mockResolvedValue([]);
         vi.spyOn(userService, 'getMyProjects').mockResolvedValue([]);
+        // The page also renders the corpus issue browser, which reads the selected project's
+        // ingested issues. Its own behaviour is covered in CorpusIssueBrowser.test.tsx.
+        vi.spyOn(starterWorkService, 'fetchCandidates').mockResolvedValue([]);
     });
 
     it('shows the AI scope-safety rationale next to the task', async () => {
@@ -138,6 +141,65 @@ describe('StarterWorkPage', () => {
         expect(await screen.findByTestId('created-task-confirmation')).toHaveTextContent(
             /add a dark-mode toggle/i
         );
+    });
+
+    /**
+     * The picker and the blank form land in the same place, and the confirmation says which one
+     * happened — "you wrote it" would be wrong about an issue somebody picked out of the corpus.
+     */
+    it('confirms a picked issue where a written one is confirmed, in its own words', async () => {
+        vi.spyOn(starterWorkService, 'fetchCandidates').mockResolvedValue([
+            {
+                sourceId: 'github:acme/repo:ISSUE:7',
+                tracker: 'GITHUB',
+                title: 'Tidy the onboarding README',
+                excerpt: null,
+                excerptTruncated: false,
+                labels: [],
+                sourceUrl: null,
+                hasAssignee: null,
+                poolState: 'AVAILABLE',
+                updatedAtSource: null
+            }
+        ]);
+        vi.spyOn(starterWorkService, 'promoteCandidate').mockResolvedValue({
+            ...task,
+            id: 'picked-1',
+            title: 'Tidy the onboarding README',
+            reviewed: true
+        });
+        const user = userEvent.setup();
+        render(<StarterWorkPage />);
+
+        await user.click(await screen.findByTestId('promote-issue-github:acme/repo:ISSUE:7'));
+
+        const confirmation = await screen.findByTestId('created-task-confirmation');
+        expect(confirmation).toHaveTextContent(/tidy the onboarding readme/i);
+        expect(confirmation).toHaveTextContent(/you picked it/i);
+    });
+
+    it('lets HR read the issue browser but not add from it', async () => {
+        permissionGroup.current = 'HR';
+        vi.spyOn(starterWorkService, 'fetchCandidates').mockResolvedValue([
+            {
+                sourceId: 'github:acme/repo:ISSUE:7',
+                tracker: 'GITHUB',
+                title: 'Tidy the onboarding README',
+                excerpt: null,
+                excerptTruncated: false,
+                labels: [],
+                sourceUrl: null,
+                hasAssignee: null,
+                poolState: 'AVAILABLE',
+                updatedAtSource: null
+            }
+        ]);
+        render(<StarterWorkPage />);
+
+        expect(await screen.findByText('Tidy the onboarding README')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('promote-issue-github:acme/repo:ISSUE:7')
+        ).not.toBeInTheDocument();
     });
 
     it('does not offer hand-authoring to HR', async () => {

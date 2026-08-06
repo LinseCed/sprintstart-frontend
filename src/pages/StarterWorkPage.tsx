@@ -5,6 +5,8 @@ import { useAuth } from '../context/useAuth';
 import { PermissionGroup } from '../services/types';
 import { StarterWorkTaskCard } from '../features/starter-work/components/StarterWorkTaskCard';
 import { NewStarterTaskModal } from '../features/starter-work/components/NewStarterTaskModal';
+import { CorpusIssueBrowser } from '../features/starter-work/components/CorpusIssueBrowser';
+import { useProjectContext } from '../features/projects/useProjectContext';
 import { useFetch } from '../hooks/useFetch';
 import { trackService } from '../services/trackService';
 import { TaskOrientationManager } from '../features/orientation/components/TaskOrientationManager';
@@ -29,6 +31,7 @@ export function StarterWorkPage() {
     // Loaded here rather than inside the modal so opening the form never waits on a fetch. An
     // empty list degrades to "Any role" only, which is a usable form rather than a broken one.
     const { data: tracks } = useFetch(() => trackService.fetchTracks(), []);
+    const { selectedProjectId } = useProjectContext();
     const {
         tasks,
         isLoading,
@@ -36,8 +39,10 @@ export function StarterWorkPage() {
         error,
         generateResult,
         createdTask,
+        createdVia,
         generate,
         create,
+        notePromoted,
         dismissCreated,
         approve,
         reject
@@ -102,8 +107,9 @@ export function StarterWorkPage() {
                     >
                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                         <p className="flex-1">
-                            <strong>“{createdTask.title}”</strong> is in the pool — you wrote it, so
-                            it counts as reviewed and won&apos;t appear below. Hires can aim at it
+                            <strong>“{createdTask.title}”</strong> is in the pool —{' '}
+                            {createdVia === 'picked' ? 'you picked it' : 'you wrote it'}, so it
+                            counts as reviewed and won&apos;t appear below. Hires can aim at it
                             straight away.
                         </p>
                         <button
@@ -164,6 +170,15 @@ export function StarterWorkPage() {
                         ))}
                     </section>
                 )}
+
+                {/* The picker beside the blank form: the same action with a better input than an
+                    empty box. HR reads it, matching the rest of the page. ⚠️ It is a second way to
+                    add work, never a filter in front of mining — the pool above stays live. */}
+                <CorpusIssueBrowser
+                    projectId={selectedProjectId}
+                    canAct={canAct}
+                    onPromoted={notePromoted}
+                />
 
                 {/* Authoring a task's orientation is PM/ADMIN only, matching the backend role split —
                     HR looks over the pool but does not write hire-facing content. */}
