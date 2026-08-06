@@ -56,6 +56,61 @@ export type CreateStarterWorkTaskInput = {
     onboardingTrackKey?: string;
 };
 
+/**
+ * Whether a browsable corpus issue is already in the pool, and how it got there.
+ *
+ * It describes the pool, never the issue's suitability — nothing here ranks anything. It exists so
+ * the browser can say *why* an issue is not offered instead of leaving it out: an issue somebody
+ * cannot find gives them no way to tell "filtered" from "never ingested".
+ *
+ * `REMOVED` is the one that must stay visible. Rejection is sticky, so a removed issue cannot be
+ * put back — showing it as simply absent would read as a bug and send somebody hunting for it.
+ */
+export type CandidatePoolState = 'AVAILABLE' | 'IN_POOL' | 'REMOVED';
+
+/**
+ * One open issue the corpus already holds, offered for a person to put in the pool themselves.
+ *
+ * ⚠️ **Nothing has judged this.** There is no score and no suitability field, deliberately: the
+ * whole point of browsing is that the judgement is the reader's, and a number would be the mining
+ * filter wearing a different hat.
+ *
+ * `hasAssignee` is three-valued and **null means we do not know**, never "nobody" — SprintStart does
+ * not ingest GitHub assignees, so every GitHub issue reports null. Only `true` means somebody is on
+ * it. `excerpt` is the issue's own text cut to a list-sized length, with `excerptTruncated` saying
+ * when something was cut, so a partial body is never mistaken for a short one.
+ */
+export type StarterWorkCandidate = {
+    sourceId: string;
+    /** Which tracker it came from — `GITHUB`, `JIRA`. */
+    tracker: string;
+    title: string;
+    excerpt: string | null;
+    excerptTruncated: boolean;
+    labels: string[];
+    sourceUrl: string | null;
+    hasAssignee: boolean | null;
+    poolState: CandidatePoolState;
+    /** ISO timestamp of the issue's last change at its source, or null when it never said. */
+    updatedAtSource: string | null;
+};
+
+/**
+ * What a PM sends to put one browsed issue in the pool.
+ *
+ * The title and link come from the ingested issue, not from here, so the pool cannot disagree with
+ * the tracker about what an issue is called. `summary` is the promoter's own note — the issue's body
+ * is deliberately not copied, because orientation reads that text live from the corpus and a copy
+ * would go stale.
+ */
+export type PromoteStarterWorkCandidateInput = {
+    sourceId: string;
+    summary?: string;
+    competencyKeys?: string[];
+    /** Which track this work is for. Omitted means it suits any role. */
+    onboardingTrackKey?: string;
+};
+
 export type GenerateStarterWorkResult = {
     status: string;
     tasksProposed: number;

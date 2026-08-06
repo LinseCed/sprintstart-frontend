@@ -2,6 +2,8 @@ import { apiClient } from './apiClient';
 import type {
     CreateStarterWorkTaskInput,
     GenerateStarterWorkResult,
+    PromoteStarterWorkCandidateInput,
+    StarterWorkCandidate,
     StarterWorkTask,
     UnreviewedStarterWork,
 } from '../features/starter-work/types';
@@ -45,6 +47,38 @@ export const starterWorkService = {
      */
     async create(input: CreateStarterWorkTaskInput): Promise<StarterWorkTask> {
         return await apiClient.fetch<StarterWorkTask>(BASE_URL, {
+            method: 'POST',
+            body: JSON.stringify(input),
+        });
+    },
+
+    /**
+     * The open issues a project's corpus already holds, for somebody picking starter work by hand.
+     *
+     * ⚠️ **Not a queue and not a shortlist.** Nothing here has been judged and nothing waits on a
+     * decision — mining keeps filling the pool live regardless. Costs a query and no model call.
+     *
+     * Issues somebody else is assigned come back too, marked, as do issues already pooled or
+     * removed: the filtering is this client's to do, and it can only filter honestly if it holds
+     * what it is filtering.
+     */
+    async fetchCandidates(projectId: string): Promise<StarterWorkCandidate[]> {
+        return await apiClient.fetch<StarterWorkCandidate[]>(
+            `${BASE_URL}/candidates?projectId=${encodeURIComponent(projectId)}`
+        );
+    },
+
+    /**
+     * Puts one browsed issue in the pool, live and reviewed.
+     *
+     * The same landing place as {@link create}: somebody looked at it, which is the whole content of
+     * "reviewed". ⚠️ It adds a way in and gates nothing.
+     *
+     * Fails with 409 when the issue is already in the pool, was removed from it (rejection is
+     * sticky), or is closed at its source.
+     */
+    async promoteCandidate(input: PromoteStarterWorkCandidateInput): Promise<StarterWorkTask> {
+        return await apiClient.fetch<StarterWorkTask>(`${BASE_URL}/candidates/promote`, {
             method: 'POST',
             body: JSON.stringify(input),
         });

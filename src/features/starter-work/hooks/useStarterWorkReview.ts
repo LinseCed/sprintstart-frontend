@@ -10,6 +10,9 @@ function toMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
 }
 
+/** How a task reached the pool without being mined: written from scratch, or picked from the corpus. */
+export type TaskOrigin = 'authored' | 'picked';
+
 /**
  * Owns the PM's starter-work review queue: mining new proposals and deciding on each one.
  *
@@ -27,6 +30,10 @@ export function useStarterWorkReview() {
     // for it by writing it. This holds the just-created one so the page can confirm it, rather
     // than the PM wondering where it went.
     const [createdTask, setCreatedTask] = useState<StarterWorkTask | null>(null);
+    // How it got there. Both land reviewed for the same reason, but "you wrote it" and "you picked
+    // it out of the corpus" are different things to have just done, and the confirmation should
+    // describe the one that happened.
+    const [createdVia, setCreatedVia] = useState<TaskOrigin>('authored');
 
     const loadProposed = useCallback(async () => {
         setIsLoading(true);
@@ -68,6 +75,7 @@ export function useStarterWorkReview() {
             try {
                 const created = await starterWorkService.create(input);
                 setCreatedTask(created);
+                setCreatedVia('authored');
                 return true;
             } catch (err) {
                 setError(toMessage(err, 'Could not create this task.'));
@@ -76,6 +84,18 @@ export function useStarterWorkReview() {
         },
         []
     );
+
+    /**
+     * Confirms a task the issue browser just put in the pool.
+     *
+     * The browser owns the promotion itself, because it owns the list the promoted row lives in.
+     * This is only the confirmation, so a picked task lands in the same place on screen as a
+     * written one — it never appears in the queue below either, for the same reason.
+     */
+    const notePromoted = useCallback((task: StarterWorkTask) => {
+        setCreatedTask(task);
+        setCreatedVia('picked');
+    }, []);
 
     const dismissCreated = useCallback(() => setCreatedTask(null), []);
 
@@ -96,8 +116,10 @@ export function useStarterWorkReview() {
         error,
         generateResult,
         createdTask,
+        createdVia,
         generate,
         create,
+        notePromoted,
         dismissCreated,
         approve,
         reject,
