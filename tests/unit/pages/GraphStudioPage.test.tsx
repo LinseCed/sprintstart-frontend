@@ -57,8 +57,8 @@ function renderStudio(competencies: Record<string, unknown>[]) {
 
 describe('GraphStudioPage', () => {
     /**
-     * `area` has existed since S1 with no reader but an autocomplete. A field the generator
-     * populates and nothing groups by is exactly the dead wiring this workspace keeps shipping.
+     * Pins that `area` has a reader. A field the generator populates and nothing groups by is
+     * dead wiring.
      */
     it('groups the vocabulary under its areas', async () => {
         renderStudio([

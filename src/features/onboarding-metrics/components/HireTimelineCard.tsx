@@ -33,9 +33,8 @@ function gapHours(from: string | null, to: string | null): number | null {
  * hire being slow, because "receiving a response" is the barrier (R1) and the fix
  * is a conversation with whoever owes it.
  *
- * Known contract gaps (slice 0 backend): there is no "environment ready" moment
- * yet (it arrives with slice 2), and the timeline carries no reviewer identity,
- * so the wait is attributed to "a reviewer" generically rather than by name.
+ * Known contract gaps: there is no "environment ready" moment, and the timeline carries no
+ * reviewer identity, so the wait is attributed to "a reviewer" generically rather than by name.
  */
 export function HireTimelineCard({ hire }: HireTimelineCardProps) {
     const { contributionNoun, contributionNounPlural, contributionVerbPast } = hire.vocabulary;

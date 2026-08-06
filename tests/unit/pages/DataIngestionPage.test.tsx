@@ -306,8 +306,8 @@ describe('DataIngestionPage', () => {
         // Rendered both as a source card and in the overview breakdown.
         await screen.findAllByText('octocat/healthy');
 
-        // Exactly one card needs attention — previously the newest GitHub run was
-        // applied to every GitHub source, marking the healthy repo as failing too.
+        // Exactly one card needs attention. ⚠️ Applying the newest GitHub run to every GitHub
+        // source marks the healthy repo as failing too.
         // Scoped to the Sources section: the overview KPI carries the same label.
         await waitFor(() => {
             const sourcesSection = within(

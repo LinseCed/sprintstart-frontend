@@ -15,17 +15,15 @@ function parseKind(value: string | null): GenerationKind | undefined {
  * What the AI mined, for somebody to look over. Reached from the Onboarding Setup ladder; `?kind=`
  * narrows it to the stage a rung deep-links to.
  *
- * ⚠️ **This is not a gate, and it stopped being one before this page was updated.** Since D1 of the
- * skill-map retirement, a mined starter task is `LIVE` the moment it lands: a hire can be shown it
- * and can claim it with nobody having looked. Marking one as looked-over only lifts the demotion
- * `StarterWorkMatcher` applies while nothing has vouched for it — it admits nothing to anything.
+ * ⚠️ **This is not a gate.** A mined starter task is `LIVE` the moment it lands: a hire can be
+ * shown it and can claim it with nobody having looked. Marking one as looked-over only lifts the
+ * demotion `StarterWorkMatcher` applies while nothing has vouched for it — it admits nothing to
+ * anything.
  *
- * The distinction matters because the old copy ("waiting on a decision") told a PM that work was
- * held up pending them, which would have them either rushing a queue that is not blocking anybody
- * or, worse, assuming hires see nothing until they act.
+ * So the copy must never say work is waiting on a decision. That would have a PM either rushing a
+ * queue that is blocking nobody or assuming hires see nothing until they act.
  *
- * It covered the skill map and the baseline too. Both are gone — the baseline was retired, and
- * competencies are generated live and corrected rather than proposed.
+ * Starter work only — competencies are generated live and corrected, not proposed here.
  */
 export function ReviewInboxPage() {
     const { profile } = useAuth();

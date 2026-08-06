@@ -100,11 +100,9 @@ export type BoardPullRequest = {
  * What still has to be true before this hire can work, and what they have already settled.
  *
  * ⚠️ **The counts are per rigor and there is deliberately no total to divide by.** A step the
- * system observed and a step somebody ticked are different facts; the previous onboarding model
- * blended them into one `progressPercentage` and that is what made the number meaningless. Render
- * what is known — *"2 confirmed · 1 you told us · 3 outstanding"* — never a percentage or a bar.
- *
- * `observedCount` is always 0 until derivation lands (A1). The distinction is carried anyway.
+ * system observed and a step somebody ticked are different facts, and blending them into one
+ * percentage is what makes such a number meaningless. Render what is known — *"2 confirmed · 1 you
+ * told us · 3 outstanding"* — never a percentage or a bar.
  */
 export type ArrivalStepsContent = {
     kind: 'ARRIVAL_STEPS';

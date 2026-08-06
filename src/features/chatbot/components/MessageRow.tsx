@@ -11,7 +11,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 
-// Hoisted to module scope (A4) — stable identity across renders.
+// Hoisted to module scope — stable identity across renders.
 const REMARK_PLUGINS = [remarkGfm, remarkMath];
 const REHYPE_PLUGINS = [rehypeKatex];
 
@@ -50,7 +50,7 @@ type MessageRowProps = {
  *
  * Wrapped in `React.memo` so that when one message receives a streamed token,
  * only that row re-renders — all sibling rows whose props are referentially
- * equal bail out (A1). The streaming row re-renders because its `message`
+ * equal bail out. The streaming row re-renders because its `message`
  * prop gets a new object each token (content grows).
  */
 function MessageRowImpl({

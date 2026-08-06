@@ -7,14 +7,12 @@ import type { MyOrientation } from '../../orientation/types';
 
 /**
  * The orientation packet as a rich card inside the buddy conversation, rendered once the hire
- * confirms the buddy's `open_orientation` proposal. This is what that action *opens* now that
- * First Week is retired: the packet shows up where the hire already is instead of sending them
- * to a page.
+ * confirms the buddy's `open_orientation` proposal. That action opens the packet here, where the
+ * hire already is, rather than sending them to a page.
  *
  * The read is a plain fetch, not the streaming assembly: confirming the action is what made the
- * backend assemble and cache the packet, so it is already there to read. The hire's "fix this"
- * capability from the retired page survives here unchanged — correcting the packet in place pins
- * it as human-authored.
+ * backend assemble and cache the packet, so it is already there to read. Correcting the packet in
+ * place pins it as human-authored.
  */
 export function BuddyOrientationCard() {
     const { selectedProjectId } = useProjectContext();

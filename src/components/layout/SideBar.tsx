@@ -42,7 +42,7 @@ const navItems: SidebarNavItem[] = [
     },
     // The hire's front door: onboarding is one conversation, and this is it. Answers from the
     // docs and from the hire's own state, and escalates to a person only as a last resort.
-    // (First Week and the competency map are retired hire-side; their jobs are the buddy's tools.)
+    // (There are no hire-facing structured onboarding pages; their jobs are the buddy's tools.)
     {
         label: 'Buddy',
         path: '/buddy',

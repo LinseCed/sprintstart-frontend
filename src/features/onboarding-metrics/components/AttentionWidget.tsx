@@ -29,8 +29,7 @@ function severityChip(item: AttentionItem) {
  * Each item's reason states whose move it is: a hire waiting four days on a
  * review cannot fix that themselves, so it is never framed as the hire being
  * behind. Read-only on purpose — acting on an item means talking to the person,
- * and the loop that used to be clicked through here (assigned buddies, logged
- * contacts) is retired.
+ * not clicking something here.
  */
 export function AttentionWidget({ projectId }: AttentionWidgetProps) {
     const { attention, isLoading, error } = useAttention(projectId);

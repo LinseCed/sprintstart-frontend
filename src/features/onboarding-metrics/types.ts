@@ -1,11 +1,10 @@
 /**
- * The numbers the whole onboarding redesign is judged on, as the backend derives
- * them (`sprintstart-backend` onboarding-metrics, slice 0). Every timestamp and
- * gap is nullable: "hasn't happened yet" is the normal state of a hire mid-ramp
- * and is a different thing from zero.
+ * The numbers onboarding is judged on, as the backend derives them. Every timestamp and gap is
+ * nullable: "hasn't happened yet" is the normal state of a hire mid-ramp, and is a different
+ * thing from zero.
  *
- * Deliberately no completion percentages or module counts — those are the metrics
- * the redesign rejects.
+ * ⚠️ Deliberately no completion percentages or module counts. Progress is what somebody has
+ * proven, not how far through a list they are.
  */
 
 /** One hire's onboarding as a sequence of moments and the gaps between them. */

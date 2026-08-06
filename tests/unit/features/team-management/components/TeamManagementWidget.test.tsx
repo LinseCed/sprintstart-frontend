@@ -61,7 +61,7 @@ describe('TeamManagementWidget', () => {
     });
 
     it('surfaces the members with the fewest held competencies first', async () => {
-        // "Needs attention" is now fewest proven competencies -- time-on-step no longer exists.
+        // "Needs attention" is fewest proven competencies.
         const users = [
             createUser({
                 userId: 'u1',

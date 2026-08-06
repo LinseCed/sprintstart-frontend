@@ -11,14 +11,10 @@ import { PermissionGroup } from '../services/types';
 /**
  * Onboarding Setup: what this project has, in one place.
  *
- * The setup surfaces (skill map, starter tasks, buddies) grew as separate, co-equal nav items that
- * did not know about each other — so a PM could generate a competency map, never approve it, and
- * find a page "empty" with nothing explaining why. This page composes them into one readout.
- *
- * ⚠️ **It is no longer a pipeline a PM walks.** Approval is gone from every stage it existed in:
- * competencies are generated live and corrected, mined tasks are claimable the moment they land,
- * and the baseline was deleted outright. Connecting a repository is the only step left, so the
- * ladder reports outcomes rather than issuing chores — see `SetupReadinessLadder`.
+ * ⚠️ **A readout, not a pipeline a PM walks.** Nothing here needs approving — competencies are
+ * generated live and corrected, and mined tasks are claimable the moment they land. Connecting a
+ * repository is the only step a person performs, so the ladder reports outcomes rather than
+ * issuing chores; see `SetupReadinessLadder`.
  */
 export function OnboardingSetupPage() {
     const { profile } = useAuth();

@@ -32,9 +32,8 @@ type StudioNodePanelProps = {
 /**
  * The studio's inspector for one competency: what it is, and everything a PM can change about it.
  *
- * It used to answer "is this node finished" with its prerequisites and what it unlocked. There is
- * no ordering left to show, so what remains is the competency itself and whether anything has been
- * written to teach it in this project — which was always the half that decided whether a hire got
+ * Competencies carry no ordering, so what it shows is the competency itself and whether anything
+ * has been written to teach it in this project — the half that decides whether a hire gets
  * anything out of it.
  */
 export function StudioNodePanel({

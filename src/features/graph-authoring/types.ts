@@ -73,9 +73,8 @@ export type UpdateCompetencyInput = {
 /**
  * The whole live vocabulary, as a PM authors it.
  *
- * A flat list, and nothing more: prerequisite edges, the versions they were resolved at and the
- * per-hire projection over them were all retired together. Nothing here is mastered or met,
- * because that describes a person rather than the vocabulary.
+ * A flat list, and nothing more — competencies carry no edges and no ordering. ⚠️ Nothing here is
+ * mastered or met: that describes a person, not the vocabulary.
  */
 export type LiveGraph = {
     competencies: LiveCompetency[];

@@ -15,7 +15,7 @@ import { MyEscalations } from '../features/knowledge-request/components/MyEscala
  * The buddy is not a feature of the onboarding — it *is* the onboarding. For a hire
  * with no placement yet that starts with calibration: the placement interview runs
  * right here as the buddy's first conversation (same thread, same composer — the
- * standalone assessment page is retired), against the unchanged assessment engine.
+ * standalone assessment page), against the assessment engine.
  * Once the placement is written the surface flips to the mentor, which answers from
  * the docs *and* from the hire's own state — now including the ledger the interview
  * just wrote — and renders what it opens (like a task's orientation packet) in the

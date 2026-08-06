@@ -5,17 +5,14 @@ import type { UseRoleTracksResult } from '../hooks/useRoleTracks';
 const UNSET = '__unset__';
 
 /**
- * Which onboarding track each project role puts its people on.
- *
- * Onboarding used to end in a merged pull request for everybody, which made "this hire writes
- * code" part of the definition of progress — so a Scrum Master could never finish. A track decides,
- * per role, what counts as that person's work and what to call it.
+ * Which onboarding track each project role puts its people on. A track decides, per role, what
+ * counts as that person's work and what to call it.
  *
  * Two things this surface is deliberate about. It names the **consequence** of a track that admits
  * no evidence, next to the choice rather than in a doc, because assigning one silently means that
- * hire's progress can never be measured. And roles are global, not per project, so the copy says so
- * — the page around this is project-scoped, and letting a PM assume this control was too would be a
- * quiet lie about what their change affects.
+ * hire's progress can never be measured. And ⚠️ **roles are global, not per project**, so the copy
+ * says so — the page around this is project-scoped, and letting a PM assume this control was too
+ * would be a quiet lie about what their change affects.
  */
 export function RoleTrackTable({
     tracks,

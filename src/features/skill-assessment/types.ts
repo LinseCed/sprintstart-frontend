@@ -21,7 +21,7 @@ export type AssessmentStatusResponse = {
 /**
  * The two kinds a competency can be.
  *
- * Five more existed (`CONTRIBUTION`, `POLICY`, `CONNECTION`, `CULTURE`, `CHECKPOINT`); all were
- * either created by nothing or existed to serve the retired graph.
+ * Two, deliberately: a competency is something somebody knows or something they can do. ⚠️ Kinds
+ * that nothing creates are an invitation to write code branching on them.
  */
 export type CompetencyKind = 'SKILL' | 'CONCEPT';

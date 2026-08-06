@@ -9,7 +9,7 @@ import type { SelectedCitation } from "../../../context/ChatContext";
 
 // Hoisted to module scope so the plugin arrays have a stable identity across
 // renders — ReactMarkdown would otherwise see a new array each render and
-// re-walk the markdown AST every time (A4).
+// re-walk the markdown AST every time.
 const REMARK_PLUGINS = [remarkGfm, remarkMath];
 const REHYPE_PLUGINS = [rehypeKatex];
 
@@ -30,7 +30,7 @@ type MessageMarkdownProps = {
  *
  * Memoized so that unchanged messages don't re-render when a sibling message
  * receives a streamed token — only the message whose `content`/`citations`
- * actually changed re-renders (A1/A2). The `linkifyCitations` call and the
+ * actually changed re-renders. The `linkifyCitations` call and the
  * per-role `components` config are memoized on the props that affect them.
  */
 function MessageMarkdownImpl({
@@ -39,13 +39,13 @@ function MessageMarkdownImpl({
     citations,
     onCitationClick,
 }: MessageMarkdownProps) {
-    // A2: linkify once per (content, citation count) pair instead of every render.
+    // Linkify once per (content, citation count) pair instead of every render.
     const mdContent = useMemo(
         () => (isRequest ? content : linkifyCitations(content, citations.length)),
         [content, citations.length, isRequest],
     );
 
-    // A4: the components map closes over `isRequest`/`citations`/`onCitationClick`,
+    // The components map closes over `isRequest`/`citations`/`onCitationClick`,
     // so it can't be fully module-scope — but memoizing on those deps keeps the
     // identity stable across renders that don't change them.
     const components = useMemo(

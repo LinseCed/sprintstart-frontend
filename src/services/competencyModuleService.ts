@@ -11,9 +11,8 @@ import type { VerificationEndpoint, VerificationType } from '../features/learn-v
 const PM_URL = '/api/v1/onboarding/competency-modules';
 
 /**
- * The module-authoring contract. The hire-side reads that used to live here
- * (`/me/modules/...`) went away with the hire's module page: a module's teaching
- * now reaches a hire through the buddy, not through a page they navigate to.
+ * The module-authoring contract. Authoring only -- a module's teaching reaches a hire through
+ * the buddy, not through a page they navigate to, so there are no `/me/modules/...` reads here.
  */
 export const competencyModuleService = {
     async list(projectId: string, status: ModuleStatus): Promise<CompetencyModules> {

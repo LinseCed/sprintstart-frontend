@@ -151,7 +151,7 @@ export function ArrivalStepAuthoring({
  * A derivation is code — something has to know *how* to observe "you have a GitHub account" — and
  * the backend binds a row to its derivation by the step's own key, with deliberately no column
  * naming a deriver. Typing `github-account` into the form above therefore works, silently, and
- * that folklore is what this replaces. It is also the only way these steps can be added at all.
+ * that folklore is what this replaces, and it is the only way these steps can be added at all.
  *
  * Shown to a read-only reader too, without buttons: HR is often the person who knows what should be
  * on the list, and a notice standing in for it tells them nothing.

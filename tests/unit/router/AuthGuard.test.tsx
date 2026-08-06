@@ -124,9 +124,9 @@ describe('AuthGuard', () => {
     });
 
     it('renders children for an authenticated USER without any assessment check', async () => {
-        // The assessment no longer gates the app: an authenticated hire lands where they
-        // navigate, whether or not they have ever taken it. This deletes the redirect-loop
-        // (frontend#19) and retired-endpoint 400 (frontend#29) bug class rather than moving it.
+        // ⚠️ The assessment does not gate the app: an authenticated hire lands where they
+        // navigate, whether or not they have ever taken it. Gating here reintroduces a
+        // redirect loop.
         authenticatedAs(mockProfile);
 
         renderGuarded();

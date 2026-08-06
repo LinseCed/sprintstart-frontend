@@ -40,20 +40,13 @@ const STATE_STYLES: Record<RungState, StateStyle> = {
  *
  * ### A readout, not a to-do list
  *
- * It used to be a checklist, and that was right when a PM had to generate a skill map and approve
- * it, mine starter tasks and approve those, and pick a baseline. **Every one of those steps has
- * since been deleted.** Generation runs when a crawl finishes, mined tasks are claimable the moment
- * they land, and the baseline is gone — so the only thing anybody actually does here is connect a
- * repository, and everything below that follows from it.
+ * Connecting a repository is the only step a person performs; everything below it follows from a
+ * crawl. So each rung reports an outcome rather than issuing a chore.
  *
- * A checklist that lists outcomes as though they were chores does two bad things: it invents work
- * (the *dead work* failure the baseline died of — a rung that looks like progress while somebody
- * does it) and it reads as a gate on a surface where **nothing gates anything**. So the states are
- * "Ready" and "Not yet", nothing here is counted as outstanding, and a rung links to the thing
- * itself rather than to "the page that advances it".
- *
- * The `tracks` rung is the exception that showed the way: it has always described a situation — some
- * roles say which track they onboard on and others do not — rather than issuing an instruction.
+ * ⚠️ Listing outcomes as though they were chores invents work that looks like progress while
+ * somebody does it, and reads as a gate on a surface where **nothing gates anything**. Hence:
+ * states are "Ready" and "Not yet", nothing is counted as outstanding, and a rung links to the
+ * thing itself rather than to "the page that advances it".
  */
 export function SetupReadinessLadder({ ladder }: { ladder: SetupLadder }) {
     return (
@@ -72,8 +65,8 @@ export function SetupReadinessLadder({ ladder }: { ladder: SetupLadder }) {
                         work they can claim.
                     </p>
                 ) : (
-                    // No count of what is outstanding. Counting stages "needing attention" is what
-                    // made this a checklist, and three of the four fill themselves in from a crawl.
+                    // ⚠️ No count of what is outstanding. Counting stages "needing attention" turns
+                    // this into a checklist, and three of the four fill themselves in from a crawl.
                     <p className="text-sm text-app-text-muted">
                         Not everything is in place yet — each stage below says what is there and
                         what is not.{' '}
@@ -123,9 +116,9 @@ function RungRow({ rung }: { rung: LadderRung }) {
 
                     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                         {/*
-                          "Open this stage" framed the link as advancing a pipeline. There is no
-                          stage to advance -- the link goes to the thing the rung is *about*, so a
-                          reader who wants to see or correct it can.
+                          The link goes to the thing the rung is *about*, so a reader who wants to
+                          see or correct it can. Not to "the page that advances this stage" --
+                          there is no pipeline to advance.
                         */}
                         <NavLink
                             to={rung.route}
@@ -135,7 +128,7 @@ function RungRow({ rung }: { rung: LadderRung }) {
                             <ArrowRight className="h-4 w-4" />
                         </NavLink>
                         {rung.reviewKind && (
-                            // Not "Review proposals": since D1 these tasks are live and claimable
+                            // Not "Review proposals": these tasks are live and claimable
                             // the moment they are mined. Looking at one lifts the matcher's
                             // demotion; it does not admit it to anything.
                             <NavLink

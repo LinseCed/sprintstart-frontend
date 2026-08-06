@@ -35,9 +35,9 @@ describe('teamManagementService', () => {
     });
 
     it('does not crash when the backend omits roles/projects/icon', async () => {
-        // roles/projects/profileIcon are additive (backend#63). A backend that predates it omits
-        // them; the team list must still render the people, degraded, rather than throwing and
-        // showing nobody -- which is the regression that made the PM overview look empty.
+        // roles/projects/profileIcon are additive, so a backend that predates them omits them.
+        // ⚠️ The team list must still render the people, degraded, rather than throwing and
+        // showing nobody -- an empty PM overview reads as "this project has no members".
         server.use(
             http.get('/api/v1/onboarding/dashboard/users', () =>
                 HttpResponse.json({

@@ -36,9 +36,8 @@ export function useSetupReadiness(projectId: string): {
  * The corpus signal is advisory, so a failed ingestion read degrades to "no sources" rather than
  * failing the page.
  *
- * Scoped to the project the ladder is about: the per-source-instance status endpoint takes a
- * project, unlike the aggregate read this replaced, so the rung no longer counts another team's
- * artifacts towards this project's readiness.
+ * ⚠️ Scoped to the project the ladder is about, via the per-source-instance status endpoint. The
+ * cross-project aggregate would count another team's artifacts towards this project's readiness.
  */
 async function fetchCorpusSources(projectId: string) {
     try {

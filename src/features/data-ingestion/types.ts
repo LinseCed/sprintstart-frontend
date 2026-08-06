@@ -102,7 +102,7 @@ export type IngestionRun = {
  * Data Ingestion source cards: it carries the repository identity, connection
  * status, enabled flag, the last run's counters, the total stored artifact
  * count and the per-artifact-type last-sync timestamps in a single call, so the
- * UI no longer has to reconstruct any of it from artifact metadata.
+ * UI never has to reconstruct any of it from artifact metadata.
  */
 export type SourceInstanceIngestionStatus = {
   sourceSystem: SourceSystem;
