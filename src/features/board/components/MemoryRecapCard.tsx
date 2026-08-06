@@ -1,5 +1,5 @@
 import { BoardCardFrame } from './BoardCardFrame';
-import { AskTheBuddy } from './AskTheBuddy';
+import { AskTheBuddy } from '../../buddy/components/AskTheBuddy';
 import type { BoardCard, MemoryRecapContent } from '../types';
 
 type MemoryRecapCardProps = {

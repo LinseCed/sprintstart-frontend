@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { BoardCardFrame } from './BoardCardFrame';
-import { AskTheBuddy } from './AskTheBuddy';
+import { AskTheBuddy } from '../../buddy/components/AskTheBuddy';
 import type { BoardCard, CurrentTaskContent } from '../types';
 
 type CurrentTaskCardProps = {

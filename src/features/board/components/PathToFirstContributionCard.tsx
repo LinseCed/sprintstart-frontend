@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatMoment } from '../../onboarding-metrics/format';
 import { BoardCardFrame } from './BoardCardFrame';
-import { AskTheBuddy } from './AskTheBuddy';
+import { AskTheBuddy } from '../../buddy/components/AskTheBuddy';
 import type {
     BoardCard,
     BoardMomentKey,

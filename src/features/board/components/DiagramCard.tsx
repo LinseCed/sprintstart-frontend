@@ -3,7 +3,7 @@ import { List, Network, RefreshCw } from 'lucide-react';
 import { boardService } from '../../../services/boardService';
 import { type GraphShape } from '../../competency-graph/layout';
 import { DiagramCanvas, type DiagramCanvasEdge } from '../../graph-diagram/DiagramCanvas';
-import { AskTheBuddy } from './AskTheBuddy';
+import { AskTheBuddy } from '../../buddy/components/AskTheBuddy';
 import { BoardCardFrame } from './BoardCardFrame';
 import { DiagramCardNode } from './DiagramCardNode';
 import { EDGE_KIND_WORDS, ariaLabelFor, isSoftEdge } from '../diagramWords';

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, ExternalLink, Loader2 } from 'lucide-react';
 import { arrivalService } from '../../../services/arrivalService';
 import { BoardCardFrame } from './BoardCardFrame';
-import { AskTheBuddy } from './AskTheBuddy';
+import { AskTheBuddy } from '../../buddy/components/AskTheBuddy';
 import { groupByScope } from '../../arrival/scopeGroups';
 import type { ArrivalStep } from '../../arrival/types';
 import type { ArrivalStepsContent, BoardCard } from '../types';

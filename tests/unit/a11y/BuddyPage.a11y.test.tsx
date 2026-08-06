@@ -22,6 +22,11 @@ vi.mock('../../../src/services/buddyService', () => ({
     getMessages: vi.fn().mockResolvedValue([]),
     streamMessage: vi.fn(),
     performAction: vi.fn(),
+    // The chips come from the backend now, gated on the tools mounted for this hire — the page
+    // holds no list of its own.
+    getSuggestions: vi.fn().mockResolvedValue([
+        { label: 'What should I work on?', question: 'What should I work on next?' },
+    ]),
 }));
 
 vi.mock('../../../src/services/onboardingMetricsService', () => ({
