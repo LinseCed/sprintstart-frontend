@@ -20,7 +20,14 @@ vi.mock('../../../src/services/userService', () => ({
 
 vi.mock('../../../src/services/buddyService', () => ({
     getMessages: vi.fn().mockResolvedValue([]),
-    openBuddy: vi.fn().mockResolvedValue({ greeting: 'Welcome back!', action: null }),
+    streamOpenBuddy: vi.fn((handlers: {
+        onToken: (token: string) => void;
+        onDone: () => void;
+    }) => {
+        handlers.onToken('Welcome back!');
+        handlers.onDone();
+        return Promise.resolve();
+    }),
     streamMessage: vi.fn(),
     performAction: vi.fn(),
     // The chips are the backend's now, gated on the tools mounted for this hire — the page no
@@ -52,7 +59,7 @@ vi.mock('../../../src/features/projects/useProjectContext', async () => {
 
 import { assessmentService } from '../../../src/services/assessmentService';
 import { userService } from '../../../src/services/userService';
-import { openBuddy, streamMessage } from '../../../src/services/buddyService';
+import { streamOpenBuddy, streamMessage } from '../../../src/services/buddyService';
 
 function renderPage() {
     return render(
@@ -87,7 +94,7 @@ describe('BuddyPage', () => {
         // The mentor's empty state, not an interview: no session is started.
         expect(await screen.findByText('What should I work on?')).toBeInTheDocument();
         expect(assessmentService.startAssessment).not.toHaveBeenCalled();
-        expect(openBuddy).toHaveBeenCalled();
+        expect(streamOpenBuddy).toHaveBeenCalled();
     });
 
     it('calibrates in-conversation when there is no placement, then flips to the mentor', async () => {
@@ -107,7 +114,7 @@ describe('BuddyPage', () => {
         // The interviewer speaks in the buddy thread — no separate app, no suggestions yet.
         expect(await screen.findByText('Walk me through a recent PR.')).toBeInTheDocument();
         expect(screen.queryByText('What should I work on?')).not.toBeInTheDocument();
-        expect(openBuddy).not.toHaveBeenCalled();
+        expect(streamOpenBuddy).not.toHaveBeenCalled();
 
         await user.type(screen.getByPlaceholderText('Type your answer...'), 'It fixed a flaky test.');
         await user.click(screen.getByRole('button', { name: 'Send message' }));
@@ -117,7 +124,7 @@ describe('BuddyPage', () => {
         // Placement done: the same page is now the mentor, suggestions and all.
         expect(await screen.findByText('What should I work on?')).toBeInTheDocument();
         expect(screen.queryByText('Walk me through a recent PR.')).not.toBeInTheDocument();
-        expect(openBuddy).toHaveBeenCalled();
+        expect(streamOpenBuddy).toHaveBeenCalled();
     });
 
     it('shows a retry when starting the interview fails', async () => {
@@ -163,10 +170,68 @@ describe('BuddyPage', () => {
      * the rule the board already holds itself to: a page that waits on a model to open is a page
      * nobody opens.
      */
+    /**
+     * ⚠️ The greeting used to arrive whole, after the model had first written a private memory note
+     * of up to 200 words that the hire never sees — about 30 seconds of nothing on their own
+     * landing page. It is written first now and streamed, so the wait ends at the first word.
+     */
+    it('grows the greeting in place as it streams, rather than one message per token', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });
+        vi.mocked(streamOpenBuddy).mockImplementation(handlers => {
+            handlers.onToken('Welcome back, ');
+            handlers.onToken('Sam!');
+            handlers.onDone();
+            return Promise.resolve();
+        });
+
+        renderPage();
+
+        expect(await screen.findByText('Welcome back, Sam!')).toBeInTheDocument();
+        expect(screen.queryByText('Welcome back,')).not.toBeInTheDocument();
+    });
+
+    /**
+     * The page stops waiting at the first word, not the last: everything after that is the hire
+     * reading along, and the composer is theirs from there.
+     */
+    it('stops waiting on the first token, not the last', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });
+        // A greeting that starts and never finishes -- the page must already be usable.
+        vi.mocked(streamOpenBuddy).mockImplementation(
+            handlers =>
+                new Promise(() => {
+                    handlers.onToken('Welcome');
+                })
+        );
+
+        const user = userEvent.setup();
+        renderPage();
+
+        expect(await screen.findByText('Welcome')).toBeInTheDocument();
+        const composer = await screen.findByPlaceholderText('Ask your buddy anything...');
+        await user.type(composer, 'where do I start?');
+
+        expect(composer).toHaveValue('where do I start?');
+    });
+
+    it('offers the suggested next step the opener carried', async () => {
+        vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });
+        vi.mocked(streamOpenBuddy).mockImplementation(handlers => {
+            handlers.onToken('Hi!');
+            handlers.onAction?.({ label: 'Find me a task', question: 'What should I work on?' });
+            handlers.onDone();
+            return Promise.resolve();
+        });
+
+        renderPage();
+
+        expect(await screen.findByText('Find me a task')).toBeInTheDocument();
+    });
+
     it('lets the hire type before the greeting has arrived', async () => {
         vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });
-        // A greeting that never resolves: the page must be usable regardless.
-        vi.mocked(openBuddy).mockReturnValue(new Promise(() => {}));
+        // A greeting that never arrives: the page must be usable regardless.
+        vi.mocked(streamOpenBuddy).mockReturnValue(new Promise(() => {}));
 
         const user = userEvent.setup();
         renderPage();
