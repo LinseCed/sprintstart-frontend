@@ -18,9 +18,8 @@ import { IngestionMetrics } from "./IngestionMetrics.tsx";
 
 /**
  * One row per connected repository, scoped to the selected project — the same
- * granularity the Data Ingestion page shows. The per-source-system aggregate
- * used previously collapsed every GitHub repo into a single row, so a project
- * with three connected repos reported "1/1 synced".
+ * granularity the Data Ingestion page shows. ⚠️ Not per source system: that aggregate collapses
+ * every GitHub repo into one row, so a project with three connected repos reports "1/1 synced".
  */
 async function fetchIngestionSources(projectId: string) {
     const instances = await getIngestionSourceStatuses(projectId);

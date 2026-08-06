@@ -32,18 +32,16 @@ type BuddyPanelProps = Pick<
  *
  * ### It scrolls down, never sideways
  *
- * At 384 px a model's reply overflows easily — a package path, a URL, a fenced block — and the
- * panel used to answer that with a **horizontal scrollbar across the whole conversation**, which
- * is what the tutor reported. Two things caused it, and both are fixed at the source rather than
- * by widening the panel:
+ * At 384 px a model's reply overflows easily — a package path, a URL, a fenced block. Wide content
+ * must scroll inside its own block; a horizontal scrollbar across the whole conversation is the
+ * defect. ⚠️ Two CSS rules make that easy to reintroduce:
  *
  * 1. **`overflow-y: auto` computes `overflow-x` to `auto` too** (CSS makes the pair non-`visible`
- *    together), so the transcript grew a sideways scrollbar the moment anything overflowed. It is
- *    now pinned shut, which is safe *because* of the second fix.
- * 2. **A flex item's default `min-width: auto` refuses to shrink below its content**, so the
- *    bubble and its column simply grew to fit a wide code block and the `overflow-x-auto` on
- *    `pre` never engaged. `min-w-0` down the chain is what lets wide content scroll inside its
- *    own block, where it belongs.
+ *    together), so the transcript grows a sideways scrollbar the moment anything overflows. It is
+ *    pinned shut, which is safe *because* of the second point.
+ * 2. **A flex item's default `min-width: auto` refuses to shrink below its content**, so without
+ *    `min-w-0` down the chain the bubble and its column grow to fit a wide code block and the
+ *    `overflow-x-auto` on `pre` never engages.
  *
  * Vertical scrolling is intentional and stays.
  */

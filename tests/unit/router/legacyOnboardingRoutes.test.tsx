@@ -3,7 +3,7 @@ import { MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router
 import { describe, it, expect } from 'vitest';
 
 /**
- * The hire-facing structured pages are retired: onboarding is one conversation now, so the
+ * There are no hire-facing structured onboarding pages: onboarding is one conversation, so the
  * phased journey, First Week, and the competency map all resolve to the buddy. Old links must
  * still land somewhere real.
  *

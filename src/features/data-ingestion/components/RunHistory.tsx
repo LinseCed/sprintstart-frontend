@@ -49,9 +49,9 @@ const TONE_STYLES = {
  * both the local fetch and the AI indexing phase (see `getEffectiveRunStatus`),
  * with the per-phase detail as supporting text.
  *
- * Previously the two phases were two equal side-by-side badges, so an indexing
- * failure sat next to a green "Success" and read as a footnote. Only one badge
- * is prominent now, and it is never green unless the run is genuinely done.
+ * ⚠️ One prominent badge, never two. Equal side-by-side phase badges let an indexing failure sit
+ * next to a green "Success" and read as a footnote. The badge is never green unless the run is
+ * genuinely done.
  */
 function RunStatusCell({ run }: { run: IngestionRun }) {
     const { label, tone, detail } = getEffectiveRunStatus(run);

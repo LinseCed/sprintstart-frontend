@@ -23,9 +23,9 @@ type PathCardProps = {
 /**
  * What each moment is called, in the hire's own vocabulary.
  *
- * The two middle moments are the ones that used to say "PR opened" and "first review". They are
- * built from the track's noun instead, because the moments themselves are not about git — somebody
- * whose work is a facilitated ceremony still submits it and still waits for somebody to respond.
+ * The two middle moments are built from the track's noun rather than named after git, because the
+ * moments themselves are not about git — somebody whose work is a facilitated ceremony still
+ * submits it and still waits for somebody to respond.
  */
 function momentLabel(key: BoardMomentKey, vocabulary: BoardVocabulary): string {
     switch (key) {

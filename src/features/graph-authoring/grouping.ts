@@ -14,20 +14,12 @@ export type CompetencyGroup = {
 /**
  * Groups the vocabulary by `area`, filtered by a free-text query.
  *
- * ### Why grouping is the studio's whole structure now
- *
- * `RELATED` edges were already describing "same area of the system", stored as a DAG that every
- * consumer filtered out — so retiring the graph replaced a structure nobody read with the one thing
- * it was actually saying. `area` has existed since S1 and until now had no reader but an
- * autocomplete: a field the generator populates and nothing groups by is the dead wiring this
- * workspace keeps shipping.
- *
  * ### The ungrouped bucket is a group, not a failure
  *
- * `area` is `null` for anything hand-authored before somebody typed one, and for everything on a
- * vocabulary that predates generation. Those rows go in a bucket **last**, named for what is true
- * about them — not grouped yet — rather than filed under an invented area. Absent evidence stays
- * absent; a made-up "General" would read as a judgement somebody made.
+ * `area` is `null` for anything hand-authored before somebody typed one. Those rows go in a bucket
+ * **last**, named for what is true about them — not grouped yet — rather than filed under an
+ * invented area. ⚠️ Absent evidence stays absent; a made-up "General" would read as a judgement
+ * somebody made.
  *
  * Areas are sorted, and the ungrouped bucket always sorts last however it is spelled. Grouping is
  * by the exact stored string: the backend folds case and spacing on write, so two spellings of one

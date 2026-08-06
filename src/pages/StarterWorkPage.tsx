@@ -14,12 +14,11 @@ import type { CreateStarterWorkTaskInput } from '../features/starter-work/types'
 /**
  * Where a PM looks over the starter tasks the corpus produced.
  *
- * It used to be a **gate**: a mined task waited here until somebody approved it, so a project whose
- * PM was busy offered a new hire nothing at all. Tasks are now live the moment they are mined, and
- * this shows the ones nobody has vouched for yet. Vouching lifts the demotion fit-ranking applies;
- * it does not admit anything.
+ * A mined task is live and claimable the moment it lands; this lists the ones nobody has vouched
+ * for yet. Vouching lifts the demotion fit-ranking applies — it does not admit anything, and
+ * nothing here holds a task back from a hire.
  *
- * Removal is the one irreversible action left, and it is sticky — mining never brings back a task
+ * Removal is the one irreversible action, and it is sticky: mining never brings back a task
  * somebody took out, or they would take it out again after every crawl.
  *
  * HR reads, `ADMIN`/`PM` act, matching the backend's role split.

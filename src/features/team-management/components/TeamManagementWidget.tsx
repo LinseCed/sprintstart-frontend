@@ -99,8 +99,8 @@ export function TeamManagementWidget({
     );
   }
 
-  // Who has the least proven competence -- the closest honest stand-in for "needs attention"
-  // now that time-on-step no longer exists. A competency counts as held at the default bar.
+  // Who has the least proven competence -- the closest honest stand-in for "needs attention".
+  // A competency counts as held at the default bar.
   const heldCount = (user: (typeof users)[number]) =>
     user.competencies.filter((entry) => entry.level >= 2).length;
 

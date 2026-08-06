@@ -213,8 +213,7 @@ describe('TeamMemberDetailPage', () => {
     });
 
     it('leads with the ledger, not a journey', async () => {
-        // Progress is what somebody has proven, not how far through a checklist
-        // they are -- the phases view went with the per-user tree (backend#53).
+        // Progress is what somebody has proven, not how far through a checklist they are.
         render(<MemoryRouter><TeamMemberDetailPage /></MemoryRouter>);
 
         await waitFor(() => {

@@ -11,9 +11,8 @@ import type {
  * The arrival step list for one scope, for the people who author it.
  *
  * `projectId` is the scope: **null means company-wide**, which is the same convention the model and
- * the wire use — absent scope is not excluded scope. A0 passed it explicitly rather than leaving it
- * implicit precisely so that A3 could widen this to a parameter without changing what any of it
- * meant, which is what happened.
+ * the wire use — absent scope is not excluded scope, and it is passed explicitly rather than left
+ * implicit.
  *
  * The derivable catalog is loaded with the list rather than separately, because its `added` flags
  * describe that same list and the two going out of step would offer to add something twice.

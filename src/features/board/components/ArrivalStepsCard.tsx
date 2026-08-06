@@ -28,10 +28,9 @@ type ArrivalStepsCardProps = {
  *
  * ### No progress bar, and this is not an oversight
  *
- * A step the system observed and a step the hire ticked are different facts. The onboarding model
- * this replaces averaged them into one `progressPercentage` that counted a ticked box exactly like
- * a passed check, and that is what made it meaningless. The subtitle says what is known and leaves
- * the arithmetic to the reader.
+ * ⚠️ A step the system observed and a step the hire ticked are different facts. Averaging them
+ * into one percentage counts a ticked box exactly like a passed check, which is what makes such a
+ * number meaningless. The subtitle says what is known and leaves the arithmetic to the reader.
  *
  * Confirmation is applied here rather than through the board's write path: settling a step is a
  * fact about the hire, not an edit to the board, and the card owns the optimistic update the same

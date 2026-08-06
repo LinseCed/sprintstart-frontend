@@ -8,7 +8,7 @@ import type {
 export const knowledgeGapService = {
 
     async fetchKnowledgeGaps(): Promise<KnowledgeGapOverview> {
-        // No mock fallback: the page renders a real empty state, and the old fallback fired on
+        // No mock fallback: the page renders a real empty state, and a fallback would fire on
         // *any* error including a 404 -- so a genuinely empty result showed fabricated gaps.
         return await apiClient.fetch<KnowledgeGapOverview>('/api/v1/insights/knowledge-gaps');
     },

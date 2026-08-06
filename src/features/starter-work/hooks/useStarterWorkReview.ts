@@ -13,9 +13,9 @@ function toMessage(error: unknown, fallback: string): string {
 /**
  * Owns the PM's starter-work review queue: mining new proposals and deciding on each one.
  *
- * Mirrors `useGraphAuthoring` deliberately -- it is the same proposal-only lifecycle, and a PM
- * reviewing AI output should not have to learn two different shapes. A decided task is no longer
- * PROPOSED, so it leaves local state immediately rather than waiting on a refetch.
+ * Mirrors `useGraphAuthoring` deliberately -- it is the same lifecycle, and a PM reviewing AI
+ * output should not have to learn two different shapes. A decided task leaves local state
+ * immediately rather than waiting on a refetch.
  */
 export function useStarterWorkReview() {
     const [tasks, setTasks] = useState<StarterWorkTask[]>([]);
@@ -23,8 +23,9 @@ export function useStarterWorkReview() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [generateResult, setGenerateResult] = useState<GenerateStarterWorkResult | null>(null);
-    // A hand-authored task is born approved, so it never joins the queue below — this holds the
-    // just-created one so the page can confirm it, rather than the PM wondering where it went.
+    // A hand-authored task never joins the unreviewed queue below -- somebody already vouched
+    // for it by writing it. This holds the just-created one so the page can confirm it, rather
+    // than the PM wondering where it went.
     const [createdTask, setCreatedTask] = useState<StarterWorkTask | null>(null);
 
     const loadProposed = useCallback(async () => {

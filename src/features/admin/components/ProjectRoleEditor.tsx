@@ -19,9 +19,9 @@ type ProjectRoleEditorProps = {
  * Sets what somebody does *on this project*.
  *
  * Lives on the project surface because that is where the project is already in hand — a role is
- * held on a project, so an editor without one would have to ask which. Roles used to be a flat
- * per-person set, which meant somebody who ships code on one project and runs delivery on another
- * could not be described, and the onboarding vocabulary derived from their role had to pick one.
+ * held on a project, so an editor without one would have to ask which. Somebody who ships code on
+ * one project and runs delivery on another holds a different role on each, and the onboarding
+ * vocabulary derived from it follows the project.
  *
  * "No role yet" is shown rather than hidden: an unroled member is onboarded in the default wording,
  * and the setup ladder reports it, so it should be visible where it can be fixed.

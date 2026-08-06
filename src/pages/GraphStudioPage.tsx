@@ -19,17 +19,12 @@ const NO_MODULE: ModuleReadiness = { activeModuleId: null, pending: null };
 /**
  * The competency studio: the PM and admin surface for the vocabulary itself.
  *
- * It used to be a canvas, because competencies used to be a graph. With prerequisite edges retired
- * there is nothing to draw — a node-link diagram of a list is a picture of nothing — so this is a
- * list, and every row answers the question that survived: is anything written to teach this?
+ * A list rather than a diagram — competencies carry no edges, and every row answers the one
+ * question there is to ask: is anything written to teach this?
  *
- * ### Grouped and searchable, because generation made it long
- *
- * A hand-authored vocabulary was short enough to read top to bottom. One generated from a crawl is
- * not, and it arrives with an `area` on every row — the grouping `RELATED` edges were already
- * describing before the graph was retired. So the list groups by it and offers a filter, and both
- * are client-side over a vocabulary already in hand: a search that costs a round trip is one people
- * stop using.
+ * A vocabulary generated from a crawl is too long to read top to bottom, so the list groups by
+ * `area` and offers a filter. Both are client-side over a vocabulary already in hand: a search
+ * that costs a round trip is one people stop using.
  *
  * Competencies are global; modules are written against one project's corpus, so the project
  * selector scopes only the module half. HR can read but not author, matching the backend.

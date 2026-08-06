@@ -136,10 +136,10 @@ describe('BuddyPage', () => {
     });
 
     /**
-     * ⚠️ **A chip fills the composer; it does not send.** This page's chips used to call
-     * `sendMessage` directly, which meant the first thing the mentor ever heard from a hire were
-     * words the page had chosen. The hire presses send now — and can edit the question first, which
-     * is how somebody discovers they are allowed to.
+     * ⚠️ **A chip fills the composer; it does not send.** Calling `sendMessage` directly would
+     * make the first thing the mentor ever hears from a hire words the page chose. The hire
+     * presses send — and can edit the question first, which is how somebody discovers they are
+     * allowed to.
      */
     it('fills the composer from a chip instead of sending it', async () => {
         vi.mocked(assessmentService.fetchAssessmentStatus).mockResolvedValue({ completed: true });

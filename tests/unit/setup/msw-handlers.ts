@@ -194,8 +194,7 @@ export const handlers = [
     () => new HttpResponse(null, { status: 200 }),
   ),
 
-  // The team list reads the competency dashboard; `/onboarding/team-overview` was deleted with
-  // the per-user step tree (backend#53).
+  // The team list reads the competency dashboard. There is no `/onboarding/team-overview`.
   http.get("/api/v1/onboarding/dashboard/users", ({ request }) => {
     const url = new URL(request.url);
     const roleId = url.searchParams.get("roleIds");

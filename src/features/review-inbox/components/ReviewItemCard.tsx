@@ -12,11 +12,10 @@ const KIND_LABEL: Record<ReviewKind, string> = {
  *
  * ### The two actions are not opposites, and the labels have to say so
  *
- * They were a ✓/✗ pair when a task had to be approved before anybody could see it. Since D1 that is
- * no longer what either does: the task is already live and claimable, so **"looks good" changes only
- * its ranking**, while **removing it genuinely takes it out of the pool**. Rendering them as twins
- * suggested a decision was owed on every card and that both outcomes were equally consequential —
- * neither is true, and one of them is destructive.
+ * The item is already live and claimable, so **"looks good" changes only its ranking** while
+ * **removing it takes it out of the pool**. ⚠️ Rendering them as a ✓/✗ pair would suggest a
+ * decision is owed on every card and that both outcomes are equally consequential — neither is
+ * true, and one of them is destructive.
  */
 export function ReviewItemCard({
     item,

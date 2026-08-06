@@ -3,11 +3,9 @@ import type { AppRoute } from '../../auth/accessPolicy';
 /**
  * Whether a stage is in the state a ready project has. Mirrors the backend `RungState`.
  *
- * ⚠️ **There were three, and the third was `BLOCKED`** — written by nothing, describing a
- * dependency that stopped being real when the baseline was retired, and rendered as a padlock on
- * the one surface whose entire point is that nothing here gates anything. Deleted from the enum
- * rather than left unused, exactly as `NodeState.LOCKED` was, because a value lying around is an
- * invitation.
+ * ⚠️ **Two states, and no `BLOCKED`.** Nothing on the setup surface gates anything, so a state
+ * that renders as a padlock has nothing true to say. Keep it out of the enum rather than unused —
+ * a value lying around is an invitation to write the gate.
  */
 export type RungState = 'OK' | 'WARN';
 

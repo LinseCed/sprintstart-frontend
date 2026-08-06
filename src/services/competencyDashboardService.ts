@@ -49,7 +49,7 @@ export const competencyDashboardService = {
 
     /**
      * One user's full competency ledger, labeled -- the per-member view for
-     * the team member detail page, replacing the retired per-user skill
+     * the team member detail page, in place of any per-user skill
      * assessments.
      */
     async fetchUserCompetencies(userId: string): Promise<UserCompetencyState[]> {

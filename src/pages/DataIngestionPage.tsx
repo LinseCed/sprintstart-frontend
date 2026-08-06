@@ -175,8 +175,8 @@ function githubRepositoryFromInstance(
  * sources define which cards exist (and their stable `sourceId`, used for
  * selection and deep links); for GitHub, the per-repo status endpoint (#5) is
  * the authoritative source of the repository identity, health, counters, total
- * artifact count, enabled flag and per-type sync times — no longer reconstructed
- * from artifact metadata. Sources without a per-repo row (uploads, or an
+ * artifact count, enabled flag and per-type sync times, rather than anything
+ * reconstructed from artifact metadata. Sources without a per-repo row (uploads, or an
  * unresolvable repo) fall back to their source system's latest run.
  */
 function buildProjectDataSources(

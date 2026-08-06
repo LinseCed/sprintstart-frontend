@@ -73,7 +73,7 @@ export const arrivalService = {
      * The steps the system can check for itself, and whether each is already on the list.
      *
      * Not project-scoped: a derivation is code, so the catalog is the same everywhere. `added`
-     * reflects the company-wide list, which is the only scope authoring covers until A3.
+     * reflects the company-wide list.
      */
     async listDerivableSteps(): Promise<DerivableArrivalStep[]> {
         return await apiClient.fetch<DerivableArrivalStep[]>(`${BASE}/arrival-steps/derivable`);
