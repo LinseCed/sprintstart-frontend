@@ -146,6 +146,7 @@ export function BuddyConversation({
                         minRows={1}
                         maxRows={6}
                         className="flex-1"
+                        submitOnEnter
                     />
 
                     <button
