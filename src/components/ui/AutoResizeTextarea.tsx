@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 
 export type AutoResizeTextareaProps = {
     id?: string;
@@ -8,6 +8,15 @@ export type AutoResizeTextareaProps = {
     minRows?: number;
     maxRows?: number;
     className?: string;
+    /**
+     * Send on Enter, newline on Shift+Enter — the chat convention.
+     *
+     * ⚠️ **Off by default, and it has to be.** Three of this component's callers are
+     * long-form answer boxes (answering a flagged question, editing a canonical answer),
+     * where Enter is how somebody writes a second paragraph. Turning it on globally would
+     * submit half an answer every time they pressed it.
+     */
+    submitOnEnter?: boolean;
 };
 
 /**
@@ -23,6 +32,7 @@ export function AutoResizeTextarea({
     minRows = 2,
     maxRows = 10,
     className = "",
+    submitOnEnter = false,
 }: AutoResizeTextareaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,12 +68,30 @@ export function AutoResizeTextarea({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value]);
 
+    const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (!submitOnEnter) return;
+        if (event.key !== "Enter" || event.shiftKey) return;
+        // ⚠️ Enter also *commits* an IME candidate — typing 'ü' via a compose key, or any
+        // Chinese/Japanese/Korean input. Sending there would submit a half-written word and
+        // there is no way to get it back.
+        if (event.nativeEvent.isComposing) return;
+        // Same condition as the send button being enabled, so the two cannot disagree about
+        // whether there is anything to send.
+        if (!value.trim()) return;
+
+        event.preventDefault();
+        // Goes through the form rather than a callback of its own: the form's onSubmit stays
+        // the single place a message is sent from, however it was triggered.
+        event.currentTarget.form?.requestSubmit();
+    };
+
     return (
         <textarea
             id={id}
             ref={textareaRef}
             value={value}
             onChange={(event) => onChange(event.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             rows={minRows}
             className={`w-full resize-none overflow-hidden rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none focus:border-app-brand ${className}`.trim()}
