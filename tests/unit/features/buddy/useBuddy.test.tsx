@@ -25,6 +25,7 @@ describe('useBuddy', () => {
         expect(requested).toBe(false);
     });
 
+
     it('loads conversation history when opened', async () => {
         server.use(
             http.get('/api/v1/onboarding/me/buddy/messages', () =>
