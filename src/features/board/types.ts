@@ -3,13 +3,8 @@ import type { ArrivalStep } from '../arrival/types';
 /**
  * The board: a hire's persistent working surface on one project.
  *
- * The buddy conversation opens fresh every visit — the prior window is folded into the mentor's
- * private memory and never replayed — so anything durable it shows you has nowhere to live. Chat is
- * the conversation; the board is the whiteboard beside it.
- *
- * The card catalog is closed on purpose. The mentor curating this board is a language model, and a
- * kind it could invent the contents of is a kind it would. A card is a request to show a *known*
- * read, never prose the model wrote about the hire's state.
+ * ⚠️ **The card catalog is closed.** A card is a request to show a *known* read, never prose the
+ * model wrote about the hire's state.
  */
 
 /** Every card kind the board understands. Closed set — see the module comment. */
@@ -43,9 +38,8 @@ export type BoardCardOwner = 'AI' | 'HIRE';
 /**
  * How this hire's accepted work is named, from their track.
  *
- * Sent by the backend rather than hardcoded here because the board renders sentences around live
- * numbers, and "2 changes merged" and "2 ceremonies facilitated" are the same sentence with
- * different nouns in it. Structured fields only — a track fills fixed slots, it does not write copy.
+ * ⚠️ Sent by the backend, never hardcoded here. **Structured fields only** — a track fills fixed
+ * slots, it does not write copy.
  */
 export type BoardVocabulary = {
     /** The track's own name, e.g. "Engineering". */
@@ -74,8 +68,8 @@ export type BoardMoment = {
 /**
  * The path from joining to a first accepted piece of work.
  *
- * Composed from contributions rather than pull requests, so it says something true whatever
- * produces this hire's work.
+ * ⚠️ Composed from contributions, not pull requests, so it says something true whatever produces
+ * this hire's work.
  */
 export type PathToFirstContributionContent = {
     kind: 'PATH_TO_FIRST_CONTRIBUTION';
@@ -99,10 +93,9 @@ export type BoardPullRequest = {
 /**
  * What still has to be true before this hire can work, and what they have already settled.
  *
- * ⚠️ **The counts are per rigor and there is deliberately no total to divide by.** A step the
- * system observed and a step somebody ticked are different facts, and blending them into one
- * percentage is what makes such a number meaningless. Render what is known — *"2 confirmed · 1 you
- * told us · 3 outstanding"* — never a percentage or a bar.
+ * ⚠️ **The counts are per rigor and there is no total to divide by.** A step the system observed
+ * and a step somebody ticked are different facts. Render what is known — *"2 confirmed · 1 you told
+ * us · 3 outstanding"* — **never a percentage or a bar**.
  */
 export type ArrivalStepsContent = {
     kind: 'ARRIVAL_STEPS';
@@ -115,8 +108,8 @@ export type ArrivalStepsContent = {
 /**
  * The hire's still-open pull requests, longest-waiting first.
  *
- * Only ever present on a board whose track admits pull requests: an empty one in front of somebody
- * who will never have one is worse than no card at all.
+ * ⚠️ Only ever present on a board whose track admits pull requests — never rendered empty for
+ * somebody who will never have one.
  */
 export type OpenPullRequestsContent = {
     kind: 'OPEN_PULL_REQUESTS';
@@ -124,8 +117,8 @@ export type OpenPullRequestsContent = {
     /**
      * The hire has declared no GitHub login, so nothing can be attributed to them.
      *
-     * Distinct from an empty list: "you have nothing open" and "I cannot tell what you have open"
-     * are different states, and only one of them is the hire's to fix.
+     * ⚠️ Distinct from an empty list: "you have nothing open" and "I cannot tell what you have
+     * open" are different states, and only one is the hire's to fix.
      */
     attributionMissing: boolean;
 };
@@ -133,7 +126,7 @@ export type OpenPullRequestsContent = {
 /**
  * The task the hire is on, or the fact that they are on none.
  *
- * Present-but-empty rather than absent when there is no task: a card that vanishes when a goal is
+ * ⚠️ Present-but-empty when there is no task, never absent — a card that vanishes when a goal is
  * cleared reads as the board losing something.
  */
 export type CurrentTaskContent = {
@@ -154,7 +147,7 @@ export type BoardSuggestedTask = {
     reasons: string[];
 };
 
-/** Good next tasks, ranked by fit — reasons only, because a number is not something to act on. */
+/** Good next tasks, ranked by fit. ⚠️ Reasons only, never a score. */
 export type SuggestedTasksContent = {
     kind: 'SUGGESTED_TASKS';
     tasks: BoardSuggestedTask[];
@@ -171,8 +164,8 @@ export type BoardCompetency = {
 /**
  * What the hire has shown they can do, and what they are short of.
  *
- * Two lists rather than a percentage: a percentage of somebody's competence is a number nobody can
- * act on. Level-0 rows never appear — that value means "asked, saw no evidence".
+ * ⚠️ Two lists, never a percentage. Level-0 rows never appear — that value means "asked, saw no
+ * evidence".
  */
 export type CompetencyProgressContent = {
     kind: 'COMPETENCY_PROGRESS';

@@ -1,9 +1,8 @@
 /**
  * Task-scoped orientation: what this project already says about doing the task
- * a hire has, assembled rather than authored.
+ * a hire has. Mirrors the backend's `GET /me/orientation` contract.
  *
- * Mirrors the backend's `GET /me/orientation` contract.
- * Deliberately unlike a competency module: no version, no approval, no author —
+ * ⚠️ Unlike a competency module there is no version, no approval and no author —
  * a packet is disposable and regenerates when the corpus moves.
  */
 
@@ -32,8 +31,8 @@ export type OrientationSection = {
     body: string;
     /**
      * Never empty in practice — the AI service drops ungrounded sections before
-     * they are returned. Rendered visibly rather than as a tooltip: provenance
-     * is the trust mechanism, so hiding it defeats the point.
+     * they are returned. ⚠️ Rendered visibly, never as a tooltip: provenance is
+     * the trust mechanism.
      */
     citations: OrientationCitation[];
 };
@@ -50,8 +49,8 @@ export type OrientationSource = {
  *
  * `AI` packets are cached and revalidated against the corpus — served, deleted, or re-assembled as
  * the code they describe moves. A `HUMAN` packet is a person's own words (a PM's, or the hire's own,
- * fixed in place) and is served exactly as written: never regenerated, never auto-deleted. The client
- * badges it as human-written and offers to hand it back to the AI rather than to "refresh" it.
+ * fixed in place) and is served exactly as written: ⚠️ never regenerated, never auto-deleted. The
+ * client badges it as human-written and offers to hand it back to the AI, never to "refresh" it.
  */
 export type OrientationOrigin = 'AI' | 'HUMAN';
 

@@ -50,14 +50,12 @@ export interface BuddyOpeningHandlers {
 /**
  * Opens this hire's visit ahead of them asking for it, discarding the greeting.
  *
- * The greeting is persisted server-side, so whoever opens the buddy next — the widget's panel or
- * the `/buddy` page — takes the replay path instead of waiting on a model. Opening twice without
- * the hire saying anything is the same visit, which is the whole reason this is safe to fire
- * speculatively: it cannot produce a second greeting or spend a second model call.
+ * ⚠️ Safe to fire speculatively because **opening twice without the hire saying anything is the
+ * same visit**: the greeting is persisted server-side, so the second open replays rather than
+ * spending a second model call.
  *
- * ⚠️ **Failure is silent, deliberately.** Nobody asked for this and nobody is looking at it, so
- * there is no error to report to anyone — the real open runs later and reports its own. Warming is
- * an optimisation, and an optimisation that can show an error message is a liability.
+ * ⚠️ **Failure is silent.** Nobody asked for this and nobody is looking at it; the real open runs
+ * later and reports its own error.
  *
  * The cost to accept: a greeting generated per login even when the hire never opens the buddy.
  */
@@ -74,14 +72,13 @@ export function warmBuddyVisit(): Promise<void> {
 }
 
 /**
- * The warm-up in flight, if any — and it is never cleared once settled, deliberately.
+ * The warm-up in flight, if any. ⚠️ **Never cleared once settled**, so a settled warm-up is a free
+ * await and a second one never re-fires.
  *
- * ⚠️ **Two concurrent opens would each find no greeting and each spend a model call**, and this
- * is not hypothetical: the widget is mounted on `/buddy` too, so a hire landing straight there
- * has the widget warming the visit while the page opens it. Gating on a shared promise closes
- * that rather than narrowing it — `backend#170` is the local reminder that narrowing a window is
- * not closing it. Left non-null afterwards so a settled warm-up is a free await and a second one
- * never re-fires.
+ * ⚠️ **Two concurrent opens would each find no greeting and each spend a model call.** Not
+ * hypothetical: the widget is mounted on `/buddy` too, so a hire landing straight there has the
+ * widget warming the visit while the page opens it. A shared promise closes that window rather than
+ * narrowing it.
  */
 let warmingVisit: Promise<void> | null = null;
 

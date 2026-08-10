@@ -33,14 +33,12 @@ export const arrivalService = {
     /**
      * Re-checks what the system can observe for the caller, and returns their steps as they stand.
      *
-     * Split from the read on purpose, the way the diagram card is split from the board: reading
-     * touches nothing but the database, because a board that waits on GitHub to open is a board
-     * nobody opens. This is what actually looks, and it runs once the card has already rendered.
+     * ⚠️ Split from the read, which touches nothing but the database. This is what actually
+     * looks, and it runs once the card has already rendered.
      *
-     * **Observation settles a step; failing to observe never unsettles one.** A GitHub outage, a
+     * ⚠️ **Observation settles a step; failing to observe never unsettles one.** A GitHub outage, a
      * rate limit and a hire with no contributions yet are indistinguishable here and all mean the
-     * same thing — nothing changes. So a failure needs no handling beyond leaving what was already
-     * shown alone.
+     * same thing, so a failure needs no handling beyond leaving what was shown alone.
      */
     async refreshMyArrival(): Promise<MyArrival> {
         return await apiClient.fetch<MyArrival>(`${BASE}/me/arrival/refresh`, { method: 'POST' });
@@ -101,7 +99,7 @@ export const arrivalService = {
     /**
      * Applies a whole ordering at once.
      *
-     * The complete list rather than a from/to pair, so two people reordering concurrently cannot
+     * ⚠️ The complete list, never a from/to pair, so two people reordering concurrently cannot
      * interleave into an order neither of them chose.
      */
     async reorderSteps(orderedKeys: string[], projectId?: string | null): Promise<ArrivalStep[]> {
