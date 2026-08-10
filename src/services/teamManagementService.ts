@@ -10,8 +10,8 @@ import type {
 /**
  * The team, each member with their competency ledger.
  *
- * Reads `GET /onboarding/dashboard/users`. Errors propagate rather than being swallowed into a
- * fixture, so a broken call looks broken.
+ * Reads `GET /onboarding/dashboard/users`. ⚠️ Errors propagate — never swallowed into a fixture,
+ * so a broken call looks broken.
  */
 export async function getTeamOverview(
   roleId?: string,
@@ -42,8 +42,8 @@ export async function getTeamOverview(
     hasFeedback: false,
   }));
 
-  // Unread feedback is a separate endpoint; a failure there must not blank the team list, so it
-  // degrades to "no feedback flags" rather than taking the page down with it.
+  // ⚠️ Unread feedback is a separate endpoint; a failure there degrades to "no feedback flags"
+  // and must not blank the team list.
   try {
     const feedback = await getAllOnboardingFeedback();
     const withUnread = new Set(
@@ -110,9 +110,8 @@ export async function getProjectRolesForUserOnProject(
 /**
  * Gives someone a role on one project.
  *
- * Roles are held per project, so the project is part of the path rather than optional context: a
- * role means nothing without one. The backend 404s if the person is not on that project rather than
- * quietly making them a member.
+ * ⚠️ Roles are held per project, so the project is part of the path, not optional context. The
+ * backend 404s if the person is not on that project rather than quietly making them a member.
  */
 export async function assignProjectRoleToUser(
   projectId: string,

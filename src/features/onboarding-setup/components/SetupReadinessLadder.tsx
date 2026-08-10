@@ -38,15 +38,10 @@ const STATE_STYLES: Record<RungState, StateStyle> = {
  * vocabulary to teach and measure against, whether there is work a hire could claim, and whether
  * roles say how their people are spoken to.
  *
- * ### A readout, not a to-do list
- *
- * Connecting a repository is the only step a person performs; everything below it follows from a
- * crawl. So each rung reports an outcome rather than issuing a chore.
- *
- * ⚠️ Listing outcomes as though they were chores invents work that looks like progress while
- * somebody does it, and reads as a gate on a surface where **nothing gates anything**. Hence:
- * states are "Ready" and "Not yet", nothing is counted as outstanding, and a rung links to the
- * thing itself rather than to "the page that advances it".
+ * ⚠️ **A readout, not a to-do list.** Connecting a repository is the only step a person performs;
+ * everything below follows from a crawl, so each rung reports an outcome rather than issuing a
+ * chore. States are "Ready" and "Not yet", **nothing is counted as outstanding**, and a rung links
+ * to the thing itself rather than to "the page that advances it".
  */
 export function SetupReadinessLadder({ ladder }: { ladder: SetupLadder }) {
     return (

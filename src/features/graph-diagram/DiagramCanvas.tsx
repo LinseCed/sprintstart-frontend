@@ -60,27 +60,15 @@ export type DiagramCanvasProps<TData> = {
 /**
  * A node-link diagram you can read by pointing at it.
  *
- * ### What this owns, and why it is one component
+ * Owns everything between the shared layout maths (dagre layering, d3 relaxation) and the screen:
+ * the hover and selection that light a chain, the dimming outside it, the reduced-motion decision
+ * and the React Flow shell.
  *
- * Layering is dagre's and the relaxation is d3's — both already shared, and both already generic
- * over [GraphShape]. What was *not* shared is everything between them and the screen: the hover
- * and selection that light a chain, the dimming of everything outside it, the reduced-motion
- * decision, and the React Flow shell. Those were written once for the PM's graph studio, and a
- * second surface wanting the same behaviour is the moment to extract them rather than to write
- * them again slightly differently.
+ * ⚠️ **Selection lights the same chain as hover.** Hover is pointer-only, and this reading of a
+ * diagram must not be unavailable by keyboard.
  *
- * ### Lighting the chain is the whole point
- *
- * A diagram of more than a dozen nodes stops being readable as a picture. What makes it readable is
- * being able to ask "what does *this* depend on" and have the answer light up. So hovering or
- * selecting a node lights its whole chain and fades everything else — and **selection lights the
- * same chain as hover**, because hover is pointer-only and this reading of a diagram must not be
- * unavailable by keyboard.
- *
- * ### Motion is a preference, not a flourish
- *
- * The force relaxation is skipped entirely under `prefers-reduced-motion`, falling back to dagre's
- * layered positions. The diagram stays correct and stays still.
+ * ⚠️ The force relaxation is skipped entirely under `prefers-reduced-motion`, falling back to
+ * dagre's layered positions — the diagram stays correct and stays still.
  */
 export function DiagramCanvas<TData extends Record<string, unknown>>({
     shape,

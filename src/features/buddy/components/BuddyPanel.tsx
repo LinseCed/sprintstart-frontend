@@ -30,11 +30,9 @@ type BuddyPanelProps = Pick<
  * The persistent buddy's floating conversation panel. Bubble styling mirrors
  * the full-page buddy conversation so every buddy surface feels consistent.
  *
- * ### It scrolls down, never sideways
- *
- * At 384 px a model's reply overflows easily — a package path, a URL, a fenced block. Wide content
- * must scroll inside its own block; a horizontal scrollbar across the whole conversation is the
- * defect. ⚠️ Two CSS rules make that easy to reintroduce:
+ * ⚠️ **It scrolls down, never sideways.** Wide content scrolls inside its own block; a horizontal
+ * scrollbar across the whole conversation is the defect. Two CSS rules make that easy to
+ * reintroduce:
  *
  * 1. **`overflow-y: auto` computes `overflow-x` to `auto` too** (CSS makes the pair non-`visible`
  *    together), so the transcript grows a sideways scrollbar the moment anything overflows. It is

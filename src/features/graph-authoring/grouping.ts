@@ -14,17 +14,12 @@ export type CompetencyGroup = {
 /**
  * Groups the vocabulary by `area`, filtered by a free-text query.
  *
- * ### The ungrouped bucket is a group, not a failure
+ * ⚠️ **The ungrouped bucket is a group, not a failure.** A null `area` goes in a bucket **last**,
+ * named for what is true about it — an invented "General" would read as a judgement somebody made.
  *
- * `area` is `null` for anything hand-authored before somebody typed one. Those rows go in a bucket
- * **last**, named for what is true about them — not grouped yet — rather than filed under an
- * invented area. ⚠️ Absent evidence stays absent; a made-up "General" would read as a judgement
- * somebody made.
- *
- * Areas are sorted, and the ungrouped bucket always sorts last however it is spelled. Grouping is
- * by the exact stored string: the backend folds case and spacing on write, so two spellings of one
- * area cannot reach here, and this deliberately does not fold anything itself — a second opinion
- * about identity is how a grouping fragments into synonyms of itself.
+ * ⚠️ **Grouping is by the exact stored string and folds nothing.** The backend folds case and
+ * spacing on write; a second opinion about identity here is how a grouping fragments into synonyms
+ * of itself.
  *
  * @param competencies The live vocabulary.
  * @param query Free text matched against label, key, description and area. Blank matches everything.

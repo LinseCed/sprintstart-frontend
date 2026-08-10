@@ -50,14 +50,12 @@ export interface BuddyOpeningHandlers {
 /**
  * Opens this hire's visit ahead of them asking for it, discarding the greeting.
  *
- * The greeting is persisted server-side, so whoever opens the buddy next — the widget's panel or
- * the `/buddy` page — takes the replay path instead of waiting on a model. Opening twice without
- * the hire saying anything is the same visit, which is the whole reason this is safe to fire
- * speculatively: it cannot produce a second greeting or spend a second model call.
+ * ⚠️ Safe to fire speculatively because **opening twice without the hire saying anything is the
+ * same visit**: the greeting is persisted server-side, so the second open replays rather than
+ * spending a second model call.
  *
- * ⚠️ **Failure is silent, deliberately.** Nobody asked for this and nobody is looking at it, so
- * there is no error to report to anyone — the real open runs later and reports its own. Warming is
- * an optimisation, and an optimisation that can show an error message is a liability.
+ * ⚠️ **Failure is silent.** Nobody asked for this and nobody is looking at it; the real open runs
+ * later and reports its own error.
  *
  * The cost to accept: a greeting generated per login even when the hire never opens the buddy.
  */
@@ -74,14 +72,13 @@ export function warmBuddyVisit(): Promise<void> {
 }
 
 /**
- * The warm-up in flight, if any — and it is never cleared once settled, deliberately.
+ * The warm-up in flight, if any. ⚠️ **Never cleared once settled**, so a settled warm-up is a free
+ * await and a second one never re-fires.
  *
- * ⚠️ **Two concurrent opens would each find no greeting and each spend a model call**, and this
- * is not hypothetical: the widget is mounted on `/buddy` too, so a hire landing straight there
- * has the widget warming the visit while the page opens it. Gating on a shared promise closes
- * that rather than narrowing it — `backend#170` is the local reminder that narrowing a window is
- * not closing it. Left non-null afterwards so a settled warm-up is a free await and a second one
- * never re-fires.
+ * ⚠️ **Two concurrent opens would each find no greeting and each spend a model call.** Not
+ * hypothetical: the widget is mounted on `/buddy` too, so a hire landing straight there has the
+ * widget warming the visit while the page opens it. A shared promise closes that window rather than
+ * narrowing it.
  */
 let warmingVisit: Promise<void> | null = null;
 
@@ -91,13 +88,13 @@ let warmingVisit: Promise<void> | null = null;
  * The mentor greets the hire grounded in their durable memory and current state; the past
  * transcript is not replayed — a visit starts fresh with this greeting.
  *
- * ⚠️ **The wait this removes was ordering, not model speed.** The greeting used to be written
- * *after* a private memory note of up to 200 words that the hire never sees, so the page sat empty
- * for ~30s while the model produced output for itself. The greeting is written first now, and the
- * note is not written by this call at all.
+ * ⚠️ **The first token can still be tens of seconds away.** The greeting is written before
+ * anything the hire never sees, so nothing is queued behind invisible output — but the model is
+ * remote and conditionally reasoning, and it emits nothing while it thinks. Handlers must treat a
+ * long silence before the first token as normal, not as a failed stream.
  *
  * Opening twice without the hire saying anything is the same visit: the greeting already there is
- * replayed whole (there is nothing left to wait for) and no model is called.
+ * replayed whole and no model is called.
  */
 export async function streamOpenBuddy(handlers: BuddyOpeningHandlers): Promise<void> {
     // Let a warm-up finish first if one is running: it is opening this same visit, and racing it

@@ -24,26 +24,17 @@ const nodeTypes = { diagramPart: DiagramCardNode };
 /**
  * A picture of how some part of the project fits together, drawn from the project's own material.
  *
- * ### What makes this a card and not a drawing
+ * Every box carries the source proving it; an ungrounded box was dropped before reaching here. The
+ * one thing the buddy chose is the **question**, shown as the subtitle so the hire sees what was
+ * asked.
  *
- * Every box names something the project's material shows it has, and carries the source proving it.
- * A box that could not be grounded was dropped before it ever reached here, so nothing on this card
- * is the model's opinion about a codebase it half-remembers. The one thing the buddy chose is the
- * **question** — and it is shown as the card's subtitle, so the hire can see what was asked.
+ * ⚠️ **The list is not a fallback for the canvas** — it is the text equivalent, and a diagram whose
+ * only form is a canvas is one some people cannot read at all. It also shows each box's sources as
+ * openable links, which the canvas cannot do without a hover.
  *
- * ### Two ways to read it, and the list is not a fallback
- *
- * The repo has kept a text equivalent beside every graph since the competency map, and this keeps
- * it: a diagram whose only form is a canvas is a diagram some people cannot read at all. The list
- * says the same thing in sentences — "AuthFilter goes to TokenService" — with each box's sources as
- * openable links, which the canvas cannot show without a hover.
- *
- * ### Why it revalidates itself
- *
- * The board serves the picture last drawn, because assembling one costs a generation and a page
- * that waits on a model to open is a page nobody opens. So this card asks, once, whether that
- * picture still matches the project — an unchanged project answers without redrawing anything. The
- * date is shown either way: a picture is a claim about code as it was at a moment.
+ * ⚠️ **It revalidates itself once after rendering**, because the board serves the picture last
+ * drawn rather than waiting on a generation. The date is shown either way: a picture is a claim
+ * about code as it was at a moment.
  */
 export function DiagramCard({
     content,

@@ -29,11 +29,10 @@ export const boardService = {
     /**
      * Checks a diagram card against the project's material as it is *now*.
      *
-     * Separate from `fetchBoard` on purpose. Drawing a diagram costs a generation, so the board
-     * serves the picture last drawn — a page that waits on a model to open is a page nobody opens —
-     * and this is what makes sure it is still true. An unchanged project answers without redrawing
-     * anything, so calling it once per board load is cheap; a project that has moved comes back
-     * redrawn, and one that no longer supports the subject comes back with no picture and a reason.
+     * ⚠️ Separate from `fetchBoard`, which serves the picture last drawn and calls nothing. An
+     * unchanged project answers without redrawing, so calling this once per board load is cheap; a
+     * project that has moved comes back redrawn, and one that no longer supports the subject comes
+     * back with no picture and a reason.
      *
      * @param cardId The diagram card to revalidate.
      * @throws ApiError 404 when it is not a diagram card on a board of theirs.
@@ -47,10 +46,8 @@ export const boardService = {
     /**
      * Takes a card off the caller's board, for good.
      *
-     * The buddy will not put it back — the backend keeps the dismissed row precisely so that both
-     * the baseline and the mentor consult it before adding anything. Dismissing is a decision, not
-     * a gesture the next page load undoes, which is why the affordance says "remove" rather than
-     * "hide".
+     * ⚠️ The buddy will not put it back: the backend keeps the dismissed row so both the baseline
+     * and the mentor consult it before adding anything. The affordance says "remove", not "hide".
      *
      * @param cardId The card to remove.
      * @throws ApiError 404 when it is not a card on a board of theirs.

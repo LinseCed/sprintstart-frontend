@@ -10,12 +10,10 @@ const KIND_LABEL: Record<ReviewKind, string> = {
  * about it. Keeping every kind identical is the point of the inbox — a PM learns one pattern, not
  * one per queue. `busy` disables both actions while one is in flight so a card can't be double-acted.
  *
- * ### The two actions are not opposites, and the labels have to say so
- *
- * The item is already live and claimable, so **"looks good" changes only its ranking** while
- * **removing it takes it out of the pool**. ⚠️ Rendering them as a ✓/✗ pair would suggest a
- * decision is owed on every card and that both outcomes are equally consequential — neither is
- * true, and one of them is destructive.
+ * ⚠️ **The two actions are not opposites, and the labels must say so.** The item is already live
+ * and claimable, so "looks good" changes only its ranking while removing it takes it out of the
+ * pool. A ✓/✗ pair would suggest a decision is owed on every card and that both outcomes are
+ * equally consequential; one of them is destructive.
  */
 export function ReviewItemCard({
     item,

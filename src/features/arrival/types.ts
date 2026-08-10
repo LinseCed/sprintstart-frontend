@@ -82,16 +82,9 @@ export type MyArrival = {
 /**
  * A step the system knows how to check for itself, offered to whoever authors the list.
  *
- * ### Why this is a catalog and not a checkbox on the add form
- *
- * A derivation is code — something has to know *how* to observe "you have a GitHub account" — so a
- * derived step cannot be authored freely. The backend binds a row to its derivation by the step's
- * own `key`, with deliberately no column pointing at a deriver, because a column could name one
- * that does not exist. Typing `github-account` into the ordinary add form works for exactly that
- * reason, and that is the folklore this catalog replaces.
- *
- * **Nothing is seeded.** An admin adds the ones their organisation actually wants, which is what
- * keeps a local-build step off the board of somebody who never builds anything.
+ * ⚠️ The backend binds a step to its derivation by its `key`, so typing a catalog key into the
+ * ordinary add form silently produces a derived step. **Nothing is seeded** — an admin adds the
+ * ones their organisation wants.
  */
 export type DerivableArrivalStep = {
     key: string;

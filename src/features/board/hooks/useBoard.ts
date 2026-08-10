@@ -30,15 +30,12 @@ type UseBoardResult = {
  * Passing an empty `projectId` yields `null` without a request, so the caller can show a
  * pick-a-project state rather than an error.
  *
- * `refresh` exists because every live card is a read: a pull request that got answered while the
- * page was open is answered, and the board has no way to know until it asks again. Out-of-band push
- * — a card changing the instant something happens — needs notification infrastructure these
- * services do not have, so an explicit refresh is the honest version of it.
+ * `refresh` exists because every live card is a read: the board cannot know a pull request was
+ * answered while the page was open until it asks again.
  *
- * **Every write re-reads afterwards** rather than patching state locally. Adding or editing a card
- * changes what the board holds, and the live cards beside it may have moved on in the meantime; the
- * server is the one that knows. The exception is reordering, which shows the new order immediately
- * — a drag that visibly snaps back while a request is in flight feels broken even when it worked.
+ * ⚠️ **Every write re-reads afterwards** rather than patching state locally — the live cards beside
+ * the one that changed may have moved on. The exception is reordering, which shows the new order
+ * immediately, because a drag that visibly snaps back feels broken even when it worked.
  */
 export function useBoard(projectId: string): UseBoardResult {
     const [reloadKey, setReloadKey] = useState(0);

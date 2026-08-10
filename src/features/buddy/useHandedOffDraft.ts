@@ -7,28 +7,16 @@ export type BuddyHandoffState = { draft?: string };
 /**
  * Applies a draft handed over from the floating panel, exactly once.
  *
- * ### Why the draft travels at all
+ * The panel and the page share one buddy *session* but not one composer, so the draft has to be
+ * carried across the navigation or it is silently thrown away.
  *
- * The panel and the page share one buddy *session* but not one composer — they are separate hooks
- * with separate local state. So a control that opens the page without carrying the draft is a
- * control that silently throws away whatever somebody was part-way through typing, which is worse
- * than not offering it.
+ * ⚠️ **The history state is consumed and then removed** (`replace`). Without that, going back and
+ * forward again — or a reload — re-seeds a draft the hire has since sent or deleted, overwriting
+ * whatever is in the box. A blank or absent draft does nothing at all.
  *
- * ### Why it is cleared
- *
- * History state outlives the navigation: without `replace`, going back and forward again — or a
- * reload — would re-seed a draft the hire has since sent or deleted, overwriting whatever is in the
- * box. The state is consumed, then removed, so the hand-off happens once and leaves no trace.
- *
- * A blank or absent draft does nothing at all: there is nothing to carry, and writing an empty
- * string over a composer the page has already put something in would be a regression of its own.
- *
- * ⚠️ **Call this from exactly one place per route.** Two consumers on one page both read the same
- * payload, and the parent's effect runs after the child has already cleared it — so the second one
- * fires with a stale value and navigates again. Harmless, but it is redundant work that reads like
- * a bug. Today only the mentor conversation seeds from it; the placement interview does not, which
- * means a draft typed into the panel *during intake* is not carried. That case is marginal enough
- * to leave, and covering it means extracting the intake branch into its own component first.
+ * ⚠️ **Call this from exactly one place per route.** Two consumers on one page read the same
+ * payload, and the parent's effect runs after the child has already cleared it, so the second fires
+ * with a stale value and navigates again.
  *
  * @param setDraft The composer setter of whichever conversation is mounted.
  */

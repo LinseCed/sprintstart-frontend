@@ -20,29 +20,20 @@ type ArrivalStepsCardProps = {
 /**
  * What still has to be true before this hire can work: accounts, access, a machine that builds.
  *
- * ### It shows outstanding work; it does not withhold anything
+ * ⚠️ **Nothing here withholds anything.** The card shows outstanding work; it never blocks a hire
+ * from claiming a task or reading anything else.
  *
- * Nothing on this card blocks a hire from claiming a task or reading anything else. Somebody stuck
- * waiting on IT can see exactly what they are waiting on, and get on with whatever else they like
- * meanwhile — being blocked by your employer must not also mean being blocked by the tool.
- *
- * ### No progress bar, and this is not an oversight
- *
- * ⚠️ A step the system observed and a step the hire ticked are different facts. Averaging them
- * into one percentage counts a ticked box exactly like a passed check, which is what makes such a
- * number meaningless. The subtitle says what is known and leaves the arithmetic to the reader.
+ * ⚠️ **No progress bar, and no percentage may be added.** A step the system observed and a step the
+ * hire ticked are different facts, and averaging them counts a ticked box exactly like a passed
+ * check. The subtitle says what is known and leaves the arithmetic to the reader.
  *
  * Confirmation is applied here rather than through the board's write path: settling a step is a
- * fact about the hire, not an edit to the board, and the card owns the optimistic update the same
- * way the diagram card owns its revalidation.
+ * fact about the hire, not an edit to the board, so the card owns the optimistic update.
  *
- * ### Why it re-checks itself
- *
- * The board's read touches nothing but the database, because a board that waits on GitHub to open
- * is a board nobody opens — so some steps arrive here settled by nothing but the last check. This
- * card asks once, after it has rendered, whether anything can be observed now. Failing to ask
- * changes nothing on screen: **observation settles a step and failing to observe never unsettles
- * one**, so an outage, a rate limit and a hire with no work yet are one and the same answer here.
+ * ⚠️ **It re-checks itself once after rendering**, because the board's read touches nothing but the
+ * database. Failing to ask changes nothing on screen: **observation settles a step and failing to
+ * observe never unsettles one**, so an outage, a rate limit and a hire with no work yet are one and
+ * the same answer here.
  */
 export function ArrivalStepsCard({
     content,

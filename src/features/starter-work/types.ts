@@ -59,21 +59,20 @@ export type CreateStarterWorkTaskInput = {
 /**
  * Whether a browsable corpus issue is already in the pool, and how it got there.
  *
- * It describes the pool, never the issue's suitability — nothing here ranks anything. It exists so
- * the browser can say *why* an issue is not offered instead of leaving it out: an issue somebody
- * cannot find gives them no way to tell "filtered" from "never ingested".
+ * ⚠️ Describes the pool, never the issue's suitability — nothing here ranks anything. It lets the
+ * browser say *why* an issue is not offered instead of leaving it out, so a reader can tell
+ * "filtered" from "never ingested".
  *
- * `REMOVED` is the one that must stay visible. Rejection is sticky, so a removed issue cannot be
- * put back — showing it as simply absent would read as a bug and send somebody hunting for it.
+ * ⚠️ `REMOVED` must stay visible: rejection is sticky, so a removed issue cannot be put back, and
+ * showing it as absent would send somebody hunting for it.
  */
 export type CandidatePoolState = 'AVAILABLE' | 'IN_POOL' | 'REMOVED';
 
 /**
  * One open issue the corpus already holds, offered for a person to put in the pool themselves.
  *
- * ⚠️ **Nothing has judged this.** There is no score and no suitability field, deliberately: the
- * whole point of browsing is that the judgement is the reader's, and a number would be the mining
- * filter wearing a different hat.
+ * ⚠️ **Nothing has judged this.** There is no score and no suitability field, and neither may be
+ * added — the judgement is the reader's.
  *
  * `hasAssignee` is three-valued and **null means we do not know**, never "nobody" — SprintStart does
  * not ingest GitHub assignees, so every GitHub issue reports null. Only `true` means somebody is on
@@ -99,9 +98,9 @@ export type StarterWorkCandidate = {
  * What a PM sends to put one browsed issue in the pool.
  *
  * The title and link come from the ingested issue, not from here, so the pool cannot disagree with
- * the tracker about what an issue is called. `summary` is the promoter's own note — the issue's body
- * is deliberately not copied, because orientation reads that text live from the corpus and a copy
- * would go stale.
+ * the tracker about what an issue is called. ⚠️ `summary` is the promoter's own note — the issue's
+ * body is **not** copied, because orientation reads that text live from the corpus and a copy would
+ * go stale.
  */
 export type PromoteStarterWorkCandidateInput = {
     sourceId: string;

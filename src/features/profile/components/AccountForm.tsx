@@ -11,23 +11,16 @@ type AccountFormProps = {
 /**
  * Whether GitHub could find the account this person says they contribute as.
  *
- * ### Why a profile field earns a warning of its own
- *
- * This login is what artifact verification compares a pull request's author against. A typo that is
- * still a syntactically valid username is stored and treated as their identity, and it does not
- * fail loudly — it silently stops crediting work they really did, months later, while leaving them
- * reading as calm rather than blocked. This is the one place that can be caught early.
- *
- * ### Three states, and the third one says nothing
+ * This login is what artifact verification compares a pull request's author against, and a typo
+ * that is still a valid username silently stops crediting work months later. This is the one place
+ * it can be caught early.
  *
  * ⚠️ **No verdict is never rendered as a negative.** A missing verdict covers "not checked yet",
- * "GitHub would not answer" and "nothing declared", and the app has no business telling somebody
- * their perfectly good username does not exist because a rate limit got in the way — the same rule
- * the orientation cache holds to, that an outage is not evidence about the world.
+ * "GitHub would not answer" and "nothing declared" alike.
  *
- * A verdict is also about a *value*, so it is withheld the moment the field is edited away from the
- * saved login: showing "we could not find that account" against the correction somebody is halfway
- * through typing is the same wrong answer relocated.
+ * ⚠️ **A verdict is about a *value***, so it is withheld the moment the field is edited away from
+ * the saved login — showing "we could not find that account" against a correction somebody is
+ * halfway through typing is the same wrong answer relocated.
  */
 function GithubLoginVerdict({ profile, typed }: { profile: UserProfile; typed: string }) {
     const verdict = profile.githubLoginVerification;
