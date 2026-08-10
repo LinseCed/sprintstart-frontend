@@ -9,17 +9,14 @@ import remarkGfm from 'remark-gfm';
  * User messages are never passed here — they contain no Markdown, and echoing one back styled
  * would be surprising; those stay plain, pre-wrapped text at the call site.
  *
- * ### Nothing in here may widen its container
+ * ⚠️ **Nothing in here may widen its container.** A model writes whatever it likes into a 384 px
+ * panel, so wide content gets its own scroller or wraps; it never makes the conversation scroll
+ * sideways. The rule is per block —
  *
- * The floating panel is 384 px, and a model writes whatever it likes into it: a package path, a
- * stack trace, a URL with a signature on the end. **Wide content gets its own scroller or wraps;
- * it never makes the conversation scroll sideways.** The rule is per block —
- *
- * - `pre` and tables scroll inside themselves (`overflow-x-auto` plus `min-w-0`, without which
- *   a flex ancestor's default `min-width: auto` simply grows to fit and the scroller never
- *   engages — that is the actual reason this was broken rather than the missing `overflow`);
- * - prose, links and inline code break mid-token rather than running off the edge, because a URL
- *   is one unbreakable word to the line breaker and no amount of container width fixes it.
+ * - `pre` and tables scroll inside themselves: `overflow-x-auto` **plus `min-w-0`**, without which
+ *   a flex ancestor's default `min-width: auto` grows to fit and the scroller never engages;
+ * - prose, links and inline code break mid-token, because a URL is one unbreakable word to the
+ *   line breaker and no container width fixes that.
  *
  * `break-words` is safe to put on every `code`: inside a `pre` the whitespace is preserved and no
  * wrapping is allowed at all, so it applies to inline code only and code blocks still scroll.

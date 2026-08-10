@@ -9,15 +9,10 @@ export type ArrivalScopeGroup = {
 /**
  * Splits a hire's arrival list into scope blocks, **preserving the order it arrived in**.
  *
- * ### Why this does not sort
- *
- * The backend already decided the order — company steps first, then each project by name, and
- * position within a scope. Re-deriving that here would give the card its own opinion about
- * ordering, and the two would drift the first time either changed. This only finds the boundaries.
- *
- * It groups consecutive runs rather than collecting by key for the same reason: collecting would
- * silently impose an order of its own on a list that already has one. If the server ever sends a
- * scope in two pieces, two headings is the honest rendering of what it sent.
+ * ⚠️ **This must never sort.** The backend already decided the order, and a second opinion about
+ * it would drift the first time either side changed. Grouping *consecutive runs* rather than
+ * collecting by key is the same rule: if the server sends a scope in two pieces, two headings is
+ * the honest rendering of what it sent.
  *
  * @param steps The hire's steps, in server order.
  * @returns One group per consecutive run of the same scope. Empty in, empty out.

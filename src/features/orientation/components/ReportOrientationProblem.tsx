@@ -10,26 +10,15 @@ type ReportOrientationProblemProps = {
 /**
  * "Something here is wrong" — the report that does not require knowing the fix.
  *
- * ### Why this exists next to "Fix this" rather than instead of it
+ * Sits beside "Fix this", not instead of it: correct the packet if you know what it should say,
+ * report it if you only know it is wrong.
  *
- * Orientation has had a correction affordance from the start, and deliberately: a hire who knows
- * the packet is wrong should mend it, not file a ticket about it. That decision stands. What it
- * left out is the newcomer — somebody three days in can usually tell that a setup step is stale
- * without having the faintest idea what replaced it, and **editing a packet the whole team reads on
- * the strength of a guess is worse than saying nothing.** The only affordance was the one they were
- * least equipped to use.
- *
- * So the two sit side by side: correct it if you know, report it if you only know it is wrong.
- *
- * ### It changes nothing anybody else sees
- *
- * Reporting writes no packet and touches no cache — it is a message to a person. That is also why
- * it does not pretend to be an edit: nothing about the panel changes afterwards except an
- * acknowledgement, because nothing about the packet has.
+ * ⚠️ **It changes nothing anybody else sees.** Reporting writes no packet and touches no cache, so
+ * nothing about the panel changes afterwards except an acknowledgement.
  *
  * ⚠️ **The app writes the "which packet" line, and the hire sees it before sending.** A report
- * whose subject the reader has to infer is a report nobody acts on, and a hidden tag appended after
- * the fact would be the app putting words in somebody's mouth — the rule `AskTheBuddy` keeps.
+ * whose subject the reader must infer is one nobody acts on, and a hidden tag appended afterwards
+ * would be the app putting words in somebody's mouth.
  */
 export function ReportOrientationProblem({ taskTitle }: ReportOrientationProblemProps) {
     const [isOpen, setIsOpen] = useState(false);

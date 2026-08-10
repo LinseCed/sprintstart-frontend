@@ -12,20 +12,14 @@ const COMPANY = '__company__';
 /**
  * Authoring the arrival list: what a new joiner needs before they can work.
  *
- * ### Company-wide first, per project second — and that order is the argument
+ * Company-wide is the default tab; a project tab is what that project needs **on top**, and a
+ * hire's own list is the union of the two.
  *
- * Account creation, VPN and HR paperwork are the same for every project, and making each PM
- * re-author them is exactly the *"erheblich mehr Effort"* the tutor warned about for starter tasks.
- * So the company list is the default tab and the common case; a project tab is for what that
- * project needs **on top**, and a hire's own list is the union of the two.
+ * ⚠️ A project step reusing a company step's key **replaces its wording rather than adding a second
+ * row** — the key is what state is stored against, so sharpening a sentence costs nobody their
+ * record of having done it.
  *
- * A project step that reuses a company step's key replaces its wording rather than adding a second
- * row — the key is what state is stored against, so a project can sharpen a sentence without
- * costing anybody their record of having done it.
- *
- * HR reads but does not write, matching the backend and every other authoring surface here. Worth
- * revisiting: a good deal of this content — paperwork, badges, accounts — is HR's to own rather
- * than a PM's.
+ * HR reads but does not write, matching the backend.
  */
 export function ArrivalStepsPage() {
     const { profile } = useAuth();

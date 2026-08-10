@@ -11,29 +11,16 @@ type BuddySuggestionChipsProps = {
 /**
  * The row of things this hire could usefully ask.
  *
- * ### Why it exists
+ * ⚠️ **It fills the composer and does not send.** Clicking writes the question into the box and
+ * the hire presses send, so the words stay theirs and they can edit first.
  *
- * The buddy's most useful capabilities were reachable only by knowing what to type. The tutor put
- * it exactly: *"wenn der User einen Befehl nicht weiß oder nicht mal weiß, dass es überhaupt über
- * den Chat geht, dann wird es kaum verwendet werden."* That is a person looking at an empty
- * composer, so the answer has to be next to the composer.
+ * ⚠️ **Nothing here calls a tool.** A chip asks a question; if an action follows, the mentor
+ * proposes it and the hire confirms it. A control that ran an action directly is the one shape the
+ * board's design has rejected.
  *
- * ### It fills the composer and does not send
- *
- * Clicking writes the question into the box; the hire presses send. One extra tap, and the words
- * stay theirs — `AskTheBuddy`'s rule, applied here for the same reason: a control that speaks for
- * somebody is a control they stop trusting. It also leaves them free to edit the question first,
- * which is how a hire learns they *can*.
- *
- * ⚠️ **This does not weaken the confirm gate.** A chip asks a question. If an action follows, the
- * mentor proposes it and the hire confirms it, exactly as before — nothing here calls a tool. A
- * control that ran an action directly is still the one shape the board's design has rejected.
- *
- * ### The list is not written here
- *
- * `useBuddySuggestions` reads it from the backend, which builds it from the tools mounted for this
- * hire. The hardcoded list this replaced offered *"Is my PR stuck?"* to everybody — including roles
- * that will never open one.
+ * ⚠️ **The list is not written here.** `useBuddySuggestions` reads it from the backend, which
+ * derives it from the tools mounted for *this* hire — a hardcoded list offers a Scrum Master a
+ * pull-request question.
  */
 export function BuddySuggestionChips({ suggestions, onPick, heading }: BuddySuggestionChipsProps) {
     if (suggestions.length === 0) return null;

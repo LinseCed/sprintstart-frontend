@@ -7,21 +7,14 @@ import type { ArrivalStep, DerivableArrivalStep } from '../types';
  * Authoring the company-wide arrival list — the things a new joiner has to get done before they can
  * work.
  *
- * ### This list orders attention; it does not gate anything
+ * ⚠️ **This list orders attention; it gates nothing.** An outstanding step is shown to the hire
+ * and raised by their buddy, and that is the whole of its effect.
  *
- * Nothing here stops a hire doing anything. A step that is outstanding is shown to them and raised
- * by their buddy, and that is the whole of its effect. Worth stating on the page itself, because
- * "mandatory steps" reads like a gate and the last version of this model was one.
+ * ⚠️ **Two kinds of step, recorded separately and never blended**: one written here is settled by
+ * the hire saying so, one taken from the catalog below is checked by the system. That is why the
+ * board card counts them apart rather than showing one figure.
  *
- * ### Two kinds of step, and the difference is not cosmetic
- *
- * A step written here is settled by the hire saying so. A step taken from the catalog below is one
- * the system checks for itself, and the two are recorded separately and never blended — that
- * distinction is why the board card counts them apart rather than showing one figure.
- *
- * **Nothing is seeded**, including the checkable ones. Somebody adds the ones their organisation
- * actually wants, which is what keeps a local-build step off the board of a person who never builds
- * anything.
+ * **Nothing is seeded**, the checkable ones included.
  */
 export function ArrivalStepAuthoring({
     readOnly = false,
@@ -146,15 +139,10 @@ export function ArrivalStepAuthoring({
 /**
  * The steps the system can check for itself, offered by name.
  *
- * ### Why these are offered rather than typed
+ * ⚠️ The backend binds a step to its derivation by its key, so typing one of these into the form
+ * above silently produces a derived step. This is the discoverable way to add them.
  *
- * A derivation is code — something has to know *how* to observe "you have a GitHub account" — and
- * the backend binds a row to its derivation by the step's own key, with deliberately no column
- * naming a deriver. Typing `github-account` into the form above therefore works, silently, and
- * that folklore is what this replaces, and it is the only way these steps can be added at all.
- *
- * Shown to a read-only reader too, without buttons: HR is often the person who knows what should be
- * on the list, and a notice standing in for it tells them nothing.
+ * Shown to a read-only reader too, without buttons.
  */
 function DerivableCatalog({
     derivable,

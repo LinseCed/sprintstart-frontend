@@ -4,19 +4,12 @@ import { getSuggestions, type BuddySuggestion } from "../../../services/buddySer
 /**
  * The chips this hire could usefully ask, for whichever buddy surface is showing.
  *
- * ### Why these come from the server
+ * ⚠️ **The list comes from the server and must not be derived here.** The backend builds it from
+ * the very tools it mounts for that hire, so the chips and the mentor cannot disagree; deriving it
+ * from a role would be a second opinion about the same question.
  *
- * A chip is only honest if the buddy can actually answer it, and what it can answer differs per
- * hire — the pull-request chip exists only for a track that produces pull requests. The backend
- * derives the list from the very tools it mounts for that hire, so the chips and the mentor cannot
- * disagree. Deriving it here from a role would be a second opinion about the same question, and the
- * hardcoded list this replaced offered *"Is my PR stuck?"* to every hire including a Scrum Master.
- *
- * ### Failure is silence
- *
- * A chip row is an invitation, not information. If the call fails the hire simply sees no chips and
- * the composer still works — an error message about a failed suggestion fetch would be noise about
- * a thing they never asked for.
+ * ⚠️ **Failure is silence.** A chip row is an invitation, not information: a failed call leaves no
+ * chips and a working composer, never an error.
  *
  * @param enabled Fetch only once the surface is actually showing (the widget defers until the panel
  *   is first opened, so an unopened widget makes no request).
