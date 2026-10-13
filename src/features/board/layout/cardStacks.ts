@@ -31,7 +31,10 @@ export type CardStack = {
   rootId: string;
   /** Every card in the chain, in the order they must be worked. */
   memberIds: string[];
-  /** The card on top: the first that is not done, or the last one when they all are. */
+  /**
+   * The card on top: a pinned member if there is one (an unfinished one first), otherwise the
+   * first that is not done, or the last one when they all are.
+   */
   topId: string;
   /** How many are still to do, the top one included. */
   remaining: number;
