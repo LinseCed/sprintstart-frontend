@@ -591,8 +591,8 @@ export function BoardPage() {
    * not rearranging the board.
    */
   const stacks = useMemo(
-    () => buildStacks(allCards, states, (cardId) => groupOf(groups, cardId)?.id ?? null),
-    [allCards, groups, states],
+    () => buildStacks(allCards, states, (cardId) => groupOf(groups, cardId)?.id ?? null, pinnedIds),
+    [allCards, groups, pinnedIds, states],
   );
   const [expandedStackIds, setExpandedStackIds] = useState<Set<string>>(new Set());
 
@@ -908,7 +908,13 @@ export function BoardPage() {
       cardMarks,
     );
 
-    return [...visible].sort((a, b) => Number(pinnedIds.has(b.id)) - Number(pinnedIds.has(a.id)));
+    // A pile counts as pinned when any card in it is, so a pinned card does not stay buried at
+    // the bottom of the board because it happens to lie in a pile.
+    const lifted = (cardId: string) =>
+      pinnedIds.has(cardId) ||
+      (stacks.get(cardId)?.memberIds.some((memberId) => pinnedIds.has(memberId)) ?? false);
+
+    return [...visible].sort((a, b) => Number(lifted(b.id)) - Number(lifted(a.id)));
   }, [
     allCards,
     cardMarks,
