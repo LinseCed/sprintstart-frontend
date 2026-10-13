@@ -1784,25 +1784,29 @@ function BoardCardCell({
 
     const top = stack.memberIds.indexOf(stack.topId);
 
+    // A pinned card can stand on top from anywhere in the pile, the last place included. Then the
+    // cards before it fill in after the ones that follow it, so a pile topped by its last card
+    // still shows what lies under it. Unpinned, the cards before the top are the finished ones and
+    // stay out of the sheets as before.
+    const after = stack.memberIds.slice(top + 1);
+    const others = pinned ? [...after, ...stack.memberIds.slice(0, top)] : after;
+
     // Named from the stack, not from the board: these cards are folded away, so they are not in
     // the list this grid was handed.
-    return stack.memberIds
-      .slice(top + 1)
-      .slice(0, STACK_SHEETS.length)
-      .map((memberId) => {
-        const member = stack.members.get(memberId);
+    return others.slice(0, STACK_SHEETS.length).map((memberId) => {
+      const member = stack.members.get(memberId);
 
-        return {
-          id: memberId,
-          name: member?.name ?? "The next card",
-          Icon: cardIcon(member?.kind ?? "NOTE"),
-          // The kind's own ink, the same as the card would wear if it were open. A closed pile is
-          // the one place the board says what is underneath without drawing it, and in one grey it
-          // said "two more cards" where it can just as easily say which two.
-          accent: cardAccent(member?.kind ?? "NOTE"),
-        };
-      });
-  }, [stack]);
+      return {
+        id: memberId,
+        name: member?.name ?? "The next card",
+        Icon: cardIcon(member?.kind ?? "NOTE"),
+        // The kind's own ink, the same as the card would wear if it were open. A closed pile is
+        // the one place the board says what is underneath without drawing it, and in one grey it
+        // said "two more cards" where it can just as easily say which two.
+        accent: cardAccent(member?.kind ?? "NOTE"),
+      };
+    });
+  }, [pinned, stack]);
 
   /**
    * Opens the pile when the card itself is clicked.
