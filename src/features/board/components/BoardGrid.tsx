@@ -1163,7 +1163,10 @@ export function BoardGrid({
     // One band is not a band, it is a heading over the whole board saying what everything on it
     // already says. A board where nothing has been sequenced yet is exactly that board, and it
     // should look the way it did before there were bands at all.
-    return filled.length > 1 ? filled : [];
+    //
+    // Except "Behind you": when a filter, a section or a finished path leaves only finished cards
+    // on screen, dropping the heading drew them as if they were current, and the band looked gone.
+    return filled.length > 1 || filled.some((band) => band.stage === "BEHIND") ? filled : [];
   }, [banding, blocks, spanningGroups, stagesOf, states]);
 
   /**
