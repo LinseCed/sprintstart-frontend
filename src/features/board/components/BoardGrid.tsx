@@ -1293,6 +1293,7 @@ export function BoardGrid({
         onTogglePinned={onTogglePinned}
         allCards={board.cards}
         state={states?.get(card.id)}
+        leadsPile={stack !== undefined && stack.rootId === card.id}
         // Piling is rearranging, so it is offered where the rest of rearranging is: in plan mode.
         onStackOnto={isArranging ? onStackOnto : undefined}
         onDrop={handleCardDrop}
@@ -1631,6 +1632,8 @@ type BoardCardCellProps = {
   /** Every card on the board, so this one can offer them as cards to lie under. */
   allCards: BoardCard[];
   state?: CardState;
+  /** Whether other cards lie under this one, so the pile picker can say it is the top of a pile. */
+  leadsPile?: boolean;
   onStackOnto?: (cardId: string, targetId: string | null) => void;
   /**
    * Set only on the top card of a *closed* pile — the one standing in for the others.
@@ -1701,6 +1704,7 @@ function BoardCardCell({
   onTogglePinned,
   allCards,
   state,
+  leadsPile = false,
   onStackOnto,
   stack,
   origin,
@@ -1840,7 +1844,7 @@ function BoardCardCell({
           className="max-w-40"
           onChange={(event) => onStackOnto(card.id, event.target.value || null)}
         >
-          <option value="">Not in a pile</option>
+          <option value="">{leadsPile ? "Top of its pile" : "Not in a pile"}</option>
           {allCards
             .filter((other) => other.id !== card.id)
             .map((other) => (
@@ -1928,6 +1932,7 @@ function BoardCardCell({
       dragControls,
       index,
       label,
+      leadsPile,
       onMove,
       onStackOnto,
       onToggleStack,
