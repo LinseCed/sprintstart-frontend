@@ -44,6 +44,14 @@ export default defineConfig({
     // parallel. The default 5s bounds machine load rather than the code under test, so a
     // busy runner fails whichever file happens to be scheduled last.
     testTimeout: 30000,
+    // AI_RULES R25: `npm run coverage` writes coverage/cobertura-coverage.xml for
+    // scripts/quality/coverage-gate.sh (changed lines and total coverage).
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "cobertura"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/keycloak-theme/**", "src/**/*.stories.tsx", "src/mocks/**"],
+    },
     alias: [
       // Every test's `render`/`renderHook` gets a QueryClientProvider for free, without
       // touching the ~230 files that import them directly — see tests/unit/setup/rtl.tsx.

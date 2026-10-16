@@ -33,6 +33,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the coverage gate compares with the base branch
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -43,7 +45,13 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
+      - name: Architecture rules (AI_RULES R26)
+        run: npm run arch
       - run: npm run build
-      - run: npm run unit
+      - name: Unit tests with coverage
+        run: npx vitest run --coverage --exclude 'tests/unit/a11y/**/*'
+      - name: Coverage gate (AI_RULES R25)
+        if: github.event_name == 'pull_request'
+        run: bash scripts/quality/coverage-gate.sh "origin/${{ github.base_ref }}"
       - run: npm run a11y
       - run: docker build -t sprintstart-frontend .
