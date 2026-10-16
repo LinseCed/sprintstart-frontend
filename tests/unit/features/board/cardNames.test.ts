@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { cardName, readableTitle } from "../../../../src/features/board/layout/cardNames";
 import { PATH_STEP_FALLBACK_TITLE, type BoardCard } from "../../../../src/features/board/types";
 
+// The invisible marks the retired path generator wrote, spelled out so the test can be read.
+const STEP_MARK = String.fromCharCode(0x2063);
+const BLUEPRINT_MARK = String.fromCharCode(0x2060);
+
 const card = (content: Record<string, unknown>) => ({ content }) as unknown as BoardCard;
 
 describe("readableTitle", () => {
   it("takes off the marks the retired path generator put in front of a title", () => {
-    expect(readableTitle("⁣Set up your machine")).toBe("Set up your machine");
-    expect(readableTitle("⁠Blueprint card")).toBe("Blueprint card");
+    expect(readableTitle(`${STEP_MARK}Set up your machine`)).toBe("Set up your machine");
+    expect(readableTitle(`${BLUEPRINT_MARK}Blueprint card`)).toBe("Blueprint card");
   });
 
   it("leaves an ordinary title alone", () => {
@@ -17,7 +21,7 @@ describe("readableTitle", () => {
 
 describe("cardName", () => {
   it("names a checklist by its readable title, or by its kind when it has none", () => {
-    expect(cardName(card({ kind: "CHECKLIST", title: "⁣Day one" }))).toBe("Day one");
+    expect(cardName(card({ kind: "CHECKLIST", title: `${STEP_MARK}Day one` }))).toBe("Day one");
     expect(cardName(card({ kind: "CHECKLIST", title: "" }))).toBe("Checklist");
   });
 
