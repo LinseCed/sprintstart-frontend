@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type JsonBodyType } from "msw";
 import { blueprintService, type BlueprintScope } from "../../../src/services/blueprintService";
 import { mockKeycloakInstance, server } from "../../unit/setup/vitest.setup";
 
@@ -18,7 +18,7 @@ const backendPath = { id: "path-1", title: "Path", blueprintPhases: [backendPhas
 
 let requests: Recorded[] = [];
 
-function respondWith(body: unknown): void {
+function respondWith(body: JsonBodyType): void {
   server.use(
     http.all("*", async ({ request }) => {
       const text = request.method === "GET" ? "" : await request.text();
@@ -124,20 +124,20 @@ const phaseInput = {
   title: "T",
   description: null,
   aiPrompt: null,
-  type: "LEARNING" as const,
+  type: "FIXED" as const,
 };
 const stepInput = {
   position: 0,
   title: "S",
   description: null,
-  type: "READING" as const,
+  type: "DOCUMENT" as const,
   estimatedMinutes: 5,
   expectedOutcome: "done",
 };
 const questionInput = {
   position: 0,
   title: "Q",
-  type: "SINGLE_CHOICE" as const,
+  type: "MULTIPLE_CHOICE" as const,
   question: "?",
   explanation: null,
   correctAnswer: null,
