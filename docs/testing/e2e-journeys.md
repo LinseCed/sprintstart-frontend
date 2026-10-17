@@ -4,7 +4,7 @@ Every user-facing journey of SprintStart, across all three repositories, and the
 test that covers it (AI_RULES.md R19). A PR in any repository that adds or changes a journey
 updates its row here and links it from the PR.
 
-**Status:** J01, J05, J06, J07, J08, J09 and J14 run automatically on every PR (`.github/workflows/e2e.yml`). The others
+**Status:** J01, J05, J06, J07, J08, J09, J11 and J14 run automatically on every PR (`.github/workflows/e2e.yml`). The others
 are still checked by hand, mainly along the final demo script; until a journey has a spec, every PR
 that touches it describes the manual check it actually performed.
 
@@ -37,7 +37,7 @@ unique text per run where it matters (see J05).
 | J08 | A second hire receives the PM's answer to the same question               | hire      | `/buddy`                                       | frontend, backend, ai | `j06-j08-escalation.spec.ts`   | The stub calls `search_canonical_answers`; the answer the second hire reads is the one the backend served.                       |
 | J09 | Talk to the buddy in team mode about a managed project                    | PM        | `/buddy`, `/pm-dashboard`                      | frontend, backend, ai | `j09-team-mode.spec.ts`        | Includes the 403 for a user who does not manage the project.                                                                     |
 | J10 | Set up a new hire from a blueprint                                        | PM, HR    | `/hire-setup`, `/blueprints`, `/arrival-steps` | frontend, backend     | none                           |                                                                                                                                  |
-| J11 | Create a project with the admin wizard                                    | admin, HR | `/admin`                                       | frontend, backend     | none                           |                                                                                                                                  |
+| J11 | Create a project with the admin wizard                                    | admin, HR | `/admin`                                       | frontend, backend     | `j11-create-project.spec.ts`   | Without sources or members; found again after a reload.                                                                          |
 | J12 | Read FAQ, knowledge gaps and onboarding insights                          | PM, HR    | `/insights/*`                                  | frontend, backend, ai | none                           |                                                                                                                                  |
 | J13 | Manage team members and roles                                             | PM, HR    | `/team-management`                             | frontend, backend     | none                           |                                                                                                                                  |
 | J14 | Edit profile and settings                                                 | all       | `/profile`, `/settings`                        | frontend, backend     | `j14-profile-settings.spec.ts` | Name saved to the backend and read back after reload; theme kept by the browser.                                                 |
