@@ -26,8 +26,10 @@ test("the PM creates a role and gives it to a member", async ({ page }) => {
   await page.getByLabel("Name", { exact: true }).fill(role);
   await page.getByLabel("Description").fill("Created by the end-to-end journey");
   await page.getByRole("button", { name: "Create role" }).click();
+  // A new role opens on its own, so its row now offers to close it.
+  await expect(page.getByText("Role created")).toBeVisible();
+  await expect(page.getByRole("button", { name: `Close ${role}` })).toBeVisible();
 
-  await page.getByRole("button", { name: `Manage skills and members of ${role}` }).click();
   // The checkbox itself is visually hidden behind a custom box; its row is what a user clicks.
   await page.locator("label").filter({ hasText: "Kai E2E" }).click();
   await expect(page.getByRole("checkbox", { name: /Kai E2E/ })).toBeChecked();
