@@ -28,7 +28,9 @@ test("the PM creates a role and gives it to a member", async ({ page }) => {
   await page.getByRole("button", { name: "Create role" }).click();
 
   await page.getByRole("button", { name: `Manage skills and members of ${role}` }).click();
-  await page.getByRole("checkbox", { name: /Kai E2E/ }).check();
+  // The checkbox itself is visually hidden behind a custom box; its row is what a user clicks.
+  await page.locator("label").filter({ hasText: "Kai E2E" }).click();
+  await expect(page.getByRole("checkbox", { name: /Kai E2E/ })).toBeChecked();
   await page.getByRole("button", { name: "Save 1 change" }).click();
 
   await page.reload();
