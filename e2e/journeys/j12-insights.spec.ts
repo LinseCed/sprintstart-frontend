@@ -12,6 +12,10 @@
 import { expect, test } from "@playwright/test";
 import { storageStateOf } from "../stack.ts";
 
+// The reload loops below wait for work the backend does in the background; the default 30 s
+// would end them first.
+test.setTimeout(120_000);
+
 test("a hire's question shows up in the PM's FAQ", async ({ browser }) => {
   // The stack keeps its data between runs, so the question is unique to this run.
   const question = `How do I get access to the staging database? (${crypto.randomUUID().slice(0, 8)})`;
