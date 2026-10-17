@@ -7,7 +7,7 @@
 // - it mentions the PM: the turn asks the backend to propose `flag_to_pm` (a pending tool call);
 // - it asks about the code freeze: the turn asks the backend to run `search_canonical_answers`, then
 //   answers with the answers the backend found — what a PM published reaches the next hire this way;
-// - it asks for the source: the turn answers `cited`, citing the artifact ingested last;
+// - it asks for the source: the turn answers `cited`, citing the ingested deploy guide;
 // - anything else: the turn answers with `answer`.
 //
 // `/ingest/sync` records what the backend ingests, as the real service would index it;
@@ -107,7 +107,8 @@ function afterTool(messages) {
 }
 
 function cite(messages) {
-  const source = ingested.at(-1);
+  // The deploy guide by name, not whatever came last: other journeys upload documents too.
+  const source = ingested.findLast((artifact) => /deploy/i.test(artifact.title ?? ""));
   if (!source) return sse(answerEvents(messages, TEXT.unanswered));
   const citation = { artifact_id: source.artifactId, start_line: 1, start_page: null };
   return sse(answerEvents(messages, TEXT.cited, [citation]));

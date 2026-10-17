@@ -26,7 +26,8 @@ test("an uploaded document shows up in the knowledge base as indexed", async ({ 
   });
   await expect(dialog.getByText(filename)).toBeVisible();
   await dialog.getByRole("button", { name: "Connect now" }).click();
-  await dialog.getByRole("button", { name: "Done" }).click();
+  // An upload connects at once, so the dialog closes by itself.
+  await expect(dialog).toBeHidden();
 
   const card = page.getByTestId("artifact-card").filter({ hasText: filename });
   await expect(async () => {
