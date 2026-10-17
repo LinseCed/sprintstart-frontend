@@ -3,7 +3,9 @@
  * project with the hire as member and the PM as its manager. Idempotent, so a stack can be reused.
  */
 import {
+  AI_STUB_URL,
   BACKEND_URL,
+  DEPLOY_GUIDE,
   KEYCLOAK_URL,
   PASSWORD,
   PROJECT_NAME,
@@ -19,7 +21,9 @@ type Project = { id: string; name: string };
 async function request<T>(url: string, init: RequestInit & { token?: string } = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.token) headers.set("Authorization", `Bearer ${init.token}`);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (typeof init.body === "string" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   const response = await fetch(url, { ...init, headers });
   if (!response.ok)
     throw new Error(
@@ -153,6 +157,47 @@ async function assignProject(admin: string, projectId: string): Promise<void> {
   });
 }
 
+type Upload = { id: string; filename: string };
+
+const multipart = (request: object, files: Blob[] = [], filename = ""): FormData => {
+  const form = new FormData();
+  form.append("request", new Blob([JSON.stringify(request)], { type: "application/json" }));
+  for (const file of files) form.append("files", file, filename);
+  return form;
+};
+
+/**
+ * Uploads the deploy guide afresh and waits until the AI stub has ingested it. Replaced on every run
+ * rather than kept, because the stub only remembers what it was sent since it started.
+ */
+async function ensureDeployGuide(pm: string, projectId: string): Promise<void> {
+  const uploads = `${BACKEND_URL}/api/v1/uploads`;
+  const existing = (await request<Upload[]>(`${uploads}?projectId=${projectId}`, { token: pm }))
+    .filter((upload) => upload.filename === DEPLOY_GUIDE.filename)
+    .map((upload) => upload.id);
+  if (existing.length) {
+    await request(uploads, {
+      method: "DELETE",
+      token: pm,
+      body: multipart({ artifactIds: existing, projectId }),
+    });
+  }
+  const file = new Blob([DEPLOY_GUIDE.text], { type: "text/markdown" });
+  await request(uploads, {
+    method: "POST",
+    token: pm,
+    body: multipart({ projectId }, [file], DEPLOY_GUIDE.filename),
+  });
+
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    const ingested = await request<{ title: string }[]>(`${AI_STUB_URL}/__e2e/ingested`);
+    if (ingested.some((artifact) => artifact.title?.includes(DEPLOY_GUIDE.filename))) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`The AI stub never received ${DEPLOY_GUIDE.filename} from the backend`);
+}
+
 export default async function seed(): Promise<void> {
   const keycloakAdmin = await passwordGrant(
     "master",
@@ -165,5 +210,7 @@ export default async function seed(): Promise<void> {
     await registerWithBackend(user, authId).catch(() => undefined); // already registered on a reused stack
   }
   const admin = await userToken(USERS.admin);
-  await assignProject(admin, await ensureProject(admin));
+  const projectId = await ensureProject(admin);
+  await assignProject(admin, projectId);
+  await ensureDeployGuide(await userToken(USERS.pm), projectId);
 }
