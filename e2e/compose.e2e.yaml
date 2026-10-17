@@ -1,4 +1,4 @@
-# End-to-end stack (AI_RULES R19), layered over sprintstart-backend's docker-compose.yaml so the services
+# End-to-end stack, layered over sprintstart-backend's docker-compose.yaml so the services
 # are defined once. Backend and Keycloak come from the images published on `dev`; the AI service is
 # replaced by e2e/ai-stub. Started by `npm run e2e:stack` — see e2e/stack.sh.
 # Own container names, so the stack runs next to a developer's normal local stack.

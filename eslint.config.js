@@ -87,7 +87,7 @@ export default defineConfig([
     },
   },
   {
-    // AI_RULES.md R3 and R7. Existing violations are frozen in eslint-suppressions.json, which
+    // Size limits and typed ids. Existing violations are frozen in eslint-suppressions.json, which
     // may only shrink: fix one, then run `npx eslint . --prune-suppressions`.
     files: ["src/**/*.{ts,tsx}"],
     rules: {

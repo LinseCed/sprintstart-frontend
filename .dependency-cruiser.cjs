@@ -1,5 +1,5 @@
 /**
- * Architecture rules for the frontend (AI_RULES.md R26), checked by `npm run arch`.
+ * Architecture rules for the frontend, checked by `npm run arch`.
  *
  * Violations that existed when these rules were introduced are listed in
  * `.dependency-cruiser-known-violations.json`; that list may only shrink. After fixing one, regenerate

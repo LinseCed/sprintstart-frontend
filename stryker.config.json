@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "AI_RULES R25: scripts/quality/mutation.sh passes the changed files with --mutate.",
+  "_comment": "scripts/quality/mutation.sh passes the changed files with --mutate.",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
   "vitest": { "configFile": "vite.config.ts" },

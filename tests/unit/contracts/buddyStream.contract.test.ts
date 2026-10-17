@@ -1,5 +1,5 @@
 /**
- * Consumer side of the buddy stream contract (AI_RULES R12).
+ * Consumer side of the buddy stream contract.
  *
  * The backend owns `contracts/buddy-stream-events.schema.json` and its examples; this repository keeps a
  * copy (`scripts/quality/contracts-sync.sh` fails while it differs). Every example is streamed through
