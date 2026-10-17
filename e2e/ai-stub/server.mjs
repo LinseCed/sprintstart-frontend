@@ -13,6 +13,8 @@
 // `/insights/faq/classify` files every question as a documentation question: into the entry asking
 // exactly the same, or a new entry titled with the question.
 //
+// `/insights/knowledge-gaps/detect` reports one fixed gap, `deploy-pipeline` with no runbook.
+//
 // `/ingest/sync` records what the backend ingests, as the real service would index it;
 // `/ingest/status` reports those as indexed and anything else as unknown; `GET /__e2e/ingested`
 // lists them so the seed can wait until an upload has arrived.
@@ -68,6 +70,14 @@ function ingestStatus(query) {
     })),
   };
 }
+
+const DEPLOY_PIPELINE_GAP = {
+  component: "deploy-pipeline",
+  missingTypes: ["runbook"],
+  presentTypes: ["readme"],
+  lastUpdated: "2026-10-01T09:00:00Z",
+  severity: "high",
+};
 
 function classify(body) {
   const question = (body.question ?? "").trim();
@@ -156,6 +166,7 @@ const routes = {
   "/api/v1/ingest/sync": (body) => ({ json: ingest(body) }),
   "/api/v1/ingest/status": (_, query) => ({ json: ingestStatus(query) }),
   "/api/v1/insights/faq/classify": (body) => ({ json: classify(body) }),
+  "/api/v1/insights/knowledge-gaps/detect": () => ({ json: { gaps: [DEPLOY_PIPELINE_GAP] } }),
   "/__e2e/ingested": () => ({ json: ingested }),
 };
 

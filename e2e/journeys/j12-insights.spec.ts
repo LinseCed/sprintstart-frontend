@@ -1,10 +1,13 @@
 /**
- * J12 — Read FAQ, knowledge gaps and onboarding insights (docs/testing/e2e-journeys.md): the FAQ.
+ * J12 — Read FAQ, knowledge gaps and onboarding insights (docs/testing/e2e-journeys.md): the FAQ
+ * and the knowledge gaps.
  *
  * Every question a hire asks the buddy is classified by the AI service and filed into the project's
  * FAQ (`/insights/faq/classify`, answered by e2e/ai-stub with an entry titled after the question).
  * The PM then reads it under Questions. Filing runs after the answer, so the page is reloaded until
- * the entry is there.
+ * the entry is there. A rescan of the knowledge gaps asks the AI service to classify the corpus
+ * (`/insights/knowledge-gaps/detect`, answered by the stub with one fixed gap), and the backend stores
+ * and serves what it got.
  */
 import { expect, test } from "@playwright/test";
 import { storageStateOf } from "../stack.ts";
@@ -25,4 +28,14 @@ test("a hire's question shows up in the PM's FAQ", async ({ browser }) => {
     await pm.getByRole("button", { name: /^Questions/ }).click();
     await expect(pm.getByText(question)).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 60_000 });
+});
+
+test("a rescan shows the knowledge gap the AI found", async ({ browser }) => {
+  const pm = await (await browser.newContext({ storageState: storageStateOf("pm") })).newPage();
+  await pm.goto("/");
+  await pm.getByRole("link", { name: /PM\s*Dashboard/ }).click();
+  await pm.getByRole("button", { name: /^Knowledge gaps/ }).click();
+
+  await pm.getByRole("button", { name: "Rescan now" }).click();
+  await expect(pm.getByText("deploy-pipeline").first()).toBeVisible();
 });
