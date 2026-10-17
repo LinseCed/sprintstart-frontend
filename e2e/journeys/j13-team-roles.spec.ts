@@ -1,0 +1,38 @@
+/**
+ * J13 — Manage team members and roles (docs/testing/e2e-journeys.md).
+ *
+ * The PM creates a role on the E2E project and gives it to the second hire. The role and its member
+ * are read again after a reload, so both have to come back from the backend. The second hire is the
+ * one assigned, because no other journey looks at their roles.
+ */
+import { expect, test, type Page } from "@playwright/test";
+import { storageStateOf } from "../stack.ts";
+
+test.use({ storageState: storageStateOf("pm") });
+
+async function openRoles(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.getByRole("link", { name: /PM\s*Dashboard/ }).click();
+  await page.getByRole("button", { name: /^Team/ }).click();
+  await page.getByRole("button", { name: "Roles", exact: true }).click();
+}
+
+test("the PM creates a role and gives it to a member", async ({ page }) => {
+  // The stack keeps its data between runs, so the role is unique to this run.
+  const role = `E2E Role ${crypto.randomUUID().slice(0, 8)}`;
+  await openRoles(page);
+
+  await page.getByRole("button", { name: "New role" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(role);
+  await page.getByLabel("Description").fill("Created by the end-to-end journey");
+  await page.getByRole("button", { name: "Create role" }).click();
+
+  await page.getByRole("button", { name: `Manage skills and members of ${role}` }).click();
+  await page.getByRole("checkbox", { name: /Kai E2E/ }).check();
+  await page.getByRole("button", { name: "Save 1 change" }).click();
+
+  await page.reload();
+  await openRoles(page);
+  await page.getByRole("button", { name: `Manage skills and members of ${role}` }).click();
+  await expect(page.getByRole("checkbox", { name: /Kai E2E/ })).toBeChecked();
+});
