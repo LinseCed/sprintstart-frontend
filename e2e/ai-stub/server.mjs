@@ -1,4 +1,4 @@
-// Stand-in for sprintstart-ai in the end-to-end stack (AI_RULES R19): answers the backend's calls with
+// Stand-in for sprintstart-ai in the end-to-end stack: answers the backend's calls with
 // fixed, contract-shaped responses, so a journey never depends on a model. The stream events follow
 // sprintstart-ai's `contracts/agent-stream-events.schema.json`. Anything not listed here answers 503
 // and is logged — the journey then shows how the product copes with the AI being unavailable.

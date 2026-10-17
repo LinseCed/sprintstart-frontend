@@ -65,7 +65,7 @@ CLAUDE.local.md
 .worktrees/
 .worktreeinclude
 
-# Quality tooling output (AI_RULES R25)
+# Quality tooling output
 reports/
 .stryker-tmp/
 test-results/

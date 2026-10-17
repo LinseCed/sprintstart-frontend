@@ -1,5 +1,5 @@
 /**
- * End-to-end journeys (AI_RULES R19, docs/testing/e2e-journeys.md) against the stack from
+ * End-to-end journeys (docs/testing/e2e-journeys.md) against the stack from
  * `bash e2e/stack.sh up`: real Keycloak, backend and database, with the AI replaced by e2e/ai-stub.
  * The production build is served by `vite preview` on the port Keycloak's client allows.
  */

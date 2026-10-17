@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Starts or stops the end-to-end stack (AI_RULES R19): sprintstart-backend's compose file with
+# Starts or stops the end-to-end stack: sprintstart-backend's compose file with
 # e2e/compose.e2e.yaml on top. BACKEND_DIR points at a checkout of sprintstart-backend
 # (default: ../sprintstart-backend next to this repository).
 #
