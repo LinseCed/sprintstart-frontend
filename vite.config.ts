@@ -39,7 +39,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./tests/unit/setup/vitest.setup.ts",
-    exclude: [...configDefaults.exclude, "**/.worktrees/**"],
+    // e2e/ holds Playwright journeys, which run against the real stack with `npm run e2e`.
+    exclude: [...configDefaults.exclude, "**/.worktrees/**", "e2e/**"],
     // An axe scan of a full page takes seconds, and the a11y suite runs many of them in
     // parallel. The default 5s bounds machine load rather than the code under test, so a
     // busy runner fails whichever file happens to be scheduled last.
