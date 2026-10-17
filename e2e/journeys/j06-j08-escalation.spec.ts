@@ -53,8 +53,9 @@ test("a question for the PM is flagged only after the hire confirms, answered on
 
   const reply = `The freeze starts Thursday at 18:00 (${crypto.randomUUID().slice(0, 8)}).`;
   await request.getByRole("button", { name: "Answer", exact: true }).click();
-  await request.getByPlaceholder("Answer it once, for everyone after.").fill(reply);
-  await request.getByRole("button", { name: "Answer & publish" }).click();
+  // Only one answer box is open, and the card no longer offers "Answer" once it is.
+  await pm.getByPlaceholder("Answer it once, for everyone after.").fill(reply);
+  await pm.getByRole("button", { name: "Answer & publish" }).click();
 
   await expect(pm.getByText(question)).toHaveCount(0);
   await pm.getByRole("button", { name: /^Durable answers/ }).click();

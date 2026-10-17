@@ -5,7 +5,7 @@
  * Every question a hire asks the buddy is classified by the AI service and filed into the project's
  * FAQ (`/insights/faq/classify`, answered by e2e/ai-stub with an entry titled after the question).
  * The PM then reads it under Questions. Filing runs after the answer, so the page is reloaded until
- * the entry is there. A rescan of the knowledge gaps asks the AI service to classify the corpus
+ * the entry is there. A scan of the knowledge gaps asks the AI service to classify the corpus
  * (`/insights/knowledge-gaps/detect`, answered by the stub with one fixed gap), and the backend stores
  * and serves what it got.
  */
@@ -30,12 +30,16 @@ test("a hire's question shows up in the PM's FAQ", async ({ browser }) => {
   }).toPass({ timeout: 60_000 });
 });
 
-test("a rescan shows the knowledge gap the AI found", async ({ browser }) => {
+test("a scan shows the knowledge gap the AI found", async ({ browser }) => {
   const pm = await (await browser.newContext({ storageState: storageStateOf("pm") })).newPage();
-  await pm.goto("/");
-  await pm.getByRole("link", { name: /PM\s*Dashboard/ }).click();
-  await pm.getByRole("button", { name: /^Knowledge gaps/ }).click();
-
-  await pm.getByRole("button", { name: "Rescan now" }).click();
-  await expect(pm.getByText("deploy-pipeline").first()).toBeVisible();
+  // The backend rescans by itself once newly uploaded documentation is indexed, and the seed
+  // uploads some, so a scan may already be running; otherwise the PM starts one.
+  await expect(async () => {
+    await pm.goto("/");
+    await pm.getByRole("link", { name: /PM\s*Dashboard/ }).click();
+    await pm.getByRole("button", { name: /^Knowledge gaps/ }).click();
+    const rescan = pm.getByRole("button", { name: "Rescan now" });
+    if (await rescan.isEnabled().catch(() => false)) await rescan.click();
+    await expect(pm.getByText("deploy-pipeline").first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 120_000 });
 });
