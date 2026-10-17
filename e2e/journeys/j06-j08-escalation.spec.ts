@@ -43,7 +43,11 @@ test("a question for the PM is flagged only after the hire confirms, answered on
   await expect(hire.getByText(/Flagged to your PM/).last()).toBeVisible();
 
   await openEscalations(pm);
-  const request = pm.getByRole("listitem").filter({ hasText: question });
+  // The escalation itself, not the FAQ entry the same question was filed into.
+  const request = pm
+    .getByRole("listitem")
+    .filter({ hasText: question })
+    .filter({ has: pm.getByRole("button", { name: "Answer", exact: true }) });
   await expect(request).toBeVisible();
   await expect(request.getByText("Hana E2E")).toBeVisible();
 
