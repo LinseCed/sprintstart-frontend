@@ -1,8 +1,4 @@
-// ============================================================
-// features/dashboard/layout/storage.ts
-// ============================================================
 // Where a user's dashboard arrangement lives between visits.
-// ============================================================
 
 import { isDashboardWidgetSize } from "./sizes";
 import type { DashboardLayout, DashboardWidgetId } from "./types";

@@ -1,11 +1,9 @@
-// ============================================================
 // IngestionStatusWidget.tsx
 // PM overview card — surfaces ingestion sync health (synced
 // sources, ingested artifacts, errors) using the same
 // `/api/v1/ingestion-status` endpoint and merge logic as the
 // Data Ingestion page, so the PM area never re-implements
 // ingestion status handling.
-// ============================================================
 
 import { AlertTriangle, CheckCircle2, Database, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
