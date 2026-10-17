@@ -8,6 +8,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 const keepAliveAgent = new http.Agent({ keepAlive: true });
 
+// Tests run in a fixed zone with daylight saving, so local-day conversions have known offsets.
+// It is set here, before any worker starts: a worker thread (Stryker runs Vitest with them)
+// ignores a later change to `process.env.TZ`, unlike a forked worker.
+process.env.TZ = "Europe/Berlin";
+
 export default defineConfig({
   plugins: [
     react(),
