@@ -10,8 +10,9 @@
 // - it asks for the source: the turn answers `cited`, citing the artifact ingested last;
 // - anything else: the turn answers with `answer`.
 //
-// `/ingest/sync` records what the backend ingests, as the real service would index it, and
-// `GET /__e2e/ingested` lists it so the seed can wait until an upload has arrived.
+// `/ingest/sync` records what the backend ingests, as the real service would index it;
+// `/ingest/status` reports those as indexed and anything else as unknown; `GET /__e2e/ingested`
+// lists them so the seed can wait until an upload has arrived.
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
@@ -49,6 +50,19 @@ function ingest(body) {
       status: "completed",
     })),
     deindexed: [...removed].map((id) => ({ artifact_id: id, status: "completed" })),
+  };
+}
+
+function ingestStatus(query) {
+  const known = new Set(ingested.map((a) => a.artifactId));
+  const ids = [...new Set(query.getAll("artifact_ids"))];
+  return {
+    items: ids.map((id) => ({
+      artifact_id: id,
+      status: known.has(id) ? "indexed" : "unknown",
+      updated_at: null,
+      chunk_count: known.has(id) ? 1 : null,
+    })),
   };
 }
 
@@ -130,6 +144,7 @@ const routes = {
   "/api/v1/onboarding/buddy/compact": () => ({ json: { summary: "", summarized_count: 0 } }),
   "/api/v1/artifacts/projects/sync": () => ({ json: {} }),
   "/api/v1/ingest/sync": (body) => ({ json: ingest(body) }),
+  "/api/v1/ingest/status": (_, query) => ({ json: ingestStatus(query) }),
   "/__e2e/ingested": () => ({ json: ingested }),
 };
 
@@ -147,7 +162,8 @@ function parse(raw) {
 }
 
 createServer((request, response) => {
-  const path = (request.url ?? "").split("?")[0];
+  const url = new URL(request.url ?? "/", "http://stub");
+  const path = url.pathname;
   const route = routeFor(path);
   let raw = "";
   request.on("data", (chunk) => (raw += chunk));
@@ -158,7 +174,7 @@ createServer((request, response) => {
       response.end(JSON.stringify({ detail: "not stubbed for end-to-end tests" }));
       return;
     }
-    const { stream, json } = route(parse(raw));
+    const { stream, json } = route(parse(raw), url.searchParams);
     console.log(`[ai-stub] 200 ${request.method} ${path}`);
     response.writeHead(200, { "Content-Type": stream ? "text/event-stream" : "application/json" });
     response.end(stream ?? JSON.stringify(json));
