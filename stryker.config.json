@@ -5,6 +5,7 @@
   "plugins": ["@stryker-mutator/vitest-runner"],
   "vitest": { "configFile": "vite.config.ts" },
   "coverageAnalysis": "perTest",
+  "dryRunTimeoutMinutes": 15,
   "ignoreStatic": true,
   "reporters": ["clear-text", "json"],
   "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
