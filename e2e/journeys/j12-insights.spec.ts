@@ -30,7 +30,8 @@ test("a hire's question shows up in the PM's FAQ", async ({ browser }) => {
     await pm.goto("/");
     await pm.getByRole("link", { name: /PM\s*Dashboard/ }).click();
     await pm.getByRole("button", { name: /^Questions/ }).click();
-    await expect(pm.getByText(question)).toBeVisible({ timeout: 3_000 });
+    // The entry is titled after the question and shows it again as its sample question.
+    await expect(pm.getByText(question).first()).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 60_000 });
 });
 
