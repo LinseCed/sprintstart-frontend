@@ -312,11 +312,6 @@
       "count": 1
     }
   },
-  "src/features/admin/components/ProjectUserList.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/features/admin/components/ProjectsTab.tsx": {
     "max-lines-per-function": {
       "count": 2
@@ -432,11 +427,6 @@
     }
   },
   "src/features/arrival/hooks/useArrivalAuthoring.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/features/attestation/components/PendingAttestations.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
@@ -2093,30 +2083,6 @@
       "count": 1
     }
   },
-  "src/features/team-management/components/ProjectInsightsCard.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/features/team-management/components/ProjectInsightsPanel.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/features/team-management/components/ProjectRolesModal.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/features/team-management/components/RoleManagementTab.tsx": {
     "complexity": {
       "count": 4
@@ -2134,11 +2100,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/features/team-management/components/RolesSkillsPanel.tsx": {
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/features/team-management/components/SkillSuggestionPanel.tsx": {
