@@ -14,7 +14,8 @@ async function openRoles(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("link", { name: /PM\s*Dashboard/ }).click();
   await page.getByRole("button", { name: /^Team/ }).click();
-  await page.getByRole("button", { name: "Roles", exact: true }).click();
+  // Named "Roles 1" once a role exists, so matched by its start.
+  await page.getByRole("button", { name: /^Roles/ }).click();
 }
 
 test("the PM creates a role and gives it to a member", async ({ page }) => {
