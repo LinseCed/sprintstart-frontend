@@ -3,6 +3,7 @@
 export const APP_URL = "http://localhost:5173";
 export const KEYCLOAK_URL = "http://localhost:8081/auth";
 export const BACKEND_URL = "http://localhost:8080";
+export const AI_STUB_URL = "http://localhost:8000";
 export const REALM = "sprintstart";
 export const PROJECT_NAME = "E2E Project";
 
@@ -27,6 +28,13 @@ export const USERS = {
     memberOfProject: true,
     managesProject: false,
   },
+  secondHire: {
+    username: "e2e.hire2",
+    firstName: "Kai",
+    realmRoles: ["user"],
+    memberOfProject: true,
+    managesProject: false,
+  },
   pm: {
     username: "e2e.pm",
     firstName: "Pia",
@@ -46,3 +54,9 @@ export const USERS = {
 export type Role = keyof typeof USERS;
 
 export const storageStateOf = (role: Role): string => `e2e/.auth/${role}.json`;
+
+/** The document the seed uploads into the project, so the buddy has something to cite (J05). */
+export const DEPLOY_GUIDE = {
+  filename: "e2e-deploy-guide.md",
+  text: "# Deploy guide\n\nReleases are cut from the release branch every Thursday at 18:00.\n",
+};
