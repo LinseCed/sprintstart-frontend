@@ -1,6 +1,6 @@
 name: End-to-end journeys
 
-# AI_RULES.md R19: the journeys in docs/testing/e2e-journeys.md against a real stack — Keycloak, backend
+# The journeys in docs/testing/e2e-journeys.md against a real stack — Keycloak, backend
 # and database from the images published on `dev`, with the AI replaced by e2e/ai-stub.
 
 on:

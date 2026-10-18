@@ -1,7 +1,7 @@
 # End-to-end journeys
 
 Every user-facing journey of SprintStart, across all three repositories, and the end-to-end
-test that covers it (AI_RULES.md R19). A PR in any repository that adds or changes a journey
+test that covers it. A PR in any repository that adds or changes a journey
 updates its row here and links it from the PR.
 
 **Status:** J01, J02, J05, J06, J07, J08, J09, J10, J11, J13 and J14 run automatically on every PR (`.github/workflows/e2e.yml`). The others

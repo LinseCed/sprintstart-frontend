@@ -1,4 +1,4 @@
-// Counts dead code for scripts/quality/metrics.sh (AI_RULES R26): unused files, exports, types and
+// Counts dead code for scripts/quality/metrics.sh: unused files, exports, types and
 // members. Dependencies are left out — several are used from CSS, which knip does not read.
 import { execFileSync } from "node:child_process";
 
