@@ -26,6 +26,8 @@ jobs:
           node-version: 24
           cache: "npm"
 
+      - uses: ./.github/actions/node-exit-safe
+
       - run: npm ci
 
       - name: Mutation gate on changed files
