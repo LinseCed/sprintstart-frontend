@@ -1,9 +1,5 @@
-// ============================================================
-// features/dashboard/layout/sizes.ts
-// ============================================================
 // The grid: three sizes that tile a four-column row exactly,
 // however they are ordered.
-// ============================================================
 
 import type { DashboardWidgetDefinition, DashboardWidgetSize } from "./types";
 
