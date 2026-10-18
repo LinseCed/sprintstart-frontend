@@ -1,6 +1,6 @@
 name: Mutation testing
 
-# AI_RULES.md R25. On a PR: the files it changed must have a mutation score of at least MUTATION_MIN.
+# On a PR: the files it changed must have a mutation score of at least MUTATION_MIN.
 # Nightly: the whole frontend, as a report for the quality trend (never fails).
 
 on:
@@ -25,6 +25,8 @@ jobs:
         with:
           node-version: 24
           cache: "npm"
+
+      - uses: ./.github/actions/node-exit-safe
 
       - run: npm ci
 

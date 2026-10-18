@@ -55,10 +55,10 @@ in [UI_DESIGN_DECISIONS.md](./UI_DESIGN_DECISIONS.md).
 - **No type suppressions** — never commit `// @ts-ignore` or `// @ts-expect-error`.
   Fix the underlying type mismatch instead.
 
-- **No new `eslint-disable`** ([AI_RULES.md](../AI_RULES.md) R4). If a rule fires,
+- **No new `eslint-disable`**. If a rule fires,
   restructure the code. If the rule is genuinely wrong for one case, that is a human
   decision: one rule, one line (`// eslint-disable-next-line <rule> -- <reason>`),
-  and the PR needs the `quality-exception` label from a second person (R2). An agent
+  and the PR needs the `quality-exception` label from a second person. An agent
   never adds one. The quality ratchet counts the existing disables, and the count may
   only go down.
 
@@ -408,7 +408,7 @@ ESLint flat config ([`eslint.config.js`](../eslint.config.js)):
 - `react-refresh` Vite preset.
 - `jsx-a11y` flat recommended.
 - `prettier` (formatting via `eslint-config-prettier`).
-- Size and complexity limits for `src/` ([AI_RULES.md](../AI_RULES.md) R3):
+- Size and complexity limits for `src/`:
   `max-lines-per-function` 60, `complexity` 10, `max-depth` 3, `max-params` 4,
   `max-lines` 400, all errors. Existing violations are frozen in
   [`eslint-suppressions.json`](../eslint-suppressions.json); after fixing one, run
