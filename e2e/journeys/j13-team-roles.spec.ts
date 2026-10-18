@@ -35,8 +35,9 @@ test("the PM creates a role and gives it to a member", async ({ page }) => {
   await page.locator("label").filter({ hasText: "Kai E2E" }).click();
   await expect(page.getByRole("checkbox", { name: /Kai E2E/ })).toBeChecked();
   await page.getByRole("button", { name: "Save 1 change" }).click();
+  await expect(page.getByText("Members updated")).toBeVisible();
 
-  await page.reload();
+  // openRoles loads the app afresh; a reload before it would race its navigation.
   await openRoles(page);
   await page.getByRole("button", { name: `Manage skills and members of ${role}` }).click();
   await expect(page.getByRole("checkbox", { name: /Kai E2E/ })).toBeChecked();
