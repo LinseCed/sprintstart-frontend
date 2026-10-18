@@ -11,6 +11,10 @@ import { storageStateOf } from "../stack.ts";
 
 test.use({ storageState: storageStateOf("pm") });
 
+// The reload loops below wait for work the backend does in the background; the default 30 s
+// would end them first.
+test.setTimeout(120_000);
+
 test("an uploaded document shows up in the knowledge base as indexed", async ({ page }) => {
   // The stack keeps its data between runs, so the file is unique to this run.
   const filename = `e2e-onboarding-notes-${crypto.randomUUID().slice(0, 8)}.md`;
