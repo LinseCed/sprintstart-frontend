@@ -660,7 +660,7 @@ export function BlueprintPathDetailPage() {
    * lands.
    *
    * The state is cleared as soon as it is acted on: a reload or a step back through history must
-   * not open the same thing again, and a title that no longer matches anything is not a reason to
+   * not open the same thing again, and a title that matches nothing is not a reason to
    * keep asking.
    */
   const reopenRequest = (location.state as { reopen?: BlueprintReopen } | null)?.reopen ?? null;
