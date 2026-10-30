@@ -1,5 +1,6 @@
 import type {
   BlueprintOption,
+  BlueprintPath,
   BlueprintPhase,
   BlueprintQuestion,
   BlueprintResource,
@@ -39,6 +40,9 @@ export type RequirementCatalog = {
 };
 
 export type LifecycleAction = "publish" | "rollback" | "delete-draft";
+
+/** A one-way lifecycle action waiting for the author to confirm it, and the version it is about. */
+export type PendingLifecycle = { action: LifecycleAction; version: BlueprintPath };
 
 /**
  * What to put back in front of the author after landing somewhere new.

@@ -29,7 +29,6 @@ import { SegmentedTabs } from "../components/ui/SegmentedTabs.tsx";
 import { Select } from "../components/ui/Select.tsx";
 import { Textarea } from "../components/ui/Textarea.tsx";
 import { PhasePrerequisites } from "../features/blueprints/components/PhasePrerequisites.tsx";
-import { versionWord } from "../features/blueprints/pathLifecycle.ts";
 import { useToast } from "../context/useToast.ts";
 import { useSwipeableTabs } from "../hooks/useHorizontalWheelNavigation.ts";
 import type {
@@ -60,10 +59,9 @@ import {
   type CreateTarget,
   type EditTarget,
   type EditorMode,
-  type LifecycleAction,
   type SortKind,
 } from "../features/blueprints/pathEditorTypes.ts";
-import { LIFECYCLE_COPY, kindLabels } from "../features/blueprints/pathEditorCopy.ts";
+import { kindLabels } from "../features/blueprints/pathEditorCopy.ts";
 import { withGraphNodes } from "../features/blueprints/withGraphNodes.ts";
 import {
   ArchiveDialog,
@@ -78,6 +76,11 @@ import {
   useRemoveRequirement,
 } from "../features/blueprints/useRequirementEdits.ts";
 import { useRequirementPicker } from "../features/blueprints/useRequirementPicker.ts";
+import { VersionHistoryModal } from "../features/blueprints/components/VersionHistoryModal.tsx";
+import { blueprintAddress, type PathPageContext } from "../features/blueprints/pathPageContext.ts";
+import { useArchive, useLifecycleActions } from "../features/blueprints/useLifecycleActions.ts";
+import { useDraftPrompt, useEditAsDraft } from "../features/blueprints/useDraftPrompt.ts";
+import { useVersionHistory } from "../features/blueprints/useVersionHistory.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -132,20 +135,6 @@ export function BlueprintPathDetailPage() {
   const [collapsedPhaseIds, setCollapsedPhaseIds] = useState<Set<string>>(() => new Set());
   const [collapsedStepIds, setCollapsedStepIds] = useState<Set<string>>(() => new Set());
   const [collapsedQuestionIds, setCollapsedQuestionIds] = useState<Set<string>>(() => new Set());
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [history, setHistory] = useState<BlueprintPath[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-  const [isArchiving, setIsArchiving] = useState(false);
-  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
-  const [pendingLifecycle, setPendingLifecycle] = useState<{
-    action: LifecycleAction;
-    version: BlueprintPath;
-  } | null>(null);
-  const [isLifecycleBusy, setIsLifecycleBusy] = useState(false);
-  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
-  const [isDraftPromptOpen, setIsDraftPromptOpen] = useState(false);
-  const [isOpeningDraft, setIsOpeningDraft] = useState(false);
-  const [draftPromptError, setDraftPromptError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     kind: CreateKind;
     id: string;
@@ -203,6 +192,23 @@ export function BlueprintPathDetailPage() {
     [blueprintScope, pathId],
   );
 
+  const pageContext: PathPageContext = {
+    path,
+    pathId,
+    scope: blueprintScope,
+    isGlobal,
+    listPath: blueprintListPath,
+    navigate,
+    loadPath,
+    setPageError: setError,
+  };
+  const history = useVersionHistory(pageContext);
+  const lifecycle = useLifecycleActions(pageContext, history);
+  const archive = useArchive(pageContext);
+  const draftPrompt = useDraftPrompt(pageContext);
+  const editAsDraft = useEditAsDraft(pageContext);
+  const { isDraft, whenEditable, openDraftAndContinue } = draftPrompt;
+
   useEffect(() => {
     if (!isGlobal) {
       if (isProjectLoading) return;
@@ -220,113 +226,6 @@ export function BlueprintPathDetailPage() {
     }
     void loadPath();
   }, [isGlobal, isProjectLoading, loadPath, navigate, selectedProjectId]);
-
-  async function openHistory() {
-    if (!path) return;
-    setIsHistoryOpen(true);
-    setIsHistoryLoading(true);
-    try {
-      setHistory(await blueprintService.getHistory(blueprintScope, path.blueprintKey));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Blueprint history could not be loaded.");
-    } finally {
-      setIsHistoryLoading(false);
-    }
-  }
-
-  async function rollback() {
-    if (!path) return;
-    const restored = await blueprintService.rollbackPath(
-      blueprintScope,
-      path.blueprintKey,
-      path.version,
-    );
-    if (restored.id === pathId) {
-      // Same address, so the load effect will not refire -- and the response cannot be set
-      // straight into state: `GET /paths/{id}` carries no `graphX`/`graphY`/`blockerIds`, so that
-      // emptied the canvas and the next drag saved a position against it. See `loadPath`.
-      await loadPath(false);
-      return;
-    }
-    void navigate(`/blueprints/${restored.id}${isGlobal ? "?scope=global" : ""}`);
-  }
-
-  async function publish() {
-    if (!path) return;
-    await blueprintService.publishPath(blueprintScope, path.id);
-    // Publishing answers with the same nested DTO, so the graph has to be put back.
-    await loadPath(false);
-    toast.success(`Version ${path.version} is now the published blueprint`, {
-      description: "New hires on this project are given it from now on.",
-    });
-  }
-
-  /**
-   * Runs whichever lifecycle action was confirmed, one at a time.
-   *
-   * All three are one-way -- publishing swaps what new hires are handed, reverting does the same,
-   * and a deleted draft has no undo endpoint -- so each is asked about first, and the dialog holds
-   * the answer while the request is in flight, so a second click cannot send a second request.
-   */
-  async function runLifecycleAction() {
-    const pending = pendingLifecycle;
-    if (!pending || isLifecycleBusy) return;
-    setIsLifecycleBusy(true);
-    setLifecycleError(null);
-    try {
-      if (pending.action === "publish") await publish();
-      else if (pending.action === "rollback") await rollback();
-      else await deleteDraft(pending.version);
-      setPendingLifecycle(null);
-    } catch (reason) {
-      setLifecycleError(
-        reason instanceof Error ? reason.message : LIFECYCLE_COPY[pending.action].failure,
-      );
-    } finally {
-      setIsLifecycleBusy(false);
-    }
-  }
-
-  async function archivePath() {
-    if (!path) return;
-    setIsArchiving(true);
-    setError(null);
-    try {
-      await blueprintService.archivePath(blueprintScope, path.blueprintKey);
-      setIsArchiveConfirmOpen(false);
-      toast.success(`"${path.title}" archived`);
-      void navigate(blueprintListPath);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Blueprint path could not be archived.");
-    } finally {
-      setIsArchiving(false);
-    }
-  }
-
-  /** Opens the draft of the published version and moves to it. */
-  function editAsDraft() {
-    if (!path) return Promise.resolve();
-    return blueprintService
-      .openDraft(blueprintScope, path.blueprintKey)
-      .then((draft) => {
-        toast.info(`Editing draft v${draft.version}`, {
-          description: `Version ${path.version} stays published until you publish this one.`,
-        });
-        return navigate(`/blueprints/${draft.id}${isGlobal ? "?scope=global" : ""}`);
-      })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "Draft could not be opened."),
-      );
-  }
-
-  async function deleteDraft(version: BlueprintPath) {
-    await blueprintService.deleteDraft(blueprintScope, version.id);
-    setHistory((current) => current.filter((item) => item.id !== version.id));
-    if (version.id === pathId) {
-      setIsHistoryOpen(false);
-      void navigate(blueprintListPath);
-    }
-  }
 
   function openCreate(
     kind: CreateKind,
@@ -355,57 +254,6 @@ export function BlueprintPathDetailPage() {
     setIsCorrect(false);
     setItemFormError(null);
     setTarget({ kind, parentId, position, graphPosition });
-  }
-
-  /**
-   * Whether authoring actions apply right now.
-   *
-   * Only a draft is editable — the backend refuses a mutation on a published or archived path — but
-   * hiding every control on a published one left a page that looks like an editor and silently is
-   * not. So the controls stay, and asking one of them explains why and offers the way forward.
-   */
-  const isDraft = path?.status === "DRAFT";
-
-  /** Runs an authoring action on a draft, or offers to make one first. */
-  function whenEditable(run: () => void) {
-    if (isDraft) {
-      run();
-      return;
-    }
-    setDraftPromptError(null);
-    setIsDraftPromptOpen(true);
-  }
-
-  /**
-   * Opens (or reuses) the draft for this blueprint and continues there.
-   *
-   * `reopen` is what the author was looking at when they asked. Given one, the draft is opened
-   * without stopping to explain first: the question was asked from inside that very phase, with a
-   * line above the button already saying the version is read-only, and the toast on arrival says
-   * what stays published. The dialog is for the buttons scattered across the outline, where
-   * "why can I not type here" has not been answered yet.
-   */
-  async function openDraftAndContinue(reopen: BlueprintReopen | null) {
-    if (!path) return;
-    setIsOpeningDraft(true);
-    setDraftPromptError(null);
-    try {
-      const draft = await blueprintService.openDraft(blueprintScope, path.blueprintKey);
-      setIsDraftPromptOpen(false);
-      toast.info(`Editing draft v${draft.version}`, {
-        description: `Version ${path.version} stays published until you publish this one.`,
-      });
-      void navigate(`/blueprints/${draft.id}${isGlobal ? "?scope=global" : ""}`, {
-        state: reopen ? { reopen } : null,
-      });
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "The draft could not be opened.";
-      // With no dialog on screen there is nowhere for the dialog's error line to be read.
-      if (reopen) toast.error("The draft could not be opened", { description: message });
-      else setDraftPromptError(message);
-    } finally {
-      setIsOpeningDraft(false);
-    }
   }
 
   /** A graph edit asked for from the outline: made on a draft, and offered as one on anything else. */
@@ -1540,45 +1388,41 @@ export function BlueprintPathDetailPage() {
       />
       <DraftPromptDialog
         path={path}
-        isOpen={isDraftPromptOpen}
-        isBusy={isOpeningDraft}
-        error={draftPromptError}
-        onClose={() => setIsDraftPromptOpen(false)}
+        isOpen={draftPrompt.isOpen}
+        isBusy={draftPrompt.isOpening}
+        error={draftPrompt.error}
+        onClose={draftPrompt.close}
         onConfirm={() => {
           if (path.status === "ARCHIVED") {
-            setIsDraftPromptOpen(false);
+            draftPrompt.close();
             return;
           }
           void openDraftAndContinue(null);
         }}
       />
       <ArchiveDialog
-        isOpen={isArchiveConfirmOpen}
-        isBusy={isArchiving}
-        onClose={() => setIsArchiveConfirmOpen(false)}
-        onConfirm={() => void archivePath()}
+        isOpen={archive.isConfirmOpen}
+        isBusy={archive.isArchiving}
+        onClose={archive.cancel}
+        onConfirm={() => void archive.archive()}
       />
       <LifecycleDialog
-        pending={pendingLifecycle}
-        isBusy={isLifecycleBusy}
-        error={lifecycleError}
-        onCancel={() => {
-          if (isLifecycleBusy) return;
-          setPendingLifecycle(null);
-          setLifecycleError(null);
-        }}
-        onConfirm={() => void runLifecycleAction()}
+        pending={lifecycle.pending}
+        isBusy={lifecycle.isBusy}
+        error={lifecycle.error}
+        onCancel={lifecycle.cancel}
+        onConfirm={() => void lifecycle.run()}
       />
       <BlueprintPathHeader
         path={path}
-        isArchiving={isArchiving}
-        isLifecycleBusy={isLifecycleBusy}
+        isArchiving={archive.isArchiving}
+        isLifecycleBusy={lifecycle.isBusy}
         onBack={() => void navigate(blueprintListPath)}
-        onOpenHistory={() => void openHistory()}
-        onArchive={() => setIsArchiveConfirmOpen(true)}
+        onOpenHistory={() => void history.open()}
+        onArchive={archive.ask}
         onEditAsDraft={() => void editAsDraft()}
-        onRevert={() => setPendingLifecycle({ action: "rollback", version: path })}
-        onPublish={() => setPendingLifecycle({ action: "publish", version: path })}
+        onRevert={() => lifecycle.request({ action: "rollback", version: path })}
+        onPublish={() => lifecycle.request({ action: "publish", version: path })}
       />
 
       {/* The swipe listens on the page body, not on the bar: a gesture that only works while the
@@ -2300,75 +2144,14 @@ export function BlueprintPathDetailPage() {
           isSaving={addRequirements.isSaving}
           onSubmit={(event) => void addRequirements.submit(event)}
         />
-        <Modal
-          isOpen={isHistoryOpen}
-          title="Version history"
-          description="Select a version to inspect or restore it."
-          onClose={() => setIsHistoryOpen(false)}
-          size="lg"
-        >
-          {isHistoryLoading ? (
-            <div className="flex items-center gap-3 py-8 text-app-text-muted">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading versions…
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {history.map((version) => {
-                const badge = (
-                  <Badge
-                    variant={
-                      version.status === "ACTIVE"
-                        ? "success"
-                        : version.status === "ARCHIVED"
-                          ? "neutral"
-                          : "warning"
-                    }
-                  >
-                    {versionWord(version.status)}
-                  </Badge>
-                );
-
-                return (
-                  <article
-                    key={version.id}
-                    className="flex items-center gap-2 rounded-xl border border-app-border bg-app-surface p-1"
-                  >
-                    <Button
-                      variant="ghost"
-                      fullWidth
-                      className="h-auto min-w-0 flex-1 justify-between px-3 py-2 text-left"
-                      onClick={() => {
-                        setIsHistoryOpen(false);
-                        void navigate(
-                          `/blueprints/${version.id}${isGlobal ? "?scope=global" : ""}`,
-                        );
-                      }}
-                    >
-                      <span className="min-w-0">
-                        <span className="block font-semibold">Version {version.version}</span>
-                        <span className="mt-1 block truncate text-xs text-app-text-muted">
-                          {version.description || "No description"}
-                        </span>
-                      </span>
-                      {badge}
-                    </Button>
-                    {version.status === "DRAFT" ? (
-                      <Button
-                        aria-label={`Delete draft version ${version.version}`}
-                        iconOnly
-                        variant="dangerGhost"
-                        loading={isLifecycleBusy && pendingLifecycle?.version.id === version.id}
-                        onClick={() => setPendingLifecycle({ action: "delete-draft", version })}
-                      >
-                        <Minus className="h-4 w-4" strokeWidth={2.5} />
-                      </Button>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </Modal>
+        <VersionHistoryModal
+          history={history}
+          lifecycle={lifecycle}
+          onOpenVersion={(version) => {
+            history.close();
+            void navigate(blueprintAddress(version.id, isGlobal));
+          }}
+        />
         <Modal
           isOpen={target !== null || editTarget !== null}
           zIndexClassName="z-[60]"
