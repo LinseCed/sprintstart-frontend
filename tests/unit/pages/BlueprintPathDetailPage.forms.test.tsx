@@ -153,7 +153,7 @@ describe("BlueprintPathDetailPage adding content", () => {
 
     await waitFor(() =>
       expect(service.createTask).toHaveBeenCalledWith(PROJECT_SCOPE, "step-1", {
-        position: 1,
+        position: 2,
         title: "Pull main",
         description: "Daily",
       }),
