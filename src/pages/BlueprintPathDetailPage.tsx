@@ -22,14 +22,8 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { Badge } from "../components/ui/Badge.tsx";
 import { Button } from "../components/ui/Button.tsx";
 import { EmptyState } from "../components/ui/EmptyState.tsx";
-import { Field } from "../components/ui/Field.tsx";
-import { Input } from "../components/ui/Input.tsx";
-import { Modal } from "../components/ui/Modal.tsx";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs.tsx";
-import { Select } from "../components/ui/Select.tsx";
-import { Textarea } from "../components/ui/Textarea.tsx";
 import { PhasePrerequisites } from "../features/blueprints/components/PhasePrerequisites.tsx";
-import { useToast } from "../context/useToast.ts";
 import { useSwipeableTabs } from "../hooks/useHorizontalWheelNavigation.ts";
 import type {
   BlueprintOption,
@@ -56,12 +50,10 @@ import {
   EDITOR_MODE_ORDER,
   type BlueprintReopen,
   type CreateKind,
-  type CreateTarget,
   type EditTarget,
   type EditorMode,
   type SortKind,
 } from "../features/blueprints/pathEditorTypes.ts";
-import { kindLabels } from "../features/blueprints/pathEditorCopy.ts";
 import { withGraphNodes } from "../features/blueprints/withGraphNodes.ts";
 import {
   ArchiveDialog,
@@ -81,6 +73,8 @@ import { blueprintAddress, type PathPageContext } from "../features/blueprints/p
 import { useArchive, useLifecycleActions } from "../features/blueprints/useLifecycleActions.ts";
 import { useDraftPrompt, useEditAsDraft } from "../features/blueprints/useDraftPrompt.ts";
 import { useVersionHistory } from "../features/blueprints/useVersionHistory.ts";
+import { ItemFormModal } from "../features/blueprints/components/ItemFormModal.tsx";
+import { useItemForm, useSaveItem } from "../features/blueprints/useItemForm.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -114,22 +108,6 @@ export function BlueprintPathDetailPage() {
   const [subGraphNodes, setSubGraphNodes] = useState<BlueprintGraphNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [target, setTarget] = useState<CreateTarget>(null);
-  const [editTarget, setEditTarget] = useState<EditTarget>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [phaseType, setPhaseType] = useState<"FIXED" | "AI_ENHANCED">("FIXED");
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [url, setUrl] = useState("");
-  const [stepType, setStepType] = useState("DOCUMENT");
-  const [minutes, setMinutes] = useState("15");
-  const [outcome, setOutcome] = useState("");
-  const [questionType, setQuestionType] = useState("MULTIPLE_CHOICE");
-  const [questionTitle, setQuestionTitle] = useState("");
-  const [explanation, setExplanation] = useState("");
-  const [correctAnswer, setCorrectAnswer] = useState("");
-  const [isCorrect, setIsCorrect] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [dragged, setDragged] = useState<{ kind: SortKind; id: string } | null>(null);
   const [collapsedPhaseIds, setCollapsedPhaseIds] = useState<Set<string>>(() => new Set());
@@ -141,9 +119,6 @@ export function BlueprintPathDetailPage() {
     label: string;
   } | null>(null);
   const [pendingDeleteError, setPendingDeleteError] = useState<string | null>(null);
-  // Kept out of the page-wide `error`, which renders in the page body underneath an open overlay.
-  const [itemFormError, setItemFormError] = useState<string | null>(null);
-  const toast = useToast();
   const requirementPicker = useRequirementPicker();
   const editContext = { path, setPath, scope: blueprintScope, setPageError: setError };
   const addRequirements = useAddRequirements(editContext, requirementPicker);
@@ -208,6 +183,15 @@ export function BlueprintPathDetailPage() {
   const draftPrompt = useDraftPrompt(pageContext);
   const editAsDraft = useEditAsDraft(pageContext);
   const { isDraft, whenEditable, openDraftAndContinue } = draftPrompt;
+  const itemForm = useItemForm();
+  const saveItem = useSaveItem(itemForm, {
+    scope: blueprintScope,
+    setPath,
+    setPageError: setError,
+    refresh: refreshActiveEditorData,
+    placeStep: appendCreatedSubGraphStep,
+    placeQuestion: appendCreatedSubGraphQuestion,
+  });
 
   useEffect(() => {
     if (!isGlobal) {
@@ -239,21 +223,7 @@ export function BlueprintPathDetailPage() {
       whenEditable(() => undefined);
       return;
     }
-    setTitle("");
-    setDescription("");
-    setPhaseType("FIXED");
-    setAiPrompt("");
-    setUrl("");
-    setStepType("DOCUMENT");
-    setMinutes("15");
-    setOutcome("");
-    setQuestionType("MULTIPLE_CHOICE");
-    setQuestionTitle("");
-    setExplanation("");
-    setCorrectAnswer("");
-    setIsCorrect(false);
-    setItemFormError(null);
-    setTarget({ kind, parentId, position, graphPosition });
+    itemForm.openCreate({ kind, parentId, position, graphPosition });
   }
 
   /** A graph edit asked for from the outline: made on a draft, and offered as one on anything else. */
@@ -266,199 +236,7 @@ export function BlueprintPathDetailPage() {
   /** Opens the overlay on an existing item, seeded with whatever that kind of item actually has. */
   function openEdit(nextTarget: NonNullable<EditTarget>) {
     setError(null);
-    setItemFormError(null);
-    setUrl(nextTarget.kind === "resource" ? nextTarget.item.url : "");
-    setIsCorrect(nextTarget.kind === "option" && nextTarget.item.correct);
-
-    if (nextTarget.kind === "option") {
-      setTitle(nextTarget.item.label);
-      setDescription("");
-    } else if (nextTarget.kind === "question") {
-      // The overlay keeps the node's own name and the question text in two different fields.
-      setQuestionTitle(nextTarget.item.title);
-      setTitle(nextTarget.item.question);
-      setQuestionType(nextTarget.item.type);
-      setExplanation(nextTarget.item.explanation ?? "");
-      setCorrectAnswer(nextTarget.item.correctAnswer ?? "");
-    } else {
-      setTitle(nextTarget.item.title);
-      setDescription(
-        nextTarget.kind === "phase"
-          ? (nextTarget.item.description ?? "")
-          : nextTarget.item.description,
-      );
-    }
-
-    if (nextTarget.kind === "phase") {
-      setPhaseType(nextTarget.item.type);
-      setAiPrompt(nextTarget.item.aiPrompt ?? "");
-    }
-    if (nextTarget.kind === "step") {
-      setStepType(nextTarget.item.type);
-      setMinutes(String(nextTarget.item.estimatedMinutes));
-      setOutcome(nextTarget.item.expectedOutcome);
-    }
-
-    setEditTarget(nextTarget);
-  }
-
-  async function createItem(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!target && !editTarget) return;
-    setIsSaving(true);
-    setError(null);
-    try {
-      if (editTarget?.kind === "phase")
-        await blueprintService.updatePhase(blueprintScope, editTarget.item.id, {
-          revision: editTarget.item.revision,
-          position: editTarget.item.position,
-          title,
-          description: description || null,
-          type: phaseType,
-          aiPrompt: phaseType === "AI_ENHANCED" ? aiPrompt || null : null,
-        });
-      if (editTarget?.kind === "step")
-        await blueprintService.updateStep(blueprintScope, editTarget.item.id, {
-          revision: editTarget.item.revision,
-          position: editTarget.item.position,
-          title,
-          description,
-          type: stepType as "VIDEO" | "DOCUMENT" | "TASK",
-          estimatedMinutes: Number(minutes),
-          expectedOutcome: outcome,
-          aiAssisted: editTarget.item.aiAssisted,
-        });
-      if (editTarget?.kind === "question")
-        await blueprintService.updateQuestion(blueprintScope, editTarget.item.id, {
-          revision: editTarget.item.revision,
-          position: editTarget.item.position,
-          title: questionTitle,
-          type: questionType as "MULTIPLE_CHOICE" | "SHORT_TEXT",
-          question: title,
-          explanation: explanation || null,
-          correctAnswer: correctAnswer || null,
-        });
-      if (editTarget?.kind === "task")
-        await blueprintService.updateTask(blueprintScope, editTarget.item.id, {
-          revision: editTarget.item.revision,
-          position: editTarget.item.position,
-          // The task form edits `title`; `questionTitle` belongs to the question form.
-          title,
-          description,
-        });
-      if (editTarget?.kind === "option")
-        await blueprintService.updateOption(blueprintScope, editTarget.item.id, {
-          revision: editTarget.item.revision,
-          position: editTarget.item.position,
-          label: title,
-          correct: isCorrect,
-        });
-      if (editTarget?.kind === "resource")
-        await blueprintService.updateResource(blueprintScope, editTarget.item.id, {
-          revision: editTarget.item.revision,
-          title,
-          description,
-          url,
-        });
-      if (editTarget) {
-        const savedKind = editTarget.kind;
-        setEditTarget(null);
-        await refreshActiveEditorData();
-        toast.success(`${kindLabels[savedKind]} saved`);
-        return;
-      }
-      if (!target) return;
-      if (target.kind === "phase") {
-        const phase = await blueprintService.createPhase(blueprintScope, target.parentId, {
-          position: target.position,
-          title,
-          description: description || null,
-          aiPrompt: phaseType === "AI_ENHANCED" ? aiPrompt : null,
-          type: phaseType,
-          ...target.graphPosition,
-        });
-        if (target.graphPosition) {
-          setPath((current) =>
-            current
-              ? {
-                  ...current,
-                  blueprintPhases: [...current.blueprintPhases, phase],
-                }
-              : current,
-          );
-          setTarget(null);
-          return;
-        }
-      }
-      if (target.kind === "step") {
-        const step = await blueprintService.createStep(blueprintScope, target.parentId, {
-          position: target.position,
-          title,
-          description,
-          type: stepType as "VIDEO" | "DOCUMENT" | "TASK",
-          estimatedMinutes: Number(minutes),
-          expectedOutcome: outcome,
-          ...target.graphPosition,
-        });
-        if (target.graphPosition) {
-          appendCreatedSubGraphStep(step, {
-            revision: step.revision,
-            ...target.graphPosition,
-          });
-          setTarget(null);
-          return;
-        }
-      }
-      if (target.kind === "task")
-        await blueprintService.createTask(blueprintScope, target.parentId, {
-          position: target.position,
-          title,
-          description,
-        });
-      if (target.kind === "resource")
-        await blueprintService.createResource(blueprintScope, target.parentId, {
-          title,
-          description,
-          url,
-        });
-      if (target.kind === "question") {
-        const question = await blueprintService.createQuestion(blueprintScope, target.parentId, {
-          position: target.position,
-          // The overlay asks for a node title separately, so a new question is not named after its
-          // own wording.
-          title: questionTitle || title,
-          type: questionType as "MULTIPLE_CHOICE" | "SHORT_TEXT",
-          question: title,
-          explanation: explanation || null,
-          correctAnswer: correctAnswer || null,
-          ...target.graphPosition,
-        });
-        if (target.graphPosition) {
-          appendCreatedSubGraphQuestion(question, {
-            revision: question.revision,
-            ...target.graphPosition,
-          });
-          setTarget(null);
-          return;
-        }
-      }
-      if (target.kind === "option")
-        await blueprintService.createOption(blueprintScope, target.parentId, {
-          position: target.position,
-          label: title,
-          correct: isCorrect,
-        });
-      setTarget(null);
-      await refreshActiveEditorData();
-    } catch (reason) {
-      setItemFormError(
-        reason instanceof Error
-          ? reason.message
-          : `The ${editTarget?.kind ?? target?.kind ?? "item"} could not be saved.`,
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    itemForm.openEdit(nextTarget);
   }
 
   function updateGraphPhase(phaseId: string, update: Partial<BlueprintPhase>) {
@@ -781,45 +559,6 @@ export function BlueprintPathDetailPage() {
     }
   }
 
-  /**
-   * Puts the author back in front of what they were looking at before they were sent here.
-   *
-   * **Not until the path on screen is the one the address names.** Navigating to the draft changes
-   * the URL immediately; the draft itself arrives a request later, and until it does `path` is
-   * still the *published* version this request came from. Its phases carry the same titles — a
-   * draft is a copy — so a title match against it succeeds and reopens a phase whose id exists only
-   * in the version that was just left, and the page it opened would vanish the moment the draft
-   * lands.
-   *
-   * The state is cleared as soon as it is acted on: a reload or a step back through history must
-   * not open the same thing again, and a title that no longer matches anything is not a reason to
-   * keep asking.
-   */
-  const reopenRequest = (location.state as { reopen?: BlueprintReopen } | null)?.reopen ?? null;
-  useEffect(() => {
-    if (!reopenRequest || !path || path.id !== pathId) return;
-    const phase = path.blueprintPhases.find(
-      (candidate) => candidate.title === reopenRequest.phaseTitle,
-    );
-    void navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
-    if (!phase) return;
-    // Deferred to a microtask: React 19's lint rejects a synchronous setState in an effect body,
-    // and this is the pattern the repo already passes with.
-    queueMicrotask(() => {
-      if (reopenRequest.nodeTitle && phase.type === "FIXED") {
-        setPendingOpenNodeTitle(reopenRequest.nodeTitle);
-        setEditorMode("graph");
-        void openSubGraph(phase);
-        return;
-      }
-      setPendingOpenPhaseTitle(phase.title);
-      void openGraphEditor();
-    });
-    // `openSubGraph` and `openGraphEditor` are declared per render and would restart this on every
-    // one; what this effect actually depends on is the request and the path it has to find it in.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search, navigate, path, pathId, reopenRequest]);
-
   /** Reloads top-level graph positions, which are not refreshed by subgraph mutations. */
   async function returnToTopLevelGraph() {
     if (!path) return;
@@ -909,6 +648,45 @@ export function BlueprintPathDetailPage() {
       setError(reason instanceof Error ? reason.message : "Blueprint graph could not be loaded.");
     }
   }
+
+  /**
+   * Puts the author back in front of what they were looking at before they were sent here.
+   *
+   * **Not until the path on screen is the one the address names.** Navigating to the draft changes
+   * the URL immediately; the draft itself arrives a request later, and until it does `path` is
+   * still the *published* version this request came from. Its phases carry the same titles — a
+   * draft is a copy — so a title match against it succeeds and reopens a phase whose id exists only
+   * in the version that was just left, and the page it opened would vanish the moment the draft
+   * lands.
+   *
+   * The state is cleared as soon as it is acted on: a reload or a step back through history must
+   * not open the same thing again, and a title that matches nothing is not a reason to
+   * keep asking.
+   */
+  const reopenRequest = (location.state as { reopen?: BlueprintReopen } | null)?.reopen ?? null;
+  useEffect(() => {
+    if (!reopenRequest || !path || path.id !== pathId) return;
+    const phase = path.blueprintPhases.find(
+      (candidate) => candidate.title === reopenRequest.phaseTitle,
+    );
+    void navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    if (!phase) return;
+    // Deferred to a microtask: React 19's lint rejects a synchronous setState in an effect body,
+    // and this is the pattern the repo already passes with.
+    queueMicrotask(() => {
+      if (reopenRequest.nodeTitle && phase.type === "FIXED") {
+        setPendingOpenNodeTitle(reopenRequest.nodeTitle);
+        setEditorMode("graph");
+        void openSubGraph(phase);
+        return;
+      }
+      setPendingOpenPhaseTitle(phase.title);
+      void openGraphEditor();
+    });
+    // `openSubGraph` and `openGraphEditor` are declared per render and would restart this on every
+    // one; what this effect actually depends on is the request and the path it has to find it in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search, navigate, path, pathId, reopenRequest]);
 
   /**
    * Applies the graph-side effects reported by a phase deletion. The response also contains the
@@ -1353,10 +1131,6 @@ export function BlueprintPathDetailPage() {
         </p>
       </MainContent>
     );
-
-  // What the overlay is about, whichever way it was opened: `target?.kind` is only set while
-  // creating.
-  const formKind = editTarget?.kind ?? target?.kind ?? null;
 
   const orderedPhases = [...path.blueprintPhases].sort((a, b) => a.position - b.position);
   const subGraphPhase = subGraphPhaseId
@@ -2152,196 +1926,7 @@ export function BlueprintPathDetailPage() {
             void navigate(blueprintAddress(version.id, isGlobal));
           }}
         />
-        <Modal
-          isOpen={target !== null || editTarget !== null}
-          zIndexClassName="z-[60]"
-          title={
-            editTarget
-              ? `Edit ${kindLabels[editTarget.kind]}`
-              : `Add ${target ? kindLabels[target.kind] : "item"}`
-          }
-          description="This is reusable blueprint content, not a change to an active onboarding path."
-          errorMessage={itemFormError ?? undefined}
-          onClose={() => {
-            setTarget(null);
-            setEditTarget(null);
-            setItemFormError(null);
-          }}
-          footer={
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setTarget(null);
-                  setEditTarget(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                type="submit"
-                form="create-blueprint-item"
-                loading={isSaving}
-              >
-                {editTarget ? "Save changes" : `Add ${target ? kindLabels[target.kind] : "item"}`}
-              </Button>
-            </>
-          }
-        >
-          <form
-            id="create-blueprint-item"
-            className="space-y-4"
-            onSubmit={(event) => void createItem(event)}
-          >
-            {formKind === "question" ? (
-              <>
-                <Field label="Node title" required>
-                  <Input
-                    value={questionTitle}
-                    onChange={(event) => setQuestionTitle(event.target.value)}
-                    required
-                  />
-                </Field>
-                <Field label="Question" required>
-                  <Textarea
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    required
-                  />
-                </Field>
-              </>
-            ) : (
-              <Field label={formKind === "option" ? "Label" : "Title"} required>
-                <Input value={title} onChange={(event) => setTitle(event.target.value)} required />
-              </Field>
-            )}
-            {formKind !== null && formKind !== "option" && formKind !== "question" ? (
-              // A phase may have no description; everything else that has one must have one.
-              <Field label="Description" required={formKind !== "phase"}>
-                <Textarea
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  required={formKind !== "phase"}
-                />
-              </Field>
-            ) : null}
-            {formKind === "phase" ? (
-              <>
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface-muted p-3">
-                  <div>
-                    <p className="text-sm font-medium text-app-text">Phase type</p>
-                    <p className="text-xs text-app-text-muted">
-                      {phaseType === "FIXED" ? "Fixed blueprint" : "AI-enhanced blueprint"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-label="Use AI prompt for this phase"
-                    aria-checked={phaseType === "AI_ENHANCED"}
-                    onClick={() =>
-                      setPhaseType((current) => (current === "FIXED" ? "AI_ENHANCED" : "FIXED"))
-                    }
-                    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors ${
-                      phaseType === "AI_ENHANCED"
-                        ? "border-app-brand bg-app-brand"
-                        : "border-app-border-strong bg-app-neutral-bg"
-                    }`}
-                  >
-                    <span
-                      className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                        phaseType === "AI_ENHANCED" ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
-                {phaseType === "AI_ENHANCED" ? (
-                  <Field label="AI prompt" required>
-                    <Textarea
-                      value={aiPrompt}
-                      onChange={(event) => setAiPrompt(event.target.value)}
-                      placeholder="Describe how AI should tailor this phase."
-                      required
-                    />
-                  </Field>
-                ) : null}
-              </>
-            ) : null}
-            {formKind === "resource" ? (
-              <Field label="URL" required>
-                <Input
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  required
-                />
-              </Field>
-            ) : null}
-            {formKind === "step" ? (
-              <>
-                <Field label="Step type">
-                  <Select value={stepType} onChange={(event) => setStepType(event.target.value)}>
-                    <option value="VIDEO">Video</option>
-                    <option value="DOCUMENT">Document</option>
-                    <option value="TASK">Task</option>
-                  </Select>
-                </Field>
-                <Field label="Estimated minutes" required>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={minutes}
-                    onChange={(event) => setMinutes(event.target.value)}
-                    required
-                  />
-                </Field>
-                <Field label="Expected outcome" required>
-                  <Textarea
-                    value={outcome}
-                    onChange={(event) => setOutcome(event.target.value)}
-                    required
-                  />
-                </Field>
-              </>
-            ) : null}
-            {formKind === "question" ? (
-              <>
-                <Field label="Question type">
-                  <Select
-                    value={questionType}
-                    onChange={(event) => setQuestionType(event.target.value)}
-                  >
-                    <option value="MULTIPLE_CHOICE">Multiple choice</option>
-                    <option value="SHORT_TEXT">Short text</option>
-                  </Select>
-                </Field>
-                <Field label="Explanation">
-                  <Textarea
-                    value={explanation}
-                    onChange={(event) => setExplanation(event.target.value)}
-                  />
-                </Field>
-                <Field label="Correct answer (for free text)">
-                  <Input
-                    value={correctAnswer}
-                    onChange={(event) => setCorrectAnswer(event.target.value)}
-                  />
-                </Field>
-              </>
-            ) : null}
-            {formKind === "option" ? (
-              <label className="flex items-center gap-2 text-sm text-app-text">
-                <input
-                  type="checkbox"
-                  checked={isCorrect}
-                  onChange={(event) => setIsCorrect(event.target.checked)}
-                />{" "}
-                Correct answer
-              </label>
-            ) : null}
-          </form>
-        </Modal>
+        <ItemFormModal form={itemForm} onSubmit={(event) => void saveItem(event)} />
       </MainContent>
     </div>
   );
