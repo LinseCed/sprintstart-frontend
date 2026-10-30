@@ -1,16 +1,13 @@
 import { MainContent } from "../components/layout/MainContent";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Link, ListChecks, Loader2, TriangleAlert } from "lucide-react";
+import { Link, ListChecks, TriangleAlert } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Button } from "../components/ui/Button.tsx";
+import { useAuth } from "../context/useAuth.ts";
+import { useProjectContext } from "../features/projects/useProjectContext.ts";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs.tsx";
 import { useSwipeableTabs } from "../hooks/useHorizontalWheelNavigation.ts";
-import type { BlueprintOption, BlueprintPath } from "../features/blueprints/types.ts";
+import type { BlueprintOption } from "../features/blueprints/types.ts";
 import { BlueprintGraphEditor } from "../features/blueprints/components/BlueprintGraphEditor.tsx";
 import { BlueprintSubGraphEditor } from "../features/blueprints/components/BlueprintSubGraphEditor.tsx";
-import { blueprintService, type BlueprintScope } from "../services/blueprintService.ts";
-import { useProjectContext } from "../features/projects/useProjectContext.ts";
-import { useAuth } from "../context/useAuth.ts";
 
 import {
   EDITOR_MODE_ORDER,
@@ -18,7 +15,6 @@ import {
   type EditTarget,
   type EditorMode,
 } from "../features/blueprints/pathEditorTypes.ts";
-import { withGraphNodes } from "../features/blueprints/withGraphNodes.ts";
 import {
   ArchiveDialog,
   DeleteItemDialog,
@@ -51,6 +47,11 @@ import {
   useSubGraphState,
 } from "../features/blueprints/useSubGraph.ts";
 import { useDeleteConfirmation, useDeleteItem } from "../features/blueprints/useItemDeletion.ts";
+import {
+  BlueprintPathLoading,
+  BlueprintPathMissing,
+} from "../features/blueprints/components/BlueprintPathStates.tsx";
+import { usePathLoader, usePathScope } from "../features/blueprints/usePathLoader.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -63,61 +64,24 @@ import { LifecycleNotice } from "../features/blueprints/components/LifecycleNoti
  * itself once the path has loaded.
  */
 export function BlueprintPathDetailPage() {
-  const { pathId } = useParams();
   const navigate = useNavigate();
+  const { pathId: routePathId } = useParams();
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { selectedProjectId, isLoading: isProjectLoading } = useProjectContext();
-  const isGlobal = searchParams.get("scope") === "global" && profile?.permissionGroup === "ADMIN";
-  const blueprintScope = useMemo<BlueprintScope>(
-    () => (isGlobal ? { kind: "global" } : { kind: "project", projectId: selectedProjectId }),
-    [isGlobal, selectedProjectId],
-  );
-  const blueprintListPath = isGlobal ? "/blueprints?scope=global" : "/blueprints";
-  const projectIdAtMount = useRef<string | null>(null);
-  const [path, setPath] = useState<BlueprintPath | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const scope = usePathScope({
+    pathId: routePathId,
+    scopeParam: searchParams.get("scope"),
+    permissionGroup: profile?.permissionGroup,
+    selectedProjectId,
+    isProjectLoading,
+  });
+  const { pathId, isGlobal, scope: blueprintScope, listPath: blueprintListPath } = scope;
+  const { path, setPath, isLoading, error, setError, loadPath } = usePathLoader(scope, navigate);
   const requirementPicker = useRequirementPicker();
   const editContext = { path, setPath, scope: blueprintScope, setPageError: setError };
   const addRequirements = useAddRequirements(editContext, requirementPicker);
   const removeRequirement = useRemoveRequirement(editContext);
-  /**
-   * Loads the path together with its graph, and merges the two.
-   *
-   * The two requests are one fact. `GET /paths/{id}` returns phases without `graphX`, `graphY` or
-   * `blockerIds` — `GetBlueprintPhaseResponse` simply has no such fields, while the nested *step*
-   * response does — so a path loaded on its own describes every phase as never placed, and the
-   * canvas drawn from it is empty. That is what made the graph vanish after "Edit as draft" (which
-   * navigates to the new draft's id) and after Publish (which replaces the path with a fresh DTO),
-   * and why a reload appeared to fix it: a reload starts in list mode, and the graph was fetched
-   * again on the way back.
-   *
-   * Merging here rather than at each call site means no caller can forget.
-   *
-   * TODO(backend): the three fields on the nested phase response would remove the second request
-   * entirely.
-   */
-  const loadPath = useCallback(
-    async (showLoading = true) => {
-      if (!pathId) return;
-      if (showLoading) setIsLoading(true);
-      setError(null);
-      try {
-        const [nextPath, graph] = await Promise.all([
-          blueprintService.getPath(blueprintScope, pathId),
-          blueprintService.getGraph(blueprintScope, pathId),
-        ]);
-        setPath(withGraphNodes(nextPath, graph.nodes));
-      } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Blueprint path could not be loaded.");
-      } finally {
-        if (showLoading) setIsLoading(false);
-      }
-    },
-    [blueprintScope, pathId],
-  );
-
   const pageContext: PathPageContext = {
     path,
     setPath,
@@ -171,24 +135,6 @@ export function BlueprintPathDetailPage() {
     placeQuestion: nodeEdits.appendQuestion,
   });
 
-  useEffect(() => {
-    if (!isGlobal) {
-      if (isProjectLoading) return;
-      if (!selectedProjectId) {
-        void navigate("/blueprints", { replace: true });
-        return;
-      }
-      if (projectIdAtMount.current === null) {
-        projectIdAtMount.current = selectedProjectId;
-      } else if (projectIdAtMount.current !== selectedProjectId) {
-        projectIdAtMount.current = selectedProjectId;
-        void navigate("/blueprints", { replace: true });
-        return;
-      }
-    }
-    void loadPath();
-  }, [isGlobal, isProjectLoading, loadPath, navigate, selectedProjectId]);
-
   function openCreate(
     kind: CreateKind,
     parentId: string,
@@ -232,31 +178,9 @@ export function BlueprintPathDetailPage() {
   // A path from a *different* address is a different matter: during a walk between versions, the
   // one being left stayed fully interactive under the new URL, so Publish published it and the
   // header described it. The `reopen` effect guards this the same way.
-  if (isLoading && (!path || path.id !== pathId))
-    return (
-      <MainContent
-        placeholder
-        className="flex min-h-80 items-center justify-center gap-3 text-app-text-muted"
-      >
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading blueprint…
-      </MainContent>
-    );
+  if (isLoading && (!path || path.id !== pathId)) return <BlueprintPathLoading />;
   if (!path)
-    return (
-      <MainContent className="mx-auto max-w-3xl p-8">
-        <Button
-          variant="secondary"
-          icon={<ArrowLeft className="h-4 w-4" />}
-          onClick={() => void navigate(blueprintListPath)}
-        >
-          Back to blueprints
-        </Button>
-        <p role="alert" className="mt-6 flex items-start gap-1.5 text-app-danger-text">
-          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          {error || "Blueprint path not found."}
-        </p>
-      </MainContent>
-    );
+    return <BlueprintPathMissing message={error} onBack={() => void navigate(blueprintListPath)} />;
 
   const outlineActions: OutlineActions = {
     dragProps,
