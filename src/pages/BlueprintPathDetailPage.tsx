@@ -1,29 +1,9 @@
 import { MainContent } from "../components/layout/MainContent";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import {
-  ArrowLeft,
-  BookOpenCheck,
-  ChevronDown,
-  ChevronRight,
-  CircleCheckBig,
-  Link,
-  ListChecks,
-  Loader2,
-  Milestone,
-  Minus,
-  Network,
-  Pencil,
-  Plus,
-  Square,
-  TriangleAlert,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Link, ListChecks, Loader2, TriangleAlert } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Badge } from "../components/ui/Badge.tsx";
 import { Button } from "../components/ui/Button.tsx";
-import { EmptyState } from "../components/ui/EmptyState.tsx";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs.tsx";
-import { PhasePrerequisites } from "../features/blueprints/components/PhasePrerequisites.tsx";
 import { useSwipeableTabs } from "../hooks/useHorizontalWheelNavigation.ts";
 import type {
   BlueprintOption,
@@ -75,6 +55,9 @@ import { useDraftPrompt, useEditAsDraft } from "../features/blueprints/useDraftP
 import { useVersionHistory } from "../features/blueprints/useVersionHistory.ts";
 import { ItemFormModal } from "../features/blueprints/components/ItemFormModal.tsx";
 import { useItemForm, useSaveItem } from "../features/blueprints/useItemForm.ts";
+import { BlueprintOutline } from "../features/blueprints/components/outline/BlueprintOutline.tsx";
+import type { OutlineActions } from "../features/blueprints/components/outline/outlineActions.ts";
+import { useCollapsedIds } from "../features/blueprints/useCollapsedIds.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -110,9 +93,6 @@ export function BlueprintPathDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [dragged, setDragged] = useState<{ kind: SortKind; id: string } | null>(null);
-  const [collapsedPhaseIds, setCollapsedPhaseIds] = useState<Set<string>>(() => new Set());
-  const [collapsedStepIds, setCollapsedStepIds] = useState<Set<string>>(() => new Set());
-  const [collapsedQuestionIds, setCollapsedQuestionIds] = useState<Set<string>>(() => new Set());
   const [pendingDelete, setPendingDelete] = useState<{
     kind: CreateKind;
     id: string;
@@ -183,6 +163,9 @@ export function BlueprintPathDetailPage() {
   const draftPrompt = useDraftPrompt(pageContext);
   const editAsDraft = useEditAsDraft(pageContext);
   const { isDraft, whenEditable, openDraftAndContinue } = draftPrompt;
+  const phasesCollapsed = useCollapsedIds();
+  const stepsCollapsed = useCollapsedIds();
+  const questionsCollapsed = useCollapsedIds();
   const itemForm = useItemForm();
   const saveItem = useSaveItem(itemForm, {
     scope: blueprintScope,
@@ -1073,33 +1056,6 @@ export function BlueprintPathDetailPage() {
     };
   }
 
-  function togglePhaseCollapsed(phaseId: string) {
-    setCollapsedPhaseIds((current) => {
-      const next = new Set(current);
-      if (next.has(phaseId)) next.delete(phaseId);
-      else next.add(phaseId);
-      return next;
-    });
-  }
-
-  function toggleStepCollapsed(stepId: string) {
-    setCollapsedStepIds((current) => {
-      const next = new Set(current);
-      if (next.has(stepId)) next.delete(stepId);
-      else next.add(stepId);
-      return next;
-    });
-  }
-
-  function toggleQuestionCollapsed(questionId: string) {
-    setCollapsedQuestionIds((current) => {
-      const next = new Set(current);
-      if (next.has(questionId)) next.delete(questionId);
-      else next.add(questionId);
-      return next;
-    });
-  }
-
   // Keep the existing shell visible during a graph → list refresh. This avoids replacing the
   // whole page with a loading state while the nested DTO catches up with graph revisions.
   //
@@ -1131,6 +1087,29 @@ export function BlueprintPathDetailPage() {
         </p>
       </MainContent>
     );
+
+  const outlineActions: OutlineActions = {
+    dragProps,
+    whenEditable,
+    openEdit,
+    openCreate,
+    requestDelete,
+    deletingId,
+    openInGraph: (phaseTitle) => {
+      setPendingOpenPhaseTitle(phaseTitle);
+      changeEditorMode("graph");
+    },
+    addBlocker: addGraphBlocker,
+    removeBlocker: removeGraphBlocker,
+    runGraphEdit,
+    openRequirementPicker: (phaseId) => void requirementPicker.open(phaseId),
+    removeRequirement: (phaseId, requirementId) =>
+      void removeRequirement.remove(phaseId, requirementId),
+    removingRequirementId: removeRequirement.removingId,
+    phasesCollapsed,
+    stepsCollapsed,
+    questionsCollapsed,
+  };
 
   const orderedPhases = [...path.blueprintPhases].sort((a, b) => a.position - b.position);
   const subGraphPhase = subGraphPhaseId
@@ -1303,614 +1282,7 @@ export function BlueprintPathDetailPage() {
             />
           )
         ) : (
-          <section className="space-y-5">
-            {/*
-            At the top as well as the bottom. A sixteen-phase blueprint is several screens of
-            outline, and the only way to add a phase was to scroll past all of it — so adding one
-            cost a journey through everything already written. Kept at the bottom too, because
-            somebody who has just read to the end is also somebody about to add one.
-          */}
-            {path.blueprintPhases.length > 0 && path.status === "DRAFT" ? (
-              <div className="flex justify-end">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<Plus className="h-4 w-4" />}
-                  onClick={() => openCreate("phase", path.id, path.blueprintPhases.length)}
-                >
-                  Add phase
-                </Button>
-              </div>
-            ) : null}
-
-            {path.blueprintPhases.length === 0 ? (
-              <EmptyState
-                icon={<Milestone className="h-8 w-8" />}
-                title="No phases yet"
-                action={
-                  <Button
-                    variant="primary"
-                    icon={<Plus className="h-4 w-4" />}
-                    onClick={() => openCreate("phase", path.id, 0)}
-                  >
-                    Add phase
-                  </Button>
-                }
-              >
-                Build the path in phases, then add steps and a knowledge check to each phase.
-              </EmptyState>
-            ) : (
-              [...path.blueprintPhases]
-                .sort((a, b) => a.position - b.position)
-                .map((phase, phaseIndex) => (
-                  <section
-                    key={phase.id}
-                    {...dragProps("phase", phase.id, phaseIndex)}
-                    className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 items-start gap-2">
-                        <Button
-                          aria-label={`${collapsedPhaseIds.has(phase.id) ? "Expand" : "Collapse"} phase ${phase.title}`}
-                          aria-expanded={!collapsedPhaseIds.has(phase.id)}
-                          iconOnly
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => togglePhaseCollapsed(phase.id)}
-                        >
-                          {collapsedPhaseIds.has(phase.id) ? (
-                            <ChevronRight className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <div className="min-w-0">
-                          {!collapsedPhaseIds.has(phase.id) ? (
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs font-semibold tracking-wide text-app-brand-text uppercase">
-                                Phase {phase.position + 1}
-                              </p>
-                              <Badge variant={phase.type === "AI_ENHANCED" ? "warning" : "neutral"}>
-                                {phase.type === "AI_ENHANCED" ? "AI-enhanced" : "Fixed"}
-                              </Badge>
-                            </div>
-                          ) : null}
-                          <h2 className="mt-1 text-xl font-semibold text-app-text">
-                            {phase.title}
-                          </h2>
-                          <p className="mt-1 text-sm text-app-text-muted">
-                            {phase.description || "No phase description."}
-                          </p>
-                          {!collapsedPhaseIds.has(phase.id) &&
-                          phase.type === "AI_ENHANCED" &&
-                          phase.aiPrompt ? (
-                            <div className="mt-3 rounded-xl border border-app-warning-border bg-app-warning-bg p-3 text-sm">
-                              <p className="font-medium text-app-warning-text">AI prompt</p>
-                              <p className="mt-1 whitespace-pre-wrap text-app-text-muted">
-                                {phase.aiPrompt}
-                              </p>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                      {!collapsedPhaseIds.has(phase.id) ? (
-                        <div className="flex shrink-0 items-center gap-1">
-                          {/*
-                          The same phase, in the other view. Somebody reading down the outline who
-                          wants to see where a phase actually sits had to switch views and then
-                          find it again — two steps to ask one question about the thing already
-                          under their cursor.
-                        */}
-                          <Button
-                            aria-label={`Open phase ${phase.title} in the graph`}
-                            title="Open in the graph"
-                            iconOnly
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setPendingOpenPhaseTitle(phase.title);
-                              changeEditorMode("graph");
-                            }}
-                          >
-                            <Network className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            aria-label={`Edit phase ${phase.title}`}
-                            iconOnly
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              whenEditable(() => openEdit({ kind: "phase", item: phase }))
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            aria-label={`Delete phase ${phase.title}`}
-                            iconOnly
-                            size="sm"
-                            variant="dangerGhost"
-                            loading={deletingId === phase.id}
-                            onClick={() => requestDelete("phase", phase.id, phase.title)}
-                          >
-                            <Minus className="h-4 w-4" strokeWidth={2.5} />
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                    {!collapsedPhaseIds.has(phase.id) ? (
-                      <>
-                        {/*
-                        The order the graph draws as arrows, written out. Without it the outline was
-                        a list of phases in `position` order and nothing else — and `position` is a
-                        suggestion, not a rule, so an author working from the list was reading an
-                        order the product does not actually enforce while the one it does enforce
-                        was only visible in the other view. Editable here too: the arrow is the same
-                        edge whichever end it is drawn from.
-                      */}
-                        <div className="mt-5 rounded-xl border border-app-border bg-app-surface-muted p-4">
-                          <PhasePrerequisites
-                            phase={phase}
-                            phases={path.blueprintPhases}
-                            editable
-                            onAdd={(blocked, blockerId) =>
-                              runGraphEdit(() => addGraphBlocker(blocked, blockerId))
-                            }
-                            onRemove={(blocked, blockerId) =>
-                              runGraphEdit(() => removeGraphBlocker(blocked, blockerId))
-                            }
-                          />
-                        </div>
-                        <div className="mt-5 rounded-xl border border-app-border bg-app-surface-muted p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <h3 className="font-semibold text-app-text">Phase requirements</h3>
-                              <p className="mt-1 text-sm text-app-text-muted">
-                                Skills or project roles required before this phase unlocks.
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              icon={<Plus className="h-3.5 w-3.5" />}
-                              onClick={() =>
-                                whenEditable(() => void requirementPicker.open(phase.id))
-                              }
-                            >
-                              Add requirement
-                            </Button>
-                          </div>
-                          {(phase.requirements ?? []).length === 0 ? (
-                            <p className="mt-3 text-sm text-app-text-subtle">
-                              No requirements yet.
-                            </p>
-                          ) : (
-                            <ul className="mt-3 flex flex-wrap gap-2">
-                              {(phase.requirements ?? []).map((requirement) => (
-                                <li
-                                  key={requirement.id}
-                                  className="flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface py-1 pr-1 pl-2 text-sm text-app-text"
-                                >
-                                  <span className="text-xs text-app-text-subtle">
-                                    {requirement.type === "SKILL" ? "Skill:" : "Role:"}
-                                  </span>
-                                  <span>{requirement.displayName}</span>
-                                  <Button
-                                    iconOnly
-                                    size="sm"
-                                    variant="dangerGhost"
-                                    aria-label={`Remove requirement ${requirement.displayName}`}
-                                    loading={removeRequirement.removingId === requirement.id}
-                                    onClick={() =>
-                                      whenEditable(
-                                        () =>
-                                          void removeRequirement.remove(phase.id, requirement.id),
-                                      )
-                                    }
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        {phase.type === "FIXED" ? (
-                          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <h3 className="flex items-center gap-2 font-semibold text-app-text">
-                                  <ListChecks className="h-4 w-4 text-app-brand-text" /> Steps
-                                </h3>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  icon={<Plus className="h-3.5 w-3.5" />}
-                                  onClick={() =>
-                                    openCreate("step", phase.id, phase.blueprintSteps.length)
-                                  }
-                                >
-                                  Add step
-                                </Button>
-                              </div>
-                              {phase.blueprintSteps.length === 0 ? (
-                                <EmptyState size="sm">No steps in this phase.</EmptyState>
-                              ) : (
-                                [...phase.blueprintSteps]
-                                  .sort((a, b) => a.position - b.position)
-                                  .map((step, stepIndex) => (
-                                    <article
-                                      key={step.id}
-                                      {...dragProps("step", step.id, stepIndex)}
-                                      className="rounded-xl border border-app-border bg-app-surface p-4 shadow-sm"
-                                    >
-                                      <div className="flex items-start gap-2">
-                                        <Button
-                                          aria-label={`${collapsedStepIds.has(step.id) ? "Expand" : "Collapse"} step ${step.title}`}
-                                          aria-expanded={!collapsedStepIds.has(step.id)}
-                                          iconOnly
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => toggleStepCollapsed(step.id)}
-                                        >
-                                          {collapsedStepIds.has(step.id) ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                          ) : (
-                                            <ChevronDown className="h-4 w-4" />
-                                          )}
-                                        </Button>
-                                        <div className="min-w-0">
-                                          <h4 className="font-medium text-app-text">
-                                            {step.position + 1}. {step.title}
-                                          </h4>
-                                          <p className="mt-1 text-sm text-app-text-muted">
-                                            {step.description}
-                                          </p>
-                                          {!collapsedStepIds.has(step.id) ? (
-                                            <p className="mt-2 text-xs text-app-text-subtle">
-                                              {step.type} · {step.estimatedMinutes} min ·{" "}
-                                              {step.expectedOutcome}
-                                            </p>
-                                          ) : null}
-                                        </div>
-                                      </div>
-                                      {!collapsedStepIds.has(step.id) ? (
-                                        <>
-                                          <div className="mt-3 flex flex-wrap gap-2">
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              icon={<Pencil className="h-3.5 w-3.5" />}
-                                              onClick={() =>
-                                                whenEditable(() =>
-                                                  openEdit({ kind: "step", item: step }),
-                                                )
-                                              }
-                                            >
-                                              Edit step
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              icon={<Plus className="h-3.5 w-3.5" />}
-                                              onClick={() =>
-                                                openCreate(
-                                                  "task",
-                                                  step.id,
-                                                  step.blueprintTasks.length,
-                                                )
-                                              }
-                                            >
-                                              Add task
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              icon={<Plus className="h-3.5 w-3.5" />}
-                                              onClick={() => openCreate("resource", step.id, 0)}
-                                            >
-                                              Add resource
-                                            </Button>
-                                          </div>
-                                          {step.blueprintTasks.length > 0 ? (
-                                            <div className="mt-3">
-                                              <p className="mb-1 text-xs font-semibold tracking-wide text-app-text-subtle uppercase">
-                                                Tasks
-                                              </p>
-                                              <ul className="space-y-1 text-sm text-app-text-muted">
-                                                {step.blueprintTasks.map((task, taskIndex) => (
-                                                  <li
-                                                    key={task.id}
-                                                    {...dragProps("task", task.id, taskIndex)}
-                                                    className="flex items-center gap-2 rounded-lg border border-app-border-muted bg-app-surface-muted p-1"
-                                                  >
-                                                    <div
-                                                      role="button"
-                                                      tabIndex={0}
-                                                      className="min-w-0 flex-1 cursor-pointer px-2 py-1"
-                                                      onClick={() =>
-                                                        openEdit({
-                                                          kind: "task",
-                                                          item: task,
-                                                        })
-                                                      }
-                                                      onKeyDown={(event) => {
-                                                        if (
-                                                          event.key === "Enter" ||
-                                                          event.key === " "
-                                                        ) {
-                                                          event.preventDefault();
-                                                          openEdit({
-                                                            kind: "task",
-                                                            item: task,
-                                                          });
-                                                        }
-                                                      }}
-                                                    >
-                                                      • {task.title}
-                                                    </div>
-                                                    <Button
-                                                      aria-label={`Delete task ${task.title}`}
-                                                      iconOnly
-                                                      size="sm"
-                                                      variant="dangerGhost"
-                                                      loading={deletingId === task.id}
-                                                      onClick={() =>
-                                                        requestDelete("task", task.id, task.title)
-                                                      }
-                                                    >
-                                                      <Minus
-                                                        className="h-4 w-4"
-                                                        strokeWidth={2.5}
-                                                      />
-                                                    </Button>
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          ) : null}
-                                          {step.blueprintResources.length > 0 ? (
-                                            <div className="mt-3">
-                                              <p className="mb-1 text-xs font-semibold tracking-wide text-app-text-subtle uppercase">
-                                                Resources
-                                              </p>
-                                              <ul className="space-y-1 text-sm text-app-text-muted">
-                                                {step.blueprintResources.map((resource) => (
-                                                  <li
-                                                    key={resource.id}
-                                                    className="flex items-center gap-2 rounded-lg border border-app-border-muted bg-app-surface-muted p-1"
-                                                  >
-                                                    <div
-                                                      role="button"
-                                                      tabIndex={0}
-                                                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1"
-                                                      onClick={() =>
-                                                        openEdit({
-                                                          kind: "resource",
-                                                          item: resource,
-                                                        })
-                                                      }
-                                                      onKeyDown={(event) => {
-                                                        if (
-                                                          event.key === "Enter" ||
-                                                          event.key === " "
-                                                        ) {
-                                                          event.preventDefault();
-                                                          openEdit({
-                                                            kind: "resource",
-                                                            item: resource,
-                                                          });
-                                                        }
-                                                      }}
-                                                    >
-                                                      <Link className="h-3.5 w-3.5 shrink-0" />
-                                                      {resource.title}
-                                                    </div>
-                                                    <Button
-                                                      aria-label={`Delete resource ${resource.title}`}
-                                                      iconOnly
-                                                      size="sm"
-                                                      variant="dangerGhost"
-                                                      loading={deletingId === resource.id}
-                                                      onClick={() =>
-                                                        requestDelete(
-                                                          "resource",
-                                                          resource.id,
-                                                          resource.title,
-                                                        )
-                                                      }
-                                                    >
-                                                      <Minus
-                                                        className="h-4 w-4"
-                                                        strokeWidth={2.5}
-                                                      />
-                                                    </Button>
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          ) : null}
-                                        </>
-                                      ) : null}
-                                    </article>
-                                  ))
-                              )}
-                            </div>
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <h3 className="flex items-center gap-2 font-semibold text-app-text">
-                                  <BookOpenCheck className="h-4 w-4 text-app-brand-text" />{" "}
-                                  Knowledge check
-                                </h3>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  icon={<Plus className="h-3.5 w-3.5" />}
-                                  onClick={() =>
-                                    openCreate(
-                                      "question",
-                                      phase.id,
-                                      phase.blueprintCheckQuestions.length,
-                                    )
-                                  }
-                                >
-                                  Add question
-                                </Button>
-                              </div>
-                              {phase.blueprintCheckQuestions.length === 0 ? (
-                                <EmptyState size="sm">No questions in this phase.</EmptyState>
-                              ) : (
-                                [...phase.blueprintCheckQuestions]
-                                  .sort((a, b) => a.position - b.position)
-                                  .map((question, questionIndex) => (
-                                    <article
-                                      key={question.id}
-                                      {...dragProps("question", question.id, questionIndex)}
-                                      className="rounded-xl border border-app-border bg-app-surface p-4 shadow-sm"
-                                    >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex min-w-0 items-start gap-2">
-                                          <Button
-                                            aria-label={`${collapsedQuestionIds.has(question.id) ? "Expand" : "Collapse"} question ${question.question}`}
-                                            aria-expanded={!collapsedQuestionIds.has(question.id)}
-                                            iconOnly
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => toggleQuestionCollapsed(question.id)}
-                                          >
-                                            {collapsedQuestionIds.has(question.id) ? (
-                                              <ChevronRight className="h-4 w-4" />
-                                            ) : (
-                                              <ChevronDown className="h-4 w-4" />
-                                            )}
-                                          </Button>
-                                          <div className="min-w-0">
-                                            {!collapsedQuestionIds.has(question.id) ? (
-                                              <p className="text-xs text-app-text-subtle">
-                                                {question.type.replace("_", " ")}
-                                              </p>
-                                            ) : null}
-                                            <h4 className="mt-1 font-medium text-app-text">
-                                              {question.position + 1}. {question.question}
-                                            </h4>
-                                            {question.explanation ? (
-                                              <p className="mt-1 text-sm text-app-text-muted">
-                                                {question.explanation}
-                                              </p>
-                                            ) : null}
-                                          </div>
-                                        </div>
-                                        {!collapsedQuestionIds.has(question.id) ? (
-                                          <div className="flex shrink-0 flex-wrap items-center gap-1">
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              icon={<Pencil className="h-3.5 w-3.5" />}
-                                              onClick={() =>
-                                                whenEditable(() =>
-                                                  openEdit({ kind: "question", item: question }),
-                                                )
-                                              }
-                                            >
-                                              Edit
-                                            </Button>
-                                            {question.type === "MULTIPLE_CHOICE" ? (
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                icon={<Plus className="h-3.5 w-3.5" />}
-                                                onClick={() =>
-                                                  openCreate(
-                                                    "option",
-                                                    question.id,
-                                                    question.blueprintCheckOptions.length,
-                                                  )
-                                                }
-                                              >
-                                                Add option
-                                              </Button>
-                                            ) : null}
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                      {!collapsedQuestionIds.has(question.id) &&
-                                      question.blueprintCheckOptions.length > 0 ? (
-                                        <ul className="mt-3 space-y-1 text-sm text-app-text-muted">
-                                          {question.blueprintCheckOptions.map(
-                                            (option, optionIndex) => (
-                                              <li
-                                                key={option.id}
-                                                {...dragProps("option", option.id, optionIndex)}
-                                                className="flex items-center gap-2 rounded-lg border border-app-border-muted bg-app-surface-muted p-1"
-                                              >
-                                                <div
-                                                  role="button"
-                                                  tabIndex={0}
-                                                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1"
-                                                  onClick={() =>
-                                                    openEdit({
-                                                      kind: "option",
-                                                      item: option,
-                                                    })
-                                                  }
-                                                  onKeyDown={(event) => {
-                                                    if (
-                                                      event.key === "Enter" ||
-                                                      event.key === " "
-                                                    ) {
-                                                      event.preventDefault();
-                                                      openEdit({
-                                                        kind: "option",
-                                                        item: option,
-                                                      });
-                                                    }
-                                                  }}
-                                                >
-                                                  {option.correct ? (
-                                                    <CircleCheckBig className="h-4 w-4 text-app-success-text" />
-                                                  ) : (
-                                                    <Square className="h-4 w-4" />
-                                                  )}
-                                                  {option.label}
-                                                </div>
-                                                <Button
-                                                  aria-label={`Delete option ${option.label}`}
-                                                  iconOnly
-                                                  size="sm"
-                                                  variant="dangerGhost"
-                                                  loading={deletingId === option.id}
-                                                  onClick={() =>
-                                                    requestDelete("option", option.id, option.label)
-                                                  }
-                                                >
-                                                  <Minus className="h-4 w-4" strokeWidth={2.5} />
-                                                </Button>
-                                              </li>
-                                            ),
-                                          )}
-                                        </ul>
-                                      ) : null}
-                                    </article>
-                                  ))
-                              )}
-                            </div>
-                          </div>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </section>
-                ))
-            )}
-            {path.blueprintPhases.length > 0 ? (
-              <Button
-                variant="secondary"
-                icon={<Plus className="h-4 w-4" />}
-                onClick={() => openCreate("phase", path.id, path.blueprintPhases.length)}
-              >
-                Add phase
-              </Button>
-            ) : null}
-          </section>
+          <BlueprintOutline path={path} actions={outlineActions} />
         )}
         <AddRequirementsModal
           picker={requirementPicker}

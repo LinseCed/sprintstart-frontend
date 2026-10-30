@@ -2183,13 +2183,13 @@
   },
   "src/pages/BlueprintPathDetailPage.tsx": {
     "complexity": {
-      "count": 4
+      "count": 3
     },
     "max-lines": {
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 5
+      "count": 2
     }
   },
   "src/pages/BlueprintPathsPage.tsx": {
