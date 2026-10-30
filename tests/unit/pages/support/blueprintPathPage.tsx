@@ -125,6 +125,14 @@ export function richPath(status: BlueprintPath["status"] = "DRAFT") {
             title: "Run git clone",
             description: "Use SSH",
           },
+          {
+            id: "task-2",
+            blueprintStepId: "step-1",
+            revision: 13,
+            position: 1,
+            title: "Run git fetch",
+            description: "Update",
+          },
         ],
         blueprintResources: [
           {
