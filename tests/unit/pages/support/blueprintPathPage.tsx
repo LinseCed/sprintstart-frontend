@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { service } from "./blueprintPathMocks.ts";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { LocationProbe } from "./LocationProbe.tsx";
 import { BlueprintPathDetailPage } from "../../../../src/pages/BlueprintPathDetailPage.tsx";
 import type { BlueprintPath } from "../../../../src/features/blueprints/types.ts";
 
@@ -56,15 +57,10 @@ export function graphFixture(path: BlueprintPath) {
 
 /** Serves `path` (and its graph) for its own id, ready for the page to load. */
 export function servePath(path: BlueprintPath) {
-  service.getPath.mockImplementation((_scope: unknown, id: string) =>
+  service.getPath.mockImplementation((_scope: unknown, id: unknown) =>
     Promise.resolve(id === path.id ? path : { ...path, id }),
   );
   service.getGraph.mockResolvedValue(graphFixture(path));
-}
-
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.pathname + location.search}</output>;
 }
 
 /** Renders the page at `entry`, with the list page and the current URL observable. */
