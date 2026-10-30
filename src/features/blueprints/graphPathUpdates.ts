@@ -21,7 +21,7 @@ export type Placement = { revision: number; graphX: number; graphY: number };
 /**
  * The path with what the server reported about one node written onto it.
  *
- * A step takes the whole change; a question only has its revision kept, because its place and
+ * A step takes every field reported; a question only has its revision kept, because its place and
  * edges live on the graph node, not on the nested question.
  */
 export function withNodeChange(
