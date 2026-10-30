@@ -1,5 +1,5 @@
 import { MainContent } from "../components/layout/MainContent";
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Link, ListChecks, Loader2, TriangleAlert } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/Button.tsx";
@@ -32,7 +32,6 @@ import {
   type CreateKind,
   type EditTarget,
   type EditorMode,
-  type SortKind,
 } from "../features/blueprints/pathEditorTypes.ts";
 import { withGraphNodes } from "../features/blueprints/withGraphNodes.ts";
 import {
@@ -54,6 +53,7 @@ import { useArchive, useLifecycleActions } from "../features/blueprints/useLifec
 import { useDraftPrompt, useEditAsDraft } from "../features/blueprints/useDraftPrompt.ts";
 import { useVersionHistory } from "../features/blueprints/useVersionHistory.ts";
 import { ItemFormModal } from "../features/blueprints/components/ItemFormModal.tsx";
+import { useOutlineOrder } from "../features/blueprints/useOutlineOrder.ts";
 import { useItemForm, useSaveItem } from "../features/blueprints/useItemForm.ts";
 import { BlueprintOutline } from "../features/blueprints/components/outline/BlueprintOutline.tsx";
 import type { OutlineActions } from "../features/blueprints/components/outline/outlineActions.ts";
@@ -92,7 +92,6 @@ export function BlueprintPathDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [dragged, setDragged] = useState<{ kind: SortKind; id: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     kind: CreateKind;
     id: string;
@@ -166,6 +165,14 @@ export function BlueprintPathDetailPage() {
   const phasesCollapsed = useCollapsedIds();
   const stepsCollapsed = useCollapsedIds();
   const questionsCollapsed = useCollapsedIds();
+  const { dragProps } = useOutlineOrder({
+    path,
+    setPath,
+    scope: blueprintScope,
+    loadPath,
+    setPageError: setError,
+    whenEditable,
+  });
   const itemForm = useItemForm();
   const saveItem = useSaveItem(itemForm, {
     scope: blueprintScope,
@@ -868,192 +875,6 @@ export function BlueprintPathDetailPage() {
     } finally {
       setDeletingId(null);
     }
-  }
-
-  async function reorder(kind: SortKind, id: string, position: number) {
-    if (!path) return;
-    const phases = path.blueprintPhases;
-    const phase = phases.find((item) => item.id === id);
-    const step = phases.flatMap((item) => item.blueprintSteps).find((item) => item.id === id);
-    const task = phases
-      .flatMap((item) => item.blueprintSteps)
-      .flatMap((item) => item.blueprintTasks)
-      .find((item) => item.id === id);
-    const question = phases
-      .flatMap((item) => item.blueprintCheckQuestions)
-      .find((item) => item.id === id);
-    const option = phases
-      .flatMap((item) => item.blueprintCheckQuestions)
-      .flatMap((item) => item.blueprintCheckOptions)
-      .find((item) => item.id === id);
-    setPath((current) => {
-      if (!current) return current;
-      const move = <T extends { id: string; position: number }>(items: T[]) => {
-        const sourceIndex = items.findIndex((item) => item.id === id);
-        if (sourceIndex < 0) return items;
-        const reordered = [...items];
-        const [moved] = reordered.splice(sourceIndex, 1);
-        reordered.splice(position, 0, moved);
-        return reordered.map((item, index) => ({ ...item, position: index }));
-      };
-      if (kind === "phase") return { ...current, blueprintPhases: move(current.blueprintPhases) };
-      return {
-        ...current,
-        blueprintPhases: current.blueprintPhases.map((currentPhase) => ({
-          ...currentPhase,
-          blueprintSteps:
-            kind === "step" && currentPhase.blueprintSteps.some((item) => item.id === id)
-              ? move(currentPhase.blueprintSteps)
-              : currentPhase.blueprintSteps.map((currentStep) => ({
-                  ...currentStep,
-                  blueprintTasks:
-                    kind === "task" && currentStep.blueprintTasks.some((item) => item.id === id)
-                      ? move(currentStep.blueprintTasks)
-                      : currentStep.blueprintTasks,
-                })),
-          blueprintCheckQuestions:
-            kind === "question" &&
-            currentPhase.blueprintCheckQuestions.some((item) => item.id === id)
-              ? move(currentPhase.blueprintCheckQuestions)
-              : currentPhase.blueprintCheckQuestions.map((currentQuestion) => ({
-                  ...currentQuestion,
-                  blueprintCheckOptions:
-                    kind === "option" &&
-                    currentQuestion.blueprintCheckOptions.some((item) => item.id === id)
-                      ? move(currentQuestion.blueprintCheckOptions)
-                      : currentQuestion.blueprintCheckOptions,
-                })),
-        })),
-      };
-    });
-    try {
-      let updates: { id: string; revision: number; position: number }[] = [];
-      if (kind === "phase" && phase)
-        updates = await blueprintService.updatePhasePosition(blueprintScope, id, {
-          revision: phase.revision,
-          position,
-        });
-      if (kind === "step" && step)
-        updates = await blueprintService.updateStepPosition(blueprintScope, id, {
-          revision: step.revision,
-          position,
-        });
-      if (kind === "task" && task)
-        updates = await blueprintService.updateTaskPosition(blueprintScope, id, {
-          revision: task.revision,
-          position,
-        });
-      if (kind === "question" && question)
-        updates = await blueprintService.updateQuestionPosition(blueprintScope, id, {
-          revision: question.revision,
-          position,
-        });
-      if (kind === "option" && option)
-        updates = await blueprintService.updateOptionPosition(blueprintScope, id, {
-          revision: option.revision,
-          position,
-        });
-      setPath((current) => {
-        if (!current) return current;
-        const applyUpdates = <T extends { id: string; revision: number; position: number }>(
-          items: T[],
-        ) => {
-          const byId = new Map(updates.map((update) => [update.id, update]));
-          return items.map((item) => {
-            const update = byId.get(item.id);
-            return update
-              ? {
-                  ...item,
-                  revision: update.revision,
-                  position: update.position,
-                }
-              : item;
-          });
-        };
-        if (kind === "phase")
-          return {
-            ...current,
-            blueprintPhases: applyUpdates(current.blueprintPhases),
-          };
-        return {
-          ...current,
-          blueprintPhases: current.blueprintPhases.map((currentPhase) => ({
-            ...currentPhase,
-            blueprintSteps:
-              kind === "step" && currentPhase.blueprintSteps.some((item) => item.id === id)
-                ? applyUpdates(currentPhase.blueprintSteps)
-                : currentPhase.blueprintSteps.map((currentStep) => ({
-                    ...currentStep,
-                    blueprintTasks:
-                      kind === "task" && currentStep.blueprintTasks.some((item) => item.id === id)
-                        ? applyUpdates(currentStep.blueprintTasks)
-                        : currentStep.blueprintTasks,
-                  })),
-            blueprintCheckQuestions:
-              kind === "question" &&
-              currentPhase.blueprintCheckQuestions.some((item) => item.id === id)
-                ? applyUpdates(currentPhase.blueprintCheckQuestions)
-                : currentPhase.blueprintCheckQuestions.map((currentQuestion) => ({
-                    ...currentQuestion,
-                    blueprintCheckOptions:
-                      kind === "option" &&
-                      currentQuestion.blueprintCheckOptions.some((item) => item.id === id)
-                        ? applyUpdates(currentQuestion.blueprintCheckOptions)
-                        : currentQuestion.blueprintCheckOptions,
-                  })),
-          })),
-        };
-      });
-    } catch (reason) {
-      // Back to what the server has, not to the snapshot this call started from: anything saved
-      // meanwhile would be thrown away with the failed move.
-      void loadPath(false);
-      setError(reason instanceof Error ? reason.message : "The item could not be reordered.");
-    }
-  }
-
-  /** The ids of the list an item sits in -- a drag only reorders within one. */
-  function siblingIds(kind: SortKind, id: string): string[] {
-    const phases = path?.blueprintPhases ?? [];
-    const steps = phases.flatMap((phase) => phase.blueprintSteps);
-    const questions = phases.flatMap((phase) => phase.blueprintCheckQuestions);
-    const lists: { id: string }[][] =
-      kind === "phase"
-        ? [phases]
-        : kind === "step"
-          ? phases.map((phase) => phase.blueprintSteps)
-          : kind === "task"
-            ? steps.map((step) => step.blueprintTasks)
-            : kind === "question"
-              ? phases.map((phase) => phase.blueprintCheckQuestions)
-              : questions.map((question) => question.blueprintCheckOptions);
-    return (lists.find((list) => list.some((item) => item.id === id)) ?? []).map((item) => item.id);
-  }
-
-  function dragProps(kind: SortKind, id: string, position: number) {
-    return {
-      draggable: true,
-      onDragStart: (event: DragEvent<HTMLElement>) => {
-        event.stopPropagation();
-        event.dataTransfer.effectAllowed = "move";
-        setDragged({ kind, id });
-      },
-      onDragOver: (event: DragEvent<HTMLElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-      },
-      onDrop: (event: DragEvent<HTMLElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const source = dragged;
-        setDragged(null);
-        // Dropped on an item of another list, the target's position means nothing in the source's.
-        if (source?.kind !== kind || source.id === id) return;
-        if (!siblingIds(kind, id).includes(source.id)) return;
-        whenEditable(() => void reorder(kind, source.id, position));
-      },
-      onDragEnd: () => setDragged(null),
-    };
   }
 
   // Keep the existing shell visible during a graph → list refresh. This avoids replacing the
