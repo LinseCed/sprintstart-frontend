@@ -1,15 +1,11 @@
 import { MainContent } from "../components/layout/MainContent";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  Archive,
   ArrowLeft,
   BookOpenCheck,
   ChevronDown,
   ChevronRight,
   CircleCheckBig,
-  FilePlus2,
-  History,
-  Layers3,
   Link,
   ListChecks,
   Loader2,
@@ -18,8 +14,6 @@ import {
   Network,
   Pencil,
   Plus,
-  Rocket,
-  RotateCcw,
   Square,
   TriangleAlert,
   X,
@@ -34,7 +28,6 @@ import { Modal } from "../components/ui/Modal.tsx";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs.tsx";
 import { Select } from "../components/ui/Select.tsx";
 import { Textarea } from "../components/ui/Textarea.tsx";
-import { PageHeader } from "../components/layout/PageHeader.tsx";
 import { PhasePrerequisites } from "../features/blueprints/components/PhasePrerequisites.tsx";
 import { versionWord } from "../features/blueprints/pathLifecycle.ts";
 import { useToast } from "../context/useToast.ts";
@@ -80,6 +73,7 @@ import {
   DraftPromptDialog,
   LifecycleDialog,
 } from "../features/blueprints/components/BlueprintPathDialogs.tsx";
+import { BlueprintPathHeader } from "../features/blueprints/components/BlueprintPathHeader.tsx";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -307,6 +301,22 @@ export function BlueprintPathDetailPage() {
     } finally {
       setIsArchiving(false);
     }
+  }
+
+  /** Opens the draft of the published version and moves to it. */
+  function editAsDraft() {
+    if (!path) return Promise.resolve();
+    return blueprintService
+      .openDraft(blueprintScope, path.blueprintKey)
+      .then((draft) => {
+        toast.info(`Editing draft v${draft.version}`, {
+          description: `Version ${path.version} stays published until you publish this one.`,
+        });
+        return navigate(`/blueprints/${draft.id}${isGlobal ? "?scope=global" : ""}`);
+      })
+      .catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : "Draft could not be opened."),
+      );
   }
 
   async function deleteDraft(version: BlueprintPath) {
@@ -1689,99 +1699,17 @@ export function BlueprintPathDetailPage() {
         }}
         onConfirm={() => void runLifecycleAction()}
       />
-      <header className="border-b border-app-border bg-app-bg">
-        <div className="app-page-frame py-6">
-          <PageHeader
-            icon={Layers3}
-            title={path.title}
-            subtitle={path.description || "No path description yet."}
-            actions={
-              <>
-                <Badge
-                  variant={
-                    path.status === "ACTIVE"
-                      ? "success"
-                      : path.status === "ARCHIVED"
-                        ? "neutral"
-                        : "warning"
-                  }
-                >
-                  {versionWord(path.status)} · v{path.version}
-                </Badge>
-                <Button
-                  variant="secondary"
-                  icon={<ArrowLeft className="h-4 w-4" />}
-                  onClick={() => void navigate(blueprintListPath)}
-                >
-                  All blueprints
-                </Button>
-                <Button
-                  variant="secondary"
-                  icon={<History className="h-4 w-4" />}
-                  onClick={() => void openHistory()}
-                >
-                  Version history
-                </Button>
-                {path.status === "ACTIVE" ? (
-                  <>
-                    <Button
-                      variant="dangerSoft"
-                      icon={<Archive className="h-4 w-4" />}
-                      loading={isArchiving}
-                      onClick={() => setIsArchiveConfirmOpen(true)}
-                    >
-                      Archive
-                    </Button>
-                    <Button
-                      variant="primary"
-                      icon={<FilePlus2 className="h-4 w-4" />}
-                      onClick={() =>
-                        void blueprintService
-                          .openDraft(blueprintScope, path.blueprintKey)
-                          .then((draft) => {
-                            toast.info(`Editing draft v${draft.version}`, {
-                              description: `Version ${path.version} stays published until you publish this one.`,
-                            });
-                            return navigate(
-                              `/blueprints/${draft.id}${isGlobal ? "?scope=global" : ""}`,
-                            );
-                          })
-                          .catch((reason: unknown) =>
-                            setError(
-                              reason instanceof Error
-                                ? reason.message
-                                : "Draft could not be opened.",
-                            ),
-                          )
-                      }
-                    >
-                      Edit as draft
-                    </Button>
-                  </>
-                ) : path.status === "ARCHIVED" ? (
-                  <Button
-                    variant="primary"
-                    icon={<RotateCcw className="h-4 w-4" />}
-                    disabled={isLifecycleBusy}
-                    onClick={() => setPendingLifecycle({ action: "rollback", version: path })}
-                  >
-                    Revert to this version
-                  </Button>
-                ) : (
-                  <Button
-                    variant="primary"
-                    icon={<Rocket className="h-4 w-4" />}
-                    disabled={isLifecycleBusy}
-                    onClick={() => setPendingLifecycle({ action: "publish", version: path })}
-                  >
-                    Publish
-                  </Button>
-                )}
-              </>
-            }
-          />
-        </div>
-      </header>
+      <BlueprintPathHeader
+        path={path}
+        isArchiving={isArchiving}
+        isLifecycleBusy={isLifecycleBusy}
+        onBack={() => void navigate(blueprintListPath)}
+        onOpenHistory={() => void openHistory()}
+        onArchive={() => setIsArchiveConfirmOpen(true)}
+        onEditAsDraft={() => void editAsDraft()}
+        onRevert={() => setPendingLifecycle({ action: "rollback", version: path })}
+        onPublish={() => setPendingLifecycle({ action: "publish", version: path })}
+      />
 
       {/* The swipe listens on the page body, not on the bar: a gesture that only works while the
           pointer is over a 20rem control reads as broken everywhere else. */}
