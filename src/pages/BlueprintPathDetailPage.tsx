@@ -50,6 +50,7 @@ import {
   useSubGraphNodeEdits,
   useSubGraphState,
 } from "../features/blueprints/useSubGraph.ts";
+import { useDeleteConfirmation, useDeleteItem } from "../features/blueprints/useItemDeletion.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -77,13 +78,6 @@ export function BlueprintPathDetailPage() {
   const [path, setPath] = useState<BlueprintPath | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{
-    kind: CreateKind;
-    id: string;
-    label: string;
-  } | null>(null);
-  const [pendingDeleteError, setPendingDeleteError] = useState<string | null>(null);
   const requirementPicker = useRequirementPicker();
   const editContext = { path, setPath, scope: blueprintScope, setPageError: setError };
   const addRequirements = useAddRequirements(editContext, requirementPicker);
@@ -147,6 +141,9 @@ export function BlueprintPathDetailPage() {
   const contentEdits = useSubGraphContentEdits(pageContext, subGraph);
   const editor = useEditorMode(pageContext, subGraph);
   const { refreshActiveEditorData } = editor;
+  const { deletingId, deleteItem } = useDeleteItem(pageContext, subGraph, refreshActiveEditorData);
+  const deletion = useDeleteConfirmation(whenEditable, deleteItem);
+  const requestDelete = deletion.request;
   // Two-finger swipe between the two editors, the same gesture the admin and inbox pages use.
   const swipeRef = useSwipeableTabs<EditorMode, HTMLElement>({
     order: EDITOR_MODE_ORDER,
@@ -229,205 +226,6 @@ export function BlueprintPathDetailPage() {
     itemForm.openEdit(nextTarget);
   }
 
-  /**
-   * Applies the graph-side effects reported by a phase deletion. The response also contains the
-   * deleted phase itself; filtering it out first intentionally makes that entry a no-op.
-   */
-  function applyPhaseDeletion(phaseId: string, updatedPhases: { id: string; revision: number }[]) {
-    const revisionsById = new Map(updatedPhases.map((phase) => [phase.id, phase.revision]));
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases
-              .filter((phase) => phase.id !== phaseId)
-              .map((phase) => {
-                const revision = revisionsById.get(phase.id);
-                return revision === undefined
-                  ? phase
-                  : {
-                      ...phase,
-                      revision,
-                      blockerIds: phase.blockerIds.filter((blockerId) => blockerId !== phaseId),
-                    };
-              }),
-          }
-        : current,
-    );
-  }
-
-  /**
-   * Applies the graph-side effects reported by a step deletion. The deleted step may appear in
-   * updatedSteps, but it is removed before revisions are applied.
-   */
-  function applyStepDeletion(stepId: string, updatedSteps: { id: string; revision: number }[]) {
-    const revisionsById = new Map(updatedSteps.map((step) => [step.id, step.revision]));
-    subGraph.setNodes((current) =>
-      current
-        .filter((node) => node.id !== stepId)
-        .map((node) => {
-          const revision = revisionsById.get(node.id);
-          return revision === undefined
-            ? node
-            : {
-                ...node,
-                revision,
-                blockerIds: node.blockerIds.filter((blockerId) => blockerId !== stepId),
-              };
-        }),
-    );
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) => ({
-              ...phase,
-              blueprintSteps: phase.blueprintSteps
-                .filter((step) => step.id !== stepId)
-                .map((step) => {
-                  const revision = revisionsById.get(step.id);
-                  return revision === undefined
-                    ? step
-                    : {
-                        ...step,
-                        revision,
-                        blockerIds: step.blockerIds.filter((blockerId) => blockerId !== stepId),
-                      };
-                }),
-              blueprintCheckQuestions: phase.blueprintCheckQuestions.map((question) => {
-                const revision = revisionsById.get(question.id);
-                return revision === undefined ? question : { ...question, revision };
-              }),
-            })),
-          }
-        : current,
-    );
-  }
-
-  /**
-   * Applies the graph-side effects reported by a question deletion. The deleted question may
-   * appear in updatedQuestions, but it is removed before revisions are applied.
-   */
-  function applyQuestionDeletion(
-    questionId: string,
-    updatedQuestions: { id: string; revision: number }[],
-  ) {
-    const revisionsById = new Map(
-      updatedQuestions.map((question) => [question.id, question.revision]),
-    );
-    subGraph.setNodes((current) =>
-      current
-        .filter((node) => node.id !== questionId)
-        .map((node) => {
-          const revision = revisionsById.get(node.id);
-          return revision === undefined
-            ? node
-            : {
-                ...node,
-                revision,
-                blockerIds: node.blockerIds.filter((blockerId) => blockerId !== questionId),
-              };
-        }),
-    );
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) => ({
-              ...phase,
-              blueprintSteps: phase.blueprintSteps.map((step) => {
-                const revision = revisionsById.get(step.id);
-                return revision === undefined
-                  ? step
-                  : {
-                      ...step,
-                      revision,
-                      blockerIds: step.blockerIds.filter((blockerId) => blockerId !== questionId),
-                    };
-              }),
-              blueprintCheckQuestions: phase.blueprintCheckQuestions
-                .filter((question) => question.id !== questionId)
-                .map((question) => {
-                  const revision = revisionsById.get(question.id);
-                  return revision === undefined ? question : { ...question, revision };
-                }),
-            })),
-          }
-        : current,
-    );
-  }
-
-  /**
-   * Asks before deleting, for everything the list editor can delete.
-   *
-   * The graph editor already asked; the list editor did not, so the same phase was one guarded
-   * click away on one surface and one unguarded click away on the other. Nothing here is
-   * recoverable from the UI — there is no undo endpoint — so the question is the only safety net
-   * there is.
-   */
-  function requestDelete(kind: CreateKind, id: string, label: string) {
-    whenEditable(() => setPendingDelete({ kind, id, label }));
-  }
-
-  async function deleteItem(
-    kind: "phase" | "step" | "question" | "task" | "resource" | "option",
-    id: string,
-  ) {
-    setDeletingId(id);
-    setError(null);
-    try {
-      const phase = path?.blueprintPhases.find((item) => item.id === id);
-      const step = path?.blueprintPhases
-        .flatMap((item) => item.blueprintSteps)
-        .find((item) => item.id === id);
-      const question = path?.blueprintPhases
-        .flatMap((item) => item.blueprintCheckQuestions)
-        .find((item) => item.id === id);
-      const task = path?.blueprintPhases
-        .flatMap((item) => item.blueprintSteps)
-        .flatMap((item) => item.blueprintTasks)
-        .find((item) => item.id === id);
-      const resource = path?.blueprintPhases
-        .flatMap((item) => item.blueprintSteps)
-        .flatMap((item) => item.blueprintResources)
-        .find((item) => item.id === id);
-      const option = path?.blueprintPhases
-        .flatMap((item) => item.blueprintCheckQuestions)
-        .flatMap((item) => item.blueprintCheckOptions)
-        .find((item) => item.id === id);
-      if (kind === "phase" && phase) {
-        const response = await blueprintService.deletePhase(blueprintScope, id, phase.revision);
-        applyPhaseDeletion(id, response.updatedPhases);
-      } else if (kind === "step" && step) {
-        const response = await blueprintService.deleteStep(blueprintScope, id, step.revision);
-        applyStepDeletion(id, response.updatedSteps);
-      } else if (kind === "question" && question) {
-        const response = await blueprintService.deleteQuestion(
-          blueprintScope,
-          id,
-          question.revision,
-        );
-        applyQuestionDeletion(id, response.updatedQuestions);
-      } else if (kind === "task" && task)
-        await blueprintService.deleteTask(blueprintScope, id, task.revision);
-      else if (kind === "resource" && resource)
-        await blueprintService.deleteResource(blueprintScope, id, resource.revision);
-      else if (kind === "option" && option)
-        await blueprintService.deleteOption(blueprintScope, id, option.revision);
-      else throw new Error(`The ${kind} could not be found.`);
-      if (kind !== "phase" && kind !== "step" && kind !== "question")
-        await refreshActiveEditorData();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : `The ${kind} could not be deleted.`);
-      // Rethrown, not swallowed: the graph panels close themselves and toast "deleted" on a
-      // resolved promise, so a 409 on a stale revision used to read as a success with the node
-      // still on the canvas. Every caller below handles the rejection.
-      throw reason;
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
   // Keep the existing shell visible during a graph → list refresh. This avoids replacing the
   // whole page with a loading state while the nested DTO catches up with graph revisions.
   //
@@ -491,25 +289,11 @@ export function BlueprintPathDetailPage() {
   return (
     <div className="min-h-screen">
       <DeleteItemDialog
-        pendingDelete={pendingDelete}
+        pendingDelete={deletion.pending}
         deletingId={deletingId}
-        error={pendingDeleteError}
-        onCancel={() => {
-          setPendingDelete(null);
-          setPendingDeleteError(null);
-        }}
-        onConfirm={() => {
-          if (!pendingDelete) return;
-          const { kind, id } = pendingDelete;
-          setPendingDeleteError(null);
-          void deleteItem(kind, id).then(
-            () => setPendingDelete(null),
-            (reason: unknown) =>
-              setPendingDeleteError(
-                reason instanceof Error ? reason.message : `The ${kind} could not be deleted.`,
-              ),
-          );
-        }}
+        error={deletion.error}
+        onCancel={deletion.cancel}
+        onConfirm={deletion.confirm}
       />
       <DraftPromptDialog
         path={path}
