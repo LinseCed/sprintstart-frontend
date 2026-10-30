@@ -1,34 +1,19 @@
 import { MainContent } from "../components/layout/MainContent";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Link, ListChecks, Loader2, TriangleAlert } from "lucide-react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/Button.tsx";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs.tsx";
 import { useSwipeableTabs } from "../hooks/useHorizontalWheelNavigation.ts";
-import type {
-  BlueprintOption,
-  BlueprintGraphNode,
-  BlueprintPhase,
-  BlueprintPath,
-  BlueprintQuestion,
-  BlueprintStep,
-} from "../features/blueprints/types.ts";
-import {
-  BlueprintGraphEditor,
-  type BlueprintPhaseMetadata,
-} from "../features/blueprints/components/BlueprintGraphEditor.tsx";
+import type { BlueprintOption, BlueprintPath } from "../features/blueprints/types.ts";
+import { BlueprintGraphEditor } from "../features/blueprints/components/BlueprintGraphEditor.tsx";
 import { BlueprintSubGraphEditor } from "../features/blueprints/components/BlueprintSubGraphEditor.tsx";
-import type {
-  BlueprintQuestionMetadata,
-  BlueprintStepMetadata,
-} from "../features/blueprints/components/BlueprintSubGraphEditor.tsx";
 import { blueprintService, type BlueprintScope } from "../services/blueprintService.ts";
 import { useProjectContext } from "../features/projects/useProjectContext.ts";
 import { useAuth } from "../context/useAuth.ts";
 
 import {
   EDITOR_MODE_ORDER,
-  type BlueprintReopen,
   type CreateKind,
   type EditTarget,
   type EditorMode,
@@ -58,6 +43,13 @@ import { useItemForm, useSaveItem } from "../features/blueprints/useItemForm.ts"
 import { BlueprintOutline } from "../features/blueprints/components/outline/BlueprintOutline.tsx";
 import type { OutlineActions } from "../features/blueprints/components/outline/outlineActions.ts";
 import { useCollapsedIds } from "../features/blueprints/useCollapsedIds.ts";
+import { useEditorMode } from "../features/blueprints/useEditorMode.ts";
+import { usePhaseGraphEdits } from "../features/blueprints/usePhaseGraphEdits.ts";
+import {
+  useSubGraphContentEdits,
+  useSubGraphNodeEdits,
+  useSubGraphState,
+} from "../features/blueprints/useSubGraph.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -72,7 +64,6 @@ import { LifecycleNotice } from "../features/blueprints/components/LifecycleNoti
 export function BlueprintPathDetailPage() {
   const { pathId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { selectedProjectId, isLoading: isProjectLoading } = useProjectContext();
@@ -84,11 +75,6 @@ export function BlueprintPathDetailPage() {
   const blueprintListPath = isGlobal ? "/blueprints?scope=global" : "/blueprints";
   const projectIdAtMount = useRef<string | null>(null);
   const [path, setPath] = useState<BlueprintPath | null>(null);
-  const [subGraphPhaseId, setSubGraphPhaseId] = useState<string | null>(null);
-  /** A phase or node the graph should open by itself, once it has it. See {@link BlueprintReopen}. */
-  const [pendingOpenPhaseTitle, setPendingOpenPhaseTitle] = useState<string | null>(null);
-  const [pendingOpenNodeTitle, setPendingOpenNodeTitle] = useState<string | null>(null);
-  const [subGraphNodes, setSubGraphNodes] = useState<BlueprintGraphNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -102,14 +88,6 @@ export function BlueprintPathDetailPage() {
   const editContext = { path, setPath, scope: blueprintScope, setPageError: setError };
   const addRequirements = useAddRequirements(editContext, requirementPicker);
   const removeRequirement = useRemoveRequirement(editContext);
-  const [editorMode, setEditorMode] = useState<EditorMode>("list");
-  // Two-finger swipe between the two editors, the same gesture the admin and inbox pages use.
-  const swipeRef = useSwipeableTabs<EditorMode, HTMLElement>({
-    order: EDITOR_MODE_ORDER,
-    value: editorMode,
-    onChange: (mode) => changeEditorMode(mode),
-  });
-
   /**
    * Loads the path together with its graph, and merges the two.
    *
@@ -148,6 +126,7 @@ export function BlueprintPathDetailPage() {
 
   const pageContext: PathPageContext = {
     path,
+    setPath,
     pathId,
     scope: blueprintScope,
     isGlobal,
@@ -162,6 +141,18 @@ export function BlueprintPathDetailPage() {
   const draftPrompt = useDraftPrompt(pageContext);
   const editAsDraft = useEditAsDraft(pageContext);
   const { isDraft, whenEditable, openDraftAndContinue } = draftPrompt;
+  const subGraph = useSubGraphState(pageContext);
+  const phaseGraph = usePhaseGraphEdits(pageContext);
+  const nodeEdits = useSubGraphNodeEdits(pageContext, subGraph);
+  const contentEdits = useSubGraphContentEdits(pageContext, subGraph);
+  const editor = useEditorMode(pageContext, subGraph);
+  const { refreshActiveEditorData } = editor;
+  // Two-finger swipe between the two editors, the same gesture the admin and inbox pages use.
+  const swipeRef = useSwipeableTabs<EditorMode, HTMLElement>({
+    order: EDITOR_MODE_ORDER,
+    value: editor.mode,
+    onChange: editor.changeEditorMode,
+  });
   const phasesCollapsed = useCollapsedIds();
   const stepsCollapsed = useCollapsedIds();
   const questionsCollapsed = useCollapsedIds();
@@ -179,8 +170,8 @@ export function BlueprintPathDetailPage() {
     setPath,
     setPageError: setError,
     refresh: refreshActiveEditorData,
-    placeStep: appendCreatedSubGraphStep,
-    placeQuestion: appendCreatedSubGraphQuestion,
+    placeStep: nodeEdits.appendStep,
+    placeQuestion: nodeEdits.appendQuestion,
   });
 
   useEffect(() => {
@@ -216,6 +207,15 @@ export function BlueprintPathDetailPage() {
     itemForm.openCreate({ kind, parentId, position, graphPosition });
   }
 
+  /**
+   * Asks first, like the identical control in the outline. The dialog then owns the request, its
+   * failure and the refresh, through `deleteItem`.
+   */
+  function removeQuestionOption(option: BlueprintOption) {
+    requestDelete("option", option.id, option.label);
+    return Promise.resolve();
+  }
+
   /** A graph edit asked for from the outline: made on a draft, and offered as one on anything else. */
   function runGraphEdit(edit: () => Promise<void>): Promise<void> {
     if (isDraft) return edit();
@@ -228,455 +228,6 @@ export function BlueprintPathDetailPage() {
     setError(null);
     itemForm.openEdit(nextTarget);
   }
-
-  function updateGraphPhase(phaseId: string, update: Partial<BlueprintPhase>) {
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) =>
-              phase.id === phaseId ? { ...phase, ...update } : phase,
-            ),
-          }
-        : current,
-    );
-  }
-
-  async function saveGraphPosition(phase: BlueprintPhase, graphX: number, graphY: number) {
-    const response = await blueprintService.updateGraphNodePosition(blueprintScope, phase.id, {
-      revision: phase.revision,
-      graphX,
-      graphY,
-    });
-    updateGraphPhase(phase.id, response);
-  }
-
-  async function addGraphBlocker(phase: BlueprintPhase, blockerId: string) {
-    const response = await blueprintService.addGraphNodeBlocker(
-      blueprintScope,
-      phase.id,
-      blockerId,
-      phase.revision,
-    );
-    updateGraphPhase(phase.id, response);
-  }
-
-  async function removeGraphBlocker(phase: BlueprintPhase, blockerId: string) {
-    const response = await blueprintService.removeGraphNodeBlocker(
-      blueprintScope,
-      phase.id,
-      blockerId,
-      phase.revision,
-    );
-    updateGraphPhase(phase.id, response);
-  }
-
-  async function updateGraphPhaseMetadata(phase: BlueprintPhase, metadata: BlueprintPhaseMetadata) {
-    await blueprintService.updatePhase(blueprintScope, phase.id, {
-      revision: phase.revision,
-      position: phase.position,
-      ...metadata,
-    });
-    await loadPath();
-  }
-
-  /** Refreshes both views so graph-node revisions stay aligned with the detailed authoring DTO. */
-  async function refreshSubGraph(phaseId: string | null | undefined) {
-    if (!pathId || !phaseId) return;
-    const [nextPath, graph] = await Promise.all([
-      blueprintService.getPath(blueprintScope, pathId),
-      blueprintService.getSubGraph(blueprintScope, phaseId),
-    ]);
-    // The nested DTO has no phase coordinates or prerequisites; keep the ones already loaded
-    // rather than dropping them while the sub-graph editor is open.
-    setPath((current) => {
-      if (!current) return nextPath;
-      const heldById = new Map(current.blueprintPhases.map((phase) => [phase.id, phase]));
-      return withGraphNodes(
-        nextPath,
-        nextPath.blueprintPhases.map((phase): BlueprintGraphNode => {
-          const held = heldById.get(phase.id);
-          return {
-            id: phase.id,
-            // The revision the server just sent, not the one held here: `withGraphNodes` writes
-            // this back onto the phase, so carrying the stale one over meant the next phase
-            // mutation sent a revision the server had already moved past -- a 409 the page then
-            // reported as a success.
-            revision: phase.revision,
-            title: phase.title,
-            graphX: held?.graphX ?? null,
-            graphY: held?.graphY ?? null,
-            blockerIds: held?.blockerIds ?? [],
-          };
-        }),
-      );
-    });
-    setSubGraphNodes(graph.nodes);
-  }
-
-  /** Keeps an open fixed-phase graph current after mutations from its detail panel. */
-  async function refreshActiveEditorData() {
-    if (editorMode === "graph" && subGraphPhaseId) {
-      await refreshSubGraph(subGraphPhaseId);
-      return;
-    }
-    await loadPath();
-  }
-
-  /** Adds a newly created canvas step to both its detailed phase and the thin graph state. */
-  function appendCreatedSubGraphStep(
-    step: BlueprintStep,
-    graphPosition: { revision: number; graphX: number; graphY: number },
-  ) {
-    const positionedStep = { ...step, ...graphPosition };
-    setSubGraphNodes((current) => [
-      ...current,
-      {
-        id: step.id,
-        revision: graphPosition.revision,
-        title: step.title,
-        type: "STEP",
-        blueprintPhaseId: step.blueprintPhaseId,
-        graphX: graphPosition.graphX,
-        graphY: graphPosition.graphY,
-        blockerIds: [],
-      },
-    ]);
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) =>
-              phase.id === step.blueprintPhaseId
-                ? {
-                    ...phase,
-                    blueprintSteps: [...phase.blueprintSteps, positionedStep],
-                  }
-                : phase,
-            ),
-          }
-        : current,
-    );
-  }
-
-  /** Adds a newly created canvas knowledge check to both its detailed phase and thin graph state. */
-  function appendCreatedSubGraphQuestion(
-    question: BlueprintQuestion,
-    graphPosition: { revision: number; graphX: number; graphY: number },
-  ) {
-    const positionedQuestion = {
-      ...question,
-      revision: graphPosition.revision,
-    };
-    setSubGraphNodes((current) => [
-      ...current,
-      {
-        id: question.id,
-        revision: graphPosition.revision,
-        title: question.title,
-        type: "QUESTION",
-        blueprintPhaseId: question.blueprintPhaseId,
-        graphX: graphPosition.graphX,
-        graphY: graphPosition.graphY,
-        blockerIds: [],
-      },
-    ]);
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) =>
-              phase.id === question.blueprintPhaseId
-                ? {
-                    ...phase,
-                    blueprintCheckQuestions: [...phase.blueprintCheckQuestions, positionedQuestion],
-                  }
-                : phase,
-            ),
-          }
-        : current,
-    );
-  }
-
-  async function saveSubGraphPosition(node: BlueprintGraphNode, graphX: number, graphY: number) {
-    setSubGraphNodes((current) =>
-      current.map((item) => (item.id === node.id ? { ...item, graphX, graphY } : item)),
-    );
-    let response: { revision: number; graphX: number; graphY: number };
-    try {
-      response = await blueprintService.updateSubGraphNodePosition(blueprintScope, node.id, {
-        revision: node.revision,
-        graphX,
-        graphY,
-      });
-    } catch (reason) {
-      setSubGraphNodes((current) =>
-        current.map((item) =>
-          item.id === node.id ? { ...item, graphX: node.graphX, graphY: node.graphY } : item,
-        ),
-      );
-      throw reason;
-    }
-    const phaseId = node.blueprintPhaseId ?? subGraphPhaseId;
-    setSubGraphNodes((current) =>
-      current.map((item) => (item.id === node.id ? { ...item, ...response } : item)),
-    );
-    if (!phaseId) return;
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) => {
-              if (phase.id !== phaseId) return phase;
-              return {
-                ...phase,
-                blueprintSteps: phase.blueprintSteps.map((step) =>
-                  step.id === node.id ? { ...step, ...response } : step,
-                ),
-                blueprintCheckQuestions: phase.blueprintCheckQuestions.map((question) =>
-                  question.id === node.id ? { ...question, revision: response.revision } : question,
-                ),
-              };
-            }),
-          }
-        : current,
-    );
-  }
-
-  /** Applies an edge mutation without reloading the whole fixed-phase graph. */
-  function updateSubGraphBlockers(
-    node: BlueprintGraphNode,
-    update: { revision: number; blockerIds: string[] },
-  ) {
-    const phaseId = node.blueprintPhaseId ?? subGraphPhaseId;
-    setSubGraphNodes((current) =>
-      current.map((item) => (item.id === node.id ? { ...item, ...update } : item)),
-    );
-    if (!phaseId) return;
-    setPath((current) =>
-      current
-        ? {
-            ...current,
-            blueprintPhases: current.blueprintPhases.map((phase) => {
-              if (phase.id !== phaseId) return phase;
-              return {
-                ...phase,
-                blueprintSteps: phase.blueprintSteps.map((step) =>
-                  step.id === node.id ? { ...step, ...update } : step,
-                ),
-                blueprintCheckQuestions: phase.blueprintCheckQuestions.map((question) =>
-                  question.id === node.id ? { ...question, revision: update.revision } : question,
-                ),
-              };
-            }),
-          }
-        : current,
-    );
-  }
-
-  async function addSubGraphBlocker(node: BlueprintGraphNode, blockerId: string) {
-    const response = await blueprintService.addSubGraphNodeBlocker(
-      blueprintScope,
-      node.id,
-      blockerId,
-      node.revision,
-    );
-    updateSubGraphBlockers(node, response);
-  }
-
-  async function removeSubGraphBlocker(node: BlueprintGraphNode, blockerId: string) {
-    const response = await blueprintService.removeSubGraphNodeBlocker(
-      blueprintScope,
-      node.id,
-      blockerId,
-      node.revision,
-    );
-    updateSubGraphBlockers(node, response);
-  }
-
-  async function updateSubGraphQuestion(
-    question: BlueprintQuestion,
-    metadata: BlueprintQuestionMetadata,
-  ) {
-    await blueprintService.updateQuestion(blueprintScope, question.id, {
-      revision: question.revision,
-      position: question.position,
-      ...metadata,
-    });
-    await refreshSubGraph(question.blueprintPhaseId);
-  }
-
-  async function addSubGraphQuestionOption(
-    question: BlueprintQuestion,
-    label: string,
-    correct: boolean,
-  ) {
-    await blueprintService.createOption(blueprintScope, question.id, {
-      position: question.blueprintCheckOptions.length,
-      label,
-      correct,
-    });
-    await refreshSubGraph(question.blueprintPhaseId);
-  }
-
-  /**
-   * Asks first, like the identical control in the outline. The dialog then owns the request, its
-   * failure and the refresh, through `deleteItem`.
-   */
-  function removeSubGraphQuestionOption(option: BlueprintOption) {
-    requestDelete("option", option.id, option.label);
-    return Promise.resolve();
-  }
-
-  async function updateSubGraphStep(step: BlueprintStep, metadata: BlueprintStepMetadata) {
-    await blueprintService.updateStep(blueprintScope, step.id, {
-      revision: step.revision,
-      position: step.position,
-      ...metadata,
-    });
-    await refreshSubGraph(step.blueprintPhaseId);
-  }
-
-  async function openSubGraph(phase: BlueprintPhase) {
-    if (phase.type === "AI_ENHANCED") return;
-    setError(null);
-    try {
-      const graph = await blueprintService.getSubGraph(blueprintScope, phase.id);
-      setSubGraphNodes(graph.nodes);
-      setSubGraphPhaseId(phase.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Phase graph could not be loaded.");
-    }
-  }
-
-  /** Reloads top-level graph positions, which are not refreshed by subgraph mutations. */
-  async function returnToTopLevelGraph() {
-    if (!path) return;
-    setError(null);
-    setSubGraphPhaseId(null);
-    setSubGraphNodes([]);
-    try {
-      const graph = await blueprintService.getGraph(blueprintScope, path.id);
-      const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-      setPath((current) =>
-        current
-          ? {
-              ...current,
-              blueprintPhases: current.blueprintPhases.map((phase) => {
-                const node = nodesById.get(phase.id);
-                return node
-                  ? {
-                      ...phase,
-                      revision: node.revision,
-                      graphX: node.graphX,
-                      graphY: node.graphY,
-                      blockerIds: node.blockerIds,
-                    }
-                  : phase;
-              }),
-            }
-          : current,
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Blueprint graph could not be loaded.");
-    }
-  }
-
-  /** Switching views, from the bar or from a two-finger swipe — the two must not disagree. */
-  function changeEditorMode(mode: EditorMode) {
-    if (mode === editorMode) return;
-    if (mode === "graph") {
-      void openGraphEditor();
-      return;
-    }
-    setEditorMode("list");
-    // The graph endpoints update node revisions independently from the nested path DTO. Reload it
-    // before exposing list mutations so their optimistic-lock revisions are current.
-    void loadPath();
-  }
-
-  async function openGraphEditor() {
-    if (!path) return;
-    setError(null);
-    try {
-      const activeSubGraphPhase = subGraphPhaseId
-        ? path.blueprintPhases.find((phase) => phase.id === subGraphPhaseId)
-        : null;
-      if (activeSubGraphPhase?.type === "FIXED") {
-        const graph = await blueprintService.getSubGraph(blueprintScope, activeSubGraphPhase.id);
-        setSubGraphNodes(graph.nodes);
-        setEditorMode("graph");
-        return;
-      }
-      const graph = await blueprintService.getGraph(blueprintScope, path.id);
-      const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-      setPath((current) =>
-        current
-          ? {
-              ...current,
-              blueprintPhases: current.blueprintPhases.map((phase) => {
-                const node = nodesById.get(phase.id);
-                return node
-                  ? {
-                      ...phase,
-                      revision: node.revision,
-                      graphX: node.graphX,
-                      graphY: node.graphY,
-                      blockerIds: node.blockerIds,
-                    }
-                  : phase;
-              }),
-            }
-          : current,
-      );
-      if (subGraphPhaseId) {
-        setSubGraphPhaseId(null);
-        setSubGraphNodes([]);
-      }
-      setEditorMode("graph");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Blueprint graph could not be loaded.");
-    }
-  }
-
-  /**
-   * Puts the author back in front of what they were looking at before they were sent here.
-   *
-   * **Not until the path on screen is the one the address names.** Navigating to the draft changes
-   * the URL immediately; the draft itself arrives a request later, and until it does `path` is
-   * still the *published* version this request came from. Its phases carry the same titles — a
-   * draft is a copy — so a title match against it succeeds and reopens a phase whose id exists only
-   * in the version that was just left, and the page it opened would vanish the moment the draft
-   * lands.
-   *
-   * The state is cleared as soon as it is acted on: a reload or a step back through history must
-   * not open the same thing again, and a title that matches nothing is not a reason to
-   * keep asking.
-   */
-  const reopenRequest = (location.state as { reopen?: BlueprintReopen } | null)?.reopen ?? null;
-  useEffect(() => {
-    if (!reopenRequest || !path || path.id !== pathId) return;
-    const phase = path.blueprintPhases.find(
-      (candidate) => candidate.title === reopenRequest.phaseTitle,
-    );
-    void navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
-    if (!phase) return;
-    // Deferred to a microtask: React 19's lint rejects a synchronous setState in an effect body,
-    // and this is the pattern the repo already passes with.
-    queueMicrotask(() => {
-      if (reopenRequest.nodeTitle && phase.type === "FIXED") {
-        setPendingOpenNodeTitle(reopenRequest.nodeTitle);
-        setEditorMode("graph");
-        void openSubGraph(phase);
-        return;
-      }
-      setPendingOpenPhaseTitle(phase.title);
-      void openGraphEditor();
-    });
-    // `openSubGraph` and `openGraphEditor` are declared per render and would restart this on every
-    // one; what this effect actually depends on is the request and the path it has to find it in.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search, navigate, path, pathId, reopenRequest]);
 
   /**
    * Applies the graph-side effects reported by a phase deletion. The response also contains the
@@ -711,7 +262,7 @@ export function BlueprintPathDetailPage() {
    */
   function applyStepDeletion(stepId: string, updatedSteps: { id: string; revision: number }[]) {
     const revisionsById = new Map(updatedSteps.map((step) => [step.id, step.revision]));
-    setSubGraphNodes((current) =>
+    subGraph.setNodes((current) =>
       current
         .filter((node) => node.id !== stepId)
         .map((node) => {
@@ -764,7 +315,7 @@ export function BlueprintPathDetailPage() {
     const revisionsById = new Map(
       updatedQuestions.map((question) => [question.id, question.revision]),
     );
-    setSubGraphNodes((current) =>
+    subGraph.setNodes((current) =>
       current
         .filter((node) => node.id !== questionId)
         .map((node) => {
@@ -917,11 +468,11 @@ export function BlueprintPathDetailPage() {
     requestDelete,
     deletingId,
     openInGraph: (phaseTitle) => {
-      setPendingOpenPhaseTitle(phaseTitle);
-      changeEditorMode("graph");
+      editor.setOpenPhaseTitle(phaseTitle);
+      editor.changeEditorMode("graph");
     },
-    addBlocker: addGraphBlocker,
-    removeBlocker: removeGraphBlocker,
+    addBlocker: phaseGraph.addBlocker,
+    removeBlocker: phaseGraph.removeBlocker,
     runGraphEdit,
     openRequirementPicker: (phaseId) => void requirementPicker.open(phaseId),
     removeRequirement: (phaseId, requirementId) =>
@@ -933,8 +484,8 @@ export function BlueprintPathDetailPage() {
   };
 
   const orderedPhases = [...path.blueprintPhases].sort((a, b) => a.position - b.position);
-  const subGraphPhase = subGraphPhaseId
-    ? (path.blueprintPhases.find((phase) => phase.id === subGraphPhaseId) ?? null)
+  const subGraphPhase = subGraph.phaseId
+    ? (path.blueprintPhases.find((phase) => phase.id === subGraph.phaseId) ?? null)
     : null;
 
   return (
@@ -1013,7 +564,7 @@ export function BlueprintPathDetailPage() {
         ) : null}
         <LifecycleNotice status={path.status} version={path.version} />
         <SegmentedTabs
-          value={editorMode}
+          value={editor.mode}
           options={[
             {
               value: "list",
@@ -1026,15 +577,15 @@ export function BlueprintPathDetailPage() {
               icon: <Link className="h-4 w-4" />,
             },
           ]}
-          onChange={changeEditorMode}
+          onChange={editor.changeEditorMode}
           layoutId="blueprint-editor-mode-pill"
           ariaLabel="Blueprint view"
         />
-        {editorMode === "graph" ? (
+        {editor.mode === "graph" ? (
           subGraphPhase ? (
             <BlueprintSubGraphEditor
               phase={subGraphPhase}
-              nodes={subGraphNodes}
+              nodes={subGraph.nodes}
               editable={path.status === "DRAFT"}
               onRequestDraft={(node) =>
                 void openDraftAndContinue({
@@ -1042,12 +593,12 @@ export function BlueprintPathDetailPage() {
                   nodeTitle: node.title,
                 })
               }
-              openNodeTitle={pendingOpenNodeTitle}
-              onOpenedNode={() => setPendingOpenNodeTitle(null)}
-              onBack={() => void returnToTopLevelGraph()}
-              onPositionChange={saveSubGraphPosition}
-              onAddBlocker={addSubGraphBlocker}
-              onRemoveBlocker={removeSubGraphBlocker}
+              openNodeTitle={editor.openNodeTitle}
+              onOpenedNode={() => editor.setOpenNodeTitle(null)}
+              onBack={() => void editor.returnToTopLevelGraph()}
+              onPositionChange={nodeEdits.savePosition}
+              onAddBlocker={nodeEdits.addBlocker}
+              onRemoveBlocker={nodeEdits.removeBlocker}
               onCreateNode={(kind, graphX, graphY) => {
                 openCreate(
                   kind,
@@ -1059,10 +610,10 @@ export function BlueprintPathDetailPage() {
                 );
                 return Promise.resolve();
               }}
-              onUpdateQuestion={updateSubGraphQuestion}
-              onAddOption={addSubGraphQuestionOption}
-              onRemoveOption={removeSubGraphQuestionOption}
-              onUpdateStep={updateSubGraphStep}
+              onUpdateQuestion={contentEdits.updateQuestion}
+              onAddOption={contentEdits.addOption}
+              onRemoveOption={removeQuestionOption}
+              onUpdateStep={contentEdits.updateStep}
               onAddTask={(step) => openCreate("task", step.id, step.blueprintTasks.length)}
               onRemoveTask={(task) => requestDelete("task", task.id, task.title)}
               onAddResource={(step) =>
@@ -1085,11 +636,11 @@ export function BlueprintPathDetailPage() {
               pathTitle={path.title}
               editable={path.status === "DRAFT"}
               onRequestDraft={(phase) => void openDraftAndContinue({ phaseTitle: phase.title })}
-              openPhaseTitle={pendingOpenPhaseTitle}
-              onOpenedPhase={() => setPendingOpenPhaseTitle(null)}
-              onPositionChange={saveGraphPosition}
-              onAddBlocker={addGraphBlocker}
-              onRemoveBlocker={removeGraphBlocker}
+              openPhaseTitle={editor.openPhaseTitle}
+              onOpenedPhase={() => editor.setOpenPhaseTitle(null)}
+              onPositionChange={phaseGraph.savePosition}
+              onAddBlocker={phaseGraph.addBlocker}
+              onRemoveBlocker={phaseGraph.removeBlocker}
               onCreateNode={(graphX: number, graphY: number) => {
                 openCreate("phase", path.id, path.blueprintPhases.length, {
                   graphX,
@@ -1098,8 +649,8 @@ export function BlueprintPathDetailPage() {
                 return Promise.resolve();
               }}
               onDeletePhase={(phase) => deleteItem("phase", phase.id)}
-              onOpenSubGraph={(phase) => void openSubGraph(phase)}
-              onUpdatePhase={updateGraphPhaseMetadata}
+              onOpenSubGraph={(phase) => void subGraph.open(phase)}
+              onUpdatePhase={phaseGraph.updateMetadata}
             />
           )
         ) : (
