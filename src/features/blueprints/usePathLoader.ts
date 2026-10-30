@@ -86,7 +86,7 @@ function usePathRequest(pathId: string | undefined, scope: BlueprintScope) {
 
 /**
  * Loads the path once the project is known, and leaves for the list when the project it belongs
- * to is no longer the selected one.
+ * to is not the selected one any more.
  */
 export function usePathLoader(scope: PathScope, navigate: NavigateFunction) {
   const request = usePathRequest(scope.pathId, scope.scope);
