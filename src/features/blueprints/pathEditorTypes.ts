@@ -31,6 +31,7 @@ export type EditTarget =
   | { kind: "option"; item: BlueprintOption }
   | null;
 export type SortKind = "phase" | "step" | "task" | "question" | "option";
+export type RequirementType = "SKILL" | "PROJECT_ROLE";
 export type RequirementTarget = { phaseId: string } | null;
 export type RequirementCatalog = {
   skills: { id: string; name: string }[];
