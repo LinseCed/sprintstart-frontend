@@ -61,8 +61,6 @@ import {
   type EditTarget,
   type EditorMode,
   type LifecycleAction,
-  type RequirementCatalog,
-  type RequirementTarget,
   type SortKind,
 } from "../features/blueprints/pathEditorTypes.ts";
 import { LIFECYCLE_COPY, kindLabels } from "../features/blueprints/pathEditorCopy.ts";
@@ -74,6 +72,12 @@ import {
   LifecycleDialog,
 } from "../features/blueprints/components/BlueprintPathDialogs.tsx";
 import { BlueprintPathHeader } from "../features/blueprints/components/BlueprintPathHeader.tsx";
+import { AddRequirementsModal } from "../features/blueprints/components/AddRequirementsModal.tsx";
+import {
+  useAddRequirements,
+  useRemoveRequirement,
+} from "../features/blueprints/useRequirementEdits.ts";
+import { useRequirementPicker } from "../features/blueprints/useRequirementPicker.ts";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -142,8 +146,6 @@ export function BlueprintPathDetailPage() {
   const [isDraftPromptOpen, setIsDraftPromptOpen] = useState(false);
   const [isOpeningDraft, setIsOpeningDraft] = useState(false);
   const [draftPromptError, setDraftPromptError] = useState<string | null>(null);
-  const [addRequirementTarget, setAddRequirementTarget] = useState<RequirementTarget>(null);
-  const [removingRequirementId, setRemovingRequirementId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     kind: CreateKind;
     id: string;
@@ -152,13 +154,11 @@ export function BlueprintPathDetailPage() {
   const [pendingDeleteError, setPendingDeleteError] = useState<string | null>(null);
   // Kept out of the page-wide `error`, which renders in the page body underneath an open overlay.
   const [itemFormError, setItemFormError] = useState<string | null>(null);
-  const [requirementError, setRequirementError] = useState<string | null>(null);
-  const [requirementType, setRequirementType] = useState<"SKILL" | "PROJECT_ROLE">("SKILL");
-  const [selectedRequirementIds, setSelectedRequirementIds] = useState<string[]>([]);
-  const [requirementCatalog, setRequirementCatalog] = useState<RequirementCatalog | null>(null);
-  const [isRequirementCatalogLoading, setIsRequirementCatalogLoading] = useState(false);
-  const [isRequirementSaving, setIsRequirementSaving] = useState(false);
   const toast = useToast();
+  const requirementPicker = useRequirementPicker();
+  const editContext = { path, setPath, scope: blueprintScope, setPageError: setError };
+  const addRequirements = useAddRequirements(editContext, requirementPicker);
+  const removeRequirement = useRemoveRequirement(editContext);
   const [editorMode, setEditorMode] = useState<EditorMode>("list");
   // Two-finger swipe between the two editors, the same gesture the admin and inbox pages use.
   const swipeRef = useSwipeableTabs<EditorMode, HTMLElement>({
@@ -452,136 +452,6 @@ export function BlueprintPathDetailPage() {
     }
 
     setEditTarget(nextTarget);
-  }
-
-  /** Opens the add overlay and loads its current skill/role choices on demand. */
-  async function openAddRequirements(phaseId: string) {
-    setAddRequirementTarget({ phaseId });
-    setRequirementType("SKILL");
-    setSelectedRequirementIds([]);
-    setIsRequirementCatalogLoading(true);
-    setRequirementError(null);
-    try {
-      setRequirementCatalog(await blueprintService.getRequirementCatalog());
-    } catch (reason) {
-      setRequirementError(
-        reason instanceof Error ? reason.message : "Requirement choices could not be loaded.",
-      );
-    } finally {
-      setIsRequirementCatalogLoading(false);
-    }
-  }
-
-  function toggleRequirementSelection(id: string) {
-    setSelectedRequirementIds((current) =>
-      current.includes(id) ? current.filter((currentId) => currentId !== id) : [...current, id],
-    );
-  }
-
-  /** Excludes requirements already attached to the phase from the add overlay. */
-  function getAvailableRequirementChoices() {
-    const phase = path?.blueprintPhases.find((item) => item.id === addRequirementTarget?.phaseId);
-    const existingReferenceIds = new Set(
-      (phase?.requirements ?? [])
-        .filter((requirement) => requirement.type === requirementType)
-        .map((requirement) => requirement.referenceId),
-    );
-    const choices =
-      requirementType === "SKILL"
-        ? (requirementCatalog?.skills ?? [])
-        : (requirementCatalog?.projectRoles ?? []);
-
-    return choices.filter((choice) => !existingReferenceIds.has(choice.id));
-  }
-
-  async function addRequirements(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!path || !addRequirementTarget || selectedRequirementIds.length === 0) return;
-    const phase = path.blueprintPhases.find((item) => item.id === addRequirementTarget.phaseId);
-    if (!phase) return;
-
-    setIsRequirementSaving(true);
-    setRequirementError(null);
-    try {
-      const response = await blueprintService.addPhaseRequirements(
-        blueprintScope,
-        phase.id,
-        phase.revision,
-        selectedRequirementIds.map((referenceId) => ({
-          referenceId,
-          type: requirementType,
-        })),
-      );
-      setPath((current) =>
-        current
-          ? {
-              ...current,
-              blueprintPhases: current.blueprintPhases.map((item) =>
-                item.id === phase.id
-                  ? {
-                      ...item,
-                      revision: response.revision,
-                      requirements: response.requirements,
-                    }
-                  : item,
-              ),
-            }
-          : current,
-      );
-      setAddRequirementTarget(null);
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "The phase requirement could not be added.",
-      );
-    } finally {
-      setIsRequirementSaving(false);
-    }
-  }
-
-  /**
-   * Takes one requirement off a phase.
-   *
-   * One at a time, from the chip itself: the thing being removed is already on screen.
-   */
-  async function removeRequirement(phaseId: string, requirementId: string) {
-    const phase = path?.blueprintPhases.find((item) => item.id === phaseId);
-    if (!phase) return;
-
-    setRemovingRequirementId(requirementId);
-    setError(null);
-    try {
-      const response = await blueprintService.deletePhaseRequirements(
-        blueprintScope,
-        phase.id,
-        phase.revision,
-        [requirementId],
-      );
-      setPath((current) =>
-        current
-          ? {
-              ...current,
-              blueprintPhases: current.blueprintPhases.map((item) =>
-                item.id === phase.id
-                  ? {
-                      ...item,
-                      revision: response.revision,
-                      requirements: (item.requirements ?? []).filter(
-                        (currentRequirement) => currentRequirement.id !== requirementId,
-                      ),
-                    }
-                  : item,
-              ),
-            }
-          : current,
-      );
-      toast.success("Requirement removed");
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "The phase requirement could not be removed.",
-      );
-    } finally {
-      setRemovingRequirementId(null);
-    }
   }
 
   async function createItem(event: React.FormEvent<HTMLFormElement>) {
@@ -1985,7 +1855,9 @@ export function BlueprintPathDetailPage() {
                               size="sm"
                               variant="secondary"
                               icon={<Plus className="h-3.5 w-3.5" />}
-                              onClick={() => whenEditable(() => void openAddRequirements(phase.id))}
+                              onClick={() =>
+                                whenEditable(() => void requirementPicker.open(phase.id))
+                              }
                             >
                               Add requirement
                             </Button>
@@ -2010,10 +1882,11 @@ export function BlueprintPathDetailPage() {
                                     size="sm"
                                     variant="dangerGhost"
                                     aria-label={`Remove requirement ${requirement.displayName}`}
-                                    loading={removingRequirementId === requirement.id}
+                                    loading={removeRequirement.removingId === requirement.id}
                                     onClick={() =>
                                       whenEditable(
-                                        () => void removeRequirement(phase.id, requirement.id),
+                                        () =>
+                                          void removeRequirement.remove(phase.id, requirement.id),
                                       )
                                     }
                                   >
@@ -2421,78 +2294,12 @@ export function BlueprintPathDetailPage() {
             ) : null}
           </section>
         )}
-        <Modal
-          isOpen={addRequirementTarget !== null}
-          title="Add phase requirements"
-          description="Select skills or project roles that must be met before this phase unlocks."
-          errorMessage={requirementError ?? undefined}
-          onClose={() => {
-            setAddRequirementTarget(null);
-            setRequirementError(null);
-          }}
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setAddRequirementTarget(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                type="submit"
-                form="add-phase-requirements"
-                loading={isRequirementSaving}
-                disabled={selectedRequirementIds.length === 0 || isRequirementCatalogLoading}
-              >
-                Add selected
-              </Button>
-            </>
-          }
-        >
-          {isRequirementCatalogLoading ? (
-            <div className="flex items-center gap-3 py-8 text-app-text-muted">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading requirement choices…
-            </div>
-          ) : (
-            <form
-              id="add-phase-requirements"
-              className="space-y-4"
-              onSubmit={(event) => void addRequirements(event)}
-            >
-              <Field label="Requirement type">
-                <Select
-                  value={requirementType}
-                  onChange={(event) => {
-                    setRequirementType(event.target.value as "SKILL" | "PROJECT_ROLE");
-                    setSelectedRequirementIds([]);
-                  }}
-                >
-                  <option value="SKILL">Skill</option>
-                  <option value="PROJECT_ROLE">Project role</option>
-                </Select>
-              </Field>
-              <fieldset>
-                <legend className="text-sm font-medium text-app-text">
-                  {requirementType === "SKILL" ? "Skills" : "Project roles"}
-                </legend>
-                <div className="mt-2 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-app-border bg-app-surface p-2">
-                  {getAvailableRequirementChoices().map((item) => (
-                    <label
-                      key={item.id}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-app-text hover:bg-app-surface-muted"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedRequirementIds.includes(item.id)}
-                        onChange={() => toggleRequirementSelection(item.id)}
-                        className="h-4 w-4 accent-[var(--color-app-brand)]"
-                      />
-                      {item.name}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </form>
-          )}
-        </Modal>
+        <AddRequirementsModal
+          picker={requirementPicker}
+          phase={path.blueprintPhases.find((item) => item.id === requirementPicker.target?.phaseId)}
+          isSaving={addRequirements.isSaving}
+          onSubmit={(event) => void addRequirements.submit(event)}
+        />
         <Modal
           isOpen={isHistoryOpen}
           title="Version history"
