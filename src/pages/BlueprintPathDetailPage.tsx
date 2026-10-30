@@ -46,9 +46,7 @@ import type {
   BlueprintPhase,
   BlueprintPath,
   BlueprintQuestion,
-  BlueprintResource,
   BlueprintStep,
-  BlueprintTask,
 } from "../features/blueprints/types.ts";
 import {
   BlueprintGraphEditor,
@@ -63,188 +61,25 @@ import { blueprintService, type BlueprintScope } from "../services/blueprintServ
 import { useProjectContext } from "../features/projects/useProjectContext.ts";
 import { useAuth } from "../context/useAuth.ts";
 
-type CreateKind = "phase" | "step" | "task" | "resource" | "question" | "option";
-type CreateTarget = {
-  kind: CreateKind;
-  parentId: string;
-  position: number;
-  graphPosition?: { graphX: number; graphY: number };
-} | null;
-/**
- * What the create/edit overlay is currently editing.
- *
- * Phase, step and question were missing: the list editor could add one and delete one, but not
- * rename one — the only way to change a phase's own fields was the graph editor's side panel, three
- * levels down and only on a draft. Deleting a phase from a surface that cannot edit it is the wrong
- * half of the pair to offer.
- */
-type EditTarget =
-  | { kind: "phase"; item: BlueprintPhase }
-  | { kind: "step"; item: BlueprintStep }
-  | { kind: "question"; item: BlueprintQuestion }
-  | { kind: "task"; item: BlueprintTask }
-  | { kind: "resource"; item: BlueprintResource }
-  | { kind: "option"; item: BlueprintOption }
-  | null;
-type SortKind = "phase" | "step" | "task" | "question" | "option";
-type RequirementTarget = { phaseId: string } | null;
-type RequirementCatalog = {
-  skills: { id: string; name: string }[];
-  projectRoles: { id: string; name: string }[];
-};
-
-/** What else goes when one of these is deleted — the part somebody has to weigh before saying yes. */
-type LifecycleAction = "publish" | "rollback" | "delete-draft";
-
-/**
- * What each one-way lifecycle action is called and what it costs, said before it happens.
- *
- * Archiving already asked; publishing, reverting and deleting a draft did not, although publishing
- * is the one action here that people outside the team see and a deleted draft cannot be brought
- * back.
- */
-const LIFECYCLE_COPY: Record<
-  LifecycleAction,
-  {
-    title: (version: number) => string;
-    description: string;
-    confirm: string;
-    busy: string;
-    failure: string;
-  }
-> = {
-  publish: {
-    title: (version) => `Publish version ${version}?`,
-    description:
-      "Every new hire on this project is given this version from now on, and the version published today stops being handed out. Anybody already on a path keeps their copy.",
-    confirm: "Publish",
-    busy: "Publishing…",
-    failure: "Blueprint could not be published.",
-  },
-  rollback: {
-    title: (version) => `Revert to version ${version}?`,
-    description:
-      "This version becomes the published blueprint again, and new hires are given it from now on. Anybody already on a path keeps their copy.",
-    confirm: "Revert",
-    busy: "Reverting…",
-    failure: "Blueprint version could not be restored.",
-  },
-  "delete-draft": {
-    title: (version) => `Delete draft version ${version}?`,
-    description:
-      "The draft and everything authored in it are gone for good — there is no undo. Published and archived versions are untouched.",
-    confirm: "Delete draft",
-    busy: "Deleting…",
-    failure: "Blueprint draft could not be deleted.",
-  },
-};
-
-const DELETE_CONSEQUENCE: Record<CreateKind, string> = {
-  phase: "Its steps, knowledge checks and every prerequisite pointing at it go with it.",
-  step: "Its tasks, resources and every prerequisite pointing at it go with it.",
-  question: "Its answer options and every prerequisite pointing at it go with it.",
-  task: "The line disappears from this step's checklist.",
-  resource: "The link disappears from this step.",
-  option: "The answer disappears from this question.",
-};
-
-const kindLabels: Record<CreateKind, string> = {
-  phase: "phase",
-  step: "step",
-  task: "task",
-  resource: "resource",
-  question: "question",
-  option: "option",
-};
-
-/**
- * What to put back in front of the author after landing somewhere new.
- *
- * Carried by title, not by id, because the one journey that needs it ends on a *copy*: opening a
- * draft duplicates every phase, step and question, so the ids the author was looking at a moment
- * ago exist nowhere on the page they arrive at. The titles are the ones they just read.
- */
-type BlueprintReopen = { phaseTitle: string; nodeTitle?: string };
-
-/**
- * A loaded path with its phases' graph coordinates and prerequisite edges filled in.
- *
- * Phases keep whatever the nested DTO said about everything else; only the three fields that
- * response cannot carry come from the graph.
- */
-function withGraphNodes(path: BlueprintPath, nodes: BlueprintGraphNode[]): BlueprintPath {
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
-
-  return {
-    ...path,
-    blueprintPhases: path.blueprintPhases.map((phase) => {
-      const node = nodesById.get(phase.id);
-      return node
-        ? {
-            ...phase,
-            revision: node.revision,
-            graphX: node.graphX,
-            graphY: node.graphY,
-            blockerIds: node.blockerIds,
-          }
-        : phase;
-    }),
-  };
-}
-
-/**
- * What this version of the blueprint means for the people it is for.
- *
- * The status badge says `DRAFT · v4`, which answers a question nobody asked. The question authors
- * actually have is whether editing this takes the thing out of service — and the answer is no: a
- * draft is a copy of the active version, and the active version keeps being handed to new hires
- * until the draft is published. Saying so is the difference between a surface people edit and one
- * they are afraid to touch.
- */
-function LifecycleNotice({
-  status,
-  version,
-}: {
-  status: BlueprintPath["status"];
-  version: number;
-}) {
-  if (status === "DRAFT") {
-    return (
-      <p className="rounded-xl border border-app-warning-border bg-app-warning-bg px-4 py-3 text-sm text-app-warning-text">
-        <strong className="font-semibold">Draft v{version}.</strong> Nothing here reaches anybody
-        yet — the published version keeps being handed to new hires until you press Publish. Every
-        change is saved as you make it; Publish is what swaps the two over.
-      </p>
-    );
-  }
-
-  if (status === "ARCHIVED") {
-    return (
-      <p className="rounded-xl border border-app-neutral-border bg-app-neutral-bg px-4 py-3 text-sm text-app-neutral-text">
-        <strong className="font-semibold">Archived v{version}.</strong> Read-only. Hires who were
-        given this path keep their copy; nobody new is given it. &ldquo;Revert to this
-        version&rdquo; makes it the published one again.
-      </p>
-    );
-  }
-
-  return (
-    <p className="rounded-xl border border-app-success-border bg-app-success-bg px-4 py-3 text-sm text-app-success-text">
-      <strong className="font-semibold">Published v{version}.</strong> This is what a new hire on
-      this project is given. To change it, open a draft — this version stays in service until the
-      draft is published.
-    </p>
-  );
-}
-
-/**
- * The two ways of looking at a blueprint, in the order the bar draws them.
- *
- * Both are editable, which is why neither is called "the editor": the outline is the whole thing
- * written out in order, the graph is the same content arranged by what waits on what.
- */
-const EDITOR_MODE_ORDER = ["list", "graph"] as const;
-type EditorMode = (typeof EDITOR_MODE_ORDER)[number];
+import {
+  EDITOR_MODE_ORDER,
+  type BlueprintReopen,
+  type CreateKind,
+  type CreateTarget,
+  type EditTarget,
+  type EditorMode,
+  type LifecycleAction,
+  type RequirementCatalog,
+  type RequirementTarget,
+  type SortKind,
+} from "../features/blueprints/pathEditorTypes.ts";
+import {
+  DELETE_CONSEQUENCE,
+  LIFECYCLE_COPY,
+  kindLabels,
+} from "../features/blueprints/pathEditorCopy.ts";
+import { withGraphNodes } from "../features/blueprints/withGraphNodes.ts";
+import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
  * Authors one Blueprint path and its reusable phases, content, and knowledge checks.
