@@ -25,7 +25,6 @@ import {
   X,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AlertDialog } from "../components/ui/AlertDialog.tsx";
 import { Badge } from "../components/ui/Badge.tsx";
 import { Button } from "../components/ui/Button.tsx";
 import { EmptyState } from "../components/ui/EmptyState.tsx";
@@ -73,12 +72,14 @@ import {
   type RequirementTarget,
   type SortKind,
 } from "../features/blueprints/pathEditorTypes.ts";
-import {
-  DELETE_CONSEQUENCE,
-  LIFECYCLE_COPY,
-  kindLabels,
-} from "../features/blueprints/pathEditorCopy.ts";
+import { LIFECYCLE_COPY, kindLabels } from "../features/blueprints/pathEditorCopy.ts";
 import { withGraphNodes } from "../features/blueprints/withGraphNodes.ts";
+import {
+  ArchiveDialog,
+  DeleteItemDialog,
+  DraftPromptDialog,
+  LifecycleDialog,
+} from "../features/blueprints/components/BlueprintPathDialogs.tsx";
 import { LifecycleNotice } from "../features/blueprints/components/LifecycleNotice.tsx";
 
 /**
@@ -1636,28 +1637,11 @@ export function BlueprintPathDetailPage() {
 
   return (
     <div className="min-h-screen">
-      <AlertDialog
-        isOpen={pendingDelete !== null}
-        title={
-          pendingDelete ? `Delete ${kindLabels[pendingDelete.kind]} "${pendingDelete.label}"?` : ""
-        }
-        description={
-          pendingDelete ? (
-            <>
-              <p>{DELETE_CONSEQUENCE[pendingDelete.kind]}</p>
-              <p className="mt-2">
-                Hires who already have a path built from this blueprint keep theirs — a personalized
-                path is a copy, not a live reference. This cannot be undone from here.
-              </p>
-            </>
-          ) : undefined
-        }
-        confirmLabel={pendingDelete ? `Delete ${kindLabels[pendingDelete.kind]}` : "Delete"}
-        variant="danger"
-        isLoading={pendingDelete !== null && deletingId === pendingDelete.id}
-        loadingLabel="Deleting…"
-        errorMessage={pendingDeleteError ?? undefined}
-        onClose={() => {
+      <DeleteItemDialog
+        pendingDelete={pendingDelete}
+        deletingId={deletingId}
+        error={pendingDeleteError}
+        onCancel={() => {
           setPendingDelete(null);
           setPendingDeleteError(null);
         }}
@@ -1674,83 +1658,31 @@ export function BlueprintPathDetailPage() {
           );
         }}
       />
-      <AlertDialog
+      <DraftPromptDialog
+        path={path}
         isOpen={isDraftPromptOpen}
-        title={
-          path?.status === "ARCHIVED" ? "This version is archived" : "This version is published"
-        }
-        description={
-          path?.status === "ARCHIVED" ? (
-            <p>
-              Archived versions are kept as they were. To work from this one again, use
-              &ldquo;Revert to this version&rdquo; — it becomes the published blueprint, and you can
-              open a draft from there.
-            </p>
-          ) : (
-            <>
-              <p>
-                Changes are made in a draft, so the version new hires are being given never changes
-                under them mid-edit.
-              </p>
-              <p className="mt-2">
-                Opening draft v{(path?.version ?? 0) + 1} leaves v{path?.version} published until
-                you press Publish. Nothing you do in the draft reaches anybody before that.
-              </p>
-            </>
-          )
-        }
-        confirmLabel={
-          path?.status === "ARCHIVED" ? "Close" : `Open draft v${(path?.version ?? 0) + 1}`
-        }
-        cancelLabel={path?.status === "ARCHIVED" ? undefined : "Not now"}
-        isLoading={isOpeningDraft}
-        loadingLabel="Opening draft…"
-        errorMessage={draftPromptError ?? undefined}
+        isBusy={isOpeningDraft}
+        error={draftPromptError}
         onClose={() => setIsDraftPromptOpen(false)}
         onConfirm={() => {
-          if (path?.status === "ARCHIVED") {
+          if (path.status === "ARCHIVED") {
             setIsDraftPromptOpen(false);
             return;
           }
           void openDraftAndContinue(null);
         }}
       />
-      <AlertDialog
+      <ArchiveDialog
         isOpen={isArchiveConfirmOpen}
-        title="Archive this blueprint?"
-        description={
-          <>
-            <p>
-              New hires stop being given this path. Anybody already on one keeps the copy they were
-              given — a personalized path is a copy, not a live reference.
-            </p>
-            <p className="mt-2">
-              Any unpublished draft of this blueprint is deleted with it. You can bring an archived
-              version back from the version history.
-            </p>
-          </>
-        }
-        confirmLabel="Archive"
-        variant="danger"
-        isLoading={isArchiving}
-        loadingLabel="Archiving…"
+        isBusy={isArchiving}
         onClose={() => setIsArchiveConfirmOpen(false)}
         onConfirm={() => void archivePath()}
       />
-      <AlertDialog
-        isOpen={pendingLifecycle !== null}
-        title={
-          pendingLifecycle
-            ? LIFECYCLE_COPY[pendingLifecycle.action].title(pendingLifecycle.version.version)
-            : ""
-        }
-        description={pendingLifecycle ? LIFECYCLE_COPY[pendingLifecycle.action].description : ""}
-        confirmLabel={pendingLifecycle ? LIFECYCLE_COPY[pendingLifecycle.action].confirm : ""}
-        variant={pendingLifecycle?.action === "delete-draft" ? "danger" : "default"}
-        isLoading={isLifecycleBusy}
-        loadingLabel={pendingLifecycle ? LIFECYCLE_COPY[pendingLifecycle.action].busy : ""}
-        errorMessage={lifecycleError ?? undefined}
-        onClose={() => {
+      <LifecycleDialog
+        pending={pendingLifecycle}
+        isBusy={isLifecycleBusy}
+        error={lifecycleError}
+        onCancel={() => {
           if (isLifecycleBusy) return;
           setPendingLifecycle(null);
           setLifecycleError(null);
