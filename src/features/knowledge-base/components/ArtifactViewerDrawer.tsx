@@ -16,14 +16,17 @@ import rehypeKatex from "rehype-katex";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { Artifact, ArtifactContent, ArtifactSummaryCitation } from "../types";
+import type { Artifact } from "../types";
+import { drawerReducer, initialState } from "../drawerState";
+import { knowledgeBaseOf, shouldRenderAsMarkdown } from "../artifactPresentation";
+import { formatLineRanges, isNodeHighlighted, type HastNode } from "../lineHighlight";
+import { languageForFilename } from "../sourceLanguage";
 import { questionForArtifact, quoteForChat } from "../../../hooks/askAiQuote";
 import { useArtifactSelection } from "../hooks/useArtifactSelection";
 import { useAskAi } from "../../../hooks/useAskAi";
 import { isEmptyContent, summariseBlockReason } from "../summarizability";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { preprocessMarkdown } from "../markdown";
-import { findConnector } from "../../data-ingestion/connectors/registry";
 import { getArtifactRepository } from "../githubMetadata";
 import { knowledgeService } from "../../../services/knowledgeService";
 import { RepositoryBadge } from "./RepositoryBadge";
@@ -60,206 +63,12 @@ interface ArtifactViewerDrawerProps {
   lockScroll?: boolean;
 }
 
-type ViewMode = "raw" | "summary";
-type MarkdownViewMode = "rendered" | "source";
-
-interface DrawerState {
-  viewMode: ViewMode;
-  markdownViewMode: MarkdownViewMode;
-  content: ArtifactContent | null;
-  summary: string;
-  citations: ArtifactSummaryCitation[];
-  isLoading: boolean;
-  isFetchingSummary: boolean;
-  isIndexing: boolean;
-  isDeleting: boolean;
-  isConfirmDeleteOpen: boolean;
-  stageDetail?: string;
-  error: string | null;
-}
-
-type DrawerAction =
-  | { type: "reset" }
-  | { type: "loadStart" }
-  | { type: "loadSuccess"; content: ArtifactContent }
-  | { type: "loadError"; error: string }
-  | { type: "skipContentLoad" }
-  | { type: "setMarkdownViewMode"; mode: MarkdownViewMode }
-  | { type: "summarizeStart" }
-  | { type: "summarizeIndexing" }
-  | { type: "summarizeStage"; name: string; detail: string }
-  | { type: "summarizeToken"; chunk: string }
-  | { type: "summarizeCitation"; citation: ArtifactSummaryCitation }
-  | { type: "summarizeDone" }
-  | { type: "summarizeError"; error: string }
-  | { type: "showRaw" }
-  | { type: "deleteStart" }
-  | { type: "deleteSuccess" }
-  | { type: "deleteFailed" }
-  | { type: "openDeleteConfirm" }
-  | { type: "closeDeleteConfirm" };
-
-const initialState: DrawerState = {
-  viewMode: "raw",
-  markdownViewMode: "rendered",
-  content: null,
-  summary: "",
-  citations: [],
-  isLoading: false,
-  isFetchingSummary: false,
-  isIndexing: false,
-  isDeleting: false,
-  isConfirmDeleteOpen: false,
-  stageDetail: undefined,
-  error: null,
-};
-
-function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
-  switch (action.type) {
-    case "reset":
-      return { ...initialState, isLoading: true };
-    case "loadStart":
-      return { ...state, isLoading: true, error: null };
-    case "loadSuccess":
-      return { ...state, isLoading: false, content: action.content };
-    case "skipContentLoad":
-      // Artifacts shown from their metadata have no stored content (an organization's
-      // content endpoint redirects), so nothing to fetch — just end the loading state.
-      return { ...state, isLoading: false };
-    case "loadError":
-      return { ...state, isLoading: false, error: action.error };
-    case "setMarkdownViewMode":
-      return { ...state, markdownViewMode: action.mode };
-    case "summarizeStart":
-      return {
-        ...state,
-        viewMode: "summary",
-        summary: "",
-        citations: [],
-        isFetchingSummary: true,
-        isIndexing: false,
-        stageDetail: undefined,
-        error: null,
-      };
-    case "summarizeIndexing":
-      return { ...state, isFetchingSummary: true, isIndexing: true, stageDetail: undefined };
-    case "summarizeStage":
-      return { ...state, isFetchingSummary: true, isIndexing: false, stageDetail: action.detail };
-    case "summarizeToken":
-      return { ...state, summary: state.summary + action.chunk };
-    case "summarizeCitation":
-      return { ...state, citations: [...state.citations, action.citation] };
-    case "summarizeDone":
-      return { ...state, isFetchingSummary: false, isIndexing: false };
-    case "summarizeError":
-      return { ...state, isFetchingSummary: false, isIndexing: false, error: action.error };
-    case "showRaw":
-      return { ...state, viewMode: "raw" };
-    case "deleteStart":
-      return { ...state, isDeleting: true };
-    case "deleteSuccess":
-      return { ...state, isDeleting: false };
-    case "deleteFailed":
-      return { ...state, isDeleting: false };
-    case "openDeleteConfirm":
-      return { ...state, isConfirmDeleteOpen: true };
-    case "closeDeleteConfirm":
-      return { ...state, isConfirmDeleteOpen: false };
-    default:
-      return state;
-  }
-}
-
-/**
- * How the artifact's connector presents it, or undefined for a source system the
- * frontend does not know yet. Such an artifact is shown as plain content with its
- * source link and cannot be deleted.
- */
-function knowledgeBaseOf(artifact: Artifact) {
-  return findConnector(artifact.sourceSystem)?.knowledgeBase;
-}
-
-/**
- * Determines whether an artifact should be rendered as Markdown.
- * Issues, Pull Requests, Jira items, Confluence artifacts, and Markdown files (.md/.markdown) are always rendered as Markdown.
- * Confluence is detected via sourceSystem or a /wiki/spaces/ URL pattern.
- */
-const shouldRenderAsMarkdown = (
-  content: ArtifactContent | null | undefined,
-  artifact: Artifact | null,
-): boolean => {
-  if (!content) return false;
-  const title = artifact?.title?.toLowerCase() ?? "";
-  const sourceUrl = artifact?.sourceUrl?.toLowerCase() ?? "";
-
-  const isMd =
-    title.endsWith(".md") ||
-    title.endsWith(".markdown") ||
-    title.endsWith(".mdown") ||
-    title.endsWith(".mkd");
-
-  const isPrOrIssue =
-    artifact?.artifactType === "ISSUE" ||
-    artifact?.artifactType === "PULL_REQUEST" ||
-    title.startsWith("pr #") ||
-    title.startsWith("pull request") ||
-    title.startsWith("issue #") ||
-    title.startsWith("jira #") ||
-    sourceUrl.includes("/pull/") ||
-    sourceUrl.includes("/pull-requests/") ||
-    sourceUrl.includes("/issues/") ||
-    sourceUrl.includes("/browse/");
-
-  const isConfluence =
-    (artifact !== null && knowledgeBaseOf(artifact)?.markdown === true) ||
-    sourceUrl.includes("/wiki/spaces/");
-
-  return content.mimeType.startsWith("text/markdown") || isPrOrIssue || isMd || isConfluence;
-};
-
 // Hoisted to module scope so ReactMarkdown doesn't see a new array on every render
 // (otherwise it always re-renders even when the content is unchanged).
 const REMARK_PLUGINS = [remarkGfm, remarkMath];
 const REHYPE_PLUGINS: ReactMarkdownOptions["rehypePlugins"] = [
   [rehypeKatex, { strict: "ignore", errorColor: "inherit" }],
 ];
-
-type UnistPosition = {
-  start: { line: number; column: number; offset?: number };
-  end: { line: number; column: number; offset?: number };
-};
-
-type HastNode = {
-  type?: string;
-  tagName?: string;
-  position?: UnistPosition;
-};
-
-/**
- * Checks whether an AST node's line position intersects with the requested highlight lines.
- */
-function isNodeHighlighted(
-  node?: HastNode,
-  highlightLines?: number[],
-): { isHighlighted: boolean; startLine?: number; endLine?: number } {
-  if (!highlightLines || highlightLines.length === 0 || !node?.position) {
-    return { isHighlighted: false };
-  }
-  const start = node.position.start.line;
-  const end = node.position.end.line;
-  const isHighlighted = highlightLines.some((line) => line >= start && line <= end);
-  return { isHighlighted, startLine: start, endLine: end };
-}
-
-function formatLineRanges(lines?: number[]): string {
-  if (!lines || lines.length === 0) return "";
-  const sorted = [...new Set(lines)].sort((a, b) => a - b);
-  if (sorted.length === 1) return `Line ${sorted[0]}`;
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (last === first) return `Line ${first}`;
-  return `Lines ${first}–${last}`;
-}
 
 const STATIC_MARKDOWN_COMPONENTS = {
   code({ className, children }: { className?: string; children?: ReactNode }) {
@@ -580,51 +389,6 @@ function createMarkdownComponents(highlightLines?: number[]) {
     },
   };
 }
-
-const getLanguage = (filename?: string | null) => {
-  if (!filename) return "text";
-  const ext = filename.split(".").pop()?.toLowerCase();
-  if (filename.toLowerCase() === "dockerfile") return "docker";
-  switch (ext) {
-    case "js":
-    case "jsx":
-      return "javascript";
-    case "ts":
-    case "tsx":
-      return "typescript";
-    case "py":
-      return "python";
-    case "kt":
-    case "kts":
-      return "kotlin";
-    case "java":
-      return "java";
-    case "md":
-      return "markdown";
-    case "json":
-      return "json";
-    case "yml":
-    case "yaml":
-      return "yaml";
-    case "sh":
-      return "bash";
-    case "html":
-      return "markup";
-    case "css":
-      return "css";
-    case "sql":
-      return "sql";
-    case "xml":
-      return "xml";
-    case "csv":
-      return "csv";
-    default:
-      // Plain text beats guessing TypeScript: extension-less titles (LICENSE,
-      // Makefile, dotfiles) and unknown extensions rendered as TS produce
-      // nonsense highlighting; unstyled plain text stays honest.
-      return "text";
-  }
-};
 
 /**
  * ArtifactViewerDrawer
@@ -1214,7 +978,9 @@ export function ArtifactViewerDrawer({
               ) : (
                 <div className="overflow-hidden rounded-lg border border-app-border text-sm">
                   <SyntaxHighlighter
-                    language={isMarkdownArtifact ? "markdown" : getLanguage(artifact?.title)}
+                    language={
+                      isMarkdownArtifact ? "markdown" : languageForFilename(artifact?.title)
+                    }
                     style={vscDarkPlus}
                     showLineNumbers={true}
                     wrapLines={true}

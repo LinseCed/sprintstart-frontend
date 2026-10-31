@@ -1367,7 +1367,7 @@
   },
   "src/features/knowledge-base/components/ArtifactViewerDrawer.tsx": {
     "complexity": {
-      "count": 5
+      "count": 2
     },
     "max-lines": {
       "count": 1
