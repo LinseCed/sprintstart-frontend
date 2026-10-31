@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Sparkles,
   ArrowLeft,
@@ -14,7 +14,7 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { Artifact, ArtifactContent } from "../types";
-import { drawerReducer, initialState } from "../drawerState";
+import { useArtifactDrawerData } from "../hooks/useArtifactDrawerData";
 import { shouldRenderAsMarkdown } from "../artifactPresentation";
 import { findConnector } from "../../data-ingestion/connectors/registry";
 import { formatLineRanges } from "../lineHighlight";
@@ -37,7 +37,6 @@ import { RepositoryBadge } from "./RepositoryBadge";
 import { SourceLinkBadge } from "./SourceLinkBadge";
 import { useToast } from "../../../context/useToast";
 import { Button } from "../../../components/ui/Button";
-import { ApiError } from "../../../services/apiClient";
 import { SidePanel } from "../../../components/ui/SidePanel";
 import { Modal } from "../../../components/ui/Modal";
 import { useAuth } from "../../../context/useAuth";
@@ -100,78 +99,16 @@ export function ArtifactViewerDrawer({
   lockScroll = true,
 }: ArtifactViewerDrawerProps) {
   const { profile } = useAuth();
-  const [state, dispatch] = useReducer(drawerReducer, initialState);
   const toast = useToast();
-
-  const abortRef = useRef<AbortController | null>(null);
-  // Bumped each time the user switches artifact or unmounts. Long-running
-  // summarize loops read this to bail out before dispatching into a stale reducer.
-  const summarizeGenerationRef = useRef(0);
+  const skipContentLoad = Boolean(
+    artifact && knowledgeBaseOf(artifact)?.metadataView?.appliesTo(artifact),
+  );
+  const { state, dispatch, summarize } = useArtifactDrawerData(
+    artifact,
+    projectId,
+    skipContentLoad,
+  );
   const contentContainerRef = useRef<HTMLDivElement | null>(null);
-
-  /**
-   * Loads the raw artifact content from the backend whenever a new artifact is selected.
-   * Required to properly render the markdown or raw text in the drawer.
-   */
-  useEffect(() => {
-    if (!artifact) return;
-
-    // Invalidate any in-flight summarize loop: when the artifact changes, the
-    // previous loop's pending retry delay must not start a new stream for the
-    // old artifact, and must not abort the new artifact's controller.
-    summarizeGenerationRef.current++;
-    abortRef.current?.abort();
-    abortRef.current = null;
-
-    let isMounted = true;
-    // `reset` action also closes any open delete-confirm modal so a stale
-    // confirmation for the previous artifact can't be carried over.
-    dispatch({ type: "reset" });
-
-    // Artifacts with a metadata view carry no stored bytes: for a GitHub organization
-    // the backend's content endpoint answers a 302 redirect to the org's GitHub page,
-    // and following it would land the drawer on GitHub's HTML. They render purely from
-    // `artifact.metadata` (org profile/teams/members), so skip the fetch entirely.
-    if (knowledgeBaseOf(artifact)?.metadataView?.appliesTo(artifact)) {
-      dispatch({ type: "skipContentLoad" });
-      const myGeneration = summarizeGenerationRef.current;
-      return () => {
-        isMounted = false;
-        summarizeGenerationRef.current = myGeneration + 1;
-        abortRef.current?.abort();
-        abortRef.current = null;
-      };
-    }
-
-    knowledgeService
-      .getArtifactContent(projectId, artifact.id, artifact.sourceSystem)
-      .then((data) => {
-        if (isMounted) dispatch({ type: "loadSuccess", content: data });
-      })
-      .catch((err) => {
-        if (isMounted)
-          dispatch({ type: "loadError", error: err instanceof Error ? err.message : String(err) });
-      });
-
-    const myGeneration = summarizeGenerationRef.current;
-    return () => {
-      isMounted = false;
-      // Bump unconditionally: unmount or artifact switch invalidates any in-flight
-      // summarize loop captured against `myGeneration`. Idempotent if already bumped.
-      summarizeGenerationRef.current = myGeneration + 1;
-      abortRef.current?.abort();
-      abortRef.current = null;
-    };
-  }, [artifact, projectId]);
-
-  useEffect(() => {
-    const currentContent = state.content;
-    return () => {
-      if (currentContent?.isObjectUrl) {
-        URL.revokeObjectURL(currentContent.content);
-      }
-    };
-  }, [state.content]);
 
   const scrollToHighlightedChunk = useCallback(() => {
     if (!highlightLines || highlightLines.length === 0) return;
@@ -228,84 +165,6 @@ export function ArtifactViewerDrawer({
     () => createMarkdownComponents(highlightLines),
     [highlightLines],
   );
-
-  /**
-   * Triggers the AI summarization stream for the currently loaded artifact.
-   *
-   * The backend may return 503 when the artifact is still being indexed by the AI service
-   * (the async ingestion hasn't completed yet). In that case the handler aborts the current
-   * stream and retries with exponential backoff (2s, 4s, 8s, ... capped at 30s), showing a
-   * "Preparing summary..." spinner until the artifact is ready. Non-503 errors surface
-   * immediately with a retry button.
-   *
-   * Race-safety: each invocation captures a generation token; the content-load effect bumps
-   * `summarizeGenerationRef` on artifact change/unmount, so a pending retry delay for the
-   * previous artifact bails out before starting a stale stream. The retry delay itself is
-   * wired to the same `AbortController` as the stream, so unmount cancels both the in-flight
-   * fetch and the pending timeout.
-   */
-  const handleSummarize = async () => {
-    if (!artifact) return;
-
-    const myGeneration = ++summarizeGenerationRef.current;
-    dispatch({ type: "summarizeStart" });
-
-    let attempt = 0;
-    while (true) {
-      if (myGeneration !== summarizeGenerationRef.current) return;
-
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      try {
-        await knowledgeService.streamArtifactSummary(
-          projectId,
-          artifact.id,
-          {
-            onStage: (name, detail) => dispatch({ type: "summarizeStage", name, detail }),
-            onToken: (chunk) => dispatch({ type: "summarizeToken", chunk }),
-            onCitation: (citation) => dispatch({ type: "summarizeCitation", citation }),
-            onDone: () => dispatch({ type: "summarizeDone" }),
-          },
-          controller.signal,
-        );
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-        const isStillIndexing = err instanceof ApiError && err.status === 503;
-        if (!isStillIndexing) {
-          const message = err instanceof Error ? err.message : "Failed to summarize";
-          dispatch({ type: "summarizeError", error: message });
-          return;
-        }
-        dispatch({ type: "summarizeIndexing" });
-        const delay = Math.min(2000 * Math.pow(2, attempt), 30000);
-        // Abortable sleep: if the controller aborts (unmount / artifact change /
-        // a newer summarize loop), stop immediately instead of waiting out the
-        // timer. Resolves `true` rather than rejecting: `handleSummarize` runs
-        // fire-and-forget (`void handleSummarize()`), so a rejected sleep would
-        // escape as an unhandled promise rejection.
-        const aborted = await new Promise<boolean>((resolve) => {
-          const timer = setTimeout(() => resolve(false), delay);
-          controller.signal.addEventListener(
-            "abort",
-            () => {
-              clearTimeout(timer);
-              resolve(true);
-            },
-            { once: true },
-          );
-        });
-        if (aborted) {
-          return;
-        }
-        attempt++;
-      }
-    }
-  };
 
   const {
     viewMode,
@@ -509,7 +368,7 @@ export function ArtifactViewerDrawer({
         <Button
           variant="primary"
           size="sm"
-          onClick={() => void handleSummarize()}
+          onClick={() => void summarize()}
           disabled={summariseBlockedReason !== null}
           // Keeps the reason reachable without sight; the accessible name still
           // begins with the visible label.
@@ -739,7 +598,7 @@ export function ArtifactViewerDrawer({
               <div className="flex items-center gap-3">
                 <Button
                   variant="primary"
-                  onClick={() => void handleSummarize()}
+                  onClick={() => void summarize()}
                   data-testid="retry-summary-btn"
                   icon={<RefreshCw className="h-4 w-4" />}
                 >
