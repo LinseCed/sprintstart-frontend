@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useMemo, useCallback, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useMemo, useCallback } from "react";
 import {
   Sparkles,
   ArrowLeft,
@@ -9,10 +9,7 @@ import {
   BookOpen,
   MessageSquare,
 } from "lucide-react";
-import ReactMarkdown, { type Options as ReactMarkdownOptions } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
+import ReactMarkdown from "react-markdown";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -20,7 +17,13 @@ import type { Artifact, ArtifactContent } from "../types";
 import { drawerReducer, initialState } from "../drawerState";
 import { shouldRenderAsMarkdown } from "../artifactPresentation";
 import { findConnector } from "../../data-ingestion/connectors/registry";
-import { formatLineRanges, isNodeHighlighted, type HastNode } from "../lineHighlight";
+import { formatLineRanges } from "../lineHighlight";
+import {
+  REHYPE_PLUGINS,
+  REMARK_PLUGINS,
+  createMarkdownComponents,
+  staticMarkdownComponents,
+} from "./markdownComponents";
 import { languageForFilename } from "../sourceLanguage";
 import { questionForArtifact, quoteForChat } from "../../../hooks/askAiQuote";
 import { useArtifactSelection } from "../hooks/useArtifactSelection";
@@ -62,333 +65,6 @@ interface ArtifactViewerDrawerProps {
   onDelete: (artifactId: string) => void;
   /** Whether to lock background scrolling while the drawer is open. Defaults to true. */
   lockScroll?: boolean;
-}
-
-// Hoisted to module scope so ReactMarkdown doesn't see a new array on every render
-// (otherwise it always re-renders even when the content is unchanged).
-const REMARK_PLUGINS = [remarkGfm, remarkMath];
-const REHYPE_PLUGINS: ReactMarkdownOptions["rehypePlugins"] = [
-  [rehypeKatex, { strict: "ignore", errorColor: "inherit" }],
-];
-
-const STATIC_MARKDOWN_COMPONENTS = {
-  code({ className, children }: { className?: string; children?: ReactNode }) {
-    const match = /language-(\w+)/.exec(className || "");
-    if (!match) {
-      return <code className={className}>{children}</code>;
-    }
-    return (
-      <div className="my-4 overflow-hidden rounded-lg border border-app-border text-sm">
-        <SyntaxHighlighter
-          language={match[1]}
-          style={vscDarkPlus}
-          showLineNumbers={false}
-          wrapLines={true}
-          customStyle={{ margin: 0, padding: "1rem", backgroundColor: "var(--color-app-bg)" }}
-        >
-          {/* react-markdown passes a code block's text as its children, never an object. */}
-          {/* eslint-disable-next-line @typescript-eslint/no-base-to-string */}
-          {String(children).replace(/\n$/, "")}
-        </SyntaxHighlighter>
-      </div>
-    );
-  },
-  table: ({ children }: { children?: ReactNode }) => (
-    <div className="overflow-x-auto">
-      <table>{children}</table>
-    </div>
-  ),
-  pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
-} as const;
-
-function createMarkdownComponents(highlightLines?: number[]) {
-  const highlightClass =
-    "rounded-r-lg border-l-4 border-app-brand bg-app-brand-soft/75 px-3.5 py-2 my-2 shadow-xs ring-1 ring-app-brand-border/50 transition-colors dark:bg-app-brand/20 dark:ring-app-brand/30";
-
-  return {
-    code({
-      className,
-      children,
-      node,
-    }: {
-      className?: string;
-      children?: ReactNode;
-      node?: HastNode;
-    }) {
-      const match = /language-(\w+)/.exec(className || "");
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      if (!match) {
-        return (
-          <code
-            data-highlighted={isHighlighted || undefined}
-            className={`${className || ""} ${
-              isHighlighted
-                ? "rounded bg-app-brand-soft px-1 py-0.5 font-bold text-app-brand-text ring-1 ring-app-brand-border dark:bg-app-brand/30 dark:text-app-text"
-                : ""
-            }`}
-          >
-            {children}
-          </code>
-        );
-      }
-      return (
-        <div
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`my-4 overflow-hidden rounded-lg border text-sm transition-all ${
-            isHighlighted
-              ? "border-app-brand shadow-sm ring-2 ring-app-brand/40"
-              : "border-app-border"
-          }`}
-        >
-          <SyntaxHighlighter
-            language={match[1]}
-            style={vscDarkPlus}
-            showLineNumbers={false}
-            wrapLines={true}
-            customStyle={{ margin: 0, padding: "1rem", backgroundColor: "var(--color-app-bg)" }}
-          >
-            {/* react-markdown passes a code block's text as its children, never an object. */}
-            {/* eslint-disable-next-line @typescript-eslint/no-base-to-string */}
-            {String(children).replace(/\n$/, "")}
-          </SyntaxHighlighter>
-        </div>
-      );
-    },
-    table: ({ children }: { children?: ReactNode }) => (
-      <div className="overflow-x-auto">
-        <table>{children}</table>
-      </div>
-    ),
-    pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
-    p({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <p
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </p>
-      );
-    },
-    h1({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <h1
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </h1>
-      );
-    },
-    h2({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <h2
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </h2>
-      );
-    },
-    h3({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <h3
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </h3>
-      );
-    },
-    h4({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <h4
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </h4>
-      );
-    },
-    h5({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <h5
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </h5>
-      );
-    },
-    h6({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <h6
-          id={startLine ? `line-${startLine}` : undefined}
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </h6>
-      );
-    },
-    blockquote({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <blockquote
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${isHighlighted ? highlightClass : ""}`}
-        >
-          {children}
-        </blockquote>
-      );
-    },
-    li({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <li
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${
-            isHighlighted
-              ? "my-1 rounded-r-md border-l-4 border-app-brand bg-app-brand-soft/75 py-1 pr-1.5 pl-2.5 ring-1 ring-app-brand-border/50 dark:bg-app-brand/20 dark:ring-app-brand/30"
-              : ""
-          }`}
-        >
-          {children}
-        </li>
-      );
-    },
-    tr({
-      children,
-      node,
-      className,
-    }: {
-      children?: ReactNode;
-      node?: HastNode;
-      className?: string;
-    }) {
-      const { isHighlighted, startLine, endLine } = isNodeHighlighted(node, highlightLines);
-      return (
-        <tr
-          data-highlighted={isHighlighted || undefined}
-          data-line-start={startLine}
-          data-line-end={endLine}
-          className={`${className || ""} ${
-            isHighlighted
-              ? "border-l-4 border-app-brand bg-app-brand-soft/80 font-medium dark:bg-app-brand/25"
-              : ""
-          }`}
-        >
-          {children}
-        </tr>
-      );
-    },
-  };
 }
 
 /**
@@ -1084,7 +760,7 @@ export function ArtifactViewerDrawer({
                 <ReactMarkdown
                   remarkPlugins={REMARK_PLUGINS}
                   rehypePlugins={REHYPE_PLUGINS}
-                  components={STATIC_MARKDOWN_COMPONENTS}
+                  components={staticMarkdownComponents()}
                 >
                   {preprocessMarkdown(summary)}
                 </ReactMarkdown>
