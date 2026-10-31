@@ -1,14 +1,4 @@
 import type { Artifact, ArtifactContent } from "./types";
-import { findConnector } from "../data-ingestion/connectors/registry";
-
-/**
- * How the artifact's connector presents it, or undefined for a source system the
- * frontend does not know yet. Such an artifact is shown as plain content with its
- * source link and cannot be deleted.
- */
-export function knowledgeBaseOf(artifact: Artifact) {
-  return findConnector(artifact.sourceSystem)?.knowledgeBase;
-}
 
 const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdown", ".mkd"];
 const PR_OR_ISSUE_TITLE_PREFIXES = ["pr #", "pull request", "issue #", "jira #"];
@@ -31,20 +21,15 @@ function isPullRequestOrIssue(artifact: Artifact | null, title: string, sourceUr
   );
 }
 
-function isWikiPage(artifact: Artifact | null, sourceUrl: string): boolean {
-  const connectorRendersMarkdown =
-    artifact !== null && knowledgeBaseOf(artifact)?.markdown === true;
-  return connectorRendersMarkdown || sourceUrl.includes("/wiki/spaces/");
-}
-
 /**
  * Determines whether an artifact should be rendered as Markdown.
  * Issues, Pull Requests, Jira items, Confluence artifacts, and Markdown files (.md/.markdown) are always rendered as Markdown.
- * Confluence is detected via sourceSystem or a /wiki/spaces/ URL pattern.
+ * Confluence is detected via the connector (`connectorRendersMarkdown`) or a /wiki/spaces/ URL pattern.
  */
 export const shouldRenderAsMarkdown = (
   content: ArtifactContent | null | undefined,
   artifact: Artifact | null,
+  connectorRendersMarkdown: boolean,
 ): boolean => {
   if (!content) return false;
   const title = lowercased(artifact?.title);
@@ -54,6 +39,7 @@ export const shouldRenderAsMarkdown = (
     content.mimeType.startsWith("text/markdown") ||
     isPullRequestOrIssue(artifact, title, sourceUrl) ||
     isMarkdownFile(title) ||
-    isWikiPage(artifact, sourceUrl)
+    connectorRendersMarkdown ||
+    sourceUrl.includes("/wiki/spaces/")
   );
 };

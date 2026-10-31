@@ -16,9 +16,10 @@ import rehypeKatex from "rehype-katex";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { Artifact } from "../types";
+import type { Artifact, ArtifactContent } from "../types";
 import { drawerReducer, initialState } from "../drawerState";
-import { knowledgeBaseOf, shouldRenderAsMarkdown } from "../artifactPresentation";
+import { shouldRenderAsMarkdown } from "../artifactPresentation";
+import { findConnector } from "../../data-ingestion/connectors/registry";
 import { formatLineRanges, isNodeHighlighted, type HastNode } from "../lineHighlight";
 import { languageForFilename } from "../sourceLanguage";
 import { questionForArtifact, quoteForChat } from "../../../hooks/askAiQuote";
@@ -391,6 +392,21 @@ function createMarkdownComponents(highlightLines?: number[]) {
 }
 
 /**
+ * How the artifact's connector presents it, or undefined for a source system the
+ * frontend does not know yet. Such an artifact is shown as plain content with its
+ * source link and cannot be deleted.
+ */
+function knowledgeBaseOf(artifact: Artifact) {
+  return findConnector(artifact.sourceSystem)?.knowledgeBase;
+}
+
+function rendersAsMarkdown(content: ArtifactContent | null, artifact: Artifact | null): boolean {
+  const connectorRendersMarkdown =
+    artifact !== null && knowledgeBaseOf(artifact)?.markdown === true;
+  return shouldRenderAsMarkdown(content, artifact, connectorRendersMarkdown);
+}
+
+/**
  * ArtifactViewerDrawer
  *
  * Slide-out panel that displays the raw content of a selected artifact.
@@ -732,8 +748,7 @@ export function ArtifactViewerDrawer({
   const canDeleteThisArtifact =
     canDelete && artifact !== null && knowledgeBaseOf(artifact)?.deletable === true;
 
-  const isMarkdownArtifact =
-    artifact && content ? shouldRenderAsMarkdown(content, artifact) : false;
+  const isMarkdownArtifact = artifact && content ? rendersAsMarkdown(content, artifact) : false;
 
   const isPdfOrImage =
     content?.mimeType === "application/pdf" || (content?.mimeType.startsWith("image/") ?? false);
@@ -940,7 +955,7 @@ export function ArtifactViewerDrawer({
                   </EmptyState>
                 </div>
               ) : content &&
-                shouldRenderAsMarkdown(content, artifact) &&
+                rendersAsMarkdown(content, artifact) &&
                 markdownViewMode === "rendered" ? (
                 <div className="prose prose-sm max-w-none break-words text-app-text dark:prose-invert">
                   <ReactMarkdown
